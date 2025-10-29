@@ -1,0 +1,97 @@
+general:
+  length: length
+  entrance_edge_angle: dipole_e1
+  exit_edge_angle: dipole_e2
+  edge_field_integral: fringe_integral
+  half_gap: gap
+  horizontal_size: x_max
+  vertical_size: y_max
+  output_filename: filename
+  csr_bins: bins
+  hangle: hkick
+  vangle: vkick
+  csrdz: dz
+  change_momentum: change_p0
+  bunched_beam: bunched_beam_mode
+  current_bins: n_bins
+  lsc_enable: lsc
+  tilt_angle: tilt
+dipole:
+  isr_enable: isr
+  sr_enable: synch_rad
+  csr_enable: csr
+  smoothing_half_width: sg_halfwidth
+  csr_bins: bins
+  edge_order: edge_order
+  lsc_high_frequency_cutoff_start: high_frequency_cutoff0
+  lsc_high_frequency_cutoff_end: high_frequency_cutoff1
+  lsc_low_frequency_cutoff_start: low_frequency_cutoff0
+  lsc_low_frequency_cutoff_end: low_frequency_cutoff1
+  n_kicks: n_slices
+  half_gap: hgap
+  angle: angle
+quadrupole:
+  isr_enable: isr
+  sr_enable: synch_rad
+  n_kicks: n_slices
+sextupole:
+  isr_enable: isr
+  sr_enable: synch_rad
+  n_kicks: n_slices
+cavity:
+  field_amplitude: voltage
+  frequency: frequency
+  phase: phase
+  length: length
+rf_deflecting_cavity:
+  field_amplitude: voltage
+solenoid:
+  field_amplitude: k
+scatter:
+  horizontal_scatter: x
+  vertical_scatter: y
+  horizontal_momentum_scatter: xp
+  vertical_momentum_scatter: yp
+  relative_momentum_scatter: dp
+csrdrift:
+  csrdz: dz
+  lsc_low_frequency_cutoff_start: lsc_low_frequency_cutoff0
+  lsc_low_frequency_cutoff_end: lsc_low_frequency_cutoff1
+  lsc_high_frequency_cutoff_start: lsc_high_frequency_cutoff0
+  lsc_high_frequency_cutoff_end: lsc_high_frequency_cutoff1
+  csr_enable: csr
+lscdrift:
+  lsc_bins: bins
+  lsc_low_frequency_cutoff_start: low_frequency_cutoff0
+  lsc_low_frequency_cutoff_end: low_frequency_cutoff1
+  lsc_high_frequency_cutoff_start: high_frequency_cutoff0
+  lsc_high_frequency_cutoff_end: high_frequency_cutoff1
+  lsc_enable: lsc
+  smoothing: smoothing
+fel_modulator:
+  peak_field: bu
+  gradient: tgu_gradient
+  wavelength: laser_wavelength
+  peak_power: laser_peak_power
+  phase: laser_phase
+  horizontal_mode_number: laser_m
+  vertical_mode_number: laser_n
+wiggler:
+  peak_field: B
+kicker:
+  horizontal_kick: angle
+  vertical_kick: angle
+rcollimator:
+  horizontal_size: x_max
+  vertical_size: y_max
+collimator:
+  horizontal_size: x_max
+  vertical_size: y_max
+center:
+  center_x: x,
+  center_y: y,
+  center_xp: xp,
+  center_yp: yp,
+  center_s: s,
+  center_delta: delta,
+  center_t: t

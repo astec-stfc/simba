@@ -1,0 +1,594 @@
+common:
+  keywords:
+    {
+      subelement,
+      sub_elements,
+      length,
+      Online_Model_Name,
+      Controller_Name,
+      PV_root,
+      PV_suffixes,
+      field_integral_coefficients,
+      global_rotation,
+      centre,
+      datum,
+      start,
+      end,
+      buffer_start,
+      buffer_end,
+      buffer_start_length,
+      buffer_end_length,
+      position_errors,
+      rotation_errors,
+      tilt_angle,
+      array_names,
+      rotation,
+      smooth,
+      field_reference_position,
+      parent,
+    }
+scatter:
+  keywords:
+    {
+      probability,
+      horizontal_scatter,
+      vertical_scatter,
+      horizontal_momentum_scatter,
+      vertical_momentum_scatter,
+      relative_momentum_scatter,
+    }
+shutter:
+  keywords: {}
+valve:
+  keywords: {}
+bellows:
+  keywords: {}
+beam_position_monitor:
+  keywords: {}
+beam_arrival_monitor:
+  keywords: {}
+bunch_length_monitor:
+  keywords: {}
+faraday_cup:
+  keywords: {}
+cavity:
+  keywords:
+    {
+      n_cells,
+      Structure_Type,
+      frequency,
+      phase,
+      field_definition,
+      field_type,
+      cavity_type,
+      lsc_cutoff_high,
+      field_amplitude,
+      cell_length,
+      wakefield_definition,
+      tcolumn,
+      zcolumn,
+      wcolumn,
+      wzcolumn,
+      wxcolumn,
+      wycolumn,
+      coupling_cell_length,
+      method,
+      lsc_bins,
+      lsc_enable,
+      current_bins,
+      n_kicks,
+      longitudinal_wakefield_enable,
+      transverse_wakefield_enable,
+      crest,
+      attenuation_constant,
+      shunt_impedance,
+      design_power,
+      design_gamma,
+      bunch_phase,
+      smooth,
+      body_focus_model,
+    }
+wakefield:
+  keywords:
+    {
+      n_cells,
+      field_definition,
+      field_amplitude,
+      cell_length,
+      waketype,
+      scale_field_ex,
+      scale_field_ey,
+      scale_field_ez,
+      scale_field_hx,
+      scale_field_hy,
+      scale_field_hz,
+      equal_grid,
+      n_bins,
+      factor,
+      interpolation_method,
+      smooth,
+      subbins,
+      scale_kick,
+      tcolumn,
+      wcolumn,
+      interpolate,
+      change_momentum,
+      allow_long_beam,
+      bunched_beam,
+      coupling_cell_length,
+      fringe_field_coefficient,
+    }
+plasma:
+  keywords:
+    {
+      density,
+      wakefield_model,
+      bunch_pusher,
+      dt_bunch,
+      n_out,
+      ramp_up,
+      plateau,
+      ramp_down,
+      ramp_decay_length,
+      min_longitudinal_position,
+      max_longitudinal_position,
+      n_longitudinal,
+      n_radial,
+      plasma_particles_per_cell,
+      r_max,
+      r_max_plasma,
+      dz_fields,
+      plasma_pusher,
+      laser,
+    }
+laser:
+  keywords:
+    {
+      initial_position,
+      waist,
+      wavelength,
+      pulse_energy,
+      pulse_duration_fwhm,
+      focal_position,
+      cep_phase,
+      polarization,
+      profile_type,
+      laguerre_mode_order,
+      flatness,
+    }
+collimator:
+  keywords: { shape, horizontal_size, vertical_size }
+rcollimator:
+  keywords: { shape, horizontal_size, vertical_size }
+aperture:
+  keywords: { shape, horizontal_size, vertical_size, elliptical, radius, negative_extent, positive_extent }
+apcontour:
+  keywords: { filename, xcolumn, ycolumn, resolution }
+dipole:
+  keywords:
+    {
+      angle,
+      entrance_edge_angle,
+      exit_edge_angle,
+      half_gap,
+      edge_field_integral,
+      csr_bins,
+      sr_enable,
+      isr_enable,
+      csr_output_filename,
+      gap,
+      deltaL,
+      plane,
+      strength,
+    }
+kicker:
+  keywords:
+    {
+      sr_enable,
+      isr_enable,
+      Horizontal_PV,
+      Vertical_PV,
+      horizontal_kick,
+      vertical_kick,
+    }
+marker:
+  keywords: { fit_point }
+monitor:
+  keywords: {}
+quadrupole:
+  keywords:
+      {
+          k1l,
+          k1,
+          field_definition,
+          gradient,
+          smooth,
+          fringe_field_coefficient,
+          field_type,
+          scale_field,
+          multipoles,
+      }
+sextupole:
+  keywords: { k2l, k2, field_definition, smooth, fringe_field_coefficient}
+octupole:
+  keywords: { k3l, k3, field_definition, smooth, fringe_field_coefficient}
+rf_deflecting_cavity:
+  keywords:
+    {
+      phase,
+      n_cells,
+      frequency,
+      field_amplitude,
+      cell_length,
+      coupling_cell_length,
+      crest,
+    }
+screen:
+  keywords: { output_filename }
+solenoid:
+  keywords:
+    {
+      field_amplitude,
+      field_definition,
+      field_type,
+      scale_field,
+      field_scale,
+    }
+twiss:
+  keywords: {
+    beta_x,
+    beta_y,
+    alpha_x,
+    alpha_y,
+    eta_x,
+    eta_y,
+    eta_xp,
+    eta_yp,
+    from_beam,
+  }
+undulator:
+  keywords: { peak_field, gradient, periods, method }
+fel_modulator:
+  keywords:
+    {
+      peak_field,
+      gradient,
+      periods,
+      method,
+      wavelength,
+      peak_power,
+      phase,
+      horizontal_mode_number,
+      vertical_mode_number,
+      helical,
+      time_offset,
+      n_steps,
+    }
+wiggler:
+  keywords: { peak_field, k, poles, radius }
+watch_point:
+  keywords: {}
+wall_current_monitor:
+  keywords: {}
+integrated_current_transformer:
+  keywords: {}
+drift:
+  keywords: {}
+csrdrift:
+  keywords:
+    {
+      "csrdz",
+      "use_stupakov",
+      "lsc_bins",
+      "use_saldin54",
+      "saldin54points",
+      "lsc_enable",
+      "lsc_low_frequency_cutoff_start",
+      "lsc_low_frequency_cutoff_end",
+      "lsc_high_frequency_cutoff_start",
+      "lsc_high_frequency_cutoff_end",
+      "csr_enable",
+      "spread",
+      "lsc_interpolate",
+    }
+lscdrift:
+  keywords:
+    {
+      "lsc_bins",
+      "lsc_enable",
+      "lsc_low_frequency_cutoff_start",
+      "lsc_low_frequency_cutoff_end",
+      "lsc_high_frequency_cutoff_start",
+      "lsc_high_frequency_cutoff_end",
+      "smoothing",
+    }
+edrift:
+  keywords: {}
+charge:
+  keywords: { "TOTAL" }
+astra_newrun:
+  keywords:
+    {
+      "NLoop",
+      "ion_mass",
+      "N_red",
+      "Xoff",
+      "Yoff",
+      "xp",
+      "yp",
+      "Zoff",
+      "Toff",
+      "Xrms",
+      "Yrms",
+      "XYrms",
+      "Zrms",
+      "Trms",
+      "Tau",
+      "cor_px",
+      "cor_py",
+      "SRT_Q_Schottky",
+      "Q_Schottky",
+      "debunch",
+      "Track_All",
+      "Track_On_Axis",
+      "Auto_Phase",
+      "Phase_Scan",
+      "check_ref_part",
+      "L_rm_back",
+      "Z_min",
+      "Z_Cathode",
+      "H_max",
+      "H_min",
+      "Max_step",
+      "Lmonitor",
+      "RUN",
+      "HEAD",
+      "lprompt",
+      "high_res",
+    }
+  framework_keywords: { "particle_definition" }
+astra_output:
+  keywords:
+    {
+      "ZSTART",
+      "ZSTOP",
+      "ZEMIT",
+      "ZPHASE",
+      "SCREEN",
+      "SCR_XROT",
+      "SCR_YROT",
+      "STEP_WIDTH",
+      "STEP_MAX",
+      "LPROJECT_EMIT",
+      "LOCAL_EMIT",
+      "LMAGNETIZED",
+      "LSUB_ROT",
+      "LSUB_LARMOR",
+      "LSUB_COUP",
+      "ROT_ANG",
+      "LSUB_COR",
+      "REFS",
+      "EMITS",
+      "C_EMITS",
+      "c99_EMITS",
+      "TR_EMITS",
+      "SUB_EMITS",
+      "CROSS_START",
+      "CROSS_END",
+      "PHASES",
+      "T_PHASES",
+      "HIGH_RES",
+      "BINARY",
+      "TRACKS",
+      "TCHECKS",
+      "SIGMAS",
+      "CATHODES",
+      "LANDFS",
+      "LARMORS",
+    }
+  framework_keywords: { "start_element", "end_element" }
+astra_charge:
+  keywords:
+    {
+      "L2D_3D",
+      "LMIRROR",
+      "L_CURVED_CATHODE",
+      "CATHODE_CONTOUR",
+      "R_ZERO",
+      "CELL_VAR",
+      "N_MIN",
+      "MIN_GRID",
+      "MERGE_1",
+      "MERGE_2",
+      "MERGE_3",
+      "MERGE_4",
+      "MERGE_5",
+      "MERGE_6",
+      "MERGE_7",
+      "MERGE_8",
+      "MERGE_9",
+      "MERGE_10",
+      "Z_TRANS",
+      "MIN_GIRD_TRANS",
+      "NX0",
+      "NY0",
+      "NZF",
+      "SMOOTH_X",
+      "SMOOTH_Y",
+      "SMOOTH_Z",
+      "MAX_SCALE",
+      "MAX_COUNT",
+      "EXP_CONTROL",
+      "NRAD",
+      "NLONG_IN"
+    }
+  framework_keywords: { "cathode", "space_charge_mode" }
+csrtrack_particles:
+  keywords:
+    {
+      reference_momentum,
+      reference_point_x,
+      reference_point_y,
+      reference_point_phi,
+      format,
+      array,
+    }
+  framework_keywords: { particles }
+csrtrack_online_monitor:
+  keywords:
+    {
+      name,
+      type,
+      start_time_c0,
+      end_time_marker,
+      start_time_marker,
+      start_time_shift_c0,
+      end_time_shift_c0,
+      time_step_c0,
+      particle,
+      format,
+    }
+csrtrack_forces:
+  keywords: { type, shape, sigma_long, relative_long }
+csrtrack_track_step:
+  keywords:
+    {
+      precondition,
+      iterative,
+      error_per_ct,
+      error_weight_momentum,
+      ct_step_min,
+      ct_step_max,
+      ct_step_first,
+      increase_factor,
+      arc_factor,
+      duty_steps,
+    }
+csrtrack_tracker:
+  keywords: { end_time_marker, end_time_shift_c0 }
+csrtrack_monitor:
+  keywords: { format, name }
+gpt_setfile:
+  keywords: { set, filename }
+gpt_charge:
+  keywords: { set, charge }
+gpt_tout:
+  keywords: { startpos, endpos, step, starttime }
+gpt_setreduce:
+  keywords: { set, setreduce }
+gpt_accuracy:
+  keywords: { accuracy }
+gpt_spacecharge:
+  keywords: { grids, space_charge_mode, accuracy, ngrids }
+gpt_csr1d:
+  keywords: {}
+gpt_writefloorplan:
+  keywords: { filename }
+gpt_Zminmax:
+  keywords: { ECS, zmin, zmax }
+gpt_forwardscatter:
+  keywords: { ECS, name, probability }
+gpt_scatterplate:
+  keywords: { ECS, a, b, model }
+gpt_dtmaxt:
+  keywords: { tstart, tend, dtmax }
+global_error:
+  keywords:
+    {
+      "Log_Error",
+      "Suppress_output",
+      "generate_output",
+      "global_errors",
+      "charge",
+      "initial_x",
+      "initial_y",
+      "initial_t",
+      "initial_sigma_x",
+      "initial_sigma_y",
+      "initial_sigma_t",
+      "initial_sigma_z",
+      "initial_sigma_xy",
+      "cavity_x",
+      "cavity_y",
+      "cavity_xrot",
+      "cavity_yrot",
+      "cavity_zrot",
+      "cavity_phase",
+      "cavity_gradient",
+      "solenoid_x",
+      "solenoid_y",
+      "solenoid_xrot",
+      "solenoid_yrot",
+      "solenoid_field",
+      "quadrupole_x",
+      "quadrupole_y",
+      "quadrupole_xrot",
+      "quadrupole_yrot",
+      "quadrupole_zrot",
+      "quadrupole_gradient",
+      "quadrupole_k",
+      "dipole_x",
+      "dipole_y",
+      "dipole_z",
+      "dipole_xrot",
+      "dipole_yrot",
+      "dipole_zrot",
+      "dipole_field",
+      "dipole_radius",
+    }
+  astra_keywords:
+    {
+      "Log_Error",
+      "Suppress_output",
+      "ErrorS",
+      "Lerror",
+      "Err_Qbunch",
+      "Err_Xoff",
+      "Err_Yoff",
+      "Err_Toff",
+      "Err_Xrms",
+      "Err_Yrms",
+      "Err_Trms",
+      "Err_Zrms",
+      "Err_XYrms",
+      "Err_C_xoff",
+      "Err_C_yoff",
+      "Err_C_xrot",
+      "Err_C_yrot",
+      "Err_C_zrot",
+      "Err_phi",
+      "Err_MaxE",
+      "Err_S_xoff",
+      "Err_S_yoff",
+      "Err_S_xrot",
+      "Err_S_yrot",
+      "Err_MaxB",
+      "Err_Q_xoff",
+      "Err_Q_yoff",
+      "Err_Q_xrot",
+      "Err_Q_yrot",
+      "Err_Q_zrot",
+      "Err_Q_Grad",
+      "Err_Q_K",
+      "Err_D_xoff",
+      "Err_D_yoff",
+      "Err_D_zoff",
+      "Err_D_xrot",
+      "Err_D_yrot",
+      "Err_D_zrot",
+      "Err_D_Strength",
+      "Err_D_Radius",
+    }
+cleaner:
+  keywords: { mode, xlimit, xplimit, ylimit, yplimit, tlimit, deltalimit }
+center:
+  keywords:
+    {
+      center_x,
+      center_y,
+      center_xp,
+      center_yp,
+      center_s,
+      center_delta,
+      center_t,
+    }

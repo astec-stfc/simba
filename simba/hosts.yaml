@@ -1,0 +1,21 @@
+apclara1:
+  address: apclara1.dl.ac.uk
+  codes:
+    - elegant
+    - astra
+    - gpt
+  rpn: /opt/SimFrame/MasterLattice/Codes/defns.rpn
+apclara2:
+  address: apclara2.dl.ac.uk
+  codes:
+    - elegant
+    - astra
+    - gpt
+  rpn: /usr/local/lib/python3.6/site-packages/SimCodes/Elegant/defns.rpn
+apclara3:
+  address: apclara3.dl.ac.uk
+  codes:
+    - elegant
+    - astra
+    - gpt
+  rpn: /opt/elegant/defns.rpn

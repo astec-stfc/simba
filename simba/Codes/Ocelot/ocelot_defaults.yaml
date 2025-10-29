@@ -1,0 +1,17 @@
+unit_step: 0.1
+smooth: 0.1
+random_mesh: True
+nbin_csr: 10
+smooth_param: 0.1
+mbin_csr: 5
+sigmamin_csr: 0.000010
+wake_factor: 1.0
+wake_sampling: 1000
+wake_filter: 10
+sample_interval: 1
+mbi:
+  min: 0.000001
+  max: 0.000050
+  nstep: 30
+  slices: 0
+  set_mbi: False

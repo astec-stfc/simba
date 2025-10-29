@@ -1,0 +1,194 @@
+aliases:
+  astra:
+    filename:
+      alias: FName
+    combine_distributions:
+      alias: add
+    number_of_particles:
+      alias: Ipart
+    probe_particle:
+      alias: probe
+    noise_reduction:
+      alias: noise_reduc
+    high_resolution:
+      alias: high_res
+    charge:
+      alias: q_total
+      multiplier: 1000000000
+    reference_position:
+      alias: ref_zpos
+    reference_time:
+      alias: ref_clock
+    distribution_type_z:
+      alias: dist_z
+    initial_momentum:
+      alias: ref_ekin
+      multiplier: 0.000001
+    plateau_bunch_length:
+      alias: lt
+      multiplier: 1000000000
+    plateau_rise_time:
+      alias: rt
+      multiplier: 1000000000
+    sigma_t:
+      alias: sig_clock
+      multiplier: 1000000000
+    sigma_z:
+      alias: sig_z
+      multiplier: 1000
+    sigma_kinetic_energy:
+      alias: sig_ekin
+    correlation_kinetic_energy:
+      alias: cor_ekin
+    bunch_length:
+      alias: lz
+      multiplier: 1000
+    plateau_rise_distance:
+      alias: rz
+      multiplier: 1000
+    distribution_type_pz:
+      alias: dist_pz
+    thermal_emittance:
+      alias: le
+    distribution_type_x:
+      alias: dist_x
+    sigma_x:
+      alias: sig_x
+      multiplier: 1000
+    sigma_px:
+      alias: sig_px
+    correlation_px:
+      alias: cor_px
+      multiplier: 1000
+    distribution_type_y:
+      alias: dist_y
+    sigma_y:
+      alias: sig_y
+      multiplier: 1000
+    sigma_py:
+      alias: sig_py
+    correlation_py:
+      alias: cor_py
+      multiplier: 1000
+    distribution_type_px:
+      alias: dist_px
+    distribution_type_py:
+      alias: dist_py
+    normalized_horizontal_emittance:
+      alias: Nemit_x
+      multiplier: 1000000
+    normalized_vertical_emittance:
+      alias: Nemit_y
+      multiplier: 1000000
+    gaussian_cutoff_x:
+      alias: C_sig_x
+    gaussian_cutoff_y:
+      alias: C_sig_y
+    gaussian_cutoff_z:
+      alias: C_sig_z
+    gaussian_cutoff_px:
+      alias: C_sig_px
+    gaussian_cutoff_py:
+      alias: C_sig_py
+    gaussian_cutoff_pz:
+      alias: C_sig_Ekin
+    offset_x:
+      alias: x_off
+      multiplier: 1000
+    offset_y:
+      alias: y_off
+      multiplier: 1000
+    cathode_radius:
+      alias: r_cathode
+  opal:
+    distribution_type_z:
+      alias: type
+      type: distribution
+    initial_momentum:
+      alias: ekin
+      type: distribution
+    plateau_bunch_length:
+      alias: tpulsefwhm
+      type: distribution
+    plateau_rise_time:
+      alias: trise
+      type: distribution
+    plateau_fall_time:
+      alias: tfall
+      type: distribution
+    sigma_x:
+      alias: sigmax
+      type: distribution
+    sigma_y:
+      alias: sigmay
+      type: distribution
+    gaussian_cutoff_x:
+      alias: cutoffx
+      type: distribution
+    gaussian_cutoff_y:
+      alias: cutoffy
+      type: distribution
+    gaussian_cutoff_z:
+      alias: cutofflong
+      type: distribution
+    offset_x:
+      alias: offsetx
+      type: distribution
+    offset_y:
+      alias: offsety
+      type: distribution
+    cathode:
+      alias: emitted
+      type: distribution
+    laser_energy:
+      alias: elaser
+      type: distribution
+    work_function_ev:
+      alias: w
+      type: distribution
+    fermi_energy_ev:
+      alias: fe
+      type: distribution
+    cathode_temperature:
+      alias: cathtemp
+      type: distribution
+    reference_position:
+      alias: offsetz
+      type: distribution
+    emission_model:
+      alias: emissionmodel
+      type: distribution
+    emission_steps:
+      alias: emissionsteps
+      type: distribution
+    sigma_t:
+      alias: sigmat
+      type: distribution
+    n_bin:
+      alias: nbin
+      type: distribution
+    species:
+      alias: particle
+      type: beam
+    number_of_particles:
+      alias: npart
+      type: beam
+#    initial_energy:
+#      alias: energy
+#      type: beam
+    max_steps:
+      alias: maxsteps
+      type: beam
+    tstep:
+      alias: dt
+      type: beam
+    rf_frequency:
+      alias: bfreq
+      type: beam
+      multiplier: 0.000001
+    electrons:
+      alias: electron
+      type: beam
+    protons:
+      alias: proton
+      type: beam

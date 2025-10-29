@@ -1,0 +1,10 @@
+general:
+  entrance_edge_angle: edge_entry_angle
+  exit_edge_angle: edge_exit_angle
+  isr_enable: radiation_flag
+cavity:
+  phase: lag
+  n_kicks: num_kicks
+  field_amplitude: voltage
+solenoid:
+  field_amplitude: ks_profile

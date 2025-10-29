@@ -1,0 +1,23 @@
+general:
+  length: length
+plasma:
+  min_longitudinal_position: xi_min
+  max_longitudinal_position: xi_max
+  n_longitudinal: n_xi
+  n_radial: n_r
+  plasma_particles_per_cell: ppc
+laser:
+  evolution: laser_evolution
+  envelope_substeps: laser_envelope_substeps
+  envelope_n_longitudinal: laser_envelope_nxi
+  envelope_n_radial: laser_envelope_nr
+  initial_position: xi_c
+  pulse_energy: a_0
+  waist: w_0
+  pulse_duration_fwhm: tau
+  wavelength: l_0
+  focal_position: z_foc
+  laguerre_polynomial_order_p: p
+  flatness: N
+dipole:
+  angle: theta

@@ -1,0 +1,10 @@
+START: charge, total = 9.999999999999999e-11;
+BEGIN: watch, filename = BEGIN.sdds;
+QUAD1: kquad, l = 0.1, n_slices = 4, k1 = -20.0;
+FODO_DRIFT_01: edrift, l = 0.05;
+QUAD2: kquad, l = 0.1, n_slices = 4, k1 = 40.0;
+FODO_DRIFT_02: edrift, l = 0.05;
+QUAD3: kquad, l = 0.1, n_slices = 4, k1 = -10.0;
+END: watch, filename = END.sdds;
+FODO: Line=(START, BEGIN, QUAD1, FODO_DRIFT_01, QUAD2, &
+FODO_DRIFT_02, QUAD3, END)

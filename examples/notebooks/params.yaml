@@ -1,0 +1,285 @@
+CLA-VBC-MAG-DIP-01:
+  name: CLA-VBC-MAG-DIP-01
+  objecttype: dipole
+  length: 0.200981
+  position_errors:
+  - 0
+  - 0
+  - 0
+  rotation_errors:
+  - 0
+  - 0
+  - 0
+  global_rotation:
+  - 0.0
+  - 0.0
+  - 0.0
+  rotation:
+  - 0
+  - 0
+  - 0
+  starting_rotation: 0.0
+  starting_offset:
+  - 0
+  - 0
+  - 0
+  field_definition: null
+  wakefield_definition: null
+  csr_bins: 100
+  deltaL: 0
+  csr_enable: 1
+  isr_enable: true
+  n_kicks: 8
+  sr_enable: true
+  integration_order: 4
+  nonlinear: 1
+  smoothing_half_width: 1
+  edge_order: 2
+  edge1_effects: 1
+  edge2_effects: 1
+  angle: -0.095
+  width: 0.2
+  entrance_edge_angle: angle
+  exit_edge_angle: angle
+  plane: horizontal
+  strength: 0.0
+  gap: 0.0001
+  half_gap: 0.005
+  edge_field_integral: 0.4
+  centre:
+  - 0.0
+  - 0.0
+  - 26.165835
+  datum:
+  - 0.00953942
+  - 0.0
+  - 26.265948
+  type: dipole
+CLA-VBC-MAG-DIP-02:
+  name: CLA-VBC-MAG-DIP-02
+  objecttype: dipole
+  length: 0.200981
+  position_errors:
+  - 0
+  - 0
+  - 0
+  rotation_errors:
+  - 0
+  - 0
+  - 0
+  global_rotation:
+  - 0.0
+  - 0.0
+  - -0.095
+  rotation:
+  - 0
+  - 0
+  - 0
+  starting_rotation: 0.0
+  starting_offset:
+  - 0
+  - 0
+  - 0
+  field_definition: null
+  wakefield_definition: null
+  csr_bins: 100
+  deltaL: 0
+  csr_enable: 1
+  isr_enable: true
+  n_kicks: 8
+  sr_enable: true
+  integration_order: 4
+  nonlinear: 1
+  smoothing_half_width: 1
+  edge_order: 2
+  edge1_effects: 1
+  edge2_effects: 1
+  angle: 0.095
+  width: 0.2
+  entrance_edge_angle: angle
+  exit_edge_angle: angle
+  plane: horizontal
+  strength: 0.0
+  gap: 0.0001
+  half_gap: 0.005
+  edge_field_integral: 0.4
+  centre:
+  - 0.161944
+  - 0.0
+  - 27.865382
+  datum:
+  - 0.161944
+  - 0.0
+  - 27.965948
+  type: dipole
+CLA-VBC-MAG-DIP-03:
+  name: CLA-VBC-MAG-DIP-03
+  objecttype: dipole
+  length: 0.200981
+  position_errors:
+  - 0
+  - 0
+  - 0
+  rotation_errors:
+  - 0
+  - 0
+  - 0
+  global_rotation:
+  - 0.0
+  - 0.0
+  - 0.0
+  rotation:
+  - 0
+  - 0
+  - 0
+  starting_rotation: 0.0
+  starting_offset:
+  - 0
+  - 0
+  - 0
+  field_definition: null
+  wakefield_definition: null
+  csr_bins: 100
+  deltaL: 0
+  csr_enable: 1
+  isr_enable: true
+  n_kicks: 8
+  sr_enable: true
+  integration_order: 4
+  nonlinear: 1
+  smoothing_half_width: 1
+  edge_order: 2
+  edge1_effects: 1
+  edge2_effects: 1
+  angle: 0.095
+  width: 0.2
+  entrance_edge_angle: angle
+  exit_edge_angle: angle
+  plane: horizontal
+  strength: 0.0
+  gap: 0.0001
+  half_gap: 0.005
+  edge_field_integral: 0.4
+  centre:
+  - 0.161944
+  - 0.0
+  - 29.365835
+  datum:
+  - 0.152405
+  - 0.0
+  - 29.465948
+  type: dipole
+CLA-VBC-MAG-DIP-04:
+  name: CLA-VBC-MAG-DIP-04
+  objecttype: dipole
+  length: 0.200981
+  position_errors:
+  - 0
+  - 0
+  - 0
+  rotation_errors:
+  - 0
+  - 0
+  - 0
+  global_rotation:
+  - 0.0
+  - 0.0
+  - 0.095
+  rotation:
+  - 0
+  - 0
+  - 0
+  starting_rotation: 0.0
+  starting_offset:
+  - 0
+  - 0
+  - 0
+  field_definition: null
+  wakefield_definition: null
+  csr_bins: 100
+  deltaL: 0
+  csr_enable: 1
+  isr_enable: true
+  n_kicks: 8
+  sr_enable: true
+  integration_order: 4
+  nonlinear: 1
+  smoothing_half_width: 1
+  edge_order: 2
+  edge1_effects: 1
+  edge2_effects: 1
+  angle: -0.095
+  width: 0.2
+  entrance_edge_angle: angle
+  exit_edge_angle: angle
+  plane: horizontal
+  strength: 0.0
+  gap: 0.0001
+  half_gap: 0.005
+  edge_field_integral: 0.4
+  centre:
+  - 0
+  - 0.0
+  - 31.065382
+  datum:
+  - 0
+  - 0.0
+  - 31.165948
+  type: dipole
+CLA-SP3-MAG-DIP-01:
+  name: CLA-SP3-MAG-DIP-01
+  objecttype: dipole
+  length: 0.4
+  position_errors:
+  - 0
+  - 0
+  - 0
+  rotation_errors:
+  - 0
+  - 0
+  - 0
+  global_rotation:
+  - 0.0
+  - 0.0
+  - 0.0
+  rotation:
+  - 0
+  - 0
+  - 0
+  starting_rotation: 0.0
+  starting_offset:
+  - 0
+  - 0
+  - 0
+  field_definition: null
+  wakefield_definition: null
+  csr_bins: 100
+  deltaL: 0
+  csr_enable: 1
+  isr_enable: true
+  n_kicks: 8
+  sr_enable: true
+  integration_order: 4
+  nonlinear: 1
+  smoothing_half_width: 1
+  edge_order: 2
+  edge1_effects: 1
+  edge2_effects: 1
+  angle: 0.523599
+  width: 0.2
+  entrance_edge_angle: 0.0
+  exit_edge_angle: 0.0
+  plane: horizontal
+  strength: 0.0
+  gap: 0.0001
+  half_gap: 0.016
+  edge_field_integral: 0.5
+  centre:
+  - 0.0
+  - 0.0
+  - 45.492521
+  datum:
+  - -0.102349
+  - 0.0
+  - 45.6697948
+  type: dipole

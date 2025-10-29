@@ -1,0 +1,88 @@
+Aperture:
+  shape: str
+  x_max: float
+  y_max: float
+Cavity:
+  frequency: float
+  length: float
+  phase: float
+  voltage: float
+CustomTransferMap:
+  length: float
+  predefined_transfer_map: float
+Dipole:
+  angle: float
+  dipole_e1: float
+  dipole_e2: float
+  fringe_at: str
+  fringe_integral: float
+  fringe_integral_exit: float
+  fringe_type: str
+  gap: float
+  gap_exit: float
+  k1: float
+  length: float
+  tilt: float
+  tracking_method: str
+Drift:
+  length: float
+  tracking_method: str
+HorizontalCorrector:
+  angle: float
+  length: float
+Quadrupole:
+  k1: float
+  length: float
+  misalignment: float
+  num_steps: int
+  tilt: float
+  tracking_method: str
+RBend:
+  angle: float
+  fringe_at: str
+  fringe_integral: float
+  fringe_integral_exit: float
+  fringe_type: str
+  gap: float
+  gap_exit: float
+  k1: float
+  length: float
+  rbend_e1: float
+  rbend_e2: float
+  tilt: float
+  tracking_method: str
+Screen:
+  binning: int
+  is_blocking: bool
+  is_active: bool
+  kde_bandwidth: float
+  method: str
+  misalignment: float
+  pixel_size: float
+  resolution: list
+Solenoid:
+  k: float
+  length: float
+  misalignment: float
+SpaceChargeKick:
+  effect_length: float
+  grid_extend_tau: float
+  grid_extend_x: float
+  grid_extend_y: float
+  num_grid_points_tau: int
+  num_grid_points_x: int
+  num_grid_points_y: int
+TransverseDeflectingCavity:
+  frequency: float
+  length: float
+  misalignment: float
+  num_steps: int
+  phase: float
+  tilt: float
+  tracking_method: str
+  voltage: float
+Undulator:
+  length: float
+VerticalCorrector:
+  angle: float
+  length: float

@@ -1,0 +1,227 @@
+alter_beam:
+  dgamma: double
+  phase: double
+  lambda: double
+  r56: double
+
+alter_setup:
+  rootname: string
+  beamline: string
+  delz: double
+  harmonic: long
+  subharmonic: long
+  resample: long
+  disable: long
+
+beam:
+  gamma: double
+  delgam: double
+  current: double
+  ex: double
+  ey: double
+  betax: double
+  betay: double
+  alphax: double
+  alphay: double
+  xcenter: double
+  ycenter: double
+  pxcenter: double
+  pycenter: double
+  bunch: double
+  bunchphase: double
+  emod: double
+  emodphase: double
+
+efield:
+  longrange: long
+  rmax: double
+  nz: long
+  nphi: long
+  ngrid: long
+
+field:
+  lambda: double
+  power: double
+  phase: double
+  waist_pos: double
+  waist_size: double
+  xcenter: double
+  ycenter: double
+  xangle: double
+  yangle: double
+  dgrid: double
+  ngrid: long
+  harm: long
+  nx: long
+  ny: long
+  accumulate: long
+
+importbeam:
+  file: string
+  time: long
+
+importdistribution:
+  file: string
+  charge: double
+  slicewidth: double
+  center: long
+  gamma0: double
+  x0: double
+  y0: double
+  px0: double
+  py0: double
+  match: long
+  betax: double
+  betay: double
+  alphax: double
+  alphay: double
+  eval_start: double
+  eval_end: double
+  settimewindow: long
+  align: long
+  align_start: double
+  align_end: double
+
+importfield:
+  file: string
+  harmonic: long
+  time: long
+  attenuation: double
+  offset: double
+
+importtransformation:
+  file: string
+  vector: string
+  matrix: string
+  slen: double/
+
+lattice:
+  zmatch: double
+  element: string
+  field: string
+  value: double
+  instance: int
+  add: long
+  resolvePeriod: long
+
+profile_const:
+  label: string
+  c0: double
+
+profile_gauss:
+  label: string
+  c0: double
+  s0: double
+  sig: double
+
+profile_polynom:
+  label: string
+  xdata: string
+  ydata: string
+  isTime: long
+  reverse: long
+  autoassign: long
+
+profile_step:
+  label: string
+  c0: double
+  s_start: double
+  s_end: double
+
+sequence_const:
+  label: string
+  c0: double
+
+sequence_polynom:
+  label: string
+  c0: double
+  c1: double
+  c2: double
+  c3: double
+  c4: double
+
+sequence_power:
+  label: string
+  c0: double
+  dc: double
+  alpha: double
+  n0: long
+
+sequence_random:
+  label: string
+  c0: double
+  dc: double
+  seed: long
+  normal: long
+
+setup:
+  rootname: string
+  outputdir: string
+  lattice: string
+  beamline: string
+  gamma0: double
+  lambda0: double
+  delz: double
+  seed: long
+  npart: long
+  nbins: long
+  one4one: long
+  shotnoise: long
+  beam_global_stat: long
+  field_global_stat: long
+  exclude_spatial_output: long
+  exclude_fft_output: long
+  exclude_intensity_output: long
+  exclude_energy_output: long
+  exclude_aux_output: long
+  exclude_current_output: long
+  exclude_twiss_output: long
+  exclude_field_dump: long
+  write_meta_file: long
+  semaphore_file_name: string
+  write_semaphore_file: long
+  write_semaphore_file_done: long
+  write_semaphore_file_started: long
+
+sponrad:
+  seed: long
+  doLoss: long
+  doSpread: long
+
+time:
+  s0: double
+  slen: double
+  sample: long
+  time: long
+
+track:
+  zstop: double
+  output_step: long
+  field_dump_step: long
+  beam_dump_step: long
+  sort_step: long
+  s0: double
+  slen: double
+  field_dump_at_undexit: long
+  bunchharm: long
+  exclusive_harmonics: long
+
+wake:
+  loss: double
+  radius: double
+  roundpipe: long
+  conductivity: double
+  relaxation: double
+  material: string
+  gap: double
+  lgap: double
+  hrough: double
+  lrough: double
+  transient: long
+  ztrans: double
+  output: string
+
+write:
+  field: string
+  beam: string
+  stride: long

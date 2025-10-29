@@ -1,0 +1,29 @@
+particles:
+  reference_momentum: reference_particle
+  reference_point_x: 0.0
+  reference_point_y: 0.0
+  reference_point_phi: 0.0
+  format: astra
+monitor:
+  format: fmt2
+forces:
+  type: projected
+  shape: ellipsoid
+  sigma_long: relative
+  relative_long: 0.1
+track_step:
+  precondition: True
+  iterative: 2
+  error_per_ct: 0.001
+  error_weight_momentum: 0.1
+  ct_step_min: 0.002
+  ct_step_max: 0.20
+  ct_step_first: 0.010
+  increase_factor: 2
+  arc_factor: 0.3
+  duty_steps: True
+tracker: {}
+online_monitor:
+  format: fmt2
+  # start_time_c0: now
+  # time_step_c0: all

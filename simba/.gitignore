@@ -1,0 +1,11 @@
+magnet-table/magnet-table.ini
+*.pyc
+*.pyc
+MagnetApp/GUI_FileLoad.pyc
+magnet-table/.idea/*.*
+magnet-table/tmp/*.*
+magnet-table/rf_sol_gui.py
+magnet-table/src/pip-delete-this-directory.txt
+.idea
+v2/
+Support_Files/newYAML/

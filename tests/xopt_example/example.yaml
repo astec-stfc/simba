@@ -1,0 +1,39 @@
+max_evaluations: 10 # somthing big
+dump_file: /home/xkc85723/Documents/xopt_test/data_dump.yaml
+
+generator:
+  name: cnsga
+  output_path: /home/xkc85723/Documents/xopt_test/output_p
+  population_size: 20
+
+evaluator:
+  function: SimulationFramework.Modules.optimisation.xopt_optimisation
+  function_kwargs:
+    clean: True
+    verbose: False
+    directory: /home/xkc85723/Documents/xopt_test/
+    settings_file: Lattices/clara400_v13_SP3.def
+    start_lattice: S02
+    end_lattice: S07
+    prefix: [S02, /home/xkc85723/Documents/simframe/tests/CLARA/Basefiles/Base_250pC/]
+    sample_interval: 32
+
+vocs:
+  variables:
+    CLA-L4H-LIN-CAV-01:phase: [-190, -170]
+    bunch_compressor:angle: [0.0349, 0.0872]
+
+#  constants:
+#    distgen:n_particle: 10000
+#    distgen:start:MTE:value: 100  # MTE = 100 meV corresponding to 0.44 um*rad/mm
+#    lspch: true
+#    distgen:total_charge:value: 100.0
+#    maxe(1): -10.1436
+
+  objectives:
+    CLA-S07-DIA-SCR-01:sigma_t: MINIMIZE
+    CLA-S07-DIA-SCR-01:enx: MINIMIZE
+    CLA-S07-DIA-SCR-01:eny: MINIMIZE
+
+  constraints:
+    CLA-S07-DIA-SCR-01:mean_energy: [GREATER_THAN, 240000000]
