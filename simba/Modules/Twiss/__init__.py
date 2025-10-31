@@ -33,6 +33,7 @@ from . import ocelot
 from . import cheetah
 from . import opal
 from . import xsuite
+from . import genesis
 
 try:
     from . import plot
@@ -51,6 +52,7 @@ codes = {
     "opal": opal.read_opal_twiss_files,
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
+    "genesis": genesis.read_genesis_twiss_files,
 }
 
 code_signatures = [
@@ -62,6 +64,7 @@ code_signatures = [
     ["ocelot", "_twiss.npz"],
     ["opal", ".stat"],
     ["cheetah", "_twiss.cheetah.hdf5"],
+    ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
 ]
 
@@ -424,6 +427,7 @@ class twiss(BaseModel):
             "opal": opal.read_opal_twiss_files,
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
+            "genesis": genesis.read_genesis_twiss_files,
         }
         self.code_signatures = [
             ["elegant", ".twi"],
@@ -435,6 +439,7 @@ class twiss(BaseModel):
             ["opal", ".stat"],
             ["cheetah", "_twiss.cheetah.hdf5"],
             ["xsuite", "_twiss.csv"],
+            ["genesis", ".out.h5"],
         ]
 
     @model_validator(mode="before")
@@ -503,6 +508,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return xsuite.read_xsuite_twiss_files(self, *args, **kwargs)
+
+    def read_genesis_twiss_files(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return genesis.read_genesis_twiss_files(self, *args, **kwargs)
 
     def save_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -941,6 +951,7 @@ class twiss(BaseModel):
             "opal": ".stat",
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
+            "genesis": ".out.h5",
         },
         preglob: str = "*",
         verbose: bool = False,
@@ -1005,6 +1016,7 @@ def load_directory(
         "opal": ".stat",
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
+        "genesis": ".out.h5",
     },
     preglob="*",
     verbose=False,

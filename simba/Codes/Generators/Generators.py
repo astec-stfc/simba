@@ -256,7 +256,7 @@ class frameworkGenerator(BaseModel):
     """[ASTRA only] If true the input list has to be specified N_add times and N_add different 
     distributions will be added"""
 
-    cathode: bool = True
+    cathode: bool = False
     """Emit the beam from a cathode?"""
 
     cathode_radius: float = 0.0

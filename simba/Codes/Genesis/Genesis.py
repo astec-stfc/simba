@@ -269,7 +269,11 @@ class genesisLattice(frameworkLattice):
             for cfileid in command_files_order:
                 if cfileid in self.commandFiles:
                     cfile = self.commandFiles[cfileid]
-                    saveFile(command_file, cfile.write_Genesis(), "a")
+                    if isinstance(cfile, genesisCommandFile):
+                        saveFile(command_file, cfile.write_Genesis(), "a")
+                    elif isinstance(cfile, list):
+                        for cf in cfile:
+                            saveFile(command_file, cf.write_Genesis(), "a")
         else:
             warn("commandFiles length is zero; run preProcess first")
 
@@ -286,9 +290,14 @@ class genesisLattice(frameworkLattice):
         self.global_parameters["beam"].beam.rematchYPlane(
             **self.initial_twiss["vertical"]
         )
-        self.hdf5_to_genesis(prefix)
+        if not self.npart:
+            beamlen = len(self.global_parameters["beam"].x.val)
+            # parts_per_lambda = int(np.std(self.global_parameters["beam"].z.val) / self.fundamental_wavelength)
+            self.npart = beamlen
+            warn(f"npart not provided; setting npart to {self.npart}")
+        self.hdf5_to_genesis()
         self.write_setup_file()
-        if self.steady_state:
+        if not self.steady_state:
             self.write_time()
         if self.match_location:
             self.commandFiles["lattice"] = genesis_lattice_command(
@@ -306,6 +315,22 @@ class genesisLattice(frameworkLattice):
             beam=f"{self.end}_BEAM",
         )
 
+    def postProcess(self) -> None:
+        """
+        PostProcess the simulation results, i.e. write the final beam output to HDF5.
+
+        :attr:`~simba.Codes.Genesis.Genesis.commandFiles` is also cleared
+        """
+        super().postProcess()
+        beam = rbf.beam()
+        rootname = f"{self.global_parameters['master_subdir']}/{self.end}"
+        genesisbeamfilename = f"{rootname}_BEAM.par.h5"
+        rbf.genesis.read_genesis_beam_file(beam, genesisbeamfilename)
+        HDF5filename = f"{rootname}.openpmd.hdf5"
+        rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        self.commandFiles = {}
+
+
     def write_setup_file(self) -> None:
         gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
         first_wiggler = self.wigglers[0]
@@ -316,11 +341,6 @@ class genesisLattice(frameworkLattice):
             lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.strength**2 / 2)
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
                 warn(f"First undulator strength is not close to fundamental_wavelength")
-        if not self.npart:
-            beamlen = len(self.global_parameters["beam"].x.val)
-            parts_per_lambda = int(np.std(self.global_parameters["beam"].z.val) / self.fundamental_wavelength)
-            self.npart = beamlen
-            warn(f"npart not provided; setting npart to {self.npart}")
         delz = first_wiggler.period
         self.commandFiles["setup"] = genesis_setup_command(
             rootname=self.objectname,
@@ -339,16 +359,14 @@ class genesisLattice(frameworkLattice):
     def write_time(self) -> None:
         self.global_parameters["beam"].beam.slice.bin_time()
         tbins = self.global_parameters["beam"].beam.slice._t_Bins.val
-        print(tbins)
         slen = (tbins[-1] - tbins[0]) * speed_of_light
-        print(slen)
         self.commandFiles["time"] = genesis_time_command(
             slen=slen,
             time=True,
             sample=1
         )
 
-    def hdf5_to_genesis(self, prefix: str="", write: bool=True) -> None:
+    def hdf5_to_genesis(self) -> None:
         """
         Convert the initial HDF5 particle distribution to Genesis format.
 
@@ -362,10 +380,10 @@ class genesisLattice(frameworkLattice):
         hdf5outname = f'{self.global_parameters["master_subdir"]}/{self.start}.hdf5'
         genesisbeamfilename = hdf5outname.replace("hdf5", "genesis.hdf5")
         if self.beam_type == "profile":
-            rbf.genesis.write_genesis_beam_profiles(
+            rbf.genesis.write_genesis_beam_file(
                 self.global_parameters["beam"],
                 genesisbeamfilename,
-                self.beam_slices,
+                n_slice = int(self.npart / self.nbins),
             )
             beam_profile_properties = self.get_beam_profile_properties()
             props = {}
@@ -374,8 +392,8 @@ class genesisLattice(frameworkLattice):
                 self.commandFiles["profile_file"].append(
                     genesis_profile_file_command(
                         label=f"{b}_profile",
-                        xdata="z",
-                        ydata="b",
+                        xdata=f"{self.start}.genesis.hdf5/s",
+                        ydata=f"{self.start}.genesis.hdf5/{b}",
                     )
                 )
                 props.update({b: f"{b}_profile"})
@@ -397,7 +415,7 @@ class genesisLattice(frameworkLattice):
             "betay": float(beam.twiss.beta_y.val),
             "alphax": float(beam.twiss.alpha_x.val),
             "alphay": float(beam.twiss.alpha_y.val),
-            "gamma0": float(beam.centroids.mean_gamma.val),
+            "gamma": float(beam.centroids.mean_gamma.val),
             "delgam": float(beam.sigmas.sigma_cp_eV.val) / E0_eV,
             "current": float(beam.slice.peak_current.val),
             "xcenter": float(beam.centroids.mean_x.val),
@@ -411,17 +429,19 @@ class genesisLattice(frameworkLattice):
 
     def get_beam_profile_properties(self) -> List:
         return [
-            "betax"
-            "betay"
-            "alphax"
-            "alphay"
-            "gamma0"
-            "delgam"
-            "current"
-            "xcenter"
-            "ycenter"
-            "pxcenter"
-            "pycenter"
+            "betax",
+            "betay",
+            "alphax",
+            "alphay",
+            "gamma",
+            "delgam",
+            "current",
+            "xcenter",
+            "ycenter",
+            "pxcenter",
+            "pycenter",
+            "ex",
+            "ey"
         ]
 
         # ocebeamfilename = hdf5outname.replace("hdf5", "ocelot.npz")
@@ -960,7 +980,7 @@ class genesis_beam_command(genesisCommandFile):
     objecttype: str = "beam"
     """Type of object for frameworkObject"""
 
-    gamma0: float | str
+    gamma: float | str
     """Mean energy in units of the electron rest mass."""
 
     delgam: float | str

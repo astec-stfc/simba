@@ -2145,7 +2145,8 @@ class frameworkCommand(frameworkObject):
             ):
                 val = getattr(self, key.lower())
                 val = int(val) if isinstance(val, bool) else val
-                string += "\t" + key + " = " + str(val) + "\n"
+                if val is not None:
+                    string += "\t" + key + " = " + str(val) + "\n"
         string += "&end\n"
         return string
 

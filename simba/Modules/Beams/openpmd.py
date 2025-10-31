@@ -43,3 +43,4 @@ def write_openpmd_beam_file(self, filename):
         particles.write(filename)
     except OSError as e:
         print(f"Error writing OpenPMD beam file {filename}: {e}")
+    return particles

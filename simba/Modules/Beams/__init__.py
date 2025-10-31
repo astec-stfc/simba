@@ -34,13 +34,14 @@ import h5py
 from ..units import UnitValue
 from .. import constants
 from .Particles import Particles
+from . import openpmd
 from . import astra
 from . import sdds
 from . import gdf
 from . import hdf5
+from . import genesis
 from . import mad8
 from . import opal
-from . import openpmd
 from . import xsuite
 
 try:

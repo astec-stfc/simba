@@ -122,6 +122,12 @@ profile_polynom:
   reverse: long
   autoassign: long
 
+profile_file:
+  label: string
+  xdata: str
+  ydata: str
+  sig: double
+
 profile_step:
   label: string
   c0: double
