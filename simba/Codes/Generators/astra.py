@@ -30,6 +30,10 @@ class ASTRAGenerator(frameworkGenerator):
     :ivar code: Code identifier for the generator.
     :ivar apply_alias_and_multiplier: Method to apply aliases and multipliers to the parameters.
     """
+
+    filename: str = "generator.txt"
+    """Name of the output file."""
+
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
         self.apply_alias_and_multiplier(aliases, "astra")

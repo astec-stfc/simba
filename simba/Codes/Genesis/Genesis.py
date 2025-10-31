@@ -92,13 +92,12 @@ Classes:
 """
 
 import os
-import time
-from copy import copy, deepcopy
-import subprocess
+from copy import deepcopy
 import numpy as np
-from random import randint
+import subprocess
 from warnings import warn
 from scipy.constants import speed_of_light
+from random import randint
 
 from pydantic import (
     computed_field,
@@ -106,14 +105,10 @@ from pydantic import (
     field_validator,
 )
 
-from ...Elements.fel_modulator import fel_modulator
-from ...Elements.wiggler import wiggler
-
 try:
     import sdds
 except Exception:
     print("No SDDS available!")
-from typing import ClassVar
 from ...Framework_objects import (
     frameworkLattice,
     frameworkCommand,
@@ -203,7 +198,7 @@ class genesisLattice(frameworkLattice):
     seed: int = randint(1,10000000)
     """Random number seed"""
 
-    match: float = None
+    match_location: float = None
     """If True, use `zmatch` in :class:`~simba.Codes.Genesis.Genesis.genesis_lattice_command`
     and set the location to the middle of the first undulator"""
 
@@ -236,7 +231,12 @@ class genesisLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.particle_definition = self.elementObjects[self.start].objectname
+        cls = self.__class__
+        for f in cls.model_fields:
+            if "fel" in self.file_block:
+                if f in self.file_block["fel"]:
+                    setattr(self, f, self.file_block["fel"][f])
+        self.particle_definition = self.start
 
     def writeElements(self) -> str:
         """
@@ -248,17 +248,7 @@ class genesisLattice(frameworkLattice):
         str
             The lattice represented as a string compatible with Genesis
         """
-        elements = self.createDrifts()
-        text = ""
-        for i, element in enumerate(list(elements.values())):
-            if not element.subelement:
-                text += element.write_Genesis()
-        text += self.objectname + ": Line={"
-        for e, element in list(elements.items()):
-            if not element.subelement:
-                text += e + ", "
-        fulltext = text[:-2] + " };\n"
-        return fulltext
+        return self.section.to_genesis()
 
     def write(self) -> None:
         """
@@ -281,7 +271,7 @@ class genesisLattice(frameworkLattice):
                     cfile = self.commandFiles[cfileid]
                     saveFile(command_file, cfile.write_Genesis(), "a")
         else:
-            warn("commandFilesOrder length is zero; run createCommandFiles first")
+            warn("commandFiles length is zero; run preProcess first")
 
     def preProcess(self) -> None:
         """
@@ -289,14 +279,20 @@ class genesisLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.read_input_file(prefix, self.particle_definition)
+        self.global_parameters["beam"].beam.rematchXPlane(
+            **self.initial_twiss["horizontal"]
+        )
+        self.global_parameters["beam"].beam.rematchYPlane(
+            **self.initial_twiss["vertical"]
+        )
         self.hdf5_to_genesis(prefix)
         self.write_setup_file()
         if self.steady_state:
             self.write_time()
-        if self.match:
+        if self.match_location:
             self.commandFiles["lattice"] = genesis_lattice_command(
-                zmatch=self.match,
+                zmatch=self.match_location,
             )
         self.commandFiles["field"] = genesis_field_command(
             power=self.field_power,
@@ -306,26 +302,26 @@ class genesisLattice(frameworkLattice):
         )
         self.commandFiles["track"] = genesis_track_command()
         self.commandFiles["write"] = genesis_write_command(
-            field=self.elementObjects[self.end].objectname,
-            beam=self.elementObjects[self.end].objectname,
+            field=f"{self.end}_FIELD",
+            beam=f"{self.end}_BEAM",
         )
 
     def write_setup_file(self) -> None:
         gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
-        first_wiggler = self.wigglers_and_modulators[0]
+        first_wiggler = self.wigglers[0]
         if not self.fundamental_wavelength:
-            self.fundamental_wavelength = first_wiggler.period_length / (2 * gamma0**2)
-            self.fundamental_wavelength *= (1 + first_wiggler.k**2 / 2)
+            self.fundamental_wavelength = first_wiggler.period / (2 * gamma0**2)
+            self.fundamental_wavelength *= (1 + first_wiggler.strength**2 / 2)
         else:
-            lambda0_from_und = first_wiggler.period_length / (2 * gamma0**2) * (1 + first_wiggler.k**2 / 2)
+            lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.strength**2 / 2)
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
-                warn("First undulator strength is not close to fundamental_wavelength")
+                warn(f"First undulator strength is not close to fundamental_wavelength")
         if not self.npart:
             beamlen = len(self.global_parameters["beam"].x.val)
             parts_per_lambda = int(np.std(self.global_parameters["beam"].z.val) / self.fundamental_wavelength)
-            self.npart = 1 << (parts_per_lambda - 1).bit_length()
+            self.npart = beamlen
             warn(f"npart not provided; setting npart to {self.npart}")
-        delz = first_wiggler.period_length
+        delz = first_wiggler.period
         self.commandFiles["setup"] = genesis_setup_command(
             rootname=self.objectname,
             lattice=self.objectname + ".lat",
@@ -363,20 +359,7 @@ class genesisLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        HDF5filename = prefix + self.particle_definition + ".hdf5"
-        if os.path.isfile(expand_substitution(self, HDF5filename)):
-            filepath = expand_substitution(self, HDF5filename)
-        else:
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
-        rbf.hdf5.read_HDF5_beam_file(
-            self.global_parameters["beam"],
-            os.path.abspath(filepath),
-        )
-        hdf5outname = f'{self.global_parameters["master_subdir"]}/{self.elementObjects[self.start].objectname}.hdf5'
-        rbf.hdf5.write_HDF5_beam_file(
-            self.global_parameters["beam"],
-            hdf5outname,
-        )
+        hdf5outname = f'{self.global_parameters["master_subdir"]}/{self.start}.hdf5'
         genesisbeamfilename = hdf5outname.replace("hdf5", "genesis.hdf5")
         if self.beam_type == "profile":
             rbf.genesis.write_genesis_beam_profiles(
@@ -405,18 +388,22 @@ class genesisLattice(frameworkLattice):
 
     def get_average_beam_properties(self) -> Dict:
         beam = deepcopy(self.global_parameters["beam"])
+        if isinstance(float(beam.E0_eV.val), float):
+            E0_eV = float(beam.E0_eV.val)
+        else:
+            E0_eV = float(beam.E0_eV.val[0])
         ddd =  {
             "betax": float(beam.twiss.beta_x.val),
             "betay": float(beam.twiss.beta_y.val),
             "alphax": float(beam.twiss.alpha_x.val),
             "alphay": float(beam.twiss.alpha_y.val),
             "gamma0": float(beam.centroids.mean_gamma.val),
-            "delgam": float(beam.sigmas.sigma_cp_eV.val) / float(beam.E0_eV.val[0]),
+            "delgam": float(beam.sigmas.sigma_cp_eV.val) / E0_eV,
             "current": float(beam.slice.peak_current.val),
             "xcenter": float(beam.centroids.mean_x.val),
             "ycenter": float(beam.centroids.mean_y.val),
-            "pxcenter": float(beam.centroids.mean_cpx.val) / float(beam.E0_eV.val[0]),
-            "pycenter": float(beam.centroids.mean_cpy.val) / float(beam.E0_eV.val[0]),
+            "pxcenter": float(beam.centroids.mean_cpx.val) / E0_eV,
+            "pycenter": float(beam.centroids.mean_cpy.val) / E0_eV,
             "ex": float(beam.emittance.normalized_horizontal_emittance.val),
             "ey": float(beam.emittance.normalized_vertical_emittance.val),
         }
@@ -441,6 +428,34 @@ class genesisLattice(frameworkLattice):
         # self.pin = rbf.beam.write_ocelot_beam_file(
         #     self.global_parameters["beam"], ocebeamfilename, write=write
         # )
+
+    def run(self) -> None:
+        """
+        Run the code with input 'filename'
+        This method constructs the command to run the simulation using the specified executable
+        and the name of the lattice. It redirects the output to a log file in the master subdirectory.
+
+        If  :attr:`~remote_setup` is set, then :func:`~run_remote` will be called instead.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the executable for the specified code is not found in the executables dictionary.
+        """
+        if self.remote_setup:
+            self.run_remote()
+        else:
+            command = self.executables[self.code] + [self.name + ".in"]
+            with open(
+                os.path.relpath(
+                    self.global_parameters["master_subdir"] + "/" + self.name + ".log",
+                    ".",
+                ),
+                "w",
+            ) as f:
+                subprocess.call(
+                    command, stdout=f, cwd=self.global_parameters["master_subdir"]
+                )
 
 class genesisCommandFile(frameworkCommand):
     """
@@ -483,7 +498,7 @@ class genesis_setup_command(genesisCommandFile):
     delz: float
     """Preferred integration stepsize in meter."""
 
-    seed: int = 123456789
+    seed: int = randint(1,10000000)
     """Seed to initialize the random number generator, 
     which is used for shot noise calculation and undulator lattice errors"""
 

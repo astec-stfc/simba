@@ -109,10 +109,14 @@ with open(
 ) as infile:
     commandkeywords_opal = yaml.safe_load(infile)
 
-commandkeywords = merge_two_dicts(
-                commandkeywords_elegant,
-                commandkeywords_opal,
-            )
+with open(
+    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Genesis/commands_Genesis.yaml",
+    "r",
+) as infile:
+    commandkeywords_genesis = yaml.safe_load(infile)
+
+commandkeywords = commandkeywords_elegant | commandkeywords_opal
+commandkeywords = commandkeywords | commandkeywords_genesis
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/elementkeywords.yaml", "r"
@@ -366,10 +370,7 @@ class frameworkObject(BaseModel):
         if self.objecttype in commandkeywords:
             self.allowedkeywords = commandkeywords[self.objecttype]
         elif self.objecttype in elementkeywords:
-            self.allowedkeywords = merge_two_dicts(
-                elementkeywords[self.objecttype]["keywords"],
-                elementkeywords["common"]["keywords"],
-            )
+            self.allowedkeywords = elementkeywords[self.objecttype]["keywords"] | elementkeywords["common"]["keywords"]
             if "framework_keywords" in elementkeywords[self.objecttype]:
                 self.allowedkeywords = merge_two_dicts(
                     self.allowedkeywords,
@@ -1106,6 +1107,18 @@ class frameworkLattice(BaseModel):
             self.getElementType("aperture") + self.getElementType("collimator"),
             key=lambda x: x.physical.start.z,
         )
+
+    @property
+    def wigglers(self) -> list:
+        """
+        Property to get all wiggler elements in the lattice.
+
+        Returns
+        -------
+        list
+            A list of wiggler elements in the lattice.
+        """
+        return self.getElementType("wiggler")
 
     @property
     def lines(self) -> list:
@@ -2100,16 +2113,40 @@ class frameworkCommand(frameworkObject):
         # print(self.objecttype, self.objectproperties)
         for key in commandkeywords[self.objecttype]:
             if (
-                key.lower() in self.objectproperties
-                and not key == "name"
-                and not key == "type"
-                and not self.objectproperties[key.lower()] is None
+                    key.lower() in self.objectproperties
+                    and not key == "name"
+                    and not key == "type"
+                    and not self.objectproperties[key.lower()] is None
             ):
                 e = "," + key + "=" + str(self.objectproperties[key.lower()])
                 if len((string + e).splitlines()[-1]) > 79:
                     string += ",&\n"
                 string += e
         string += ";\n"
+        return string
+
+    def write_Genesis(self) -> str:
+        """
+        Writes the command string for Genesis.
+        # TODO deprecated?
+
+        Returns
+        -------
+        str
+            String representation of the command for Genesis
+        """
+        string = "&" + self.objecttype + "\n"
+        for key in commandkeywords_genesis[self.objecttype]:
+            if (
+                key.lower() in self.allowedkeywords
+                and not key == "objectname"
+                and not key == "objecttype"
+                and hasattr(self, key)
+            ):
+                val = getattr(self, key.lower())
+                val = int(val) if isinstance(val, bool) else val
+                string += "\t" + key + " = " + str(val) + "\n"
+        string += "&end\n"
         return string
 
 

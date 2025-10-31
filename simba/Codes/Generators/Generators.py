@@ -240,7 +240,7 @@ class frameworkGenerator(BaseModel):
     number_of_particles: int = 512
     """Number of particles"""
 
-    filename: str = "generator.txt"
+    filename: str = "generator.hdf5"
     """Beam distribution filename to be generated"""
 
     probe_particle: bool = True

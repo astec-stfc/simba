@@ -131,6 +131,8 @@ class ocelotLattice(frameworkLattice):
         for f in cls.model_fields:
             if f in list(self.oceglobal.keys()):
                 setattr(self, f, self.oceglobal[f])
+            elif f in self.file_block:
+                setattr(self, f, self.file_block[f])
 
         if (
             "input" in self.file_block
