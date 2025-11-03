@@ -74,7 +74,6 @@ from typing import (
     Dict,
     List,
     Any,
-    Tuple,
 )
 
 if os.name == "nt":

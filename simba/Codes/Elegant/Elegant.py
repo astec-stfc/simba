@@ -7,8 +7,8 @@ Various objects and functions to handle ELEGANT lattices and commands. See `Eleg
 
 Classes:
     - :class:`~simba.Codes.Elegant.Elegant.elegantLattice`: The ELEGANT lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for ELEGANT input and lattice files.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegantCommandFile`: Base class for defining
@@ -85,8 +85,8 @@ from nala.models.diagnostic import DiagnosticElement
 class elegantLattice(frameworkLattice):
     """
     Class for defining the ELEGANT lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for an ELEGANT input file.
     """
 

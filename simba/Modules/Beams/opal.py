@@ -8,11 +8,32 @@ emass_eV = constants.m_e * (constants.speed_of_light ** 2) / constants.elementar
 emass_MeV = emass_eV * 1e-6
 emass_GeV = emass_eV * 1e-9
 
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+
+def find_opal_s_positions(filename, spos, tolerance=0.1):
+    file = h5py.File(filename, 'r')
+    file_s_pos = [file[f"Step#{i}"].attrs["SPOS"][0] for i in range(len(file.keys()))]
+    elem_indices = {}
+    for name, s in spos.items():
+        sval = find_nearest(file_s_pos, s)
+        if abs(sval - s) < tolerance:
+            elem_indices.update({name: file_s_pos.index(find_nearest(file_s_pos, s))})
+        else:
+            warn(f"Could not find beam output within {tolerance} tolerance for {name}")
+    file.close()
+    return elem_indices
+
 def read_opal_beam_file(self, filename, step=0):
     self.filename = filename
     self["code"] = "OPAL"
     file = h5py.File(filename, 'r')
-    beamdata = file[f"Step#{step}"]
+    if step == -1:
+        beamdata = file[f"Step#{len(file.keys())-1}"]
+    else:
+        beamdata = file[f"Step#{step}"]
     try:
         if np.isclose(beamdata.attrs["MASS"], emass_GeV):
             mass = constants.m_e
@@ -97,13 +118,16 @@ def read_opal_beam_file(self, filename, step=0):
     file.close()
 
 
-def write_opal_beam_file(self, filename, subz=0):
+def write_opal_beam_file(self, filename, subz=0, emitted=False):
     """Save a text file for opal."""
     x = self.x.val
     betax_gamma = self.cpx.val * self.gamma.val / self.energy.val
     y = self.y.val
     betay_gamma = self.cpy.val * self.gamma.val / self.energy.val
-    z = self.z.val - subz
+    if emitted:
+        z = self.t.val
+    else:
+        z = self.z.val - subz
     betaz_gamma = self.cpz.val * self.gamma.val / self.energy.val
     beamdata = np.transpose([x, betax_gamma, y, betay_gamma, z, betaz_gamma])
     data = np.concatenate(

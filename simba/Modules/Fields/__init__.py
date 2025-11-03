@@ -8,9 +8,9 @@ Functions are provided to read in existing files, and to write them in the forma
 required for specific codes.
 
 Classes:
-    - :class:`~SimulationFramework.Modules.Fields.field`: Generic field definition.
-    - :class:`~SimulationFramework.Modules.Fields.FieldParameter.FieldParameter`: Field parameter with a
-    name and a :class:`~SimulationFramework.Modules.units.UnitValue` associated with it.
+    - :class:`~simba.Modules.Fields.field`: Generic field definition.
+    - :class:`~simba.Modules.Fields.FieldParameter.FieldParameter`: Field parameter with a
+    name and a :class:`~simba.Modules.units.UnitValue` associated with it.
 """
 
 import os

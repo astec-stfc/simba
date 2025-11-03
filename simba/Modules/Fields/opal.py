@@ -18,7 +18,7 @@ def write_opal_field_file(
 ):
     """
     Generate the field data in a format that is suitable for OPAL, based on the
-    :class:`~SimulationFramework.Modules.Fields.field` object provided.
+    :class:`~simba.Modules.Fields.field` object provided.
 
     See the `OPAL manual`_ for more details.
 
@@ -31,7 +31,7 @@ def write_opal_field_file(
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object
     frequency: float | None
         The frequency of the field
@@ -147,18 +147,18 @@ def read_opal_field_file(
     frequency: float | None = None,
 ):
     """
-    Read an OPAL field file and convert it into a :class:`SimulationFramework.Modules.Fields.field` object
+    Read an OPAL field file and convert it into a :class:`simba.Modules.Fields.field` object
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object to be updated.
     filename: str
         The path to the OPAL field file
     field_type: str
-        The name of the field, see :attr:`~SimulationFramework.Modules.Fields.allowed_fields`
+        The name of the field, see :attr:`~simba.Modules.Fields.allowed_fields`
     cavity_type: str, optional
-        The type of RF cavity, see :attr:`~SimulationFramework.Modules.Fields.allowed_cavities`
+        The type of RF cavity, see :attr:`~simba.Modules.Fields.allowed_cavities`
     frequency: float, optional
         The frequency of the RF cavity.
 

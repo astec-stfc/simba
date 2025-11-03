@@ -7,19 +7,17 @@ Various objects and functions to handle OCELOT lattices and commands. See `Ocelo
 
 Classes:
     - :class:`~simba.Codes.Ocelot.Ocelot.ocelotLattice`: The Ocelot lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into an Ocelot lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
     and for tracking through it.
 
 """
 
 from ...Framework_objects import frameworkLattice, getGrids
-#from ...Framework_elements import screen
-from ...FrameworkHelperFunctions import expand_substitution
 from ...Modules import Beams as rbf
 from ...Modules.Fields import field
 from copy import deepcopy
-from numpy import array, mean, savez_compressed, linspace, save
+from numpy import array, savez_compressed, linspace, save
 import os
 from yaml import safe_load
 
@@ -34,8 +32,8 @@ from typing import Dict, List, Any
 class ocelotLattice(frameworkLattice):
     """
     Class for defining the OCELOT lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into an Ocelot lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
     and for tracking through it.
     """
 

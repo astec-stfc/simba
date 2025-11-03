@@ -101,7 +101,7 @@ def read_opal_twiss_files(self, filename, startS=0, reset=True):
         # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
 
         self.mux.val = np.append(self.mux.val, cumtrapz(x=z, y=1 / (opalData["rms_x"]**2 / opalData["emit_x"] / opalData["ref_pz"])))
-        self.mux.val = np.append(self.mux.val, cumtrapz(x=z, y=1 / (opalData["rms_y"]**2 / opalData["emit_y"] / opalData["ref_pz"])))
+        self.muy.val = np.append(self.muy.val, cumtrapz(x=z, y=1 / (opalData["rms_y"]**2 / opalData["emit_y"] / opalData["ref_pz"])))
 
         self.element_name.val = np.append(self.element_name.val, np.full(len(z), lattice_name))
         self.lattice_name.val = np.append(self.lattice_name.val, np.full(len(z), lattice_name))

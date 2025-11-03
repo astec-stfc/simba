@@ -2,17 +2,30 @@ import os
 import subprocess
 import numpy as np
 import yaml
+from typing import Dict, Literal
 
 from ...Framework_objects import (
     frameworkLattice,
     getGrids,
 )
-#from ...Framework_elements import dipole
-from ...Modules import constants
-from ...FrameworkHelperFunctions import saveFile, expand_substitution
+from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
-import mpi4py
-mpi4py.rc.initialize = False
+from ...Modules.Beams.opal import find_opal_s_positions
+# import mpi4py
+# mpi4py.rc.initialize = False
+
+from nala.translator.converters.codes.opal import (
+    opal_option,
+    opal_distribution,
+    opal_fieldsolver,
+    opal_beam,
+    opal_track,
+    opal_run,
+)
+
+from ...Modules.constants import speed_of_light
+from ...Modules.units import UnitValue
+
 
 def update_globals(global_settings, beamlen=None, sample_interval=1):
     grids = getGrids()
@@ -36,182 +49,181 @@ def update_globals(global_settings, beamlen=None, sample_interval=1):
     return opalglobal
 
 class opalLattice(frameworkLattice):
-    def __init__(self, *args, **kwargs):
-        super(opalLattice, self).__init__(*args, **kwargs)
-        self.code = "opal"
-        self.particle_definition = self.start
-        self.bunch_charge = None
-        self.trackBeam = True
-        self.betax = None
-        self.betay = None
-        self.alphax = None
-        self.alphay = None
-        self.zstop = None
-        self.grids = getGrids()
-        self.commandFiles = {}
-        self.opalglobal = None
-        self.breakstr = "//----------------------------------------------------------------------------"
+    """
+    Class for defining the GPT lattice object, used for
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+    the lattice suitable for an OPAL input file.
+    """
 
-    def writeElements(self):
-        fulltext = ""
-        fulltext += f'{self.breakstr}\n// LATTICE\n'
-        zstops = []
-        for element in list(self.elements.values()):
-            elemstr = element.write_Opal()
-            if len(elemstr) > 0:
-                if not element.subelement:
-                    elemedge = self.getSValues(as_dict=True, at_entrance=True)[element.objectname]
-                else:
-                    elemedge = element.centre[2] - element.length / 2
-                if isinstance(element, dipole):
-                    elemstr += f" DESIGNENERGY = {self.global_parameters["beam"].centroids.mean_cpz.val * 1e-6}, "
-                fulltext += f"{elemstr} elemedge = {elemedge};\n"
-                zstops.append(elemedge + element.length)
-        self.zstop = max(zstops)
-        fulltext += "\n" + self.objectname + ": LINE=("
-        for e, element in list(self.elements.items()):
-            if len((fulltext + e).splitlines()[-1]) > 60:
-                fulltext += "\n"
-            fulltext += e.replace('-', '_') + ", "
-        fulltext = (fulltext[:-2] + ");\n")
-        return fulltext
+    code: str = "opal"
+    """String indicating the lattice object type"""
 
-    def writeOptions(self):
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// OPTIONS\n"
-        for name, val in self.opalglobal["option"].items():
-            fulltext += f"OPTION, {name} = {val};\n"
-        return fulltext + "\n"
+    headers: Dict = {}
+    """Headers to be included in the OPAL lattice file"""
 
-    def writeDistribution(self):
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// DISTRIBUTION\n"
-        # try:
-        #     # cathstatus = self.file_block["charge"]["cathode"]
-        #     # emissionmodel = self.opalglobal["distribution"]["EMISSIONMODEL"]
-        #     emitted = ""#f", \n\tEMITTED = {cathstatus}, \n\tEMISSIONMODEL = {emissionmodel}"
-        # except:
-        emitted = ""
-        if "particle_definition" in list(self.file_block["input"].keys()):
-            initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.startObject.objectname
+    particle_definition: str = None
+    """Name of initial particle distribution"""
+
+    time_step_size: float = 1e-11
+    """Step size for tracking"""
+
+    breakstr: str = "//----------------------------------------------------------------------------"
+    """String used for separating headers in the input file"""
+
+    version: str = "202210"
+    """Version of OPAL"""
+
+    maxsteps: int = 1000000
+    """Maximum number of steps for tracking; will be set dynamically once the lattice is parsed"""
+
+    headers: Dict = {}
+    """Section headers for OPAL input file"""
+
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        if (
+            "input" in self.file_block
+            and "particle_definition" in self.file_block["input"]
+        ):
+            if (
+                self.file_block["input"]["particle_definition"]
+                == "initial_distribution"
+            ):
+                self.particle_definition = "laser"
+            else:
+                self.particle_definition = self.file_block["input"][
+                    "particle_definition"
+                ]
         else:
-            initobj = self.startObject.objectname
-        fulltext += f"DIST: DISTRIBUTION, \n\tTYPE = FROMFILE, \n\tFNAME = \"{initobj}.opal\"{emitted};\n"
-        return fulltext + "\n"
+            self.particle_definition = self.start
 
-    def writeFieldSolver(self, none=False):
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// FIELDSOLVER\n"
-        fulltext += f"FS: FIELDSOLVER "
-        if not none:
-            for name, val in self.opalglobal["fieldsolver"].items():
-                fulltext += f", \n\t{name} = {val}"
+
+    @property
+    def space_charge_mode(self) -> str | None:
+        """
+        Get the space charge mode based on
+        :attr:`~simba.Framework_objects.frameworkLattice.globalSettings` or
+        :attr:`~simba.Framework_objects.frameworkLattice.file_block`.
+
+        Returns
+        -------
+        str
+            Space charge mode as string, or None if not provided.
+
+        """
+        if (
+                "charge" in self.file_block
+                and "space_charge_mode" in self.file_block["charge"]
+        ):
+            return self.file_block["charge"]["space_charge_mode"]
+        elif (
+                "charge" in self.globalSettings
+                and "space_charge_mode" in self.globalSettings["charge"]
+        ):
+            return self.globalSettings["charge"]["space_charge_mode"]
         else:
-            fulltext += f", \n\tFSTYPE = NONE"
-        return fulltext + ";\n"
+            return None
 
-    def writeBeam(self):
-        bea = self.global_parameters["beam"]
-        pc = np.mean(bea.cpz.val) / 1e9
-        # gamma = (1 + np.mean(self.global_parameters["beam"].cpz)) / 0.511
-        npart = len(self.global_parameters["beam"].x)
-        charg = -1 * self.global_parameters["beam"].total_charge * 1e6
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// BEAM\n"
-        fulltext += f"BEAM1: BEAM,\n"
-        fulltext += f"\tPARTICLE = ELECTRON,\n"
-        fulltext += f"\tPC = {pc},\n"
-        fulltext += f"\tNPART = {npart},\n"
-        fulltext += f"\tBFREQ = 1,\n"
-        fulltext += f"\tBCURRENT = {charg},\n"
-        fulltext += f"\tCHARGE = -1;\n"
-        return fulltext + "\n"
+    @space_charge_mode.setter
+    def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
+        """
+        Set the space charge mode manually ["2D", "3D"].
 
-    def writeTrack(self):
-        maxsteps = self.opalglobal["track"]["MAXSTEPS"]
-        dt = self.opalglobal["track"]["DT"]
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// TRACK\n"
-        fulltext += f"TRACK, LINE = {self.objectname},\n"
-        fulltext += f"\tBEAM = BEAM1,\n"
-        fulltext += f"\tMAXSTEPS = {maxsteps},\n"
-        fulltext += "\tDT = {" + str(dt) + "},\n"
-        fulltext += "\tZSTOP = {" + str(self.zstop+1e-1) + "};\n"
-        return fulltext + "\n"
-
-    def writeRun(self):
-        fulltext = ""
-        fulltext += f"{self.breakstr}\n// RUN\n"
-        fulltext += f"RUN, METHOD = \"PARALLEL-T\",\n"
-        fulltext += f"\tBEAM = BEAM1,\n"
-        fulltext += f"\tFIELDSOLVER = FS,\n"
-        fulltext += f"\tDISTRIBUTION = DIST;\n"
-        fulltext += "ENDTRACK;\n"
-        return fulltext + "\n"
+        Parameters
+        ----------
+        mode: Literal["2d", "3d", "2D", "3D"]
+            The space charge calculation mode
+        """
+        if "charge" not in self.file_block:
+            self.file_block["charge"] = {}
+        self.file_block["charge"]["space_charge_mode"] = mode
 
     def write(self):
-        output = ''
-        output += self.writeOptions()
-        output += self.writeElements()
-        output += self.writeDistribution()
-        try:
-            if self.file_block["charge"]["space_charge_mode"].upper() in ["2D", "3D"]:
-                output += self.writeFieldSolver()
-        except Exception as e:
-            output += self.writeFieldSolver(none=True)
-        output += self.writeBeam()
-        output += self.writeTrack()
-        output += self.writeRun()
-        output += "Quit;\n"
+        self.section.opal_headers = self.headers
+        output = self.section.to_opal(
+            energy=self.global_parameters["beam"].centroids.mean_cpz.val / 1e6,
+            breakstr=self.breakstr,
+        )
         command_file = (
                 self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
         saveFile(command_file, output, "w")
-        try:
-            self.command_file = (
-                self.global_parameters["master_subdir"] + "/" + self.objectname + ".ele"
-            )
-            saveFile(self.command_file, "", "w")
-            for cfileid in self.commandFilesOrder:
-                if cfileid in self.commandFiles:
-                    cfile = self.commandFiles[cfileid]
-                    saveFile(self.command_file, cfile.write(), "a")
-        except:
-            pass
 
     def preProcess(self):
         super().preProcess()
         prefix = self.get_prefix()
         fpath = self.read_input_file(prefix, self.particle_definition)
-        self.hdf5_to_opal(prefix, fpath)
+        self.hdf5_to_opal()
         beamlen = len(self.global_parameters["beam"].x)
-        self.opalglobal = update_globals(self.globalSettings, beamlen=beamlen)
+        pc = np.mean(self.global_parameters["beam"].cpz.val) / 1e9
+        bcurrent = abs(self.global_parameters["beam"].total_charge * 1e6)
+        chargesign = int(self.global_parameters["beam"].chargesign[0])
+        if "particle_definition" in list(self.file_block["input"].keys()):
+            initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.start
+        else:
+            initobj = self.start
+        self.headers["option"] = opal_option()
+        self.headers["distribution"] = opal_distribution(input_particle_definition=f"\"{initobj}.opal\"")
+        self.headers["fieldsolver"] = opal_fieldsolver(
+            npart=beamlen,
+            sample_interval=self.sample_interval,
+            space_charge_mode=str(self.space_charge_mode),
+        )
+        self.headers["beam"] = opal_beam(
+            PC=pc,
+            NPART=beamlen,
+            CHARGE=chargesign,
+            PARTICLE=self.global_parameters["beam"].species.upper(),
+            BCURRENT=bcurrent,
+        )
+        self.headers["track"] = opal_track(
+            DT=self.time_step_size,
+            MAXSTEPS=self.maxsteps,
+            LINE=self.objectname,
+            ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
+        )
+        self.headers["run"] = opal_run()
         self.write()
 
     def postProcess(self):
-        for elem in self.screens_and_bpms + [self.endObject]:
-            opalbeamname = f'{self.global_parameters["master_subdir"]}/{elem.objectname}_opal.h5'
-            try:
-                beam = rbf.beam(opalbeamname)
-                rbf.hdf5.write_HDF5_beam_file(
+        elems = self.getSValues(as_dict=True)
+        svals = {}
+        for s in self.screens_and_bpms:
+            svals.update({s.name: elems[s.name] - self.startObject.physical.start.z})
+        spositions = find_opal_s_positions(
+            f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5',
+            svals,
+            tolerance=1.0,
+        )
+        for elem in self.screens_and_bpms:
+            if elem.name in spositions:
+                opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
+                beam = rbf.beam()
+                beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
+                beam._beam.z = UnitValue(beam._beam.z.val + self.startObject.physical.middle.z, "m")
+                beam._beam.t = UnitValue(beam._beam.t.val + (self.startObject.physical.middle.z / speed_of_light), "s")
+                rbf.openpmd.write_openpmd_beam_file(
                     beam,
-                    opalbeamname.replace("_opal.h5", ".hdf5"),
-                    centered=False,
-                    sourcefilename=opalbeamname,
-                    pos=0.0,
-                    xoffset=np.mean(beam.x),
-                    yoffset=np.mean(beam.y),
-                    zoffset=[elem.start[2]],
+                    f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
                 )
-            except Exception as e:
-                print(f"Error reading opal beam file {elem.objectname}_opal.h5", e)
+        opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
+        beam = rbf.beam()
+        beam.read_opal_beam_file(filename=opalbeamname, step=-1)
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            f'{self.global_parameters["master_subdir"]}/{self.endObject.name}.openpmd.hdf5',
+        )
         self.commandFiles = {}
 
-    def hdf5_to_opal(self, prefix="", fpath=""):
+    def hdf5_to_opal(self):
+        emitted = True if self.particle_definition == "laser" else False
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + self.particle_definition + '.opal',
-            subz=self.startObject.start[2],
+            subz=self.startObject.physical.start.z,
+            emitted=emitted,
         )
 
     def run(self):
@@ -234,6 +246,3 @@ class opalLattice(frameworkLattice):
                     env={**os.environ},
                     shell=True
                 )
-
-    def elegantCommandFile(self, *args, **kwargs):
-        return elegantCommandFile(*args, **kwargs)

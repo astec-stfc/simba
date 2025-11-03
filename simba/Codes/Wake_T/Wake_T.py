@@ -6,9 +6,9 @@ Various objects and functions to handle Wake-T lattices and commands. See `Wake-
     .. _Wake-T github: https://github.com/AngelFP/Wake-T
 
 Classes:
-    - :class:`~SimulationFramework.Codes.Wake_T.Wake_T.waketLattice`: The Wake-T lattice object, used for
-    converting the :class:`~SimulationFramework.Framework_elements.frameworkObject` s defined in the
-    :class:`~SimulationFramework.Framework_elements.frameworkLattice` into a Wake-T lattice object,
+    - :class:`~simba.Codes.Wake_T.Wake_T.waketLattice`: The Wake-T lattice object, used for
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a Wake-T lattice object,
     and for tracking through it.
 
 """
@@ -36,8 +36,8 @@ def all_subclasses(cls):
 class waketLattice(frameworkLattice):
     """
         Class for defining the Wake-T lattice object, used for
-        converting the :class:`~SimulationFramework.Framework_elements.frameworkObject`s defined in the
-        :class:`~SimulationFramework.Framework_elements.frameworkLattice` into an Wake-T lattice object,
+        converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+        :class:`~simba.Framework_objects.frameworkLattice` into an Wake-T lattice object,
         and for tracking through it.
         """
 
@@ -96,7 +96,7 @@ class waketLattice(frameworkLattice):
     def writeElements(self) -> None:
         """
         Create Wake-T objects for all the elements in the lattice and set the
-        :attr:`~SimulationFramework.Codes.Wake_T.Wake_T.waketLattice.beamline`.
+        :attr:`~simba.Codes.Wake_T.Wake_T.waketLattice.beamline`.
         """
         self.beamline = self.section.to_wake_t()
 

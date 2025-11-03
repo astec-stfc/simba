@@ -4,7 +4,7 @@ Simframe Twiss Module
 Twiss module for reading and manipulating twiss parameters from various simulation codes.
 
 Classes:
-  - :class:`~SimulationFramework.Modules.Twiss.twiss`: Twiss object class
+  - :class:`~simba.Modules.Twiss.twiss`: Twiss object class
 """
 
 from __future__ import annotations
@@ -1024,7 +1024,7 @@ def load_directory(
 ) -> twiss:
     """
     Load in all Twiss output files from a directory and create a
-    :class:`~SimulationFramework.Modules.Twiss.twiss` object.
+    :class:`~simba.Modules.Twiss.twiss` object.
 
     Parameters
     ----------
@@ -1041,7 +1041,7 @@ def load_directory(
 
     Returns
     -------
-    :class:`~SimulationFramework.Modules.Twiss.twiss`
+    :class:`~simba.Modules.Twiss.twiss`
         A new `twiss` object.
     """
     t = twiss()

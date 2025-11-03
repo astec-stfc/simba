@@ -10,7 +10,7 @@ from ..constants import speed_of_light
 def write_gdf_field_file(self) -> str:
     """
     Generate the field data in a format that is suitable for GPT, based on the
-    :class:`~SimulationFramework.Modules.Fields.field` object provided.
+    :class:`~simba.Modules.Fields.field` object provided.
     This is then written to a GDF file.
     The `field_type` parameter determines the format of the file.
 
@@ -18,7 +18,7 @@ def write_gdf_field_file(self) -> str:
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object
 
     Returns
@@ -153,18 +153,18 @@ def read_gdf_field_file(
     normalize_b: bool = True
 ):
     """
-    Read a GDF field file and convert it into a :class:`SimulationFramework.Modules.Fields.field` object
+    Read a GDF field file and convert it into a :class:`simba.Modules.Fields.field` object
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object to be updated.
     filename: str
         The path to the GDF field file
     field_type: str
-        The name of the field, see :attr:`~SimulationFramework.Modules.Fields.allowed_fields`
+        The name of the field, see :attr:`~simba.Modules.Fields.allowed_fields`
     cavity_type: str, optional
-        The type of RF cavity, see :attr:`~SimulationFramework.Modules.Fields.allowed_cavities`
+        The type of RF cavity, see :attr:`~simba.Modules.Fields.allowed_cavities`
     frequency: float, optional
         The frequency of the RF cavity.
     normalize_b: bool, optional

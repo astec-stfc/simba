@@ -7,8 +7,8 @@ Various objects and functions to handle Xsuite lattices and commands. See `Xsuit
 
 Classes:
     - :class:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice`: The Xsuite lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into an Xsuite lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
     and for tracking through it.
 
 """
@@ -19,12 +19,9 @@ except ImportError:
     has_cupy = False
 
 from ...Framework_objects import frameworkLattice, getGrids
-#from ...Framework_elements import screen
-from ...FrameworkHelperFunctions import expand_substitution
 from ...Modules import Beams as rbf
 from copy import deepcopy
 import numpy as np
-import os
 import json
 
 from typing import Dict, List, Any, Literal
@@ -33,8 +30,8 @@ from typing import Dict, List, Any, Literal
 class xsuiteLattice(frameworkLattice):
     """
     Class for defining the Xsuite lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into an Xsuite lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
     and for tracking through it.
     """
 

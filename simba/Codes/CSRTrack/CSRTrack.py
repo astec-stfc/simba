@@ -7,8 +7,8 @@ Various objects and functions to handle CSRTrack lattices and commands. See `CSR
 
 Classes:
     - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrackLattice`: The CSRTrack lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for a CSRTrack input file.
 
     - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_element`: Class for defining the a
@@ -43,8 +43,8 @@ from nala.translator.converters.codes.csrtrack import (
 class csrtrackLattice(frameworkLattice):
     """
     Class for defining the CSRTrack lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for a CSRTrack input file.
     """
 

@@ -5,8 +5,8 @@ Various objects and functions to handle GPT lattices and commands.
 
 Classes:
     - :class:`~simba.Codes.GPT.GPT.gptLattice`: The GPT lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for GPT input and lattice files.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_element`: Base class for defining
@@ -50,14 +50,11 @@ Classes:
 """
 
 import os
-from copy import deepcopy
 import subprocess
 import numpy as np
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
-from ...Modules.merge_two_dicts import merge_two_dicts
-from ...Modules.Fields import field
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
@@ -82,8 +79,8 @@ gpt_defaults = {}
 class gptLattice(frameworkLattice):
     """
     Class for defining the GPT lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for a GPT input file.
     """
 
@@ -105,7 +102,7 @@ class gptLattice(frameworkLattice):
     screen_step_size: float = 0.1
     """Step size for screen output"""
 
-    time_step_size: str = "0.1/c"
+    time_step_size: float = 1e-11
     """Step size for tracking"""
 
     override_meanBz: float | int | None = None

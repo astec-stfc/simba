@@ -113,7 +113,7 @@ from ...Framework_objects import (
     frameworkLattice,
     frameworkCommand,
 )
-from ...FrameworkHelperFunctions import saveFile, expand_substitution
+from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Literal
 

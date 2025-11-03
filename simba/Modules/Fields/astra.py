@@ -10,7 +10,7 @@ d = ",!?/&-:;@'\n \t"
 def generate_astra_field_data(self) -> np.ndarray:
     """
     Generate the field data in a format that is suitable for ASTRA, based on the
-    :class:`~SimulationFramework.Modules.Fields.field` object provided.
+    :class:`~simba.Modules.Fields.field` object provided.
     The `field_type` parameter determines the format of the file.
     See the `ASTRA manual`_ for more details.
 
@@ -20,7 +20,7 @@ def generate_astra_field_data(self) -> np.ndarray:
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object
 
     Returns
@@ -138,13 +138,13 @@ def generate_astra_field_data(self) -> np.ndarray:
 def write_astra_field_file(self) -> str:
     """
     Write the field data in an ASTRA-compatible format, based on the
-    :class:`~SimulationFramework.Modules.Fields.field` object provided.
+    :class:`~simba.Modules.Fields.field` object provided.
     The absolute location of the file to be written is generated using
-    :func:`~SimulationFramework.Modules.Fields.field._output_filename`, which is parsed from the Master Lattice.
+    :func:`~simba.Modules.Fields.field._output_filename`, which is parsed from the Master Lattice.
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object
 
     Returns
@@ -170,7 +170,7 @@ def read_astra_field_file(
 ):
     """
     Read a field file from ASTRA format and convert it into a
-    :class:`~SimulationFramework.Modules.Fields.field` object (self).
+    :class:`~simba.Modules.Fields.field` object (self).
     Certain parameters must be included, particularly for RF cavities.
 
     See the `ASTRA manual`_ for more details.
@@ -179,14 +179,14 @@ def read_astra_field_file(
 
     Parameters
     ----------
-    self: :class:`~SimulationFramework.Modules.Fields.field`
+    self: :class:`~simba.Modules.Fields.field`
         The field object to be updated.
     filename: str
         The path to the ASTRA field file
     field_type: str
-        The name of the field, see :attr:`~SimulationFramework.Modules.Fields.allowed_fields`
+        The name of the field, see :attr:`~simba.Modules.Fields.allowed_fields`
     cavity_type: str, optional
-        The type of RF cavity, see :attr:`~SimulationFramework.Modules.Fields.allowed_cavities`
+        The type of RF cavity, see :attr:`~simba.Modules.Fields.allowed_cavities`
     frequency: float, optional
         The frequency of the RF cavity.
 

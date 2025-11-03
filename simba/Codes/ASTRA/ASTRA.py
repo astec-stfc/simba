@@ -7,8 +7,8 @@ Various objects and functions to handle ASTRA lattices and commands. See `ASTRA 
 
 Classes:
     - :class:`~simba.Codes.ASTRA.ASTRA.astraLattice`: The ASTRA lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for an ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_header`: Class for defining the &HEADER portion
@@ -65,8 +65,8 @@ section_header_text_ASTRA = {
 class astraLattice(frameworkLattice):
     """
     Class for defining the ASTRA lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for an ASTRA input file.
     """
 

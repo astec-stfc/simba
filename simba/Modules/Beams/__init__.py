@@ -682,6 +682,13 @@ class beam(BaseModel):
         """
         astra.read_astra_beam_file(self, *args, **kwargs)
 
+    def read_opal_beam_file(self, *args, **kwargs):
+        """
+        Load in an OPAL-type beam distribution file and update the
+        :attr:`~simba.Modules.Beams.beam.Particles` object.
+        """
+        opal.read_opal_beam_file(self, *args, **kwargs)
+
     def read_ocelot_beam_file(self, *args, **kwargs):
         """
         Load in an OCELOT-type beam distribution file and update the
@@ -748,7 +755,7 @@ class beam(BaseModel):
         """
         Write out an OPAL-type beam distribution file.
         """
-        opal.write_opal_beam_file(self)
+        opal.write_opal_beam_file(self, *args, **kwargs)
 
     def write_cheetah_beam_file(self, *args, **kwargs):
         """

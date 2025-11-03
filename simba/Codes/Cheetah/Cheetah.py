@@ -7,18 +7,16 @@ Various objects and functions to handle Cheetah lattices and commands. See `Chee
 
 Classes:
     - :class:`~simba.Codes.Cheetah.Cheetah.cheetahLattice`: The Cheetah lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject` s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a Cheetah lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
     and for tracking through it.
 
 """
-from torch import Tensor, as_tensor, float64
+from torch import Tensor
 
 from ...Framework_objects import frameworkLattice
-#from ...Framework_elements import screen
 from ...Modules import Beams as rbf
 
-from numpy import mean
 import os
 from yaml import safe_load
 from copy import deepcopy
@@ -54,8 +52,8 @@ twiss_keys = (
 class cheetahLattice(frameworkLattice):
     """
     Class for defining the Cheetah lattice object, used for
-    converting the :class:`~simba.Framework_elements.frameworkObject`s defined in the
-    :class:`~simba.Framework_elements.frameworkLattice` into a Cheetah lattice object,
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
     and for tracking through it.
     """
 

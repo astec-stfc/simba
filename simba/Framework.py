@@ -2085,7 +2085,7 @@ class frameworkDirectory(BaseModel):
     twiss: bool | rtf.twiss = True
     """Flag to indicate whether to load Twiss files"""
 
-    beams: bool | rbf.beamGroup = False
+    beams: bool | rbf.beamGroup | None = False
     """Flag to indicate whether to load beam files"""
 
     verbose: bool = False
