@@ -154,7 +154,7 @@ class astraLattice(frameworkLattice):
                 )
         else:
             self.section.astra_headers["newrun"].input_particle_definition = (
-                self.elementObjects[self.start].objectname + ".astra"
+                self.start + ".astra"
             )
             self.section.astra_headers["newrun"].output_particle_definition = (
                 self.objectname + ".astra"
@@ -221,7 +221,7 @@ class astraLattice(frameworkLattice):
         str
             The space charge type for ASTRA
         """
-        return self.astra_headers["charge"].space_charge_mode
+        return str(self.astra_headers["charge"].space_charge_mode)
 
     @space_charge_mode.setter
     def space_charge_mode(self, mode: str) -> None:
@@ -233,7 +233,7 @@ class astraLattice(frameworkLattice):
         mode: str
             Space charge mode
         """
-        self.astra_headers["charge"].space_charge_mode = mode
+        self.astra_headers["charge"].space_charge_mode = str(mode)
 
     @property
     def sample_interval(self) -> int:

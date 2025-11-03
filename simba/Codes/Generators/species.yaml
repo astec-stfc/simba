@@ -1,19 +1,27 @@
 astra:
-  - electrons
-  - positrons
-  - protons
+  - electron
+  - positron
+  - proton
   - hydrogen
 gpt:
-  - electrons
-  - positrons
-  - protons
+  - electron
+  - positron
+  - proton
   - hydrogen
 elegant:
-  - electrons
+  - electron
 ocelot:
-  - electrons
+  - electron
+cheetah:
+  - electron
+genesis:
+  - electron
+wake_t:
+  - electron
+csrtrack:
+  - electron
 opal:
-  - electrons
-  - positrons
-  - protons
+  - electron
+  - positron
+  - proton
   - hydrogen

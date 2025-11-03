@@ -135,59 +135,6 @@ with open(
 ) as infile:
     elements_Elegant = yaml.safe_load(infile)
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/OPAL/elements_Opal.yaml",
-    "r",
-) as infile:
-    elements_Opal = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/OPAL/keyword_conversion_rules_opal.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_opal = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Ocelot/keyword_conversion_rules_ocelot.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_ocelot = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Ocelot/elements_Ocelot.yaml",
-    "r",
-) as infile:
-    elements_Ocelot = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Wake_T/keyword_conversion_rules_wake_t.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_wake_t = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Cheetah/keyword_conversion_rules_cheetah.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_cheetah = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Cheetah/elements_Cheetah.yaml",
-    "r",
-) as infile:
-    elements_Cheetah = yaml.safe_load(infile)
-
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Xsuite/keyword_conversion_rules_xsuite.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_xsuite = yaml.safe_load(infile)
-
 
 class runSetup(object):
     """

@@ -660,10 +660,13 @@ class Framework(BaseModel):
                 self.settings.loadSettings(
                     os.path.join(self.global_parameters["master_lattice_location"], filename)
                 )
-
+            else:
+                raise FileNotFoundError(f"Could not find settings file with name {filename}")
         elif isinstance(settings, FrameworkSettings):
             self.settingsFilename = settings.settingsFilename
             self.settings = settings
+        else:
+            raise ValueError("Could not instantiate lattice settings")
 
         self.globalSettings = self.settings["global"]
         if "generator" in self.settings and len(self.settings["generator"]) > 0:

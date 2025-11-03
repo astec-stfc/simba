@@ -26,7 +26,11 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-from typing import Dict, List, Any
+import lox
+from lox.worker.thread import ScatterGatherDescriptor
+from typing import ClassVar, Callable
+from typing import Dict, List, Any, ClassVar
+from nala.models.diagnostic import DiagnosticElement
 
 
 class ocelotLattice(frameworkLattice):
@@ -36,6 +40,12 @@ class ocelotLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
     and for tracking through it.
     """
+
+    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
+        ScatterGatherDescriptor
+    )
+    """Function for converting all screen outputs from ELEGANT into the SimFrame generic 
+    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "ocelot"
     """String indicating the lattice object type"""
@@ -131,7 +141,6 @@ class ocelotLattice(frameworkLattice):
                 setattr(self, f, self.oceglobal[f])
             elif f in self.file_block:
                 setattr(self, f, self.file_block[f])
-
         if (
             "input" in self.file_block
             and "particle_definition" in self.file_block["input"]
@@ -211,11 +220,35 @@ class ocelotLattice(frameworkLattice):
             twiss_disp_correction=True,
         )
 
+    @lox.thread(40)
+    def screen_threaded_function(self, scr: DiagnosticElement, beamname: str) -> None:
+        """
+        Convert output from OCELOT beam npz to HDF5 format
+
+        Parameters
+        ----------
+        scr: NALA DiagnosticElement
+            Screen object
+        beamname: str
+            Name of Ocelot npz beam file
+        """
+        from ocelot.cpbd.io import load_particle_array
+        beam = load_particle_array(beamname)
+        rbf.ocelot.particle_array_to_beam(
+            self.global_parameters["beam"],
+            beam,
+            zstart=scr.physical.start.z
+        )
+        rbf.openpmd.write_openpmd_beam_file(
+            self.global_parameters["beam"],
+            beamname.replace(".ocelot.npz", ".openpmd.hdf5"),
+        )
+
     def postProcess(self) -> None:
         """
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
-        from ocelot.cpbd.io import load_particle_array, save_particle_array
+        from ocelot.cpbd.io import save_particle_array
         super().postProcess()
         bfname = f'{self.global_parameters["master_subdir"]}/{self.end}.ocelot.npz'
         save_particle_array(bfname, self.pout)
@@ -229,19 +262,10 @@ class ocelotLattice(frameworkLattice):
             self.global_parameters["beam"],
             bfname.replace(".ocelot.npz", ".openpmd.hdf5"),
         )
-        for w in self.screens_and_bpms:
+        for i, w in enumerate(self.screens_and_bpms):
             beamname = f'{self.global_parameters["master_subdir"]}/{w.name + ".ocelot.npz"}'
             if os.path.isfile(beamname):
-                beam = load_particle_array(beamname)
-                rbf.ocelot.particle_array_to_beam(
-                    self.global_parameters["beam"],
-                    beam,
-                    zstart=w.physical.start.z
-                )
-                rbf.openpmd.write_openpmd_beam_file(
-                    self.global_parameters["beam"],
-                    beamname.replace(".ocelot.npz", ".openpmd.hdf5"),
-                )
+                self.screen_threaded_function.scatter(w, beamname)
         twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
         for t in self.tws:
             for k, v in t.__dict__.items():

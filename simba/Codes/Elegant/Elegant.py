@@ -69,7 +69,7 @@ except Exception:
     print("No SDDS available!")
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Callable
+from typing import ClassVar
 from ...Framework_objects import (
     frameworkLattice,
     frameworkCommand,
@@ -93,7 +93,7 @@ class elegantLattice(frameworkLattice):
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ELEGANT into the SimFrame generic 
+    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
     :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "elegant"

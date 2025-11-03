@@ -236,6 +236,8 @@ class genesisLattice(frameworkLattice):
             if "fel" in self.file_block:
                 if f in self.file_block["fel"]:
                     setattr(self, f, self.file_block["fel"][f])
+            elif f in self.file_block:
+                setattr(self, f, self.file_block[f])
         self.particle_definition = self.start
 
     def writeElements(self) -> str:

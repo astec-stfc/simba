@@ -20,8 +20,11 @@ from ...Modules import Beams as rbf
 import os
 from yaml import safe_load
 from copy import deepcopy
-from typing import Dict, Any
+from typing import Dict, Any, ClassVar
 import h5py
+import lox
+from lox.worker.thread import ScatterGatherDescriptor
+from nala.models.diagnostic import DiagnosticElement
 
 
 with open(
@@ -56,6 +59,12 @@ class cheetahLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
     and for tracking through it.
     """
+
+    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
+        ScatterGatherDescriptor
+    )
+    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
+    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "cheetah"
     """String indicating the lattice object type"""
@@ -186,30 +195,48 @@ class cheetahLattice(frameworkLattice):
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
             # print("Twiss parameters:", self.tws)
 
+    @lox.thread(40)
+    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
+        """
+        Convert output from Cheetah ParticleBeam to HDF5 format
+
+        Parameters
+        ----------
+        scr: NALA DiagnosticElement
+            Screen object
+        outname: str
+            Name of Cheetah beam file
+        name: str
+            Name of element
+        """
+        from ...Modules.Beams import cheetah as rbf_cheetah
+        beam = rbf.beam()
+        s = 0
+        try:
+            s = self.elementObjects[name].physical.middle.z
+        except KeyError:
+            s = self.elementObjects[name.replace('_', "-")].physical.middle.z
+        # scr.tau -= self.startObject.physical.middle.z
+        rbf_cheetah.particle_beam_to_beam(beam, scr, s_start=s)
+        beam.write_openpmd_beam_file(filename=outname)
+        if name == self.end:
+            self.global_parameters["beam"] = beam
+
     def postProcess(self) -> None:
         """
         Convert the outputs from Cheetah to HDF5 format and save them to `master_subdir`.
         """
         from cheetah.accelerator import Screen
-        from ...Modules.Beams import cheetah as rbf_cheetah
         screens = {}
         for element in self.segment.elements:
             if isinstance(element, Screen):
                 screens.update({element.name: element.get_read_beam()})
         screens.update({self.end: self.pout})
+        i = 0
         for name, scr in screens.items():
-            beam = rbf.beam()
             outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
-            s = 0
-            try:
-                s = self.elementObjects[name].physical.middle.z
-            except KeyError:
-                s = self.elementObjects[name.replace('_', "-")].physical.middle.z
-            # scr.tau -= self.startObject.physical.middle.z
-            rbf_cheetah.particle_beam_to_beam(beam, scr, s_start=s)
-            beam.write_openpmd_beam_file(filename=outname)
-            if name == self.end:
-                self.global_parameters["beam"] = beam
+            self.screen_threaded_function.scatter(scr, outname, name)
+            i += 1
         if self.cheetahglobal["save_twiss"] and self.tws is not None:
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:
