@@ -18,8 +18,8 @@ def write_gdf_beam_file(
 ):
     if filename is None:
         fn = os.path.splitext(self.filename)
-        filename = fn[0].strip(".ocelot").strip(".openpmd") + ".gdf"
-    q = self._beam.charge
+        filename = fn[0].strip(".openpmd") + ".gdf"
+    q = self._beam.particle_charge
     m = self._beam.particle_mass
 
     if len(self._beam.nmacro) == len(self.x):
@@ -49,6 +49,8 @@ def write_gdf_beam_file(
             else (self.z - np.mean(self.z))
         )
     )
+    if cathode:
+        z = np.full(len(self.x), 0)
     dataarray = {
         "x": x,
         "y": self.y,
@@ -59,14 +61,15 @@ def write_gdf_beam_file(
         "GBx": self.gamma * self.Bx,
         "GBy": self.gamma * self.By,
         "GBz": self.gamma * self.Bz,
-        "gamma": self.gamma
+        "gamma": self.gamma,
+        "t": self.t,
     }
     if cathode:
         dataarray["t"] = self.t
     easygdf.save_initial_distribution(filename, **dataarray)
 
 
-def read_gdf_beam_file_object(self, file):
+def read_gdf_beam_file_object(file):
     if isinstance(file, str):
         gdfbeam = gdf_beam(file)
     elif isinstance(file, gdf_beam):
@@ -93,7 +96,7 @@ def read_gdf_beam_file(
 ):
     self.reset_dicts()
     if gdfbeam is None and filename is not None:
-        gdfbeam = read_gdf_beam_file_object(self, filename)
+        gdfbeam = read_gdf_beam_file_object(filename)
     elif gdfbeam is None and filename is None:
         return None
 
@@ -118,11 +121,11 @@ def read_gdf_beam_file(
         raise ValueError("Could not load gdfbeamdata; position or time not known!")
     self.filename = filename
     self.code = "GPT"
-    if hasattr(gdfbeamdata, "m"):
-        self._beam.particle_mass = gdfbeamdata.m
+    if "m" in gdfbeamdata:
+        self._beam.particle_mass = gdfbeamdata["m"]
     else:
         self._beam.particle_mass = np.full(
-            len(gdfbeamdata.x), constants.electron_mass
+            len(gdfbeamdata["x"]), constants.electron_mass
         )
     self._beam.particle_rest_energy = UnitValue(
             self._beam.particle_mass * constants.speed_of_light**2,
@@ -132,21 +135,21 @@ def read_gdf_beam_file(
             self._beam.particle_rest_energy / constants.elementary_charge,
         units="eV/c",
     )
-    self._beam.particle_charge = UnitValue([self._beam.sign(q) for q in gdfbeamdata.q], units="C")
+    self._beam.particle_charge = UnitValue([self._beam.sign(q) for q in gdfbeamdata["q"]], units="C")
 
-    self._beam.x = UnitValue(gdfbeamdata.x, units="m")
-    self._beam.y = UnitValue(gdfbeamdata.y, units="m")
+    self._beam.x = UnitValue(gdfbeamdata["x"], units="m")
+    self._beam.y = UnitValue(gdfbeamdata["y"], units="m")
 
-    if hasattr(gdfbeamdata, "Bx"):
-        if hasattr(gdfbeamdata, "G"):
-            gamma = UnitValue(gdfbeamdata.G, units="")
+    if "Bx" in gdfbeamdata:
+        if "G" in gdfbeamdata:
+            gamma = UnitValue(gdfbeamdata["G"], units="")
         else:
-            beta = np.sqrt(gdfbeamdata.Bx**2 + gdfbeamdata.By**2 + gdfbeamdata.Bz**2)
+            beta = np.sqrt(gdfbeamdata["Bx"]**2 + gdfbeamdata["By"]**2 + gdfbeamdata["Bz"]**2)
             gamma = UnitValue(1.0 / np.sqrt(1 - beta**2), units="")
         self._beam.px = UnitValue(
             (
                 gamma
-                * gdfbeamdata.Bx
+                * gdfbeamdata["Bx"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -155,7 +158,7 @@ def read_gdf_beam_file(
         self._beam.py = UnitValue(
             (
                 gamma
-                * gdfbeamdata.By
+                * gdfbeamdata["By"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -164,16 +167,16 @@ def read_gdf_beam_file(
         self._beam.pz = UnitValue(
             (
                 gamma
-                * gdfbeamdata.Bz
+                * gdfbeamdata["Bz"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
             units="kg*m/s",
         )
-    elif hasattr(gdfbeamdata, "GBx"):
+    elif "GBx" in gdfbeamdata:
         self._beam.px = UnitValue(
             (
-                gdfbeamdata.GBx
+                gdfbeamdata["GBx"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -181,7 +184,7 @@ def read_gdf_beam_file(
         )
         self._beam.py = UnitValue(
             (
-                gdfbeamdata.GBy
+                gdfbeamdata["GBy"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -189,7 +192,7 @@ def read_gdf_beam_file(
         )
         self._beam.pz = UnitValue(
             (
-                gdfbeamdata.GBz
+                gdfbeamdata["GBz"]
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -198,50 +201,46 @@ def read_gdf_beam_file(
     else:
         raise Exception("GDF File does not have Bx or GBx!")
 
-    if hasattr(gdfbeamdata, "z") and longitudinal_reference == "z":
-        self._beam.z = UnitValue(gdfbeamdata.z, "m")
-        self._beam.t = UnitValue(np.full(len(self.z), 0), units="s")
-    elif hasattr(gdfbeamdata, "t") and longitudinal_reference == "t":
-        self._beam.t = UnitValue(gdfbeamdata.t, units="t")
+    if "t" in gdfbeamdata and longitudinal_reference == "t":
+        self._beam.t = UnitValue(gdfbeamdata["t"], units="t")
         self._beam.z = UnitValue(
-            (-1 * gdfbeamdata.Bz * constants.speed_of_light) * (
-                    gdfbeamdata.t - np.mean(gdfbeamdata.t)
-            ) + gdfbeamdata.z,
+            (-1 * gdfbeamdata["Bz"] * constants.speed_of_light) * (
+                    gdfbeamdata["t"] - np.mean(gdfbeamdata["t"])
+            ) + gdfbeamdata["z"],
             units="m",
         )
+    elif "z" in gdfbeamdata and longitudinal_reference == "z":
+        self._beam.z = UnitValue(gdfbeamdata["z"], "m")
+        self._beam.t = UnitValue(np.full(len(self.z), 0), units="s")
     else:
-        if hasattr(gdfbeamdata, "z"):# and self.longitudinal_reference == "z":
-            self._beam.z = UnitValue(gdfbeamdata.z, units="m")
-            if hasattr(gdfbeamdata, "Bz"):
-                bz = gdfbeamdata.Bz
+        if "t" in gdfbeamdata:
+            self._beam.t = UnitValue(gdfbeamdata["t"], units="s")
+            if "Bz" in gdfbeamdata:
+                bz = gdfbeamdata["Bz"]
             else:
-                bz = gdfbeamdata.GBz / self._beam.gamma
+                bz = gdfbeamdata["GBz"] / self._beam.gamma
+            self._beam.z = UnitValue(
+                (-1 * bz * constants.speed_of_light) * (
+                        gdfbeamdata["t"] - np.mean(gdfbeamdata["t"])
+                ) + gdfbeamdata["z"],
+                units="m",
+            )
+        elif "z" in gdfbeamdata:# and self.longitudinal_reference == "z":
+            self._beam.z = UnitValue(gdfbeamdata["z"], units="m")
+            if "Bz" in gdfbeamdata:
+                bz = gdfbeamdata["Bz"]
+            else:
+                bz = gdfbeamdata["GBz"] / self._beam.gamma
             self._beam.t = UnitValue(
-                gdfbeamdata.z / (
+                gdfbeamdata["z"] / (
                         -1 * bz * constants.speed_of_light
                 ),
                 units="s",
             )
             self._beam.t[self._beam.t == np.inf] = 0
-        elif hasattr(gdfbeamdata, "t"):
-            self._beam.t = UnitValue(gdfbeamdata.t, units="s")
-            if hasattr(gdfbeamdata, "Bz"):
-                bz = gdfbeamdata.Bz
-            else:
-                bz = gdfbeamdata.GBz / self._beam.gamma
-            self._beam.z = UnitValue(
-                (-1 * bz * constants.speed_of_light) * (
-                        gdfbeamdata.t - np.mean(gdfbeamdata.t)
-                ) + gdfbeamdata.z,
-                units="m",
-            )
 
-    if hasattr(gdfbeamdata, "q") and hasattr(gdfbeamdata, "nmacro"):
-        self._beam.set_total_charge(np.sum(gdfbeamdata.q))
-        self._beam.nmacro = UnitValue(gdfbeamdata.nmacro, units="")
-    elif hasattr(gdfbeamdata, "q"):
-        self._beam.set_total_charge(np.sum(gdfbeamdata.q))
-        self._beam.nmacro = UnitValue(self._beam.charge / constants.elementary_charge, units="")
+    if "q" in gdfbeamdata:
+        self._beam.set_total_charge(np.sum(gdfbeamdata["q"]))
     else:
         if charge is None:
             warn("Bunch charge is zero")
@@ -249,8 +248,8 @@ def read_gdf_beam_file(
         else:
             self._beam.set_total_charge(charge)
 
-    if hasattr(gdfbeamdata, "nmacro"):
-        self._beam.nmacro = gdfbeamdata.nmacro
+    if "nmacro" in gdfbeamdata:
+        self._beam.nmacro = UnitValue(gdfbeamdata["nmacro"], units="")
     else:
-        self._beam.nmacro = np.full(len(self.z), 1)
+        self._beam.nmacro = UnitValue(np.full(len(self.z), 1), units="")
     return gdfbeam

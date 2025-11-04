@@ -25,11 +25,11 @@ def read_openpmd_beam_file(self, filename):
     # print(filename, 'nmacro', self._beam["nmacro"])
 
 
-def write_openpmd_beam_file(self, filename):
+def write_openpmd_beam_file(self, filename, zoffset=0):
     data = {
         "x":  np.array(self.x),
         "y":  np.array(self.y),
-        "z":  np.array(self.z),
+        "z":  np.array(self.z) - zoffset,
         "px": np.array(self.cpx),
         "py": np.array(self.cpy),
         "pz": np.array(self.cpz),
