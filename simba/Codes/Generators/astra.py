@@ -103,6 +103,7 @@ class ASTRAGenerator(frameworkGenerator):
         #TODO Filenames are hardcoded for simplicity and they shouldn't be.
         """
         astrabeamfilename = "generator.txt"
+        self.global_parameters["beam"] = rbf.beam()
         rbf.astra.read_astra_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + astrabeamfilename,
