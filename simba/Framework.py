@@ -30,10 +30,8 @@ from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from deepdiff import DeepDiff
-import sys
-sys.path.append('/home/xkc85723/Documents/nala')
 from nala import NALA
-from nala.models.element import Element
+from nala.models.element import Element, Dipole
 from nala.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -746,7 +744,7 @@ class Framework(BaseModel):
         settings = convert_numpy_types(settings)
         with open(os.path.join(directory, filename), "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.safe_dump(settings, yaml_file, sort_keys=False)
+            yaml.dump(settings, yaml_file, sort_keys=False, Dumper=NumpySafeDumper)
 
     def read_Lattice(self, name: str, lattice: dict) -> None:
         """
@@ -1228,7 +1226,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if self.elementObjects[element].name.lower() == typ.lower()
+            if self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
@@ -1258,6 +1256,9 @@ class Framework(BaseModel):
         if len(elems) == len(values):
             for e, v in zip(elems, values):
                 setattr(self[e["name"]], setting, v)
+                if self[e["name"]].hardware_type.lower() == "dipole" and setting == "angle":
+                    self[e["name"]].magnetic.multipoles.K0L.normal = v
+
         else:
             raise ValueError
 
@@ -1291,6 +1292,8 @@ class Framework(BaseModel):
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
             setattr(self.elementObjects[elementName], parameter, value)
+            if self.elementObjects[elementName].hardware_type.lower() == "dipole" and parameter == "angle":
+                self.elementObjects[elementName].magnetic.multipoles.K0L.normal = value
         else:
             warn("incorrect parameters passed to modifyElement")
 
@@ -1502,7 +1505,7 @@ class Framework(BaseModel):
             warn("could not parse parameters; they should be a dict, list or tuple")
         with open(file, "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.dump(output, yaml_file)
+            yaml.dump(output, yaml_file, Dumper=NumpySafeDumper)
 
     def set_lattice_prefix(
         self,

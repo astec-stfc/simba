@@ -31,3 +31,4 @@ pyfftw
 paramiko
 numexpr
 Wake-T>=0.8.0
+nala-lattice

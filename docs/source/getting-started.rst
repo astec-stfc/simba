@@ -1,113 +1,97 @@
 .. _getting-started:
 
-Getting started with SimFrame
-=============================
+Getting started with SIMBA
+==========================
 
 .. _creating-the-lattice-elements:
 
-Creating the Lattice Elements
------------------------------
+Lattice Definition
+------------------
 
-The first step in starting a new ``SimFrame`` simulation is to define the lattice, using the :ref:`MasterLattice <masterlattice>`.
+Accelerator lattices in :mod:`SIMBA` are derived from the `NALA <https://github.com/astec-stfc/nala/>`_
+standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
+layouts **TODO add hyperlinks to NALA doc page once it exists**.
 
-The following is part of the ``CLARA`` Injector, in a file  called ``YAML/CLA_Gun400.yaml`` for example:
-
-.. code-block:: yaml
-
-    elements:
-        CLA-HRG1-SIM-APER-01:
-            centre: [0, 0, 0]
-            global_rotation: [0, 0, 0]
-            horizontal_size: 0.017
-            shape: rectangular
-            type: aperture
-            vertical_size: 0.017
-        CLA-HRG1-GUN-CAV-01:
-            Structure_Type: StandingWave
-            centre: [0.0, 0.0, 0.16]
-            crest: 145.789
-            field_amplitude: 120000000.0
-            field_definition: $master_lattice_location$Data_Files/HRRG_1D_RF.hdf5
-            frequency: 2998500000.0
-            global_rotation: [0, 0, 0]
-            length: 0.32
-            n_cells: 1.5
-            phase: 9
-            type: cavity
-            sub_elements:
-                EBT-HRG1-MAG-SOL-01:
-                    centre: [0.0, 0.0, 0.16241]
-                    field_amplitude: 0.345
-                    field_definition: $master_lattice_location$Data_Files/HRRG_combined_sols_100mm_onaxis.hdf5
-                    global_rotation: [0, 0, 0]
-                    length: 0.32
-                    type: solenoid
-        CLA-S01-SIM-APER-01:
-            centre: [0.0, 0.0, 0.32]
-            global_rotation: [0, 0, 0]
-            horizontal_size: 0.017
-            shape: rectangular
-            type: aperture
-
-Note the use of ``sub_elements`` to define elements that overlap an existing element (in this case, a solenoid placed around the gun). 
-We make extensive use of `substitutions` to define the locations of field definition files.
-
-Element specific options (such as RF parameters) are also specified.
+Given that this format is designed to capture all relevant information about accelerator elements,
+and that it includes a built-in translator module for exporting lattice files to various simulation codes,
+it can be used within :mod:`SIMBA` for loading, modifying, writing and exporting input and lattice
+files for simulation codes.
 
 Defining the Lattice Simulation
 -------------------------------
 
-The simulation of the lattice is defined in a separate ``YAML`` file, for example ``CLA-Injector.def``:
+Given a :mod:`NALA` ``MachineModel``, which contains:
+
+* All of the elements in an accelerator lattice;
+* The various sections that compose that lattice;
+* A list of layouts composed of lattice sections;
+
+:mod:`SIMBA` can be used to interact with this structure.
+
+The simulation of the lattice is defined in a separate ``YAML`` file, for example ``CLARA.def``
+for the CLARA :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.041602` accelerator:
 
 .. code-block:: yaml
 
     generator:
         default: clara_400_3ps
     files:
-        injector400:
-            code: ASTRA
-            charge:
-                cathode: True
-                space_charge_mode: 2D
-                mirror_charge: True
-            input:
-                particle_definition: 'initial_distribution'
-            output:
-                zstart: 0
-                end_element: CLA-L01-SIM-APER-01
-        Linac:
-            code: elegant
-            starting_rotation: 0
-            charge:
-                cathode: False
-                space_charge_mode: 3D
-            input:
-                {}
-            output:
-                start_element: CLA-L01-SIM-APER-01
-                end_element: CLA-S02-SIM-APER-01
-    elements:
-        filename: YAML/CLA_Gun400.yaml
+      injector400:
+        code: astra
+        charge:
+          cathode: True
+          space_charge_mode: 2D
+          mirror_charge: True
+        input:
+          particle_definition: 'initial_distribution'
+        output:
+          zstart: 0
+          end_element: CLA-S02-SIM-APER-01
+      Linac:
+        code: elegant
+        output:
+          start_element: CLA-S02-SIM-APER-01
+          end_element: CLA-FEA-SIM-START-01
+      FEBE:
+        code: ocelot
+        charge:
+          cathode: False
+          space_charge_mode: 3D
+        input: {}
+        output:
+          start_element: CLA-FEA-SIM-START-01
+          end_element: CLA-FED-SIM-DUMP-01-START
+    groups:
+      bunch_compressor:
+        type: chicane
+        elements: [CLA-VBC-MAG-DIP-01, CLA-VBC-MAG-DIP-02, CLA-VBC-MAG-DIP-03, CLA-VBC-MAG-DIP-04]
+    layout: /path/to/nala-lattices/CLARA/layouts.yaml
+    section: /path/to/nala-lattices/CLARA/sections.yaml
+    element_list: /path/to/nala-lattices/CLARA/YAML/
 
-This lattice definition would produce several output files (called ``injector400.in`` and ``Linac.lte``) for running in the **ASTRA** and **Elegant** beam tracking codes.
-The elements are loaded from the file ``YAML/CLA_Gun400.yaml`` defined above. Element definitions can also be defined directly in the ``.def`` file.
+This lattice definition would produce several output files (called ``injector400.in``, ``Linac.lte``,
+and ``FEBE.py``) for running in the **ASTRA**, **Elegant** and **Ocelot** beam tracking codes.
 
-As this simulation starts from the cathode, the ``input`` definiton is required for the first `injector400` ``file`` block. 
+The elements are loaded from the directory ``/path/to/nala-lattices/CLARA/YAML/`` defined above.
+
+As this simulation starts from the cathode, the ``input`` definition is required for the first
+`injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
+point to an existing beam file **#TODO add reference to beams page**.
 
 For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the ``output: end_element`` definition 
 from the previous ``file`` block.
 
 
-Running SimFrame
-----------------
+Running SIMBA
+-------------
 
-The following example assumes that :ref:`MasterLattice <masterlattice>` has already been installed
+The following example assumes that `NALA <https://github.com/astec-stfc/nala/>`_ has already been installed
 (see :ref:`Installation <installation>`) and that the :ref:`SimCodes <simcodes>` directory has
 been prepared.
 
 .. code-block:: python
 
-    import SimulationFramework.Framework as fw
+    import simba.Framework as fw
 
 
     # Define a new framework instance, in directory 'example'.
@@ -115,17 +99,19 @@ been prepared.
     #       "verbose" will print a progressbar if true
     simcodes_location = "/path/to/simcodes/directory"
     framework = fw.Framework(
+        master_lattice="/path/to/nala-lattices/CLARA",
         directory="./example",
+        generator_defaults="/path/to/nala-lattices/CLARA/Generators/clara.yaml",
         simcodes_location=simcodes_location,
         clean=True,
         verbose=True,
         )
     # Load a lattice definition file. These can be found in Masterlattice/Lattices by default.
-    framework.loadSettings("Lattices/clara400_v13.def")
-    # Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector can not be done in Elegant)
-    framework.change_Lattice_Code("All", "ASTRA", exclude=["VBC"])
+    framework.loadSettings("Lattices/CLARA.def")
+    # Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector cannot be done in Elegant)
+    framework.change_Lattice_Code("All", "ASTRA", exclude=["Linac"])
     # Again, but put the VBC in Elegant for CSR
-    framework.change_Lattice_Code("VBC", "Elegant")
+    framework.change_Lattice_Code("FEBE", "Elegant")
     # This is the code that generates the laser distribution (ASTRA or GPT)
     framework.change_generator("ASTRA")
     # Load a starting laser distribution setting
@@ -134,6 +120,6 @@ been prepared.
     framework.generator.thermal_emittance = 0.0005
     # This is a scaling parameter
     # This defines the number of particles to create at the gun (this is "ASTRA generator" which creates distributions)
-    framework.generator.number_of_particles = 2 ** (3 * scaling)
+    framework.generator.number_of_particles = 512
     # Track the lattice
     framework.track()

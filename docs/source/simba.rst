@@ -9,7 +9,6 @@ Subpackages
 
    simba.ClassFiles
    simba.Codes
-   simba.Elements
    simba.Modules
    simba.Support_Files
 
@@ -40,14 +39,6 @@ simba.Framework\_Settings module
    :show-inheritance:
    :undoc-members:
 
-simba.Framework\_elements module
---------------------------------
-
-.. automodule:: simba.Framework_elements
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 simba.Framework\_lattices module
 --------------------------------
 
@@ -72,13 +63,6 @@ simba.Framework\_testing module
    :show-inheritance:
    :undoc-members:
 
-simba.yaml\_checker module
---------------------------
-
-.. automodule:: simba.yaml_checker
-   :members:
-   :show-inheritance:
-   :undoc-members:
 
 Module contents
 ---------------
