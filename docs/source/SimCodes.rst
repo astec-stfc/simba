@@ -5,9 +5,9 @@ SimCodes
 
 .. note::
     | In case of any issues arising during installation or running :mod:`SIMBA`, contact `Alex Brynes <mailto:alexander.brynes@stfc.ac.uk>`_.
-    | :mod:`SimFrame` has been tested with the most recent versions of the code below [2025], and may not be compatible with earlier versions.
+    | :mod:`SIMBA` has been tested with the most recent versions of the code below [2025], and may not be compatible with earlier versions.
 
-:mod:`SimCodes` is a container for the particle accelerator tracking codes used by :mod:`SimFrame`.
+:mod:`SimCodes` is a container for the particle accelerator tracking codes used by :mod:`SIMBA`.
 
 While most of the accelerator code executables are open-source, we prefer not to provide these as an installable
 package. The user can install the following codes from the links below:
@@ -17,7 +17,7 @@ package. The user can install the following codes from the links below:
 * `Elegant <https://www.aps.anl.gov/Accelerator-Operations-Physics/Software#elegant>`_ :cite:`Elegant`
 * `CSRTrack <https://www.desy.de/xfel-beam/csrtrack/>`_ :cite:`CSRTrack`
 
-Note that the following python-based simulation packages are included in the dependencies of ``SimFrame``:
+Note that the following python-based simulation packages are included in the dependencies of ``SIMBA``:
 
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
@@ -29,7 +29,7 @@ Note that the following python-based simulation packages are included in the dep
 Creating a SimCodes Directory
 -----------------------------
 
-One can create a top-level directory containing sub-folders for each tracking code, and instantiate :mod:`SimFrame`
+One can create a top-level directory containing sub-folders for each tracking code, and instantiate :mod:`SIMBA`
 with a ``simcodes_location`` argument:
 
 .. code-block:: python
@@ -43,7 +43,7 @@ with a ``simcodes_location`` argument:
         simcodes_location=simcodes_location,
     )
 
-Alternatively, one can set up :mod:`SimFrame` without this argument and set up the ``SimCodes`` location afterwards:
+Alternatively, one can set up :mod:`SIMBA` without this argument and set up the ``SimCodes`` location afterwards:
 
 .. code-block:: python
 
