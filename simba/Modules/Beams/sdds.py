@@ -5,10 +5,10 @@ from ..units import UnitValue
 from ..SDDSFile import SDDSFile, SDDS_Types
 
 
-def read_SDDS_beam_file(self, fileName, charge=None, ascii=False, page=-1, z0=0):
+def read_SDDS_beam_file(self, fileName, charge=None, ascii=False, page=-1, z0=0, index=0):
     self.reset_dicts()
     self.sddsindex += 1
-    elegantObject = SDDSFile(index=None, ascii=ascii)
+    elegantObject = SDDSFile(index=index, ascii=ascii)
     elegantObject.read_file(fileName, page=page)
     elegantData = elegantObject.data
     required_keys = ["x", "y", "t", "xp", "yp", "p"]

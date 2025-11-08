@@ -30,6 +30,7 @@ Setup
    
    installation
    getting-started
+   loading-a-lattice
    SimCodes
    
 

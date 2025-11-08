@@ -783,6 +783,16 @@ class frameworkLattice(BaseModel):
                     self.global_parameters["beam"],
                     os.path.abspath(filepath),
                 )
+                self.global_parameters["beam"].Particles.rematchXPlane(
+                    beta=self.initial_twiss["horizontal"]["beta"],
+                    alpha=self.initial_twiss["horizontal"]["alpha"],
+                    nEmit=self.initial_twiss["horizontal"]["nEmit"],
+                )
+                self.global_parameters["beam"].Particles.rematchYPlane(
+                    beta=self.initial_twiss["vertical"]["beta"],
+                    alpha=self.initial_twiss["vertical"]["alpha"],
+                    nEmit=self.initial_twiss["vertical"]["nEmit"],
+                )
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
         if os.path.isfile(expand_substitution(self, HDF5filename)):

@@ -7,6 +7,8 @@ Submodules
 simba.Codes.Generators.Generators module
 ----------------------------------------
 
+.. _generator-class:
+
 .. automodule:: simba.Codes.Generators.Generators
    :members:
    :show-inheritance:

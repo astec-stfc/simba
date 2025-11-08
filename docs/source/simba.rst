@@ -7,10 +7,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   simba.ClassFiles
    simba.Codes
    simba.Modules
-   simba.Support_Files
 
 Submodules
 ----------
@@ -51,14 +49,6 @@ simba.Framework\_objects module
 -------------------------------
 
 .. automodule:: simba.Framework_objects
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Framework\_testing module
--------------------------------
-
-.. automodule:: simba.Framework_testing
    :members:
    :show-inheritance:
    :undoc-members:

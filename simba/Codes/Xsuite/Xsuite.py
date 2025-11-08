@@ -3,7 +3,7 @@ SIMBA Xsuite Module
 
 Various objects and functions to handle Xsuite lattices and commands. See `Xsuite github`_ for more details.
 
-    .. Xsuite github: https://github.com/xsuite
+    .. _Xsuite github: https://github.com/xsuite
 
 Classes:
     - :class:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice`: The Xsuite lattice object, used for

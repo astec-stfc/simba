@@ -28,7 +28,6 @@ with open(
     oceglobal = safe_load(infile)
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Callable
 from typing import Dict, List, Any, ClassVar
 from nala.models.diagnostic import DiagnosticElement
 

@@ -21,8 +21,10 @@ def read_xsuite_twiss_files(self, filename, reset=True):
 
 
 def interpret_xsuite_data(self, lattice_name, fdat):
-    self.z.val = np.append(self.z.val, np.array(fdat["s"]))
-    self.s.val = np.append(self.s.val, np.array(fdat["s"]))
+    self.z.val = np.append(self.z.val, np.array(fdat["s"])[1:])
+    self.s.val = np.append(self.s.val, np.array(fdat["s"])[1:])
+    self.z.val = np.append(self.z.val, np.array(fdat["s"])[-1])
+    self.s.val = np.append(self.s.val, np.array(fdat["s"])[-1])
     E = fdat["momentum"]
     ke = E - self.E0_eV
     gamma = E / self.E0_eV

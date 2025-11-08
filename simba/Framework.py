@@ -403,14 +403,14 @@ class Framework(BaseModel):
 
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the :ref:`MasterLattice` package.
+        Set the location of the ``NALA`` package.
 
         This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the MasterLattice folder
+            The full path to the ``NALA`` master lattice folder
         """
         global MasterLatticeLocation
         if master_lattice is None:
