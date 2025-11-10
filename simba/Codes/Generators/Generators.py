@@ -98,6 +98,7 @@ from pydantic import (
 )
 from typing import Literal, Dict, Any, List
 from ...Modules import constants
+from ...Modules import Beams as rbf
 import yaml
 from easygdf import load
 import warnings
@@ -643,6 +644,7 @@ class frameworkGenerator(BaseModel):
             }
         particles = ParticleGroup(data=data)
         particles.write(self.global_parameters["master_subdir"] + "/" + self.filename)
+        return rbf.beam(filename=self.global_parameters["master_subdir"] + "/" + self.filename)
 
     def generate_transverse_distribution(self, name: str) -> np.ndarray:
         """

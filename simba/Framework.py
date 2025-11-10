@@ -244,12 +244,6 @@ class Framework(BaseModel):
     tracking: bool = False
     """Flag to indicate whether the Framework is tracking"""
 
-    basedirectory: str = ""
-    """Current working directory"""
-
-    filedirectory: str = ""
-    """Directory for files"""
-
     generator: frameworkGenerator | None = None
     """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator` object"""
 
@@ -295,20 +289,6 @@ class Framework(BaseModel):
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
-
-    @field_validator("basedirectory", mode="before")
-    @classmethod
-    def validate_base_directory(cls, value: str) -> str:
-        if len(value) > 0 and os.path.isdir(value):
-            return value
-        return os.getcwd()
-
-    @field_validator("filedirectory", mode="before")
-    @classmethod
-    def validate_file_directory(cls, value: str) -> str:
-        if len(value) > 0 and os.path.isdir(value):
-            return value
-        return os.path.dirname(os.path.abspath(__file__))
 
     def __repr__(self) -> repr:
         return repr(

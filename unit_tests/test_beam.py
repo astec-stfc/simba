@@ -1,5 +1,5 @@
-import SimulationFramework.Modules.Beams as rbf  # noqa E402
-from SimulationFramework.Modules.units import UnitValue
+import simba.Modules.Beams as rbf  # noqa E402
+from simba.Modules.units import UnitValue
 import pytest
 import numpy as np
 from scipy.constants import m_e, c, e, m_p

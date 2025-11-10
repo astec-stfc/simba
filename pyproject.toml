@@ -47,7 +47,7 @@ dependencies = [
     "openpmd-beamphysics>=0.10",
     "xopt",
     "Wake-T>=0.8.0",
-    "nala-lattice",
+#    "nala-lattice",
 ]
 
 requires-python = ">= 3.10"

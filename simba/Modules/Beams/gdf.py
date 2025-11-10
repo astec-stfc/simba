@@ -19,7 +19,7 @@ def write_gdf_beam_file(
     if filename is None:
         fn = os.path.splitext(self.filename)
         filename = fn[0].strip(".openpmd") + ".gdf"
-    q = self._beam.particle_charge
+    q = self._beam.charge
     m = self._beam.particle_mass
 
     if len(self._beam.nmacro) == len(self.x):
