@@ -4,8 +4,7 @@ SIMBA Framework Module
 The main class for handling the tracking of a particle distribution through a lattice.
 
 Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
-:class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-:class:`~simba.Framework_objects.frameworkElement` objects.
+:class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
