@@ -521,10 +521,11 @@ class elegantLattice(frameworkLattice):
         sddsindex: int
             SDDS object index
         """
-        # try:
-        return self.sdds_to_hdf5(scr, sddsindex, toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t))
-        # except Exception:
-        #     return None
+        try:
+            return self.sdds_to_hdf5(scr, sddsindex, toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t))
+        except Exception as e:
+            print(f"Screen error {scr.name}, {e}")
+            return None
 
     def postProcess(self) -> None:
         """

@@ -52,7 +52,7 @@ Classes:
 import os
 import subprocess
 import numpy as np
-from PAdantic.models.diagnostic import DiagnosticElement
+from nala.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile

@@ -2367,7 +2367,7 @@ class chicane(frameworkGroup):
                 ref_pos = obj[i].physical.middle.model_dump()
                 obj[i].magnetic.angle = a * self.ratios[dipole_number]
                 ref_angle = obj[i].physical.global_rotation.theta + obj[i].magnetic.angle
-                obj[i].physical.angle = -obj[i].magnetic.angle
+                obj[i].physical.physical_angle = obj[i].magnetic.angle
                 dipole_number += 1
 
     def __str__(self):
