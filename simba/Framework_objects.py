@@ -668,6 +668,8 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.csr_enable = csr
+            except ValueError:
+                pass
             except AttributeError:
                 pass
 
@@ -684,6 +686,8 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.csr_bins = csr
+            except ValueError:
+                pass
             except AttributeError:
                 pass
 
@@ -700,6 +704,8 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
+            except ValueError:
+                pass
             except AttributeError:
                 pass
 
@@ -716,6 +722,8 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_bins = lsc
+            except ValueError:
+                pass
             except AttributeError:
                 pass
 

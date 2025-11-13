@@ -65,7 +65,7 @@ class opalLattice(frameworkLattice):
     particle_definition: str = None
     """Name of initial particle distribution"""
 
-    time_step_size: float = 1e-11
+    time_step_size: float = 2e-12
     """Step size for tracking"""
 
     breakstr: str = "//----------------------------------------------------------------------------"
