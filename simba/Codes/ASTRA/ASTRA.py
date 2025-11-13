@@ -101,6 +101,8 @@ class astraLattice(frameworkLattice):
     starting_rotation: list[float] = [0.0, 0.0, 0.0]
     """Initial rotation of first element"""
 
+    zstop: float = None
+
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
 
     def model_post_init(self, __context: Any) -> None:
@@ -164,7 +166,7 @@ class astraLattice(frameworkLattice):
             self.file_block["output"] = {}
         output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
         zstart = self.startObject.physical.start.z
-        zstop = self.endObject.physical.end.z
+        self.zstop = self.endObject.physical.end.z
         screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
@@ -173,8 +175,8 @@ class astraLattice(frameworkLattice):
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             zstart=zstart,
-            zstop=zstop,
-            zemit=int((zstop - zstart) / 0.01),
+            zstop=self.zstop,
+            zemit=int((self.zstop - zstart) / 0.01),
             screens=screens,
             **output_settings,
         )
@@ -415,7 +417,7 @@ class astraLattice(frameworkLattice):
             hardware_class="",
             hardware_type="",
             machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.endObject.physical.middle.z])
+            physical=PhysicalElement(middle=[0, 0, self.zstop])
         )
         self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
 
@@ -512,27 +514,43 @@ class astraLattice(frameworkLattice):
         """
         for i in [0, -0.001, 0.001]:
             tempfilename = (
-                lattice
-                + "."
-                + str(int(round((scr.physical.middle.z + i - self.startObject.physical.middle.z) * mult))).zfill(4)
-                + "."
-                + str(master_run_no).zfill(3)
+                    lattice
+                    + "."
+                    + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
             )
             tempfilenamenozstart = (
-                lattice
-                + "."
-                + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
-                + "."
-                + str(master_run_no).zfill(3)
+                    lattice
+                    + "."
+                    + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
             )
-            if os.path.isfile(
-                os.path.join(self.global_parameters["master_subdir"], tempfilename)
-            ):
-                return tempfilename
-            elif os.path.isfile(
-                os.path.join(self.global_parameters["master_subdir"], tempfilenamenozstart)
-            ):
-                return tempfilenamenozstart
+            tempfilenameend = (
+                    lattice
+                    + "."
+                    + str(int(round((self.zstop + i - self.startObject.physical.start.z) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
+            )
+            tempfilenameendnozstart = (
+                    lattice
+                    + "."
+                    + str(int(round((self.zstop + i) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
+            )
+            for f in [
+                tempfilename,
+                tempfilenameendnozstart,
+                tempfilenameend,
+                tempfilenamenozstart
+            ]:
+                if os.path.isfile(
+                    os.path.join(self.global_parameters["master_subdir"], f)
+                ):
+                    return f
         return None
 
     def hdf5_to_astra(self) -> str:

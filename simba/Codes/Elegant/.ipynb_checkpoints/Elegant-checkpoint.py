@@ -461,8 +461,8 @@ class elegantLattice(frameworkLattice):
                 beta_y=self.global_parameters["beam"].twiss.beta_y_corrected,
                 alpha_x=self.global_parameters["beam"].twiss.alpha_x_corrected,
                 alpha_y=self.global_parameters["beam"].twiss.alpha_y_corrected,
-                # eta_x=self.global_parameters["beam"].twiss.eta_x,
-                # eta_xp=self.global_parameters["beam"].twiss.eta_xp,
+                eta_x=self.global_parameters["beam"].twiss.eta_x,
+                eta_xp=self.global_parameters["beam"].twiss.eta_xp,
             )
             # print('floor_coordinates')
             self.commandFiles["floor_coordinates"] = elegant_floor_coordinates_command(

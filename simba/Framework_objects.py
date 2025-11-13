@@ -2049,7 +2049,8 @@ class frameworkCommand(frameworkObject):
                 and not key == "objecttype"
                 and hasattr(self, key)
             ):
-                string += "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
+                if getattr(self, key.lower()) is not None:
+                    string += "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
         string += "&end\n"
         return string
 
@@ -2355,10 +2356,7 @@ class chicane(frameworkGroup):
             sorted([list(self.allElementObjects).index(e) for e in self.elements])
         )
         dipole_objs = [self.allElementObjects[e] for e in self.elements]
-        obj = [
-            self.allElementObjects[list(self.allElementObjects)[e]]
-            for e in range(indices[0], indices[-1] + 1)
-        ]
+        obj = dipole_objs
         dipole_number = 0
         ref_pos = None
         ref_angle = None

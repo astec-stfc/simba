@@ -2,6 +2,7 @@ from simba import Framework as fw
 from simba.Support_Files.tempdir import TemporaryDirectory
 import re
 from warnings import warn
+import yaml
 
 beam_evaluate = (
     "sigma_x",
@@ -78,6 +79,30 @@ def xopt_optimisation(
         framework.loadSettings(settings_file)
     startfile = start_lattice if start_lattice is not None else framework.lines[0]
     endfile = end_lattice if end_lattice is not None else framework.lines[-1]
+    framework["bunch_compressor"].set_angle(0.1185)
+    with open("/home/xkc85723/Downloads/lattice.yaml", "r") as f:
+        latsettings = yaml.safe_load(f)
+    for k, v in latsettings["elements"].items():
+        # print(k)
+        if k in framework.elements:
+            try:
+                framework[k].physical.length = float(v["length"])
+                framework[k].magnetic.length = float(v["length"])
+            except:
+                pass
+            framework[k].physical.middle.x = float(v["centre"][0])
+            framework[k].physical.middle.y = float(v["centre"][1])
+            framework[k].physical.middle.z = float(v["centre"][2])
+            framework[k].physical.global_rotation.phi = float(v["global_rotation"][0])
+            framework[k].physical.global_rotation.psi = float(v["global_rotation"][1])
+            framework[k].physical.global_rotation.theta = float(v["global_rotation"][2])
+            if v["type"] == "quadrupole":
+                framework[k].k1l = float(v["k1l"])
+            if v["type"] == "cavity":
+                framework[k].phase = float(v["phase"])
+                framework[k].field_amplitude = float(v["field_amplitude"])
+            if v["type"] == "sextupole":
+                framework[k].k2l = float(v["k2l"])
     if "code" in settings:
         if isinstance(settings["code"], str):
             framework.change_Lattice_Code("All", settings["code"])
