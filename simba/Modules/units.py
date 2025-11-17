@@ -112,6 +112,27 @@ def nice_array(a):
     return a / fac, fac, prefix
 
 
+def set_nice_array(a, prefix):
+    """
+    Returns a scaled array, the scaling, for a unit prefix
+
+    Example:
+        set_nice_array( np.array([2e-3, 3e-3]), prefix="m")
+    Returns:
+        (array([2., 3.]), 1e-3, 'm')
+
+    """
+
+    if prefix in SHORT_PREFIX_FACTOR:
+        fac = SHORT_PREFIX_FACTOR[prefix]
+    elif prefix in PREFIX_FACTOR:
+        fac = PREFIX_FACTOR[prefix]
+    else:
+        raise Exception(f"prefix {prefix} does not exist!")
+
+    return a / fac, fac, prefix
+
+
 def unit_power(string, power_factor=1):
     """# Takes a string in the form 'a^x' and returns ('a', x)"""
     if isinstance(string, (list, tuple)) and len(string) == 2:

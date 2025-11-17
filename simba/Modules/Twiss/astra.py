@@ -120,4 +120,4 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit) -> None:
     self.alpha_y_beam.val = np.append(
         self.alpha_y_beam.val, (1 * np.sign(mean_yyp) * rms_y * rms_yp) / ey
     )
-    self.cp_eV.val = self.cp.val
+    # self.cp_eV.val = self.cp.val

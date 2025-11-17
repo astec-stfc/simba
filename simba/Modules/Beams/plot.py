@@ -10,7 +10,7 @@ from matplotlib.transforms import Bbox
 from copy import copy
 
 try:
-    from ..units import nice_array, nice_scale_prefix
+    from ..units import nice_array, nice_scale_prefix, set_nice_array
 except:
     pass
 
@@ -308,7 +308,7 @@ def marginal_plot(
             hist_y, hist_f, hist_prefix = nice_array(hist)
             ax_marg_x.bar(hist_x, hist_y, hist_width, color="gray")
             ax_marg_x.set_ylabel(f"{hist_prefix}Counts/{uy}")
-    if not limits is None:
+    if limits is not None:
         ax_marg_x.set_xlim(limits[0:2])
 
     # Side histogram
@@ -335,7 +335,7 @@ def marginal_plot(
             hist_y, hist_f, hist_prefix = nice_array(hist)
             ax_marg_y.barh(hist_x, hist_y, hist_width, color="gray")
             ax_marg_y.set_xlabel(f"{hist_prefix}Counts/{uy}")
-    if not limits is None:
+    if limits is not None:
         ax_marg_y.set_ylim(limits[2:])
 
     # Turn off tick labels on marginals
@@ -367,21 +367,20 @@ def plot(self, keys=None, bins=None, type="density", **kwargs):
 
 
 def plotScreenImage(
-        beam,
-        keys=["x", "y"],
-        scale=[1, 1],
-        iscale=1,
-        colormap=plt.cm.jet,
-        size=None,
-        grid=False,
-        marginals=False,
-        limits=None,
-        screen=False,
-        use_scipy=False,
-        subtract_mean=[False, False],
-        title="",
-        filename=None,
-        **kwargs,
+    beam,
+    keys=["x", "y"],
+    scale=[1, 1],
+    iscale=1,
+    colormap=plt.cm.jet,
+    size=None,
+    grid=False,
+    marginals=False,
+    limits=None,
+    screen=False,
+    use_scipy=False,
+    subtract_mean=[False, False],
+    title="",
+    **kwargs,
 ):
     # Do the self-consistent density estimate
     key1, key2 = keys
@@ -407,8 +406,6 @@ def plotScreenImage(
     labely = f"{key2} ({uy})"
 
     if fastKDE_installed and not use_scipy:
-        if "subtract_mean" in kwargs:
-            kwargs.pop("subtract_mean")
         myPDF, axes = fastKDE.pdf(x, y, use_xarray=False, **kwargs)
         v1, v2 = axes
     elif SciPy_installed:
@@ -519,14 +516,13 @@ def plotScreenImage(
     if screen:
         draw_circle = plt.Circle(
             (meanvalx, meanvaly),
-            size + [0.05, 0.05],
+            15,
             fill=True,
             ec="w",
             fc=colormap(0),
             zorder=-1,
         )
         ax.add_artist(draw_circle)
-
     if screen:
         ax.set_facecolor("k")
     else:
@@ -534,7 +530,7 @@ def plotScreenImage(
 
     # Make a circle to clip the PDF
     if screen:
-        circ = plt.Circle((meanvalx, meanvaly), max(size), facecolor="none")
+        circ = plt.Circle((meanvalx, meanvaly), 15, facecolor="none")
     else:
         circ = plt.Circle((meanvalx, meanvaly), 3 * max(size), facecolor="none")
     # ax.add_patch(circ) # Plot the outline
@@ -580,26 +576,25 @@ def plotScreenImage(
             edgecolor="none",
         )
     else:
-        ax.set_xlim([min(v1.flatten()), max(v1.flatten())])
-        ax.set_ylim([min(v2.flatten()), max(v2.flatten())])
-        # bbox = plt.Polygon(
-        #     [
-        #         (min(v1), min(v2)),
-        #         (min(v1), max(v2)),
-        #         (max(v1), max(v2)),
-        #         (max(v1), min(v2)),
-        #     ],
-        #     facecolor="none",
-        #     edgecolor="none",
-        # )
-
+        ax.set_xlim([min(v1), max(v1)])
+        ax.set_ylim([min(v2), max(v2)])
+        bbox = plt.Polygon(
+            [
+                (min(v1), min(v2)),
+                (min(v1), max(v2)),
+                (max(v1), max(v2)),
+                (max(v1), min(v2)),
+            ],
+            facecolor="none",
+            edgecolor="none",
+        )
     # ax.add_artist(bbox)
 
     mesh = ax.pcolormesh(
         v1, v2, myPDF, cmap=colormap, zorder=1, shading="auto"
     )  # , clip_path=bbox)
-    if screen:
-        mesh.set_clip_path(circ)
+    # if screen:
+    #     mesh.set_clip_path(circ)
     if marginals:
         plt.setp(ax_histx.get_xticklabels(), visible=False)
         plt.setp(ax_histy.get_yticklabels(), visible=False)

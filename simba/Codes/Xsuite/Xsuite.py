@@ -175,6 +175,7 @@ class xsuiteLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.read_input_file(prefix, self.particle_definition)
         self.hdf5_to_json(prefix)
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
@@ -189,7 +190,6 @@ class xsuiteLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        self.read_input_file(prefix, self.particle_definition)
         xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
         self.pin = rbf.beam.write_xsuite_beam_file(
             self.global_parameters["beam"],

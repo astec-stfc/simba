@@ -3,8 +3,22 @@ from .. import constants
 from ..units import UnitValue
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
-def particle_beam_to_beam(self, parray, s_start=0):
+
+def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index=None):
+    from cheetah import ParticleBeam
+    self.filename = filename
+    self.code = "Cheetah"
     self._beam.particle_rest_energy_eV = self.E0_eV
+
+    parray = ParticleBeam.from_openpmd_file(
+        filename,
+        energy=beam_energy,
+        dtype=float64,
+    )
+    interpret_cheetah_ParticleBeam(self, parray, beam_energy, zstart=zstart, s=s, ref_index=ref_index)
+
+
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
     self._beam.particle_rest_energy = UnitValue(
         (
@@ -22,38 +36,44 @@ def particle_beam_to_beam(self, parray, s_start=0):
     # self._beam.gamma = UnitValue(parray.relativistic_gamma.numpy(), "")
     self._beam.x = UnitValue(parray.x.numpy(), "m")
     self._beam.y = UnitValue(parray.y.numpy(), "m")
-    self._beam.t = UnitValue((parray.tau.numpy()) / constants.speed_of_light, "s")
+    self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
     # self._beam["p"] = parray.energies.numpy()
     self._beam.px = UnitValue(parray.px.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
     self._beam.py = UnitValue(parray.py.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
     cp = parray.energies.numpy()
     self._beam.pz = UnitValue((
-            self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
+        self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
     ), "kg*m/s")
-    self._beam.total_charge = UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C")
-    self._beam.z = UnitValue(s_start + (1 * self._beam.Bz * constants.speed_of_light) * (
-            self._beam.t - np.mean(self._beam.t)
-    ), "m")  # np.full(len(self.t), 0)
-    self._beam.charge = UnitValue(np.full(
-        len(self._beam.x), self._beam.total_charge / len(self._beam.x)
-    ), "C")
-    self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1), "")
-    self.species = parray.species.name
+    self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
+    self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
+    self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 
-def read_cheetah_beam_file(self, filename, beam_energy):
-    from cheetah import ParticleBeam
-    self.filename = filename
-    self.code = "Cheetah"
+    if ref_index is not None:
+        self.reference_particle_index = int(ref_index)
+        """ If we have a reference particle, t=0 is relative to it """
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - self._beam.t[self.reference_particle_index]),
+            units="m",
+        )
+        self.reference_particle = [
+            getattr(self._beam, coord)[self.reference_particle_index]
+            for coord in self.reference_particle_coords
+        ]
+    else:
+        """ If we don't have a reference particle, t=0 is relative to mean(t) """
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - np.mean(self._beam.t)),
+            units="m",
+        )
+        self.reference_particle = None
+    self._beam.s = UnitValue(s, units="m")
 
-    parray = ParticleBeam.from_openpmd_file(
-        filename,
-        energy=beam_energy,
-        dtype=float64,
-    )
-    particle_beam_to_beam(self, parray)
 
-
-def write_cheetah_beam_file(self, filename=None, write=True, s_start=0):
+def write_cheetah_beam_file(self, filename=None, write=True):
     """Save an openpmd file for cheetah."""
     # {x, xp, y, yp, t, p, particleID}
     from cheetah import ParticleBeam
@@ -65,7 +85,7 @@ def write_cheetah_beam_file(self, filename=None, write=True, s_start=0):
     yp = self.cpy.val / self.cpz.val
     p = (self.energy.val - E) / E
     tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
-    # s = np.mean(self.t.val) * constants.speed_of_light
+    s = self.s
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     num_particles = len(x)
@@ -77,8 +97,8 @@ def write_cheetah_beam_file(self, filename=None, write=True, s_start=0):
         particles=particles,
         energy=as_tensor(E, dtype=float64),
         particle_charges=particle_charges,
-        species=Species("electron"),
-        s=as_tensor(s_start, dtype=float64),
+        species=Species(self.species),
+        s=as_tensor(s, dtype=float64),
         device=get_default_device(),
         dtype=float64,
     )

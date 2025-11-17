@@ -1,5 +1,5 @@
 """
-SIMBA Beams Module
+Simframe Beams Module
 
 This module defines the base class and utilities for representing particle beams and groups of beams.
 
@@ -22,7 +22,6 @@ import os
 from pydantic import (
     BaseModel,
     ConfigDict,
-    computed_field,
 )
 from typing import Dict, Any, List
 import numpy as np
@@ -34,14 +33,12 @@ import h5py
 from ..units import UnitValue
 from .. import constants
 from .Particles import Particles
-from . import openpmd
 from . import astra
 from . import sdds
 from . import gdf
 from . import hdf5
-from . import genesis
 from . import mad8
-from . import opal
+from . import openpmd
 from . import xsuite
 
 try:
@@ -226,7 +223,7 @@ class beamGroup(BaseModel):
             elif os.path.isfile(file):
                 file = file.replace("\\", "/")
                 try:
-                    self.beams[file] = beam(file)
+                    self.beams[file] = beam(filename=file)
                 except Exception:
                     if file in self.beams:
                         del self.beams[file]
@@ -308,6 +305,9 @@ class beam(BaseModel):
     reference_particle: np.ndarray | None  = None
     """Reference particle for ASTRA-type distributions"""
 
+    reference_particle_index: int | None  = None
+    """Reference particle index for ASTRA-type distributions"""
+
     longitudinal_reference: np.ndarray | str | None = None
     """Longitudinal reference position for ASTRA-type distributions"""
 
@@ -323,17 +323,29 @@ class beam(BaseModel):
     particle_mass: np.ndarray | None = None
     """Particle mass in kg"""
 
-    species: str = "electron"
-
     beam_energy: float | None = None
     """Beam energy [required for Cheetah]"""
+
+    species: str = "electron"
 
     model_config = ConfigDict(
         extra="allow",
         arbitrary_types_allowed=True,
     )
 
-    def __init__(self, filename=None, beam_energy=None, step=0, *args, **kwargs):
+    reference_particle_coords: list = [
+        "x",
+        "y",
+        "z",
+        "cpx",
+        "cpy",
+        "cpz",
+        "t",
+        "charge",
+        "status",
+    ]
+
+    def __init__(self, filename=None, beam_energy=None, *args, **kwargs):
         super(beam, self).__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
@@ -343,7 +355,7 @@ class beam(BaseModel):
         # self.sddsindex = sddsindex
         self.code = None
         if self.filename is not None:
-            self.read_beam_file(self.filename, beam_energy=beam_energy, step=step)
+            self.read_beam_file(self.filename, beam_energy=beam_energy)
             self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
@@ -353,28 +365,38 @@ class beam(BaseModel):
         return full_dump
 
     def set_species(self, value):
-        c2oq = constants.speed_of_light ** 2 / constants.elementary_charge
-        if value in ["electron", "positron", "proton", "antiproton"]:
-            self.species = value
-            if value == "electron":
+        if value in ["electron", "electrons", "positron", "positrons", "proton", "protons", "antiproton", "antiprotons", "hydrogen"]:
+            if value == "electron" or value == "electrons":
+                self.species = "electron"
                 self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), "C")
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * c2oq, "eV/c")
-            elif value == "positron":
+                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
+                self._beam.charge = -abs(self._beam.charge)
+                self._beam.total_charge = -abs(self._beam.total_charge)
+                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+            elif value == "positron" or value == "positrons":
+                self.species = "positron"
                 self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), "C")
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * c2oq, "eV/c")
-            elif value == "proton":
+                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
+                self._beam.charge = abs(self._beam.charge)
+                self._beam.total_charge = abs(self._beam.total_charge)
+                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+            elif value == "proton" or value == "hydrogen" or value == "protons":
+                self.species = "proton"
                 self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), "C")
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * c2oq, "eV/c")
-            elif value == "antiproton":
+                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
+                self._beam.charge = abs(self._beam.charge)
+                self._beam.total_charge = abs(self._beam.total_charge)
+                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+            elif value == "antiproton" or value == "antiprotons":
+                self.species = "antiproton"
                 self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), "C")
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * c2oq, "eV/c")
+                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
+                self._beam.charge = -abs(self._beam.charge)
+                self._beam.total_charge = -abs(self._beam.total_charge)
+                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
         else:
             raise ValueError(
-                "Species must be one of: electron, positron, proton, antiproton"
+                "Species must be one of: electron(s), positron(s), proton(s), antiproton(s), hydrogen"
             )
 
     @property
@@ -389,9 +411,9 @@ class beam(BaseModel):
             if not, calculate from the :attr:`~simba.Modules.Beams.Particles` object;
             if not possible, assume electrons and calculate its rest mass energy
         """
-        if self.particle_rest_energy_eV:
+        if hasattr(self, "particle_rest_energy_eV"):
             return self.particle_rest_energy_eV
-        elif self._beam.particle_rest_energy:
+        elif self._beam.particle_rest_energy is not None:
             return np.mean(self._beam.particle_rest_energy) / constants.elementary_charge
         else:
             particle_mass = UnitValue(constants.m_e, "kg")
@@ -421,18 +443,6 @@ class beam(BaseModel):
 
     @property
     def status(self):
-        return np.full(len(self.x), 1)
-
-    @property
-    def status(self) -> np.ndarray:
-        """
-        Status of particles (1 is good, they're always good for now)
-
-        Returns
-        -------
-        np.ndarray
-            List of ones
-        """
         return np.full(len(self.x), 1)
 
     @property
@@ -682,12 +692,12 @@ class beam(BaseModel):
         """
         astra.read_astra_beam_file(self, *args, **kwargs)
 
-    def read_opal_beam_file(self, *args, **kwargs):
+    def read_xsuite_beam_file(self, *args, **kwargs):
         """
-        Load in an OPAL-type beam distribution file and update the
+        Load in an Xsuite-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        opal.read_opal_beam_file(self, *args, **kwargs)
+        xsuite.read_xsuite_beam_file(self, *args, **kwargs)
 
     def read_ocelot_beam_file(self, *args, **kwargs):
         """
@@ -699,10 +709,6 @@ class beam(BaseModel):
         ocelot.read_ocelot_beam_file(self, *args, **kwargs)
 
     def read_cheetah_beam_file(self, *args, **kwargs):
-        """
-        Load in a Cheetah-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
         from . import cheetah
         cheetah.read_cheetah_beam_file(self, *args, **kwargs)
 
@@ -711,13 +717,6 @@ class beam(BaseModel):
         Write out an openpmd-type beam distribution file.
         """
         openpmd.write_openpmd_beam_file(self, *args, **kwargs)
-
-    def read_xsuite_beam_file(self, *args, **kwargs):
-        """
-        Load in an Xsuite-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
-        xsuite.read_xsuite_beam_file(self, *args, **kwargs)
 
     def write_HDF5_beam_file(self, *args, **kwargs):
         """
@@ -743,6 +742,12 @@ class beam(BaseModel):
         """
         astra.write_astra_beam_file(self, *args, **kwargs)
 
+    def write_xsuite_beam_file(self, *args, **kwargs):
+        """
+        Write out an Xsuite-type beam distribution file.
+        """
+        return xsuite.write_xsuite_beam_file(self, *args, **kwargs)
+
     def write_ocelot_beam_file(self, *args, **kwargs):
         """
         Write out an OCELOT-type beam distribution file.
@@ -751,25 +756,9 @@ class beam(BaseModel):
 
         return ocelot.write_ocelot_beam_file(self, *args, **kwargs)
 
-    def write_opal_beam_file(self, *args, **kwargs):
-        """
-        Write out an OPAL-type beam distribution file.
-        """
-        opal.write_opal_beam_file(self, *args, **kwargs)
-
     def write_cheetah_beam_file(self, *args, **kwargs):
-        """
-        Write out a Cheetah-type beam distribution file.
-        """
         from . import cheetah
         return cheetah.write_cheetah_beam_file(self, *args, **kwargs)
-
-    def write_xsuite_beam_file(self, *args, **kwargs):
-        """
-        Write out an Xsuite-type beam distribution file.
-        """
-
-        return xsuite.write_xsuite_beam_file(self, *args, **kwargs)
 
     def write_mad8_beam_file(self, *args, **kwargs):
         """
@@ -777,7 +766,7 @@ class beam(BaseModel):
         """
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", beam_energy=None, step=0):
+    def read_beam_file(self, filename, run_extension="001", beam_energy=None):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
@@ -796,24 +785,23 @@ class beam(BaseModel):
             if "cheetah" in pre:
                 from . import cheetah
                 cheetah.read_cheetah_beam_file(self, filename, beam_energy)
-            elif "openpmd" in pre.lower():
-                openpmd.read_openpmd_beam_file(self, filename)
             else:
-                hdf5.read_HDF5_beam_file(self, filename)
+                if "openpmd" in pre.lower():
+                    openpmd.read_openpmd_beam_file(self, filename)
+                else:
+                    hdf5.read_HDF5_beam_file(self, filename)
         elif ext.lower() == ".sdds":
             sdds.read_SDDS_beam_file(self, filename)
         elif ext.lower() == ".gdf":
             gdf.read_gdf_beam_file(self, filename)
-        elif ext.lower() == ".json":
-            xsuite.read_xsuite_beam_file(self, filename)
         elif (ext.lower() == ".npz") and (".ocelot" in filename):
             from . import ocelot
 
             ocelot.read_ocelot_beam_file(self, filename)
         elif ext.lower() == ".astra":
             astra.read_astra_beam_file(self, filename)
-        elif (ext.lower() == ".h5") and ("opal" in pre):
-            opal.read_opal_beam_file(self, filename, step=step)
+        elif ext.lower() == ".json":
+            xsuite.read_xsuite_beam_file(self, filename)
         elif re.match(r".*.\d\d\d\d." + run_extension, filename):
             astra.read_astra_beam_file(self, filename)
         else:
@@ -882,7 +870,7 @@ class beam(BaseModel):
         hdf5.unrotate_beamXZ(self)
 
 
-def load_directory(directory=".", types={"SimFrame": ".hdf5", "OpenPMD": ".openpmd.hdf5"}, verbose=False) -> beamGroup:
+def load_directory(directory=".", types={"SimFrame": ".hdf5"}, verbose=False) -> beamGroup:
     """
     Load in all beam distribution files from a directory and create a
     :class:`~simba.Modules.Beams.beamGroup` object.
@@ -933,17 +921,24 @@ def load_file(filename, *args, **kwargs) -> beam:
     return b
 
 
-def save_HDF5_summary_file(directory=".", filename="./Beam_Summary.hdf5", files=None) -> None:
-    if not files:
-        beam_files = glob.glob(directory + "/*.hdf5")
+def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary.hdf5", screens: list = None, files: list = None) -> None:
+    if screens is not None:
         files = []
-        for bf in beam_files:
-            if "openpmd" in bf:
+        for scr in screens:
+            if os.path.isfile(bf := os.path.join(directory, scr + '.openpmd.hdf5')):
+                # print(f'[save_HDF5_summary_file] {scr} found as {bf}')
                 files.append(bf)
             else:
-                with h5py.File(bf, "r") as f:
-                    if "/beam/beam" in f:
-                        files.append(bf)
+                pass
+                # print(f'[save_HDF5_summary_file] {scr} NOT found as {bf}')
+    if files is None:
+        # print('[save_HDF5_summary_file] No screens or files found - globbing!')
+        beam_files = glob.glob(directory + "/*openpmd.hdf5")
+        files = []
+        for bf in beam_files:
+            with h5py.File(bf, "r") as f:
+                if "/particles" in f:
+                    files.append(bf)
     hdf5.write_HDF5_summary_file(filename, files)
 
 

@@ -87,8 +87,8 @@ def interpret_xsuite_data(self, lattice_name, fdat):
     self.beta_y_beam.val = np.append(self.beta_y_beam.val, fdat["bety"])
     self.alpha_x_beam.val = np.append(self.alpha_x_beam.val, fdat["alfx"])
     self.alpha_y_beam.val = np.append(self.alpha_y_beam.val, fdat["alfy"])
-    self.cp_eV = self.cp
-    self.cp_eV = self.cp
+    # self.cp_eV = self.cp
+    # self.cp_eV = self.cp
     # for k in self.__dict__.keys():
     #     try:
     #         if len(getattr(self, k)) < len(getattr(self, "z")):

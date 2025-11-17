@@ -48,6 +48,8 @@ from nala.translator.converters.codes.astra import (
     astra_errors,
 )
 
+from ...Modules.units import UnitValue
+
 section_header_text_ASTRA = {
     "cavities": {"header": "CAVITY", "bool": "LEField"},
     "wakefields": {"header": "WAKE", "bool": "LWAKE"},
@@ -102,8 +104,13 @@ class astraLattice(frameworkLattice):
     """Initial rotation of first element"""
 
     zstop: float = None
+    """End z position of lattice"""
 
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
+    """Headers for ASTRA input file"""
+
+    ref_s: float = None
+    """Reference s position"""
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
@@ -129,8 +136,9 @@ class astraLattice(frameworkLattice):
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
         newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
         self.section.astra_headers["newrun"] = astra_newrun(
-            starting_offset=self.starting_offset,
+            starting_offset=starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             input_particle_definition = self.startObject.name,
@@ -339,9 +347,11 @@ class astraLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        astrabeamfilename = self.read_input_file(prefix,
-                                                 self.astra_headers["newrun"].input_particle_definition.replace(
-                                                     ".astra", ""))
+        astrabeamfilename = self.read_input_file(
+            prefix,
+            self.astra_headers["newrun"].input_particle_definition.replace(".astra", "")
+        )
+        self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
@@ -352,6 +362,7 @@ class astraLattice(frameworkLattice):
         scr: DiagnosticElement,
         cathode: bool,
         mult: int,
+        sval: float = 0.0,
     ) -> None:
         """
         Convert output from ASTRA screen to HDF5 format
@@ -366,10 +377,10 @@ class astraLattice(frameworkLattice):
             True if beam was emitted from a cathode
         mult: int
             Multiplication factor for ASTRA-type filenames
-        zstart: float
-            Start position of lattice
+        sval: float
+            S-position of beam
         """
-        return self.astra_to_hdf5(objectname, scr, cathode, mult)
+        return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
 
     def get_screen_scaling(self) -> int:
         """
@@ -404,12 +415,16 @@ class astraLattice(frameworkLattice):
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
         mult = self.get_screen_scaling()
+        svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
+        zvals = [a[-1] for a in self.getZValues()]
         for e in self.screens_and_bpms:
+            sval = np.interp(e.middle.z, zvals, svals)
             self.screen_threaded_function.scatter(
                 scr=e,
                 objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
+                sval=sval,
             )
         self.screen_threaded_function.gather()
         endelem = PhysicalBaseElement(
@@ -428,6 +443,7 @@ class astraLattice(frameworkLattice):
             cathode: bool = False,
             mult: int = 100,
             final: bool = False,
+            sval: float = 0.0,
     ) -> None:
         """
         Convert the ASTRA beam file name to HDF5 format and write the beam file.
@@ -442,6 +458,8 @@ class astraLattice(frameworkLattice):
             True if beam was emitted from a cathode
         mult: int
             Multiplication factor for ASTRA-type filenames
+        sval: float
+            S-position of beam
         """
         master_run_no = (
             self.global_parameters["run_no"]
@@ -468,6 +486,7 @@ class astraLattice(frameworkLattice):
                 preOffset=[0, 0, 0],
                 postOffset=-1 * np.array(self.starting_offset),
             )
+            beam.s = UnitValue(sval, units="m")
             HDF5filename = scr.name + ".openpmd.hdf5"
             rbf.openpmd.write_openpmd_beam_file(
                 beam,

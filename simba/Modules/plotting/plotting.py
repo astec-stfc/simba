@@ -60,12 +60,12 @@ def fieldmap_data(element):
 
     # Scaling
     scale = element.get_field_amplitude
-    if "cavity" in element.hardware_class.lower():
+    if element.objecttype == "cavity":
         scale = scale / 1e6
 
     # file
     element.update_field_definition()
-    field = element.simulation.field_definition
+    field = element.field_definition
     data = field.get_field_data(code="astra")
 
     if field.field_type == "1DElectroDynamic" and field.cavity_type == "TravellingWave":
@@ -183,13 +183,13 @@ def load_elements(
             ]
         for e in elements:
             if (
-                (t in e.hardware_class.lower())
-                and hasattr(e.simulation, "field_definition")
-                and e.simulation.field_definition is not None
+                (t == "cavity" or t == "solenoid")
+                and hasattr(e, "field_definition")
+                and e.field_definition is not None
             ):
-                fmap[t][e.name] = fieldmap_data(e)
+                fmap[t][e.objectname] = fieldmap_data(e)
             elif hasattr(mpd, t):
-                fmap[t][e.name] = getattr(mpd, t)(e)
+                fmap[t][e.objectname] = getattr(mpd, t)(e)
             else:
                 print("Missing drawings for", t)
     return fmap
@@ -531,15 +531,17 @@ def plot(
                 Y_particles = np.array(
                     [
                         (
-                            np.std(getattr(P[name],key))
+                            np.std(getattr(P[name], key))
                             if key in P._parameters["data"]
                             else getattr(P[name], key)
                         )
                         for name in Pnames
                     ]
                 )
-                if not all (v is None for v in Y_particles):
-                    ax.scatter(X_particles / factor_x, Y_particles / factor, color=color)
+                if not all(v is None for v in Y_particles):
+                    ax.scatter(
+                        X_particles / factor_x, Y_particles / factor, color=color
+                    )
             # except:
             #     pass
         labels = ["$" + k.replace("sigma", r"\sigma") + "$" for k in labels]
