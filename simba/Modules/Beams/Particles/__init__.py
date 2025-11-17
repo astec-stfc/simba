@@ -160,6 +160,9 @@ class Particles(BaseModel):
     z: UnitValue | list | np.ndarray = None
     """Longitudinal coordinates of particles [m]"""
 
+    s: UnitValue | list | np.ndarray | float = None
+    """s-position coordinates of particles [m]"""
+
     px: UnitValue | list | np.ndarray = None
     """Horizontal momentum of particles [kg*m/s]"""
 
@@ -177,9 +180,6 @@ class Particles(BaseModel):
 
     theta: UnitValue | float = 0.0
     """Horizontal rotation of particle distribution with respect to the nominal axis [rad]"""
-
-    reference_particle: list | np.ndarray = None
-    """Reference particle for ASTRA-type distributions"""
 
     toffset: float | UnitValue = None
     """Temporal offset [s]"""

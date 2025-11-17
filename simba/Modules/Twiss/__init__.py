@@ -49,6 +49,7 @@ codes = {
     "gpt": gpt.read_gdf_twiss_files,
     "astra": astra.read_astra_twiss_files,
     "ocelot": ocelot.read_ocelot_twiss_files,
+    "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
     "opal": opal.read_opal_twiss_files,
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
@@ -63,6 +64,7 @@ code_signatures = [
     ["astra", "Xemit.001"],
     ["ocelot", "_twiss.npz"],
     ["opal", ".stat"],
+    ["ocelot_h5", "_twiss.oh5"],
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
@@ -75,7 +77,7 @@ twiss_defaults = {
     "kinetic_energy": {"name": "kinetic_energy", "unit": "eV"},
     "gamma": {"name": "gamma", "unit": ""},
     "cp": {"name": "cp", "unit": "eV/c"},
-    "cp_eV": {"name": "cp_eV", "unit": "eV/c"},
+    # "cp_eV": {"name": "cp_eV", "unit": "eV/c"},
     "p": {"name": "p", "unit": "kg*m/s"},
     "ex": {"name": "ex", "unit": "m-rad"},
     "enx": {"name": "enx", "unit": "m-rad"},
@@ -241,8 +243,8 @@ class twiss(BaseModel):
     cp: "twissParameter" = None
     """The momentum of the beam in eV/c."""
 
-    cp_eV: "twissParameter" = None
-    """The momentum of the beam in eV/c, specifically for energy calculations."""
+    # cp_eV: "twissParameter" = None
+    # """The momentum of the beam in eV/c, specifically for energy calculations."""
 
     p: "twissParameter" = None
     """The momentum of the beam in kg*m/s, calculated as cp * q_over_c."""
@@ -385,7 +387,7 @@ class twiss(BaseModel):
     codes: Dict = codes
     """A dictionary of functions to read twiss data from different simulation codes."""
 
-    code_signatures: Dict = code_signatures
+    code_signatures: List[List[str]] = code_signatures
     """A list of code signatures to identify twiss files from different simulation codes."""
 
     sddsindex: int = 0
@@ -424,23 +426,13 @@ class twiss(BaseModel):
             "gpt": gpt.read_gdf_twiss_files,
             "astra": astra.read_astra_twiss_files,
             "ocelot": ocelot.read_ocelot_twiss_files,
+            "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
             "opal": opal.read_opal_twiss_files,
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
             "genesis": genesis.read_genesis_twiss_files,
         }
-        self.code_signatures = [
-            ["elegant", ".twi"],
-            ["elegant", ".flr"],
-            ["elegant", ".sig"],
-            ["GPT", "emit.gdf"],
-            ["astra", "Xemit.001"],
-            ["ocelot", "_twiss.npz"],
-            ["opal", ".stat"],
-            ["cheetah", "_twiss.cheetah.hdf5"],
-            ["xsuite", "_twiss.csv"],
-            ["genesis", ".out.h5"],
-        ]
+        self.code_signatures = code_signatures
 
     @model_validator(mode="before")
     def validate_fields(cls, values):
@@ -498,6 +490,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return ocelot.read_ocelot_twiss_files(self, *args, **kwargs)
+
+    def read_ocelot_twiss_files_hdf(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return ocelot.read_ocelot_twiss_files_hdf(self, *args, **kwargs)
 
     def read_opal_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -643,7 +640,10 @@ class twiss(BaseModel):
                     if reverse:
                         getattr(self, k).val = flat[index[::-1]]
                     else:
+                        # try:
                         getattr(self, k).val = flat[index[::1]]
+                        # except Exception:
+                        #     print(f"Error in sort k={getattr(self, k).val}, index={index}")
 
     def append(self, array: str, data: List | np.ndarray) -> None:
         """
@@ -986,7 +986,7 @@ class twiss(BaseModel):
         for code, string in types.items():
             twiss_files = glob.glob(directory + "/" + preglob + string)
             if verbose:
-                print(code, [os.path.basename(t) for t in twiss_files])
+                print(code, preglob + string, [os.path.basename(t) for t in twiss_files])
             if self._which_code(code) is not None and len(twiss_files) > 0:
                 self._which_code(code)(self, twiss_files, reset=False)
         self.sort(key=sortkey)
@@ -1014,6 +1014,7 @@ def load_directory(
         "ASTRA": "Xemit.001",
         "ocelot": "_twiss.npz",
         "opal": ".stat",
+        "ocelot_h5": "_twiss.oh5",
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",

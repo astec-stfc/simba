@@ -31,7 +31,6 @@ import numpy as np
 from copy import deepcopy
 from deepdiff import DeepDiff
 import sys
-sys.path.append('/home/xkc85723/Documents/nala')
 from nala import NALA
 from nala.models.element import Element
 from nala.Exporters.YAML import export_machine, export_elements

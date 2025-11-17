@@ -136,6 +136,9 @@ class elegantLattice(frameworkLattice):
     commandFilesOrder: List = []
     """Order in which commands are to be written in the ELEGANT input file"""
 
+    ref_idx: int = None
+    """Reference particle index"""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.particle_definition = self.elementObjects[self.start].name
@@ -477,8 +480,8 @@ class elegantLattice(frameworkLattice):
             )
             # print('sdds_beam')
             self.commandFiles["sdds_beam"] = elegant_sdds_beam_command(
-                # lattice=self,
-                input=self.objectname + ".sdds",
+                lattice=self,
+                input=self.objectname + "_input.sdds",
                 sample_interval=self.sample_interval,
                 reuse_bunch=1,
                 fiducialization_bunch=0,
@@ -501,6 +504,7 @@ class elegantLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         self.read_input_file(prefix, self.particle_definition)
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.global_parameters["beam"].beam.rematchXPlane(
             **self.initial_twiss["horizontal"]
         )
@@ -512,7 +516,7 @@ class elegantLattice(frameworkLattice):
         self.createCommandFiles()
 
     @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int) -> None:
+    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int, **kwargs) -> None:
         """
         Convert output from ELEGANT screen to HDF5 format
 
@@ -524,7 +528,12 @@ class elegantLattice(frameworkLattice):
             SDDS object index
         """
         try:
-            return self.sdds_to_hdf5(scr, sddsindex, toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t))
+            return self.sdds_to_hdf5(
+                scr,
+                sddsindex,
+                toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
+                **kwargs,
+            )
         except Exception as e:
             print(f"Screen error {scr.name}, {e}")
             return None
@@ -539,7 +548,7 @@ class elegantLattice(frameworkLattice):
         super().postProcess()
         if self.trackBeam:
             for i, s in enumerate(self.screens_and_markers_and_bpms):
-                self.screen_threaded_function.scatter(s, i)
+                self.screen_threaded_function.scatter(s, i, ref_index=self.ref_idx)
             if (
                 self.final_screen is not None
                 and not self.final_screen.output_filename.lower()
@@ -548,7 +557,9 @@ class elegantLattice(frameworkLattice):
                 ]
             ):
                 self.screen_threaded_function.scatter(
-                    self.final_screen, len(self.screens_and_markers_and_bpms)
+                    self.final_screen,
+                    len(self.screens_and_markers_and_bpms),
+                    ref_index=self.ref_idx
                 )
         self.screen_threaded_function.gather()
         self.commandFiles = {}
@@ -558,7 +569,7 @@ class elegantLattice(frameworkLattice):
         Convert the HDF5 beam input file to an SDDS file, and create a
         :class:`~simba.Elements.charge.charge` object as the first element
         """
-        sddsbeamfilename = self.objectname + ".sdds"
+        sddsbeamfilename = self.objectname + "_input.sdds"
         if write:
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
@@ -567,7 +578,13 @@ class elegantLattice(frameworkLattice):
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
-    def sdds_to_hdf5(self, screen: DiagnosticElement, sddsindex: int = 1, toffset: float = 0.0) -> None:
+    def sdds_to_hdf5(
+            self,
+            screen: DiagnosticElement,
+            sddsindex: int = 1,
+            toffset: float = 0.0,
+            ref_index: int = None
+    ) -> None:
         """
         Convert the SDDS beam file name to HDF5 format and write the beam file.
 
@@ -579,23 +596,21 @@ class elegantLattice(frameworkLattice):
             Index for SDDS file
         toffset: float, optional
             Temporal offset
+        ref_index: int, optional
+            Reference particle index
         """
         beam = rbf.beam()
         beam.sddsindex = sddsindex
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
-        rbf.sdds.read_SDDS_beam_file(beam, elegantbeamfilename)
+        rbf.sdds.read_SDDS_beam_file(
+            beam,
+            elegantbeamfilename,
+            z0=screen.physical.middle.z,
+            ref_index=ref_index
+        )
         HDF5filename = f"{rootname}.openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
-        # rbf.hdf5.write_HDF5_beam_file(
-        #     beam,
-        #     os.path.join(self.global_parameters["master_subdir"], HDF5filename),
-        #     centered=False,
-        #     sourcefilename=elegantbeamfilename,
-        #     pos=[getattr(screen.physical.middle, p) for p in ["x", "y", "z"]],
-        #     zoffset=[getattr(screen.physical.end, p) for p in ["x", "y", "z"]],
-        #     toffset=toffset,
-        # )
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 

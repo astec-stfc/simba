@@ -60,6 +60,7 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
         gamma = 1 + ke / self.E0_eV
         cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
         self.cp.val = np.append(self.cp.val, cp)
+        self.mean_cp.val = np.append(self.mean_cp.val, cp)
         self.gamma.val = np.append(self.gamma.val, gamma)
         self.p.val = np.append(self.p.val, cp * self.q_over_c)
         self.enx.val = np.append(self.enx.val, gdfbeamdata.nemixrms)

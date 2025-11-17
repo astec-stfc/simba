@@ -770,7 +770,12 @@ class frameworkLattice(BaseModel):
     def read_input_file(self, prefix, particle_definition, read_file=True):
         filepath = ""
         HDF5filename = prefix + particle_definition + ".openpmd.hdf5"
-        if os.path.isfile(expand_substitution(self, HDF5filename)):
+        if "$" in particle_definition:
+            if os.path.isfile(expand_substitution(self, particle_definition + ".openpmd.hdf5")):
+                filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
+            else:
+                filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
+        elif os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
         elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
             filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
@@ -782,6 +787,11 @@ class frameworkLattice(BaseModel):
                 )
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
+        if "$" in particle_definition:
+            if os.path.isfile(expand_substitution(self, particle_definition + ".hdf5")):
+                filepath = expand_substitution(self, particle_definition + ".hdf5")
+            else:
+                filepath = expand_substitution(self, particle_definition + ".hdf5")
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
         elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
@@ -793,8 +803,8 @@ class frameworkLattice(BaseModel):
                     os.path.abspath(filepath),
                 )
             return filepath
-        raise Exception(f'HDF5 input file {prefix + particle_definition}.[openpmd.].hdf5 does not exist!')
-
+        raise Exception(
+            f'HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!')
     def update_groups(self) -> None:
         """
         Update the group objects in the lattice with their settings.
