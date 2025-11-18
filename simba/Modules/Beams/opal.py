@@ -103,18 +103,13 @@ def read_opal_beam_file(self, filename, step=0):
         self._beam.total_charge = UnitValue(beamdata.attrs['TotalCharge'][0], units="C")
     else:
         self._beam.total_charge = UnitValue(np.sum(beamdata["q"][()]), units="C")
-    self._beam.charge = UnitValue(
-        np.full(
-            len(self._beam.x), self._beam.total_charge / len(self._beam.x)
-        ),
-        units="C"
-    )
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x.val), 1), units="")
     self._beam.particle_mass = UnitValue(
         np.full(len(self._beam.x.val), constants.m_e),
         units="kg",
     )
-    self._beam.particle_charge = UnitValue([-constants.elementary_charge for _ in range(len(self._beam.x.val))], units="C")
+    self._beam.set_total_charge(self._beam.total_charge)
+    self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
     file.close()
 
 

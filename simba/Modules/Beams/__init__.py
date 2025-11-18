@@ -40,6 +40,7 @@ from . import hdf5
 from . import mad8
 from . import openpmd
 from . import xsuite
+from . import opal
 
 try:
     from . import plot
@@ -345,7 +346,7 @@ class beam(BaseModel):
         "status",
     ]
 
-    def __init__(self, filename=None, beam_energy=None, *args, **kwargs):
+    def __init__(self, filename=None, beam_energy=None, step=0, *args, **kwargs):
         super(beam, self).__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
@@ -355,7 +356,7 @@ class beam(BaseModel):
         # self.sddsindex = sddsindex
         self.code = None
         if self.filename is not None:
-            self.read_beam_file(self.filename, beam_energy=beam_energy)
+            self.read_beam_file(self.filename, beam_energy=beam_energy, step=step)
             self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
@@ -708,6 +709,13 @@ class beam(BaseModel):
 
         ocelot.read_ocelot_beam_file(self, *args, **kwargs)
 
+    def read_opal_beam_file(self, *args, **kwargs):
+        """
+        Load in an OPAL-type beam distribution file and update the
+        :attr:`~simba.Modules.Beams.beam.Particles` object.
+        """
+        opal.read_opal_beam_file(self, *args, **kwargs)
+
     def read_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
         cheetah.read_cheetah_beam_file(self, *args, **kwargs)
@@ -756,6 +764,12 @@ class beam(BaseModel):
 
         return ocelot.write_ocelot_beam_file(self, *args, **kwargs)
 
+    def write_opal_beam_file(self, *args, **kwargs):
+        """
+        Write out an OPAL-type beam distribution file.
+        """
+        opal.write_opal_beam_file(self, *args, **kwargs)
+
     def write_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
         return cheetah.write_cheetah_beam_file(self, *args, **kwargs)
@@ -766,7 +780,7 @@ class beam(BaseModel):
         """
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", beam_energy=None):
+    def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
@@ -779,6 +793,10 @@ class beam(BaseModel):
             The name of the file to be loaded
         run_extension: str
             Run extension for ASTRA-type beam distribution files.
+        beam_energy: float, optional
+            Beam energy in eV (for Cheetah beam distributions)
+        step: int, optional
+            Step number in output file (for OPAL beam distributions)
         """
         pre, ext = os.path.splitext(os.path.basename(filename))
         if ext.lower()[:4] == ".hdf":
@@ -800,6 +818,8 @@ class beam(BaseModel):
             ocelot.read_ocelot_beam_file(self, filename)
         elif ext.lower() == ".astra":
             astra.read_astra_beam_file(self, filename)
+        elif (ext.lower() == ".h5") and ("opal" in pre):
+            opal.read_opal_beam_file(self, filename, step=step)
         elif ext.lower() == ".json":
             xsuite.read_xsuite_beam_file(self, filename)
         elif re.match(r".*.\d\d\d\d." + run_extension, filename):

@@ -11,6 +11,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from ...Modules.Beams.opal import find_opal_s_positions
+from ...Modules.SDDSFile import SDDSFile
 # import mpi4py
 # mpi4py.rc.initialize = False
 
@@ -79,6 +80,12 @@ class opalLattice(frameworkLattice):
 
     headers: Dict = {}
     """Section headers for OPAL input file"""
+
+    ref_s: float = None
+    """Reference s position"""
+
+    ref_idx: int = None
+    """Reference particle index"""
 
 
     def model_post_init(self, __context):
@@ -155,6 +162,8 @@ class opalLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         fpath = self.read_input_file(prefix, self.particle_definition)
+        self.ref_s = self.global_parameters["beam"].s
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_opal()
         beamlen = len(self.global_parameters["beam"].x)
         pc = np.mean(self.global_parameters["beam"].cpz.val) / 1e9
@@ -216,6 +225,25 @@ class opalLattice(frameworkLattice):
             f'{self.global_parameters["master_subdir"]}/{self.endObject.name}.openpmd.hdf5',
         )
         self.commandFiles = {}
+        opalObject = SDDSFile()
+        opalObject.read_file(f"{self.global_parameters['master_subdir']}/{self.objectname}.stat")
+        opalData = opalObject.data
+        for k in opalData:
+            # handling for multiple elegant runs per file (e.g. error simulations)
+            # by default extract only the first run (in ELEGANT this is the fiducial)
+            if isinstance(opalData[k], np.ndarray) and (opalData[k].ndim > 1):
+                opalData[k] = opalData[k][0]
+            else:
+                opalData[k] = np.array(opalData[k])
+        if self.ref_s is not None:
+            opalData["s"] += self.ref_s
+        import h5py
+        with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
+            for k, v in opalData.items():
+                try:
+                    f.create_dataset(k, data=np.array(v))
+                except TypeError as e:
+                    pass
 
     def hdf5_to_opal(self):
         emitted = True if self.particle_definition == "laser" else False
