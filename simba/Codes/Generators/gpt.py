@@ -208,7 +208,7 @@ class GPTGenerator(frameworkGenerator):
         param_value = getattr(self, param, "").lower()
         if param_value in ["g", "gaussian", "2dgaussian", "radial", "r"]:
             return self._gaussian_distribution(distname, variable, **kwargs)
-        elif param_value in ["u", "uniform"]:
+        elif param_value in ["u", "uniform", "p", "plateau"]:
             return self._uniform_distribution(distname, variable, **kwargs)
         elif param_value in ["F", "f", "file"]:
             return self._file_distribution(distname, variable, **kwargs)

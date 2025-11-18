@@ -2188,10 +2188,10 @@ class frameworkGroup(object):
     #     return self.get_Parameter(p)
 
     def __repr__(self):
-        return str([self.allElementObjects[e].objectname for e in self.elements])
+        return str([self.allElementObjects[e].name for e in self.elements])
 
     def __str__(self):
-        return str([self.allElementObjects[e].objectname for e in self.elements])
+        return str([self.allElementObjects[e].name for e in self.elements])
 
     def __getitem__(self, key):
         return self.get_Parameter(key)

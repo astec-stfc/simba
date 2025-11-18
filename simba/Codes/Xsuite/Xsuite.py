@@ -82,6 +82,12 @@ class xsuiteLattice(frameworkLattice):
     pic_solver: Literal['FFTSolver2p5DAveraged'] = 'FFTSolver2p5DAveraged'
     """PIC solver to use for space charge calculations"""
 
+    ref_s: float = None
+    """Reference s position"""
+
+    ref_idx: int = None
+    """Reference particle index"""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         import xobjects as xo
@@ -175,7 +181,9 @@ class xsuiteLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.ref_s = self.global_parameters["beam"].s
         self.read_input_file(prefix, self.particle_definition)
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_json(prefix)
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
@@ -259,17 +267,39 @@ class xsuiteLattice(frameworkLattice):
         with open(bfname, 'w') as fid:
             json.dump(self.pout.to_dict(), fid, cls=xo.JEncoder)
         beam = deepcopy(self.global_parameters["beam"])
-        beam.read_xsuite_beam_file(bfname)#, s_start=self.endObject.physical.start.z)
-        rbf.openpmd.write_openpmd_beam_file(beam, f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5')
+        svals = self.getSValues(as_dict=True)
+        beam.read_xsuite_beam_file(
+            bfname,
+            zstart=self.endObject.physical.middle.z,
+            s=svals[self.end],
+            ref_index=self.ref_idx
+        )
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5',
+        )
         for elem in self.screens_and_bpms:
             fname = f'{self.global_parameters["master_subdir"]}/{elem.name}.xsuite.json'
             with open(fname, 'w') as fid:
                 json.dump(self.line[elem.name].data.to_dict(), fid, cls=xo.JEncoder)
             beam = deepcopy(self.global_parameters["beam"])
-            beam.read_xsuite_beam_file(fname)#, s_start=elem.physical.start.z)
-            rbf.openpmd.write_openpmd_beam_file(beam, f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5')
+            beam.read_xsuite_beam_file(
+                fname,
+                zstart=elem.physical.middle.z,
+                s=svals[elem.name],
+                ref_index=self.ref_idx,
+            )
+            rbf.openpmd.write_openpmd_beam_file(
+                beam,
+                f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
+            )
         df = self.tws.to_pandas()
-        df["s"] += self.startObject.physical.start.z
+        if self.ref_s is None:
+            self.ref_s = self.startObject.physical.start.z
+        df["s"] += self.ref_s
+        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
+        zvals = [a[-1] for a in self.getZValues()]
+        df["z"] = np.interp(df["s"], svals, zvals)
         for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
             df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')
