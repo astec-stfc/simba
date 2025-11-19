@@ -70,9 +70,13 @@ class ASTRAGenerator(frameworkGenerator):
                         val = v * aliases["aliases"]["astra"][k]["multiplier"]
                 if key in ["le"]:
                     val = 1e-3 * self.thermal_kinetic_energy
+                if val == "electron":
+                    val = "electrons"
+                if val == "proton":
+                    val = "protons"
+                if val == "positron":
+                    val = "positrons"
                 if isinstance(v, str):
-                    if v == "electron":
-                        val = "electrons"
                     param_string = key + " = '" + str(val) + "',\n"
                 else:
                     param_string = key + " = " + str(val) + ",\n"
@@ -87,8 +91,7 @@ class ASTRAGenerator(frameworkGenerator):
         #TODO Filenames are hardcoded for simplicity and they shouldn't be.
         """
         output = "&INPUT\n"
-        if self.filename is None:
-            self.filename = "generator.txt"
+        self.filename = self.filename.replace(".openpmd.hdf5", ".txt")
         output += self._write_ASTRA()
         output += "\n/\n"
         saveFile(
@@ -102,20 +105,20 @@ class ASTRAGenerator(frameworkGenerator):
         This method reads the ASTRA beam file and writes it to an HDF5 format.
         #TODO Filenames are hardcoded for simplicity and they shouldn't be.
         """
-        astrabeamfilename = "generator.txt"
         self.global_parameters["beam"] = rbf.beam()
         rbf.astra.read_astra_beam_file(
             self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + astrabeamfilename,
+            self.global_parameters["master_subdir"] + "/" + self.filename,
             normaliseZ=False,
             keepLost=True,
         )
-        HDF5filename = "laser.hdf5"
-        rbf.hdf5.write_HDF5_beam_file(
+        if self.cathode:
+            HDF5filename = "laser.openpmd.hdf5"
+        else:
+            HDF5filename = self.filename.replace(".txt", ".openpmd.hdf5")
+        rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
-            os.path.join(self.global_parameters["master_subdir"], HDF5filename),
-            centered=False,
-            sourcefilename=astrabeamfilename,
-            cathode=True
+            self.global_parameters["master_subdir"] + "/" + HDF5filename,
         )
+
 

@@ -26,8 +26,19 @@ mass_index = {
         "positron": "me",  # positron
         "proton": "mp",    # proton
         "hydrogen": "mp",  # hydrogen ion
+        "electrons": "me",  # electron
+        "positrons": "me",  # positron
+        "protons": "mp",    # proton
     }
-charge_sign_index = {"electron": -1, "positron": 1, "proton": 1, "hydrogen": 1}
+charge_sign_index = {
+    "electron": -1,
+    "positron": 1,
+    "proton": 1,
+    "hydrogen": -1,
+    "electrons": -1,
+    "positrons": 1,
+    "protons": 1,
+}
 
 
 class GPTGenerator(frameworkGenerator):
@@ -469,20 +480,18 @@ setGBphidist("beam","u", 0, 2*pi);
         """
         gptbeamfilename = "generator.gdf"
         self.global_parameters["beam"] = rbf.beam()
-        self.global_parameters["beam"].read_gdf_beam_file(
+        rbf.gdf.read_gdf_beam_file(
+            self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + gptbeamfilename,
             position=0,
             longitudinal_reference="t",
         )
         # Set the Z component to be zero
-        self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].z, "m")
-        HDF5filename = "laser.openpmd.hdf5"
-        self.global_parameters["beam"].Particles.status = UnitValue(
-            np.full(
-                len(self.global_parameters["beam"].x), -1
-            ),
-            units="",
-        )
+        self.global_parameters["beam"].z = UnitValue(np.full(len(self.global_parameters["beam"].z), 0), units="m")
+        if self.cathode:
+            HDF5filename = "laser.openpmd.hdf5"
+        else:
+            HDF5filename = self.filename
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
