@@ -453,8 +453,8 @@ setGBphidist("beam","u", 0, 2*pi);
         #     npart = eval(self.number_of_particles)
         # except:
         #     npart = self.number_of_particles
-        if self.filename is None:
-            self.filename = "laser.in"
+        if not self.cathode:
+            raise NotImplementedError("Only cathode beams are currently supported in GPT generator")
         output = ""
         output += self.generate_particles()
         output += self.generate_radial_distribution()
