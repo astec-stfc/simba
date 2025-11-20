@@ -1530,7 +1530,12 @@ class frameworkLattice(BaseModel):
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:
-            self.match(self.file_block["match"])
+            domatch = True
+            if "enable" in self.file_block["match"]:
+                if not self.file_block["match"]["enable"]:
+                    domatch = False
+            if domatch:
+                self.match(self.file_block["match"])
             # if matchtwiss:
             #     self.elementObjects = matchtwiss
         if "longitudinal_match" in self.file_block:
@@ -1857,7 +1862,7 @@ class frameworkLattice(BaseModel):
 
     def match(self, params: Dict) -> None:
         """
-        Perform transverse matching of the lattice using Xsuite's built-in matching algorithm.
+        Perform transverse matching of the lattice using Ocelot's built-in matching algorithm.
 
         The `params` dictionary should contain the following
         keys:
@@ -1925,6 +1930,9 @@ class frameworkLattice(BaseModel):
         )
         prefix = lat.get_prefix()
         prefix = prefix if lat.trackBeam else prefix + lat.particle_definition
+        lat.read_input_file(prefix, lat.particle_definition)
+        lat.ref_s = self.global_parameters["beam"].s
+        lat.ref_idx = self.global_parameters["beam"].reference_particle_index
         lat.hdf5_to_npz(prefix)
         lat.writeElements()
         beam = lat.global_parameters["beam"]
@@ -1943,13 +1951,11 @@ class frameworkLattice(BaseModel):
         constr = {e: params["targets"][e.id] for e in matchelems}
         if "global" in params["targets"]:
             constr.update({"global": params["targets"]["global"]})
-        print(constr)
         varelems = []
         for p in params["variables"]:
             if p in self.elements.keys():
                 if type(self.elements[p]) in [Quadrupole, Sextupole, Octupole]:
                     varelems.append([e for e in lat.lat_obj.sequence if e.id == p][0])
-        print(varelems)
         try:
             max_iter = params["max_iterations"]
         except KeyError:
@@ -1957,7 +1963,6 @@ class frameworkLattice(BaseModel):
         if len(varelems) == 0:
             raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
         res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
-        print(res)
         for i, r in enumerate(res):
             magnetic_order = self.elementObjects[params["variables"][i]].magnetic.order
             magnetic_length = self.elementObjects[params["variables"][i]].magnetic.length

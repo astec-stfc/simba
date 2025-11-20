@@ -6,7 +6,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AcceleratorSimFrame"
+name = "simba"
 description = "A python framework for particle accelerator simulations"
 readme = "README.md"
 dynamic = ["version"]

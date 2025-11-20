@@ -1314,7 +1314,14 @@ class Framework(BaseModel):
         elif elementName in self.groupObjects:
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
-            setattr(self.elementObjects[elementName], parameter, value)
+            if "." in parameter:
+                obj = self.elementObjects[elementName]
+                subattr = parameter.split(".")[0]
+                subobj = getattr(obj, subattr)
+                setattr(subobj, parameter.split(".")[1], value)
+                setattr(self.elementObjects[elementName], subattr, subobj)
+            else:
+                setattr(self.elementObjects[elementName], parameter, value)
         else:
             warn("incorrect parameters passed to modifyElement")
 
