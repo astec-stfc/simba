@@ -354,6 +354,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_opal_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command()
         return executables
 
@@ -781,6 +785,12 @@ class Framework(BaseModel):
             machine=self.machine,
             globalSettings=self.globalSettings,
         )
+        if "remote" in lattice:
+            self.setup_remote_execution(
+                lattice=name,
+                code=code.lower(),
+                **lattice["remote"],
+            )
 
     def deepdiff_to_nested(self, diff: dict) -> dict:
         """

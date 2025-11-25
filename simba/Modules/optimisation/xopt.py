@@ -2,7 +2,6 @@ from simba import Framework as fw
 from simba.Support_Files.tempdir import TemporaryDirectory
 import re
 from warnings import warn
-import yaml
 
 beam_evaluate = (
     "sigma_x",

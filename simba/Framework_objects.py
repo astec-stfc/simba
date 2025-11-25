@@ -41,6 +41,7 @@ import os
 import subprocess
 from copy import deepcopy
 from warnings import warn
+import stat
 import yaml
 from nala import NALA
 from nala.models.elementList import SectionLattice, ElementList
@@ -1274,25 +1275,27 @@ class frameworkLattice(BaseModel):
         """
         ssh = self.connect_remote()
         subdir = self.global_parameters["master_subdir"]
-        self.files.extend(
-            [
-                f'{subdir}/{e.generate_field_file_name(e.field_definition, self.code)}'
-                for e in self.elements.values() if isinstance(e.field_definition, field)
-            ]
-        )
-        self.files.extend(
-            [
-                f'{subdir}/{e.generate_field_file_name(e.wakefield_definition, self.code)}'
-                for e in self.elements.values() if isinstance(e.wakefield_definition, field)
-            ]
-        )
+        cod = self.code.lower() if self.code.lower() != "elegant" else "sdds"
+        for e in self.elements.values():
+            if isinstance(e.simulation.field_definition, str):
+                fn = e.simulation.field_definition.split('/')[-1].split('\\')[-1]
+                filename = os.path.splitext(fn)[0]
+                self.files.append(f'{subdir}/{filename}.{cod.lower()}')
+            if isinstance(e.simulation.wakefield_definition, str):
+                fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
+                filename = os.path.splitext(fn)[0]
+                self.files.append(f'{subdir}/{filename}.{cod.lower()}')
         starttime = time.time()
-        rel_subdir = str(os.path.relpath(subdir))
+        subdir = self.global_parameters["master_subdir"]
+        rel_subdir = f"/home/{self.remote_setup['username']}/{os.path.basename(subdir)}"
+        cmd = f"mkdir -p {rel_subdir}"
         ssh.exec_command(f"mkdir -p {rel_subdir}")
-        sftp = ssh.open_sftp()
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdout.channel.recv_exit_status()
         for file in self.files:
             remote_file = os.path.join(rel_subdir, os.path.basename(file))
-            sftp.put(file, remote_file)
+            with ssh.open_sftp() as sftp:
+                sftp.put(file, remote_file)
         suffix = ".ele" if self.code.lower() == "elegant" else ".in"
         command = self.objectname + suffix
         full_command = ""
@@ -1300,20 +1303,26 @@ class frameworkLattice(BaseModel):
             full_command += f"export RPN_DEFNS={self.remote_setup["host"]["rpn"]} && "
         full_command += f"cd {rel_subdir} && "
         full_command +=  f"{' '.join(self.executables[self.code])} {command}"
-        print(full_command)
         stdin, stdout, stderr = ssh.exec_command(full_command, get_pty=True)
         stdout.channel.recv_exit_status()
 
-        for attr in sftp.listdir_attr(rel_subdir):
-            remote_path = os.path.join(rel_subdir, attr.filename)
-            local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
+        with ssh.open_sftp() as sftp:
+            for attr in sftp.listdir_attr(rel_subdir):
 
-            # Compare modification time (seconds since epoch)
-            if attr.st_mtime >= starttime:
-                sftp.get(remote_path, local_path)
-                print(f"Retrieved: {remote_path} -> {local_path}")
+                # Skip directories
+                if stat.S_ISDIR(attr.st_mode):
+                    continue
 
-        sftp.close()
+                # Only download files modified since starttime
+                if attr.st_mtime >= starttime:
+                    remote_path = os.path.join(rel_subdir, attr.filename)
+                    local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
+                    sftp.get(remote_path, local_path)
+
+        # sftp.close()
+        cmd = f"rm -rf '{rel_subdir}'"
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdout.channel.recv_exit_status()
         ssh.close()
 
     def connect_remote(self) -> Any:
