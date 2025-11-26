@@ -4,8 +4,7 @@ SIMBA Framework Module
 The main class for handling the tracking of a particle distribution through a lattice.
 
 Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
-:class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-:class:`~simba.Framework_objects.frameworkElement` objects.
+:class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
@@ -30,9 +29,8 @@ from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from deepdiff import DeepDiff
-import sys
 from nala import NALA
-from nala.models.element import Element
+from nala.models.element import Element, Dipole
 from nala.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -408,14 +406,14 @@ class Framework(BaseModel):
 
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the :ref:`MasterLattice` package.
+        Set the location of the ``NALA`` package.
 
         This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the MasterLattice folder
+            The full path to the ``NALA`` master lattice folder
         """
         global MasterLatticeLocation
         if master_lattice is None:
@@ -749,7 +747,7 @@ class Framework(BaseModel):
         settings = convert_numpy_types(settings)
         with open(os.path.join(directory, filename), "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.safe_dump(settings, yaml_file, sort_keys=False)
+            yaml.dump(settings, yaml_file, sort_keys=False, Dumper=NumpySafeDumper)
 
     def read_Lattice(self, name: str, lattice: dict) -> None:
         """
@@ -1262,7 +1260,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if self.elementObjects[element].name.lower() == typ.lower()
+            if self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
@@ -1292,6 +1290,9 @@ class Framework(BaseModel):
         if len(elems) == len(values):
             for e, v in zip(elems, values):
                 setattr(self[e["name"]], setting, v)
+                if self[e["name"]].hardware_type.lower() == "dipole" and setting == "angle":
+                    self[e["name"]].magnetic.multipoles.K0L.normal = v
+
         else:
             raise ValueError
 
@@ -1543,7 +1544,7 @@ class Framework(BaseModel):
             warn("could not parse parameters; they should be a dict, list or tuple")
         with open(file, "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.dump(output, yaml_file)
+            yaml.dump(output, yaml_file, Dumper=NumpySafeDumper)
 
     def set_lattice_prefix(
         self,

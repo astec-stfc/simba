@@ -5,6 +5,7 @@ import numpy as np
 from ..units import nice_array, nice_scale_prefix
 from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
+from nala.translator.converters.converter import translate_elements
 
 # from units import nice_array, nice_scale_prefix
 
@@ -47,7 +48,7 @@ def ASTRA_TW_FieldMap(fielddat, start, stop, cells, p):
     return dat
 
 
-def fieldmap_data(element):
+def fieldmap_data(element, master_lattice):
     """
     Loads the fieldmap in absolute coordinates.
 
@@ -56,16 +57,28 @@ def fieldmap_data(element):
     """
 
     # Position
-    offset = element.get_field_reference_position()[2]
+    try:
+        if element.field_reference_position == "start":
+            offset = element.physical.start.z
+        elif element.field_reference_position == "end":
+            offset = element.physical.end.z
+        else:
+            offset = element.physical.middle.z
+    except AttributeError:
+        offset = element.phyiscal.start.z
 
     # Scaling
-    scale = element.get_field_amplitude
-    if element.objecttype == "cavity":
+    try:
+        scale = element.field_amplitude
+    except AttributeError:
+        scale = element.simulation.field_amplitude
+    if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
 
     # file
+    element = translate_elements(elements=[element], master_lattice_location=master_lattice)[element.name]
     element.update_field_definition()
-    field = element.field_definition
+    field = element.simulation.field_definition
     data = field.get_field_data(code="astra")
 
     if field.field_type == "1DElectroDynamic" and field.cavity_type == "TravellingWave":
@@ -99,39 +112,39 @@ class magnet_plotting_data:
     def half_rectangle(self, e, half_height):
         return np.array(
             [
-                [e.position_start[2], 0],
-                [e.position_start[2], half_height],
-                [e.position_end[2], half_height],
-                [e.position_end[2], 0],
+                [e.physical.start.z, 0],
+                [e.physical.start.z, half_height],
+                [e.physical.end.z, half_height],
+                [e.physical.end.z, 0],
             ]
         )
 
     def full_rectangle(self, e, half_height, width=0):
         return np.array(
             [
-                [e.position_start[2] - width, -half_height],
-                [e.position_start[2] - width, half_height],
-                [e.position_end[2] + width, half_height],
-                [e.position_end[2] + width, -half_height],
+                [e.physical.start.z - width, -half_height],
+                [e.physical.start.z - width, half_height],
+                [e.physical.end.z + width, half_height],
+                [e.physical.end.z + width, -half_height],
             ]
         )
 
     def quadrupole(self, e):
-        if e.gradient is None:
-            strength = np.sign(e.k1l) * 0.5
-        else:
-            idx = find_nearest(self.z, e.middle[2])
-            ke = self.kinetic_energy[idx]
-            strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
+        # if e.gradient is None:
+        strength = np.sign(e.k1l) * 0.5
+        # else:
+        #     idx = find_nearest(self.z, e.middle[2])
+        #     ke = self.kinetic_energy[idx]
+        #     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
         return self.half_rectangle(e, strength), "red"
 
     def sextupole(self, e):
-        if e.gradient is None:
-            strength = np.sign(e.k2l) * 0.5
-        else:
-            idx = find_nearest(self.z, e.middle[2])
-            ke = self.kinetic_energy[idx]
-            strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
+        # if e.gradient is None:
+        strength = np.sign(e.k2l) * 0.5
+        # else:
+        #     idx = find_nearest(self.z, e.middle[2])
+        #     ke = self.kinetic_energy[idx]
+        #     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
         return self.half_rectangle(e, strength), "green"
 
     def dipole(self, e):
@@ -159,11 +172,12 @@ def load_elements(
     lattice,
     bounds=None,
     sections="All",
-    types=["cavity", "solenoid"],
+    types=["RFCavity", "Solenoid"],
     kinetic_energy=None,
     verbose=False,
     scale=1,
 ):
+    master_lattice = lattice.global_parameters["master_lattice_location"]
     fmap = {}
     mpd = magnet_plotting_data(kinetic_energy=kinetic_energy)
     for t in types:
@@ -178,18 +192,18 @@ def load_elements(
             elements = [
                 e
                 for e in elements
-                if e.position_start[2] <= bounds[1]
-                and e.position_end[2] >= bounds[0] - 0.1
+                if e.physical.start.z <= bounds[1]
+                and e.physical.end.z >= bounds[0] - 0.1
             ]
         for e in elements:
             if (
-                (t == "cavity" or t == "solenoid")
+                (t == "RFCavity" or t == "Solenoid")
                 and hasattr(e, "field_definition")
                 and e.field_definition is not None
             ):
-                fmap[t][e.objectname] = fieldmap_data(e)
+                fmap[t][e.name] = fieldmap_data(e, master_lattice)
             elif hasattr(mpd, t):
-                fmap[t][e.objectname] = getattr(mpd, t)(e)
+                fmap[t][e.name] = getattr(mpd, t)(e)
             else:
                 print("Missing drawings for", t)
     return fmap
@@ -200,7 +214,7 @@ def add_fieldmaps_to_axes(
     axes,
     bounds=None,
     sections="All",
-    fields=["cavity", "solenoid"],
+    fields=["RFCavity", "Solenoid"],
     include_labels=True,
     verbose=False,
 ):
@@ -219,8 +233,8 @@ def add_fieldmaps_to_axes(
     ax1rhs = ax1.twinx()
     ax = [ax1, ax1rhs]
 
-    ylabel = {"cavity": "$E_z$ (MV/m)", "solenoid": "$B_z$ (T)"}
-    color = {"cavity": "green", "solenoid": "blue"}
+    ylabel = {"RFCavity": "$E_z$ (MV/m)", "Solenoid": "$B_z$ (T)"}
+    color = {"RFCavity": "green", "Solenoid": "blue"}
 
     for i, section in enumerate(fields):
         a = ax[i]
@@ -314,7 +328,7 @@ def plot_fieldmaps(
     include_labels=True,
     limits=None,
     figsize=(12, 4),
-    fields=["cavity", "solenoid"],
+    fields=["RFCavity", "Solenoid"],
     magnets=["quadrupole", "dipole", "beam_position_monitor", "screen"],
     **kwargs,
 ):
@@ -331,7 +345,7 @@ def plot_fieldmaps(
         include_labels=include_labels,
         sections=sections,
         fields=fields,
-        magnets=magnets,
+        # magnets=magnets,
     )
 
 
@@ -346,7 +360,7 @@ def plot(
     include_labels=True,
     include_legend=True,
     include_particles=False,
-    fields=["cavity", "solenoid"],
+    fields=["RFCavity", "Solenoid"],
     magnets=[
         "quadrupole",
         "dipole",
@@ -608,7 +622,7 @@ def general_plot(
     include_labels=True,
     include_legend=True,
     include_particles=False,
-    fields=["cavity", "solenoid"],
+    fields=["RFCavity", "Solenoid"],
     magnets=[
         "quadrupole",
         "dipole",

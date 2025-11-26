@@ -39,7 +39,7 @@ def xopt_optimisation(
     -----------
     settings : dict
         Variables from the Xopt `VOCS`, i.e. parameters to be changed.
-        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the `frameworkElement`
+        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the element
         and `param` the attribute to be changed. The values in the dictionary are the upper and lower bounds of `param`.
     directory : str
         The root framework run directory. Each iteration of the optimisation will produce a subdirectory.

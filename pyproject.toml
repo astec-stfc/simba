@@ -43,6 +43,8 @@ dependencies = [
     "cheetah-accelerator>=0.7.5",
     "openpmd-beamphysics>=0.10",
     "xopt",
+    "Wake-T>=0.8.0",
+    "nala-accelerator",
 ]
 
 requires-python = ">= 3.10"
@@ -74,17 +76,10 @@ local_scheme = "no-local-version" # removes +untagged suffix
 
 
 [project.urls]
-Homepage = "https://github.com/astec-stfc/simframe"
-Repository = "https://github.com/astec-stfc/simframe.git"
-Issues = "https://github.com/astec-stfc/simframe/-/issues/"
+Homepage = "https://github.com/astec-stfc/simba"
+Repository = "https://github.com/astec-stfc/simba.git"
+Issues = "https://github.com/astec-stfc/simba/-/issues/"
 
-[tool.coverage.run]
-omit = [
-    # omit this single file
-    "_version.py",
-    "SimulationFramework/Codes/MAD8/MAD8.py",
-    "SimulationFramework/Modules/Beams/mad8.py",
-    ]
 
 [tool.setuptools]
 include-package-data = true

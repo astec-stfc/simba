@@ -39,17 +39,17 @@ Classes:
 
 import os
 import subprocess
-from copy import deepcopy
 from warnings import warn
 import stat
 import yaml
+from copy import deepcopy
+import time
+
 from nala import NALA
 from nala.models.elementList import SectionLattice, ElementList
 from nala.models.physical import Position
 from nala.models.element import Element, Quadrupole, Sextupole, Octupole
 from nala.translator.converters.section import SectionLatticeTranslator
-
-import time
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
@@ -667,6 +667,7 @@ class frameworkLattice(BaseModel):
     @csr_enable.setter
     def csr_enable(self, csr: bool) -> None:
         self._csr_enable = csr
+        self.section.csr_enable = csr
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.csr_enable = csr
@@ -703,6 +704,7 @@ class frameworkLattice(BaseModel):
     @lsc_enable.setter
     def lsc_enable(self, lsc: bool) -> None:
         self._lsc_enable = lsc
+        self.section.lsc_enable = lsc
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
@@ -721,6 +723,7 @@ class frameworkLattice(BaseModel):
     @lsc_bins.setter
     def lsc_bins(self, lsc: int) -> None:
         self._lsc_bins = lsc
+        self.section.lsc_bins = lsc
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_bins = lsc
@@ -785,6 +788,16 @@ class frameworkLattice(BaseModel):
                 rbf.openpmd.read_openpmd_beam_file(
                     self.global_parameters["beam"],
                     os.path.abspath(filepath),
+                )
+                self.global_parameters["beam"].Particles.rematchXPlane(
+                    beta=self.initial_twiss["horizontal"]["beta"],
+                    alpha=self.initial_twiss["horizontal"]["alpha"],
+                    nEmit=self.initial_twiss["horizontal"]["nEmit"],
+                )
+                self.global_parameters["beam"].Particles.rematchYPlane(
+                    beta=self.initial_twiss["vertical"]["beta"],
+                    alpha=self.initial_twiss["vertical"]["alpha"],
+                    nEmit=self.initial_twiss["vertical"]["nEmit"],
                 )
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
@@ -1801,36 +1814,22 @@ class frameworkLattice(BaseModel):
             * An rbf.beam object containing the beam parameters.
             * A list of element names in the Xsuite Line.
         """
-        beam = rbf.beam()
         prefix = self.get_prefix()
-        prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        HDF5filename = prefix + self.particle_definition + ".hdf5"
-        if os.path.isfile(expand_substitution(self, HDF5filename)):
-            filepath = expand_substitution(self, HDF5filename)
-        else:
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
-        rbf.hdf5.read_HDF5_beam_file(
-            beam,
-            os.path.abspath(filepath),
-        )
-        elements = self.createDrifts()
+        self.read_input_file(prefix, self.particle_definition)
         import xtrack as xt
-        env = xt.Environment()
-        line = env.new_line()
-        for i, element in enumerate(list(elements.values())):
-            if not element.subelement:
-                name, component, properties = element.write_Xsuite(
-                    beam_length=len(beam.x.val)
-                )
-                line.append(element.name, component(**properties))
-        names = line.element_names
-        line.particle_ref = xt.Particles(
+        beam = self.global_parameters["beam"]
+        particle_ref = xt.Particles(
             p0c=[beam.centroids.mean_cp.val],
-            mass0=[beam.particle_rest_energy_eV.val[0]],
+            mass0=[beam.particle_rest_energy_eV.val],
             q0=-1,
             zeta=0.0,
         )
-        return line, beam, names
+        line = self.section.to_xsuite(
+            beam_length=len(self.global_parameters["beam"].x.val),
+            particle_ref=particle_ref,
+        )
+        beam = deepcopy(self.global_parameters["beam"])
+        return line, beam, self.getNames()
 
     def r_matrix(
             self,

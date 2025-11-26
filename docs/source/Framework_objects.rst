@@ -1,5 +1,5 @@
 Framework Objects
---------------------------------
+-----------------
 
 .. automodule:: simba.Framework_objects
     :members:

@@ -7,23 +7,8 @@ Various objects and functions to handle CSRTrack lattices and commands. See `CSR
 
 Classes:
     - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrackLattice`: The CSRTrack lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+    converting the :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for a CSRTrack input file.
-
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_element`: Class for defining the a
-    CSRTrack instance of a :class:`~simba.Framework_objects.frameworkElement`.
-
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_forces`: Class for defining the CSR
-    calculation type.
-
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_track_step`: Class for defining the
-    tracking step.
-
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_particles`: Class for defining the
-     particle distribution and format.
-
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrack_monitor`: Class for defining monitors.
 """
 
 from pydantic import Field
@@ -94,7 +79,7 @@ class csrtrackLattice(frameworkLattice):
         Returns
         -------
         List
-            A sorted list of :class:`~simba.Framework_objects.frameworkElement`
+            A sorted list of dipoles, screens and BPMs.
         """
         return sorted(
             self.getElementType("dipole")
