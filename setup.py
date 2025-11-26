@@ -34,7 +34,7 @@ setup(
         "cheetah-accelerator>=0.7.5",
         "openpmd-beamphysics>=0.10",
         "xopt",
-    ]
+    ],
     package_data={
         "simba": [
             "Codes/*.yaml",
