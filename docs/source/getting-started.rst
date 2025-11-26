@@ -10,7 +10,7 @@ Lattice Definition
 
 Accelerator lattices in :mod:`SIMBA` are derived from the `NALA <https://github.com/astec-stfc/nala/>`_
 standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
-layouts **TODO add hyperlinks to NALA doc page once it exists**.
+layouts; see the `NALA documentation <https://nala-accelerator.readthedocs.io/en/latest/#>`_ for more details.
 
 Given that this format is designed to capture all relevant information about accelerator elements,
 and that it includes a built-in translator module for exporting lattice files to various simulation codes,
