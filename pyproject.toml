@@ -1,12 +1,9 @@
 [build-system]
-requires = [
-    "setuptools",
-    "versioneer",
-]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "simba"
+name = "simba-accelerator"
 description = "A python framework for particle accelerator simulations"
 readme = "README.md"
 dynamic = ["version"]
@@ -70,6 +67,11 @@ docs = [
     "MasterLattice",
     "sphinxcontrib-bibtex",
 ]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"   # valid built-in scheme
+local_scheme = "no-local-version" # removes +untagged suffix
+
 
 [project.urls]
 Homepage = "https://github.com/astec-stfc/simframe"
