@@ -46,7 +46,7 @@ WIP.....
 Required Dependencies
 ---------------------
 
-Check out the ``pyproject.toml`` file for a full list of dependencies for :mod:`SimFrame`.
+Check out the ``pyproject.toml`` file for a full list of dependencies for ``SIMBA``.
 
 Optional Dependencies
 ---------------------

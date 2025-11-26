@@ -9,7 +9,7 @@ Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML file
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
 Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-sequentially, and output beam distributions are generated and converted to the standard SimFrame HDF5 format.
+sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
 
 Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
 
@@ -167,7 +167,7 @@ class Framework(BaseModel):
     These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
     Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-    sequentially, and output beam distributions are generated and converted to the standard SimFrame HDF5 format.
+    sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
 
     Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
     """
@@ -2307,6 +2307,6 @@ class frameworkDirectory(BaseModel):
 def load_directory(
     directory: str = ".", twiss: bool = True, beams: bool = False, **kwargs
 ) -> frameworkDirectory:
-    """Load a directory from a SimFrame tracking run and return a frameworkDirectory object"""
+    """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
     fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
     return fw

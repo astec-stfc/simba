@@ -48,7 +48,7 @@ setup(
             "*.yaml",
         ]
     },
-        python_requires=">=3.10",
+    python_requires=">=3.10",
     long_description=readme,
     long_description_content_type="text/markdown",
 )

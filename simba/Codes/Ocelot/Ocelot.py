@@ -1,5 +1,5 @@
 """
-Simframe Ocelot Module
+SIMBA Ocelot Module
 
 Various objects and functions to handle OCELOT lattices and commands. See `Ocelot github`_ for more details.
 
@@ -44,7 +44,7 @@ class ocelotLattice(frameworkLattice):
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ELEGANT into the SimFrame generic 
+    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
     :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "ocelot"

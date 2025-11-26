@@ -11,7 +11,7 @@ By leveraging a [standard accelerator lattice format](https://github.com/astec-s
 is able to generate and run input files for a range of accelerator simulation codes, enabling seamless transfer 
 of input and output distributions. 
 
-The codes currently supported by `SimFrame` are:
+The codes currently supported by ``SIMBA`` are:
 
 * [ASTRA](https://www.desy.de/~mpyflo/)
 * [GPT](https://pulsar.nl/)
@@ -26,7 +26,7 @@ A range of other codes are also currently under active development.
 
 **`Documentation`** |
 ------------------- |
-[![Documentation](https://img.shields.io/badge/simframe-documentation-blue.svg)](https://simba-accelerator.readthedocs.io/)  |
+[![Documentation](https://img.shields.io/badge/simba-documentation-blue.svg)](https://simba-accelerator.readthedocs.io/)  |
 
 ## Installation
 
@@ -174,7 +174,7 @@ framework.track()
 Example Notebooks
 -----------------
 
-Some further examples on `SimFrame` usage can be found in the following notebooks:
+Some further examples on ``SIMBA`` usage can be found in the following notebooks:
 
 * [getting_started.ipynb](./examples/notebooks/getting_started.ipynb)
 * [beams_example.ipynb](./examples/notebooks/beams_example.ipynb)

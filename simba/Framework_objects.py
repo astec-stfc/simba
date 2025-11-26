@@ -7,11 +7,11 @@ Classes:
     - :class:`~simba.Framework_objects.runSetup`: Defines simulation run settings, allowing
     for single runs, element scans or jitter/error studies.
 
-    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SimFrame,
+    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA,
     including lattice elements and simulation code commands.
 
     - :class:`~simba.Framework_objects.frameworkElement`: Base class for generic
-     lattice elements in SimFrame, including lattice elements and simulation code commands.
+     lattice elements in SIMBA, including lattice elements and simulation code commands.
 
     - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices,
     consisting of a line of :class:`~simba.Framework_objects.frameworkObject` s.
