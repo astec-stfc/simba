@@ -3,9 +3,10 @@
 Loading in a Lattice File
 =========================
 
-:ref:`Getting started <getting-started>` demonstrated how to create a :mod:`NALA` lattice in :mod:`python`.
-This page will describe how to generate a :mod:`SIMBA` instance based on pre-existing :mod:`NALA` element
-and lattice definitions.
+:ref:`Getting started <getting-started>` demonstrated how to create a
+`NALA <https://github.com/astec-stfc/nala/>`_ lattice in :mod:`python`.
+This page will describe how to generate a :mod:`SIMBA` instance based on pre-existing
+`NALA <https://github.com/astec-stfc/nala/>`_ element and lattice definitions.
 
 .. _setup-from-file:
 
@@ -93,7 +94,7 @@ been prepared.
     framework = fw.Framework(
         master_lattice="/path/to/nala-lattices/CLARA",
         directory="./example",
-        generator_defaults="/path/to/nala-lattices/CLARA/Generators/clara.yaml",
+        generator_defaults="clara.yaml",
         simcodes_location=simcodes_location,
         clean=True,
         verbose=True,
