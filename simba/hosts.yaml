@@ -4,6 +4,8 @@ apclara1:
     - elegant
     - astra
     - gpt
+    - opal
+    - genesis
   rpn: /opt/SimFrame/MasterLattice/Codes/defns.rpn
 apclara2:
   address: apclara2.dl.ac.uk

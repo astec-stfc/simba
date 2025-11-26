@@ -16,8 +16,9 @@ Classes:
 from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules import Beams as rbf
 from ...Modules.Fields import field
+from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from copy import deepcopy
-from numpy import array, savez_compressed, linspace, save
+from numpy import array, savez_compressed, linspace, save, interp
 import os
 from yaml import safe_load
 
@@ -127,6 +128,12 @@ class ocelotLattice(frameworkLattice):
     mbi: Dict = {}
     """Dictionary containing settings for microbunching gain calculation"""
 
+    ref_s: float = None
+    """Reference s position"""
+
+    ref_idx: int = None
+    """Reference particle index"""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.oceglobal = (
@@ -180,6 +187,9 @@ class ocelotLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.read_input_file(prefix, self.particle_definition)
+        self.ref_s = self.global_parameters["beam"].s
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -195,10 +205,9 @@ class ocelotLattice(frameworkLattice):
             Flag to indicate whether to save the file
         """
         from ...Modules.Beams import ocelot as rbf_ocelot
-        self.read_input_file(prefix, self.particle_definition)
         self.pin = rbf_ocelot.particle_group_to_parray(
             self.global_parameters["beam"],
-            s_start=self.startObject.physical.start.z
+            s_start=self.ref_s
         )
 
 
@@ -219,52 +228,12 @@ class ocelotLattice(frameworkLattice):
             twiss_disp_correction=True,
         )
 
-    @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, beamname: str) -> None:
-        """
-        Convert output from OCELOT beam npz to HDF5 format
-
-        Parameters
-        ----------
-        scr: NALA DiagnosticElement
-            Screen object
-        beamname: str
-            Name of Ocelot npz beam file
-        """
-        from ocelot.cpbd.io import load_particle_array
-        beam = load_particle_array(beamname)
-        rbf.ocelot.particle_array_to_beam(
-            self.global_parameters["beam"],
-            beam,
-            zstart=scr.physical.start.z
-        )
-        rbf.openpmd.write_openpmd_beam_file(
-            self.global_parameters["beam"],
-            beamname.replace(".ocelot.npz", ".openpmd.hdf5"),
-        )
-
     def postProcess(self) -> None:
         """
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
         from ocelot.cpbd.io import save_particle_array
         super().postProcess()
-        bfname = f'{self.global_parameters["master_subdir"]}/{self.end}.ocelot.npz'
-        save_particle_array(bfname, self.pout)
-        from ...Modules.Beams import ocelot as rbf_ocelot
-        rbf_ocelot.particle_array_to_beam(
-            self.global_parameters["beam"],
-            self.pout,
-            zstart=self.startObject.physical.start.z
-        )
-        rbf.openpmd.write_openpmd_beam_file(
-            self.global_parameters["beam"],
-            bfname.replace(".ocelot.npz", ".openpmd.hdf5"),
-        )
-        for i, w in enumerate(self.screens_and_bpms):
-            beamname = f'{self.global_parameters["master_subdir"]}/{w.name + ".ocelot.npz"}'
-            if os.path.isfile(beamname):
-                self.screen_threaded_function.scatter(w, beamname)
         twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
         for t in self.tws:
             for k, v in t.__dict__.items():
@@ -272,9 +241,13 @@ class ocelotLattice(frameworkLattice):
                 if k == "s":
                     v += self.startObject.physical.start.z
                 twsdat[k].append(v)
-        savez_compressed(
-            f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.npz',
-            **twsdat,
+        svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
+        zvals = [a[-1] for a in self.getZValues()]
+        twsdat['z'] = interp(twsdat["s"], svals, zvals)
+        save_ocelot_twiss_hdf(
+            self,
+            filename=f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.oh5',
+            twiss=twsdat,
         )
         if self.mbi_navi is not None:
             save(
@@ -295,7 +268,7 @@ class ocelotLattice(frameworkLattice):
         """
         from ocelot.cpbd.navi import Navigator
         from ocelot import Twiss
-        from ocelot.cpbd.physics_proc import SaveBeam
+        from .savebeamopenpmd import SaveBeamOpenPMD
         from .mbi import MBI
         navi_processes = []
         navi_locations_start = []
@@ -379,15 +352,29 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
-        for w in self.screens_and_bpms:
+        for w in self.screens_and_bpms + self.apertures:
             loc = self.lat_obj.sequence[self.names.index(w.name)]
             subdir = self.global_parameters["master_subdir"]
-            navi_processes += [SaveBeam(filename=f"{subdir}/{w.name}.ocelot.npz")]
+            navi_processes += [
+                SaveBeamOpenPMD(
+                    filename=f"{subdir}/{w.name}.openpmd.hdf5",
+                    global_parameters=self.global_parameters,
+                    zstart=w.physical.start.z,
+                    ref_idx=self.ref_idx,
+                )
+            ]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
         loc = self.lat_obj.sequence[-1]
         subdir = self.global_parameters["master_subdir"]
-        navi_processes += [SaveBeam(filename=f"{subdir}/{self.objectname}.ocelot.npz")]
+        navi_processes += [
+            SaveBeamOpenPMD(
+                filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
+                global_parameters=self.global_parameters,
+                zstart=self.endObject.physical.end.z,
+                ref_idx=self.ref_idx,
+            )
+        ]
         navi_locations_start += [loc]
         navi_locations_end += [loc]
         navi.add_physics_processes(

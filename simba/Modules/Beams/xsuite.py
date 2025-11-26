@@ -10,7 +10,7 @@ except ImportError:
 from .. import constants
 from ..units import UnitValue
 
-def read_xsuite_beam_file(self, filename, s_start=0):
+def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
     import xobjects as xo
     import xpart as xp
     if has_cupy:
@@ -70,19 +70,43 @@ def read_xsuite_beam_file(self, filename, s_start=0):
     # self._beam.gamma = UnitValue(parray.gamma, units="")
     self._beam.x = UnitValue(particles.x, units="m")
     self._beam.y = UnitValue(particles.y, units="m")
+
     self._beam.t = UnitValue((particles.s - particles.zeta) / constants.speed_of_light, units="s")
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
     self._beam.px = UnitValue(particles.px * particles.p0c * self.q_over_c, units="kg*m/s")
     self._beam.py = UnitValue(particles.py * particles.p0c * self.q_over_c, units="kg*m/s")
     self._beam.pz = UnitValue(particles.p0c * (1 + particles.delta) * self.q_over_c, units="kg*m/s")
     self._beam.set_total_charge(abs(np.sum(particles.q0)))
-    self._beam.z = UnitValue(s_start +
+    self._beam.z = UnitValue(zstart +
         (-1 * self._beam.Bz * constants.speed_of_light) * (
             self._beam.t - np.mean(self._beam.t)
         ),
         units="m",
     )
+    if ref_index is not None:
+        self.reference_particle_index = int(ref_index)
+        """ If we have a reference particle, t=0 is relative to it """
+        self._beam.z = UnitValue(zstart +
+            (-1 * self._beam.Bz * constants.speed_of_light) * (
+                self._beam.t - self._beam.t[self.reference_particle_index]
+            ),
+            units="m",
+        )
+        self.reference_particle = [
+            getattr(self._beam, coord)[self.reference_particle_index]
+            for coord in self.reference_particle_coords
+        ]
+    else:
+        """ If we don't have a reference particle, t=0 is relative to mean(t) """
+        self._beam.z = UnitValue(zstart +
+            (-1 * self._beam.Bz * constants.speed_of_light) * (
+                self._beam.t - self._beam.t[self.reference_particle_index]
+            ),
+            units="m",
+        )
+        self.reference_particle = None
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1), units="")
+    self._beam.s = UnitValue(s, units="m")
 
 
 def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: float=0):

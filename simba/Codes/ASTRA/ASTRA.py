@@ -48,6 +48,8 @@ from nala.translator.converters.codes.astra import (
     astra_errors,
 )
 
+from ...Modules.units import UnitValue
+
 section_header_text_ASTRA = {
     "cavities": {"header": "CAVITY", "bool": "LEField"},
     "wakefields": {"header": "WAKE", "bool": "LWAKE"},
@@ -101,7 +103,14 @@ class astraLattice(frameworkLattice):
     starting_rotation: list[float] = [0.0, 0.0, 0.0]
     """Initial rotation of first element"""
 
+    zstop: float = None
+    """End z position of lattice"""
+
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
+    """Headers for ASTRA input file"""
+
+    ref_s: float = None
+    """Reference s position"""
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
@@ -127,8 +136,9 @@ class astraLattice(frameworkLattice):
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
         newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
         self.section.astra_headers["newrun"] = astra_newrun(
-            starting_offset=self.starting_offset,
+            starting_offset=starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             input_particle_definition = self.startObject.name,
@@ -164,7 +174,7 @@ class astraLattice(frameworkLattice):
             self.file_block["output"] = {}
         output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
         zstart = self.startObject.physical.start.z
-        zstop = self.endObject.physical.end.z
+        self.zstop = self.endObject.physical.end.z
         screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
@@ -173,8 +183,8 @@ class astraLattice(frameworkLattice):
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             zstart=zstart,
-            zstop=zstop,
-            zemit=int((zstop - zstart) / 0.01),
+            zstop=self.zstop,
+            zemit=int((self.zstop - zstart) / 0.01),
             screens=screens,
             **output_settings,
         )
@@ -337,9 +347,11 @@ class astraLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        astrabeamfilename = self.read_input_file(prefix,
-                                                 self.astra_headers["newrun"].input_particle_definition.replace(
-                                                     ".astra", ""))
+        astrabeamfilename = self.read_input_file(
+            prefix,
+            self.astra_headers["newrun"].input_particle_definition.replace(".astra", "")
+        )
+        self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
@@ -350,6 +362,7 @@ class astraLattice(frameworkLattice):
         scr: DiagnosticElement,
         cathode: bool,
         mult: int,
+        sval: float = 0.0,
     ) -> None:
         """
         Convert output from ASTRA screen to HDF5 format
@@ -364,10 +377,10 @@ class astraLattice(frameworkLattice):
             True if beam was emitted from a cathode
         mult: int
             Multiplication factor for ASTRA-type filenames
-        zstart: float
-            Start position of lattice
+        sval: float
+            S-position of beam
         """
-        return self.astra_to_hdf5(objectname, scr, cathode, mult)
+        return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
 
     def get_screen_scaling(self) -> int:
         """
@@ -402,12 +415,16 @@ class astraLattice(frameworkLattice):
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
         mult = self.get_screen_scaling()
+        svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
+        zvals = [a[-1] for a in self.getZValues()]
         for e in self.screens_and_bpms:
+            sval = np.interp(e.middle.z, zvals, svals)
             self.screen_threaded_function.scatter(
                 scr=e,
                 objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
+                sval=sval,
             )
         self.screen_threaded_function.gather()
         endelem = PhysicalBaseElement(
@@ -415,7 +432,7 @@ class astraLattice(frameworkLattice):
             hardware_class="",
             hardware_type="",
             machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.endObject.physical.middle.z])
+            physical=PhysicalElement(middle=[0, 0, self.zstop])
         )
         self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
 
@@ -426,6 +443,7 @@ class astraLattice(frameworkLattice):
             cathode: bool = False,
             mult: int = 100,
             final: bool = False,
+            sval: float = 0.0,
     ) -> None:
         """
         Convert the ASTRA beam file name to HDF5 format and write the beam file.
@@ -440,6 +458,8 @@ class astraLattice(frameworkLattice):
             True if beam was emitted from a cathode
         mult: int
             Multiplication factor for ASTRA-type filenames
+        sval: float
+            S-position of beam
         """
         master_run_no = (
             self.global_parameters["run_no"]
@@ -466,6 +486,7 @@ class astraLattice(frameworkLattice):
                 preOffset=[0, 0, 0],
                 postOffset=-1 * np.array(self.starting_offset),
             )
+            beam.s = UnitValue(sval, units="m")
             HDF5filename = scr.name + ".openpmd.hdf5"
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
@@ -512,27 +533,43 @@ class astraLattice(frameworkLattice):
         """
         for i in [0, -0.001, 0.001]:
             tempfilename = (
-                lattice
-                + "."
-                + str(int(round((scr.physical.middle.z + i - self.startObject.physical.middle.z) * mult))).zfill(4)
-                + "."
-                + str(master_run_no).zfill(3)
+                    lattice
+                    + "."
+                    + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
             )
             tempfilenamenozstart = (
-                lattice
-                + "."
-                + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
-                + "."
-                + str(master_run_no).zfill(3)
+                    lattice
+                    + "."
+                    + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
             )
-            if os.path.isfile(
-                os.path.join(self.global_parameters["master_subdir"], tempfilename)
-            ):
-                return tempfilename
-            elif os.path.isfile(
-                os.path.join(self.global_parameters["master_subdir"], tempfilenamenozstart)
-            ):
-                return tempfilenamenozstart
+            tempfilenameend = (
+                    lattice
+                    + "."
+                    + str(int(round((self.zstop + i - self.startObject.physical.start.z) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
+            )
+            tempfilenameendnozstart = (
+                    lattice
+                    + "."
+                    + str(int(round((self.zstop + i) * mult))).zfill(4)
+                    + "."
+                    + str(master_run_no).zfill(3)
+            )
+            for f in [
+                tempfilename,
+                tempfilenameendnozstart,
+                tempfilenameend,
+                tempfilenamenozstart
+            ]:
+                if os.path.isfile(
+                    os.path.join(self.global_parameters["master_subdir"], f)
+                ):
+                    return f
         return None
 
     def hdf5_to_astra(self) -> str:

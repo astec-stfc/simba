@@ -110,5 +110,8 @@ def xopt_optimisation(
         beam = fwdir.beams[index]
         scr = re.split(r' |/|\\', beam.filename)[-1].split('.')[0]
         for param in params:
-            data.update({f'{scr}:{param}': float(getattr(beam, param))})
+            pp = float(getattr(beam, param))
+            if param in ["enx", "eny"]:
+                pp = abs(pp)
+            data.update({f'{scr}:{param}': pp})
     return data
