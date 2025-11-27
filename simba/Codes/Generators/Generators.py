@@ -645,7 +645,7 @@ class frameworkGenerator(BaseModel):
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + self.filename,
-            toffset=self.offset_t,
+            toffset=self.reference_time,
         )
 
     def generate_transverse_distribution(self, name: str) -> np.ndarray:
