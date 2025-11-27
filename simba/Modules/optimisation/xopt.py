@@ -39,7 +39,7 @@ def xopt_optimisation(
     -----------
     settings : dict
         Variables from the Xopt `VOCS`, i.e. parameters to be changed.
-        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the `frameworkElement`
+        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the element
         and `param` the attribute to be changed. The values in the dictionary are the upper and lower bounds of `param`.
     directory : str
         The root framework run directory. Each iteration of the optimisation will produce a subdirectory.
@@ -110,5 +110,8 @@ def xopt_optimisation(
         beam = fwdir.beams[index]
         scr = re.split(r' |/|\\', beam.filename)[-1].split('.')[0]
         for param in params:
-            data.update({f'{scr}:{param}': float(getattr(beam, param))})
+            pp = float(getattr(beam, param))
+            if param in ["enx", "eny"]:
+                pp = abs(pp)
+            data.update({f'{scr}:{param}': pp})
     return data

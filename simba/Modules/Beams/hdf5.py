@@ -26,33 +26,33 @@ def rotate_beamXZ(self, theta, preOffset=[0, 0, 0], postOffset=[0, 0, 0]):
         beam, rotation_matrix
     ).transpose()
 
-    if isinstance(self._beam.reference_particle, np.ndarray):
+    if isinstance(self.reference_particle, np.ndarray):
         beam = np.array(
             [
-                self._beam.reference_particle[0],
-                self._beam.reference_particle[1],
-                self._beam.reference_particle[2],
+                self.reference_particle[0],
+                self.reference_particle[1],
+                self.reference_particle[2],
             ]
         )
         (
-            self._beam.reference_particle[0],
-            self._beam.reference_particle[1],
-            self._beam.reference_particle[2],
+            self.reference_particle[0],
+            self.reference_particle[1],
+            self.reference_particle[2],
         ) = (
             np.dot([beam - preOffset], rotation_matrix)[0] - postOffset
         )
         # print 'rotated ref part = ', np.dot([beam-preOffset], rotation_matrix)[0]
         beam = np.array(
             [
-                self._beam.reference_particle[3],
-                self._beam.reference_particle[4],
-                self._beam.reference_particle[5],
+                self.reference_particle[3],
+                self.reference_particle[4],
+                self.reference_particle[5],
             ]
         )
         (
-            self._beam.reference_particle[3],
-            self._beam.reference_particle[4],
-            self._beam.reference_particle[5],
+            self.reference_particle[3],
+            self.reference_particle[4],
+            self.reference_particle[5],
         ) = np.dot([beam], rotation_matrix)[0]
 
     self._beam.x = UnitValue(self._beam.x, "m")
@@ -114,7 +114,7 @@ def write_HDF5_beam_file(
         inputgrp["toffset"] = toffset
         beamgrp = f.create_group("beam")
         if "reference_particle" in self._beam:
-            beamgrp["reference_particle"] = self._beam.reference_particle
+            beamgrp["reference_particle"] = self.reference_particle
         if "status" in self._beam:
             beamgrp["status"] = self._beam.status
         beamgrp["longitudinal_reference"] = longitudinal_reference
@@ -167,10 +167,10 @@ def write_HDF5_summary_file(filename, beams=[], clean=False):
 def read_HDF5_beam_file(self, filename, local=False):
     self.reset_dicts()
     self.filename = filename
-    self.code = "SimFrame"
+    self.code = "SIMBA"
     with h5py.File(filename, "r") as h5file:
         if h5file.get("beam/reference_particle") is not None:
-            self._beam.reference_particle = np.array(
+            self.reference_particle = np.array(
                 h5file.get("beam/reference_particle")
             )
         if h5file.get("beam/longitudinal_reference") is not None:

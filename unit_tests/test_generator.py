@@ -120,7 +120,7 @@ def gpt_generator():
             "master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"
         },
         filename="test_gpt.in",
-        initial_momentum=5e6,
+        initial_momentum=0e6,
         sigma_x=1e-4,
         sigma_px=1e3,
         sigma_y=1e-4,
@@ -135,13 +135,14 @@ def gpt_generator():
         gaussian_cutoff_pz=3,
         charge=100e-12,
         number_of_particles=1000,
-        species="electron"
+        species="electron",
+        cathode=True
     )
 
 def test_gpt_generator_initialization(gpt_generator):
     assert gpt_generator.code == "gpt"
     assert gpt_generator.filename == "test_gpt.in"
-    assert gpt_generator.initial_momentum == 5e6
+    assert gpt_generator.initial_momentum == 0e6
 
 def test_gpt_generator_write(monkeypatch, gpt_generator):
     def mock_save_file(content):
@@ -151,4 +152,7 @@ def test_gpt_generator_write(monkeypatch, gpt_generator):
     mock_module = types.SimpleNamespace(saveFile=mock_save_file)
     builtins.simba = types.SimpleNamespace(FrameworkHelperFunctions=mock_module)
     gpt_generator.write()
+    with pytest.raises(NotImplementedError):
+        gpt_generator.cathode = False
+        gpt_generator.write()
     os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.in")

@@ -98,11 +98,11 @@ from pydantic import (
 )
 from typing import Literal, Dict, Any, List
 from ...Modules import constants
+from ...Modules.units import UnitValue
 from ...Modules import Beams as rbf
 import yaml
 from easygdf import load
 import warnings
-from pmd_beamphysics import ParticleGroup
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/astra.yaml",
@@ -277,7 +277,7 @@ class frameworkGenerator(BaseModel):
     charge: float = 0.0
     """Bunch charge"""
 
-    species: Literal["electron", "proton", "positron", "hydrogen"] = "electron"
+    species: str = "electron"
     """Particle type"""
 
     # emission_time: float = 1e-12 # TODO is this ever used?
@@ -504,6 +504,8 @@ class frameworkGenerator(BaseModel):
     @field_validator("species", mode="after")
     @classmethod
     def validate_particle_mass(cls, v: str) -> str:
+        if v[-1] == "s":
+            v = v[:-1]
         if v == "electron":
             cls.particle_mass = constants.m_e
             cls.charge_sign = -1
@@ -531,7 +533,7 @@ class frameworkGenerator(BaseModel):
         return v
 
     def update_species(self, name: str) -> None:
-        if self.cathode and name != "electron":
+        if self.cathode and "electron" not in name:
             raise ValueError("cathode can only be used with electron")
         if name == "electron":
             self.particle_mass = constants.m_e
@@ -615,6 +617,9 @@ class frameworkGenerator(BaseModel):
     def write(self):
         if self.initial_momentum <= 0:
             raise ValueError("initial_momentum must be set to a non-zero value")
+        q_over_c = UnitValue(
+            constants.elementary_charge / constants.speed_of_light, "C/c"
+        )
         xxp = self.generate_transverse_distribution("x")
         x = xxp[:, 0]
         xp = xxp[:, 1]
@@ -623,28 +628,25 @@ class frameworkGenerator(BaseModel):
         yp = yyp[:, 1]
         zpz = self.generate_longitudinal_distribution()
         z = zpz[:, 0]
-        pz = zpz[:, 1]
-        px = xp * self.initial_momentum
-        py = yp * self.initial_momentum
-        status = np.full(self.particles, 1)
-        weight = np.full(self.particles, self.charge / self.particles)
-        species = np.full(self.particles, self.species)
-        t = (-z / constants.speed_of_light) + np.mean(z) / constants.speed_of_light
-        data = {
-                "x": x,
-                "y": y,
-                "z": z,
-                "px": px,
-                "py": py,
-                "pz": pz,
-                "status": status,
-                "weight": weight,
-                "species": species,
-                "t": t,
-            }
-        particles = ParticleGroup(data=data)
-        particles.write(self.global_parameters["master_subdir"] + "/" + self.filename)
-        return rbf.beam(filename=self.global_parameters["master_subdir"] + "/" + self.filename)
+        pz = zpz[:, 1] * q_over_c
+        px = xp * self.initial_momentum * q_over_c
+        py = yp * self.initial_momentum * q_over_c
+        beam = rbf.beam()
+        beam.Particles.x = UnitValue(x, units="m")
+        beam.Particles.y = UnitValue(y, units="m")
+        beam.Particles.z = UnitValue(z, units="m")
+        beam.Particles.px = UnitValue(px, units="kg*m/s")
+        beam.Particles.py = UnitValue(py, units="kg*m/s")
+        beam.Particles.pz = UnitValue(pz, units="kg*m/s")
+        beam.Particles.status = UnitValue(np.full(len(x), 5), units="")
+        beam.Particles.t = UnitValue(abs(-z / constants.speed_of_light), units="s")
+        beam.Particles.set_total_charge(self.charge)
+        beam.set_species(self.species)
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            self.global_parameters["master_subdir"] + "/" + self.filename,
+            toffset=self.reference_time,
+        )
 
     def generate_transverse_distribution(self, name: str) -> np.ndarray:
         """
@@ -701,7 +703,7 @@ class frameworkGenerator(BaseModel):
         # Generate z distribution
         if self.distribution_type_z.lower() in ["g", "gaussian", "r", "radial"]:
             z = sample_gaussian(self.offset_z, self.sigma_z, self.gaussian_cutoff_z, self.particles)
-        elif self.distribution_type_z.lower() in ["u", "uniform", "flat", "flattop", "i", "plateau"]:
+        elif self.distribution_type_z.lower() in ["u", "uniform", "flat", "flattop", "i", "plateau", "p"]:
             z = sample_flat_top(self.offset_z, self.sigma_z, self.gaussian_cutoff_z, 0.1, self.particles)
         else:
             raise NotImplementedError(f"Unsupported z distribution: {self.distribution_type_z}")
@@ -738,7 +740,11 @@ class frameworkGenerator(BaseModel):
     #     return None
 
     def postProcess(self):
-        pass
+        self.global_parameters["beam"] = rbf.beam()
+        rbf.openpmd.read_openpmd_beam_file(
+            self.global_parameters["beam"],
+            self.global_parameters["master_subdir"] + "/" + self.filename
+        )
 
     # TODO is this ever used?
     # @property

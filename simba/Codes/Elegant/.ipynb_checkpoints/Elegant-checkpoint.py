@@ -136,9 +136,6 @@ class elegantLattice(frameworkLattice):
     commandFilesOrder: List = []
     """Order in which commands are to be written in the ELEGANT input file"""
 
-    ref_idx: int = None
-    """Reference particle index"""
-
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.particle_definition = self.elementObjects[self.start].name
@@ -393,9 +390,9 @@ class elegantLattice(frameworkLattice):
             # print('createCommandFiles is creating new command files!')
             # print('processRunSettings')
             nruns, seed, elementErrors, elementScan = self.processRunSettings()
+            # print('global_settings')
             self.commandFiles["global_settings"] = elegant_global_settings_command(
-                # lattice=self,
-                warning_limit=0
+                lattice=self, warning_limit=0
             )
             # print('run_setup')
             self.commandFiles["run_setup"] = elegant_run_setup_command(
@@ -410,7 +407,7 @@ class elegantLattice(frameworkLattice):
             # print('generate commands for monte carlo jitter runs')
             if elementErrors is not None:
                 self.commandFiles["run_control"] = elegant_run_control_command(
-                    # lattice=self,
+                    lattice=self,
                     n_steps=nruns,
                     n_passes=1,
                     reset_rf_for_each_step=0,
@@ -434,7 +431,7 @@ class elegantLattice(frameworkLattice):
             elif elementScan is not None:
                 # print('generate commands for parameter scans without fiducialisation (i.e. jitter scans)')
                 self.commandFiles["run_control"] = elegant_run_control_command(
-                    # lattice=self,
+                    lattice=self,
                     n_steps=nruns - 1,
                     n_passes=1,
                     n_indices=1,
@@ -442,7 +439,7 @@ class elegantLattice(frameworkLattice):
                     first_is_fiducial=1,
                 )
                 self.commandFiles["scan_elements"] = elegant_scan_elements_command(
-                    # lattice=self,
+                    lattice=self,
                     name=elementScan["name"],
                     item=elementScan["item"],
                     enumeration_file=elementScan["enumeration_file"],
@@ -453,35 +450,34 @@ class elegantLattice(frameworkLattice):
             else:
                 # print('run_control for standard runs with no jitter')
                 self.commandFiles["run_control"] = elegant_run_control_command(
-                    # lattice=self,
-                    n_steps=1, n_passes=1
+                    lattice=self, n_steps=1, n_passes=1
                 )
 
             # print('twiss_output')
             self.commandFiles["twiss_output"] = elegant_twiss_output_command(
-                # lattice=self,
+                lattice=self,
                 beam=self.global_parameters["beam"],
                 beta_x=self.global_parameters["beam"].twiss.beta_x_corrected,
                 beta_y=self.global_parameters["beam"].twiss.beta_y_corrected,
                 alpha_x=self.global_parameters["beam"].twiss.alpha_x_corrected,
                 alpha_y=self.global_parameters["beam"].twiss.alpha_y_corrected,
-                # eta_x=self.global_parameters["beam"].twiss.eta_x,
-                # eta_xp=self.global_parameters["beam"].twiss.eta_xp,
+                eta_x=self.global_parameters["beam"].twiss.eta_x,
+                eta_xp=self.global_parameters["beam"].twiss.eta_xp,
             )
             # print('floor_coordinates')
             self.commandFiles["floor_coordinates"] = elegant_floor_coordinates_command(
-                # lattice=self,
+                lattice=self,
                 X0=self.startObject.physical.start.x,
                 Z0=self.startObject.physical.start.z,
             )
             # print('matrix_output')
             self.commandFiles["matrix_output"] = elegant_matrix_output_command(
-                # lattice=self,
+                lattice=self,
             )
             # print('sdds_beam')
             self.commandFiles["sdds_beam"] = elegant_sdds_beam_command(
                 lattice=self,
-                input=self.objectname + "_input.sdds",
+                input=self.objectname + ".sdds",
                 sample_interval=self.sample_interval,
                 reuse_bunch=1,
                 fiducialization_bunch=0,
@@ -489,8 +485,7 @@ class elegantLattice(frameworkLattice):
             )
             # print('track')
             self.commandFiles["track"] = elegant_track_command(
-                # lattice=self,
-                trackBeam=self.trackBeam
+                lattice=self, trackBeam=self.trackBeam
             )
             self.commandFilesOrder = list(
                 self.commandFiles.keys()
@@ -504,7 +499,6 @@ class elegantLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         self.read_input_file(prefix, self.particle_definition)
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.global_parameters["beam"].beam.rematchXPlane(
             **self.initial_twiss["horizontal"]
         )
@@ -516,7 +510,7 @@ class elegantLattice(frameworkLattice):
         self.createCommandFiles()
 
     @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int, **kwargs) -> None:
+    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int) -> None:
         """
         Convert output from ELEGANT screen to HDF5 format
 
@@ -528,12 +522,7 @@ class elegantLattice(frameworkLattice):
             SDDS object index
         """
         try:
-            return self.sdds_to_hdf5(
-                scr,
-                sddsindex,
-                toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                **kwargs,
-            )
+            return self.sdds_to_hdf5(scr, sddsindex, toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t))
         except Exception as e:
             print(f"Screen error {scr.name}, {e}")
             return None
@@ -548,7 +537,7 @@ class elegantLattice(frameworkLattice):
         super().postProcess()
         if self.trackBeam:
             for i, s in enumerate(self.screens_and_markers_and_bpms):
-                self.screen_threaded_function.scatter(s, i, ref_index=self.ref_idx)
+                self.screen_threaded_function.scatter(s, i)
             if (
                 self.final_screen is not None
                 and not self.final_screen.output_filename.lower()
@@ -557,9 +546,7 @@ class elegantLattice(frameworkLattice):
                 ]
             ):
                 self.screen_threaded_function.scatter(
-                    self.final_screen,
-                    len(self.screens_and_markers_and_bpms),
-                    ref_index=self.ref_idx
+                    self.final_screen, len(self.screens_and_markers_and_bpms)
                 )
         self.screen_threaded_function.gather()
         self.commandFiles = {}
@@ -569,7 +556,7 @@ class elegantLattice(frameworkLattice):
         Convert the HDF5 beam input file to an SDDS file, and create a
         :class:`~simba.Elements.charge.charge` object as the first element
         """
-        sddsbeamfilename = self.objectname + "_input.sdds"
+        sddsbeamfilename = self.objectname + ".sdds"
         if write:
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
@@ -578,13 +565,7 @@ class elegantLattice(frameworkLattice):
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
-    def sdds_to_hdf5(
-            self,
-            screen: DiagnosticElement,
-            sddsindex: int = 1,
-            toffset: float = 0.0,
-            ref_index: int = None
-    ) -> None:
+    def sdds_to_hdf5(self, screen: DiagnosticElement, sddsindex: int = 1, toffset: float = 0.0) -> None:
         """
         Convert the SDDS beam file name to HDF5 format and write the beam file.
 
@@ -596,21 +577,23 @@ class elegantLattice(frameworkLattice):
             Index for SDDS file
         toffset: float, optional
             Temporal offset
-        ref_index: int, optional
-            Reference particle index
         """
         beam = rbf.beam()
         beam.sddsindex = sddsindex
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
-        rbf.sdds.read_SDDS_beam_file(
-            beam,
-            elegantbeamfilename,
-            z0=screen.physical.middle.z,
-            ref_index=ref_index
-        )
+        rbf.sdds.read_SDDS_beam_file(beam, elegantbeamfilename)
         HDF5filename = f"{rootname}.openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        # rbf.hdf5.write_HDF5_beam_file(
+        #     beam,
+        #     os.path.join(self.global_parameters["master_subdir"], HDF5filename),
+        #     centered=False,
+        #     sourcefilename=elegantbeamfilename,
+        #     pos=[getattr(screen.physical.middle, p) for p in ["x", "y", "z"]],
+        #     zoffset=[getattr(screen.physical.end, p) for p in ["x", "y", "z"]],
+        #     toffset=toffset,
+        # )
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 

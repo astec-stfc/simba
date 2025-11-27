@@ -9,10 +9,11 @@ nt:
 apclara1:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['mpirun','-np',$ncpu$,'/opt/ASTRA/astra_MPICH2.sh']
+  genesis: ['/opt/Genesis/Genesis-1.3-Version4/gencore']
   Pelegant: ['mpirun','-np',$ncpu$,'Pelegant']
   elegant: ['elegant']
   csrtrack: ['/opt/OpenMPI-1.4.3/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_openmpi.sh']
-  opal: ['/opt/OPAL/opal']
+  opal: ["source", "/opt/OPAL-2022.1/etc/profile.d/opal.sh", ';', "mpirun", '-np', $ncpu$, "/opt/OPAL-2022.1/bin/opal", ">", "out.txt"]
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']

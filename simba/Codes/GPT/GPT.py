@@ -106,7 +106,7 @@ class gptLattice(frameworkLattice):
     """Step size for screen output"""
 
     time_step_size: float = 1e-11
-    """Step size for tracking"""
+    """Step size for output data during tracking"""
 
     override_meanBz: float | int | None = None
     """Set the average particle longitudinal velocity manually"""
@@ -121,8 +121,13 @@ class gptLattice(frameworkLattice):
     """Final screen object for dumping particle distributions"""
 
     Brho: UnitValue | None = None
+    """Magnetic rigidity"""
 
     particle_definition: str = None
+    """Initial particle definition"""
+
+    dtmin: float | None = None
+    """Integration time step size"""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -228,6 +233,7 @@ class gptLattice(frameworkLattice):
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
             Brho=self.global_parameters["beam"].Brho,
+            dtmin=self.dtmin
             # screen_step_size=self.screen_step_size,
         )
         return fulltext
@@ -402,25 +408,32 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
+        svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
+        zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
             if not e.name == self.start:
+                sval = np.interp(e.physical.middle.z, zvals, svals)
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
                     screen=e,
                     cathode=cathode,
                     gdf=gdfbeam,
-                    # t0=self.headers["setfile"].time,
+                    t0=self.headers["setfile"].time,
+                    sval=sval,
                 )
             # else:
             # print('Ignoring', self.ignore_start_screen.objectname)
+        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,
             cathode=cathode,
             gdf=gdfbeam,
+            t0=self.headers["setfile"].time,
+            sval=sval,
         )
 
     def hdf5_to_gdf(self, prefix: str="") -> None:
@@ -466,12 +479,12 @@ class gptLattice(frameworkLattice):
                 starttime=0, endpos=self.override_tout, step=str(self.time_step_size)
             )
         else:
-            endpos = self.findS(self.end)[0][1]
-            startpos = self.findS(self.start)[0][1]
-            endpos += self.global_parameters["beam"].centroids.mean_t.val * speed_of_light
-            startpos += self.global_parameters["beam"].centroids.mean_t.val * speed_of_light
+            endpos = (
+                    self.findS(self.endObject.name)[0][1]
+                    - self.findS(self.startObject.name)[0][1]
+            )
             self.headers["tout"] = gpt_tout(
-                starttime=startpos / meanBz / speed_of_light,
+                starttime=0,
                 endpos=endpos / meanBz / speed_of_light,
                 step=str(self.time_step_size),
             )
@@ -498,6 +511,8 @@ class gptLattice(frameworkLattice):
             gptbeamfilename: str,
             cathode: bool = False,
             gdf: gdf_beam | None = None,
+            t0: float = 0.0,
+            sval: float = 0.0,
     ) -> None:
         """
         Convert the GDF beam file to HDF5 format and write the beam file.
@@ -512,6 +527,10 @@ class gptLattice(frameworkLattice):
             True if beam was emitted from a cathode
         gdf: gdfbeam or None
             GDF beam object
+        t0: float
+            Initial time co-ordinate
+        sval: float
+            S-position of screen
         """
         # gptbeamfilename = self.objectname + '.' + str(int(round((self.allElementObjects[self.end].position_end[2])*100))).zfill(4) + '.' + str(master_run_no).zfill(3)
         # try:
@@ -523,11 +542,12 @@ class gptLattice(frameworkLattice):
             position=screen.physical.middle.z,
             gdfbeam=gdf,
         )
+        self.beam.t += t0
+        self.beam.s = UnitValue(sval, units="m")
         HDF5filename = screen.name + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
-            zoffset=screen.physical.middle.z,
         )
         # except:
         #     print('Error with screen', self.objectname,'at', self.gpt_screen_position)

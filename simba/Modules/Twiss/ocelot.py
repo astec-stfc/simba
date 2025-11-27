@@ -1,10 +1,42 @@
 import os
 import numpy as np
+import h5py
 from .. import constants
 
 
 def cumtrapz(x=[], y=[]):
     return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
+
+
+def save_ocelot_twiss_hdf(self, filename: str, twiss: dict = {}):
+    f = h5py.File(filename, 'w')
+    for grp_name in twiss:
+        try:
+            f.create_dataset(grp_name, data=twiss[grp_name])
+        except Exception:
+            pass
+    f.close()
+    return
+
+
+def read_ocelot_twiss_files_hdf(self, filename, reset=True):
+    if reset:
+        self.reset_dicts()
+    if isinstance(filename, (list, tuple)):
+        for f in filename:
+            read_ocelot_twiss_files_hdf(self, f, reset=False)
+    elif os.path.isfile(filename):
+        lattice_name = os.path.basename(filename).split(".")[0]
+        fdat = {}
+        # print("loading ocelot twiss file", filename)
+        with h5py.File(filename, 'r') as data:
+            for key, value in data.items():
+                try:
+                    value = np.array(data[key])
+                    fdat.update({key: value})
+                except ValueError:
+                    pass
+        interpret_ocelot_data(self, lattice_name, fdat)
 
 
 def read_ocelot_twiss_files(self, filename, reset=True):
@@ -16,7 +48,6 @@ def read_ocelot_twiss_files(self, filename, reset=True):
     elif os.path.isfile(filename):
         lattice_name = os.path.basename(filename).split(".")[0]
         fdat = {}
-        # print("loading ocelot twiss file", filename)
         with np.load(filename, allow_pickle=True) as data:
             for key, value in data.items():
                 try:
@@ -28,7 +59,10 @@ def read_ocelot_twiss_files(self, filename, reset=True):
 
 
 def interpret_ocelot_data(self, lattice_name, fdat):
-    self.z.val = np.append(self.z.val, fdat["s"])
+    if "z" in fdat:
+        self.z.val = np.append(self.z.val, fdat["z"])
+    else:
+        self.z.val = np.append(self.z.val, fdat["s"])
     self.s.val = np.append(self.s.val, fdat["s"])
     E = fdat["_E"] * 1e9
     ke = E - self.E0_eV
@@ -63,8 +97,8 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(fdat["s"])))
     self.gamma_z.val = np.append(self.gamma_z.val, np.zeros(len(fdat["s"])))
     self.alpha_z.val = np.append(self.alpha_z.val, np.zeros(len(fdat["s"])))
-    self.sigma_x.val = np.append(self.sigma_x.val, np.sqrt(fdat["xx"]))
-    self.sigma_y.val = np.append(self.sigma_y.val, np.sqrt(fdat["yy"]))
+    self.sigma_x.val = np.append(self.sigma_x.val, np.sqrt(fdat["xx"] + fdat["Dx"]**2 * fdat["pp"]))
+    self.sigma_y.val = np.append(self.sigma_y.val, np.sqrt(fdat["yy"] + fdat["Dy"]**2 * fdat["pp"]))
     self.sigma_xp.val = np.append(self.sigma_xp.val, np.sqrt(fdat["pxpx"]))
     self.sigma_yp.val = np.append(self.sigma_yp.val, np.sqrt(fdat["pypy"]))
     self.sigma_t.val = np.append(
@@ -121,4 +155,3 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         * np.sqrt(fdat["pypy"])
         / fdat["eigemit_2"],
     )
-    self.cp_eV = self.cp

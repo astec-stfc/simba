@@ -5,7 +5,7 @@ SimCodes
 
 .. note::
     | In case of any issues arising during installation or running :mod:`SIMBA`, contact `Alex Brynes <mailto:alexander.brynes@stfc.ac.uk>`_.
-    | :mod:`SIMBA` has been tested with the most recent versions of the code below [2025], and may not be compatible with earlier versions.
+    | :mod:`SIMBA` has been tested with the most recent versions of the codes mentioned below [2025], and may not be compatible with earlier versions.
 
 :mod:`SimCodes` is a container for the particle accelerator tracking codes used by :mod:`SIMBA`.
 

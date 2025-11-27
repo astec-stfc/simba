@@ -97,6 +97,12 @@ class cheetahLattice(frameworkLattice):
     particle_definition: str = None
     """Initial particle distribution as a string"""
 
+    ref_s: float = None
+    """Reference s position"""
+
+    ref_idx: int = None
+    """Reference particle index"""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.cheetahglobal = deepcopy(cheetahglobal)
@@ -153,13 +159,12 @@ class cheetahLattice(frameworkLattice):
         Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
         """
         super().preProcess()
-        prefix = (
-            self.file_block["input"]["prefix"]
-            if "input" in self.file_block and "prefix" in self.file_block["input"]
-            else ""
-        )
+        prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.hdf5_to_openpmd(prefix)
+        self.read_input_file(prefix, self.particle_definition)
+        self.ref_s = self.global_parameters["beam"].s
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.hdf5_to_openpmd()
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
         """
@@ -173,13 +178,14 @@ class cheetahLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        cheetahbeamfilename = prefix + self.particle_definition + ".openpmd.hdf5"
-        self.read_input_file(prefix, self.particle_definition)
+        cheetahbeamfilename = self.particle_definition + ".openpmd.hdf5"
+        self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
+        self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
+
         self.pin = rbf.beam.write_cheetah_beam_file(
             self.global_parameters["beam"],
             cheetahbeamfilename,
-            write=write,
-            s_start=self.startObject.physical.start.z,
+            write=write
         )
 
     def run(self) -> None:
@@ -217,8 +223,14 @@ class cheetahLattice(frameworkLattice):
         except KeyError:
             s = self.elementObjects[name.replace('_', "-")].physical.middle.z
         # scr.tau -= self.startObject.physical.middle.z
-        rbf_cheetah.particle_beam_to_beam(beam, scr, s_start=s)
-        beam.write_openpmd_beam_file(filename=outname)
+        rbf_cheetah.interpret_cheetah_ParticleBeam(
+            beam,
+            scr,
+            zstart=self.startObject.physical.start.z,
+            s=scr.s.numpy(),
+            ref_index=self.ref_idx,
+        )
+        rbf.openpmd.write_openpmd_beam_file(beam, outname)
         if name == self.end:
             self.global_parameters["beam"] = beam
 
@@ -231,18 +243,17 @@ class cheetahLattice(frameworkLattice):
         for element in self.segment.elements:
             if isinstance(element, Screen):
                 screens.update({element.name: element.get_read_beam()})
-        screens.update({self.end: self.pout})
+        if not isinstance(self.segment.elements[-1], Screen):
+            screens.update({self.end: self.pout})
         i = 0
         for name, scr in screens.items():
             outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
+        self.screen_threaded_function.gather()
         if self.cheetahglobal["save_twiss"] and self.tws is not None:
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:
                 twsgrp = f.create_group("Twiss")
                 for key, val in zip(twiss_keys, self.tws):
-                    valn = val.numpy()
-                    # if key == "s":
-                    #     valn += self.startObject.physical.start.z
                     twsgrp.create_dataset(key, data=val.numpy())

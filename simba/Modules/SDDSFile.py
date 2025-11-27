@@ -267,6 +267,8 @@ class SDDSFile(object):
         self._types = SDDS_Types
         self._columns = munch.Munch()
         self._parameters = munch.Munch()
+        if index is None:
+            index = 0
         self._index = index
         try:
             self._sddsObject = sdds.SDDS(self._index)
