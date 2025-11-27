@@ -901,10 +901,9 @@ class Framework(BaseModel):
                     element = self.elementObjects[e]
                 elif e == "generator":
                     element = self.generator
-                cond = False
-                orig = self.original_elementObjects[e]
-                new = element
+                    e = "generator"
                 if isinstance(element, Element):
+                    orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
                     changes = self.compare_multiple_models(pairs)
