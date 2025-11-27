@@ -23,6 +23,7 @@ Classes:
 
 import os
 import yaml
+import re
 import inspect
 from typing import Any, Dict
 from pprint import pprint
@@ -790,6 +791,32 @@ class Framework(BaseModel):
                 **lattice["remote"],
             )
 
+    def normalize(self, obj):
+        if isinstance(obj, dict):
+            return {k: self.normalize(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self.normalize(v) for v in obj]
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
+            return obj.item()
+        else:
+            return obj
+
+    def deepdiff_to_nested(self, diff_dict):
+        nested = {}
+        for key, change in diff_dict.get('values_changed', {}).items():
+            # Extract path parts from DeepDiff key
+            parts = re.findall(r"\['([^]]+)'\]", key)
+            current = nested
+            for part in parts[:-1]:
+                current = current.setdefault(part, {})
+            current[parts[-1]] = {
+                'old_value': change['old_value'],
+                'new_value': change['new_value']
+            }
+        return nested
+
     def deepdiff_to_nested(self, diff: dict) -> dict:
         """
         Convert a DeepDiff result (values_changed only)
@@ -836,12 +863,12 @@ class Framework(BaseModel):
         return a nested dictionary of all changes.
         """
         all_changes = {}
-
-        for i, (old, new) in enumerate(model_pairs, start=1):
-            diff = DeepDiff(old.model_dump(), new.model_dump(), ignore_order=True)
-            nested_diff = self.deepdiff_to_nested(diff)
+        for old, new in model_pairs:
+            old_dump = self.normalize(old.model_dump())
+            new_dump = self.normalize(new.model_dump())
+            diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
+            nested_diff = self.deepdiff_to_nested(diff.to_dict())
             all_changes[old.name] = nested_diff
-
         return all_changes
 
     def detect_changes(
@@ -1926,6 +1953,11 @@ class Framework(BaseModel):
                     )  # noqa E701
                 latt.postProcess()
                 self.progress = base_percentage + 1 * percentage_step
+                if lattice_name != "generator":
+                    for name, elem in latt.elementObjects.items():
+                        if name in self.elementObjects:
+                            print(name)
+                            self.elementObjects[name] = elem
             if self.verbose:
                 pbar.update()  # noqa E701
         if self.verbose:
