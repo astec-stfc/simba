@@ -1,5 +1,5 @@
 """
-Simframe Beams Module
+SIMBA Beams Module
 
 This module defines the base class and utilities for representing particle beams and groups of beams.
 
@@ -890,7 +890,7 @@ class beam(BaseModel):
         hdf5.unrotate_beamXZ(self)
 
 
-def load_directory(directory=".", types={"SimFrame": ".hdf5"}, verbose=False) -> beamGroup:
+def load_directory(directory=".", types={"SIMBA": ".hdf5"}, verbose=False) -> beamGroup:
     """
     Load in all beam distribution files from a directory and create a
     :class:`~simba.Modules.Beams.beamGroup` object.

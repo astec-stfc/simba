@@ -1,5 +1,5 @@
 include versioneer.py
-include SimulationFramework/_version.py
-include SimulationFramework/Executables.yaml
-prune SimulationFramework/Support_Files
-recursive-include SimulationFramework *.yaml
+include simba/_version.py
+include simba/Executables.yaml
+prune simba/Support_Files
+recursive-include simba *.yaml

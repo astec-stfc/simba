@@ -2,7 +2,6 @@ from simba import Framework as fw
 from simba.Support_Files.tempdir import TemporaryDirectory
 import re
 from warnings import warn
-import yaml
 
 beam_evaluate = (
     "sigma_x",
@@ -40,7 +39,7 @@ def xopt_optimisation(
     -----------
     settings : dict
         Variables from the Xopt `VOCS`, i.e. parameters to be changed.
-        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the `frameworkElement`
+        The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the element
         and `param` the attribute to be changed. The values in the dictionary are the upper and lower bounds of `param`.
     directory : str
         The root framework run directory. Each iteration of the optimisation will produce a subdirectory.
@@ -79,30 +78,6 @@ def xopt_optimisation(
         framework.loadSettings(settings_file)
     startfile = start_lattice if start_lattice is not None else framework.lines[0]
     endfile = end_lattice if end_lattice is not None else framework.lines[-1]
-    framework["bunch_compressor"].set_angle(0.1185)
-    with open("/home/xkc85723/Downloads/lattice.yaml", "r") as f:
-        latsettings = yaml.safe_load(f)
-    for k, v in latsettings["elements"].items():
-        # print(k)
-        if k in framework.elements:
-            try:
-                framework[k].physical.length = float(v["length"])
-                framework[k].magnetic.length = float(v["length"])
-            except:
-                pass
-            framework[k].physical.middle.x = float(v["centre"][0])
-            framework[k].physical.middle.y = float(v["centre"][1])
-            framework[k].physical.middle.z = float(v["centre"][2])
-            framework[k].physical.global_rotation.phi = float(v["global_rotation"][0])
-            framework[k].physical.global_rotation.psi = float(v["global_rotation"][1])
-            framework[k].physical.global_rotation.theta = float(v["global_rotation"][2])
-            if v["type"] == "quadrupole":
-                framework[k].k1l = float(v["k1l"])
-            if v["type"] == "cavity":
-                framework[k].phase = float(v["phase"])
-                framework[k].field_amplitude = float(v["field_amplitude"])
-            if v["type"] == "sextupole":
-                framework[k].k2l = float(v["k2l"])
     if "code" in settings:
         if isinstance(settings["code"], str):
             framework.change_Lattice_Code("All", settings["code"])
@@ -135,5 +110,8 @@ def xopt_optimisation(
         beam = fwdir.beams[index]
         scr = re.split(r' |/|\\', beam.filename)[-1].split('.')[0]
         for param in params:
-            data.update({f'{scr}:{param}': float(getattr(beam, param))})
+            pp = float(getattr(beam, param))
+            if param in ["enx", "eny"]:
+                pp = abs(pp)
+            data.update({f'{scr}:{param}': pp})
     return data

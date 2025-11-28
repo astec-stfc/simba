@@ -6,85 +6,85 @@ should be provided. The beam properties can either represent a photoinjector las
 beam sizes and distribution types for generating a 6D phase space.
 
 All of the possible attributes of the class are not generic to each code, and some codes require these properties to
-be defined. The `<code>.yaml` files defined below are fed into `<code>_generator_keywords` dictionaries, which
+be defined. The ``<code>.yaml`` files defined below are fed into ``<code>_generator_keywords`` dictionaries, which
 exclude attributes that cannot be understood by that specific code. It is noted that not all possible options
 are provided for the beam generators every single code; specific options can be added on request.
 
 Other attributes have generic (human-readable) names, which are then translated to the names required for that code
-based on the definitions in `aliases.yaml`, which is read into the `aliases` dictionary.
+based on the definitions in ``aliases.yaml``, which is read into the ``aliases`` dictionary.
 
 These attributes can be loaded in from a .yaml file, or modified after the class is instantiated. The top-level
 :class:`~simba.Framework.Framework` class has a
 :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
-`MasterLattice.Generators` directory. Specific distributions can be specified therein.
+``<master_lattice_location>.Generators`` directory. Specific distributions can be specified therein.
 
 Example: loading generator defaults
 
-Prepare `defaults.yaml` file for generators in `<master_lattice_location>/Generators/`
+Prepare `defaults.yaml` file for generators in ``<master_lattice_location>/Generators/``
 
-```
-defaults:
-  combine_distributions: false
-  species: electron
-  probe_particle: true
-  noise_reduction: false
-  high_resolution: true
-  cathode: true
-  reference_position: 0
-  reference_time: 0
-  initial_momentum: 0
-  distribution_type_pz: i
-  thermal_emittance: 0.0009
-  distribution_type_x: radial
-  sigma_x: 0.00025
-  distribution_type_y: radial
-  sigma_y: 0.00025
-  offset_x: 0
-  offset_y: 0
-laser_3ps_gaussian:
-  distribution_type_z: g
-  sigma_t: 0.000000000003
-  gaussian_cutoff_x: 3
-  gaussian_cutoff_y: 3
-  gaussian_cutoff_z: 3
-laser_2ps_flattop:
-  distribution_type_z: p
-  plateau_bunch_length: 0.000000000002
-  plateau_rise_time: 0.0000000000002
-```
+.. code-block:: yaml
+
+    defaults:
+      combine_distributions: false
+      species: electron
+      probe_particle: true
+      noise_reduction: false
+      high_resolution: true
+      cathode: true
+      reference_position: 0
+      reference_time: 0
+      initial_momentum: 0
+      distribution_type_pz: i
+      thermal_emittance: 0.0009
+      distribution_type_x: radial
+      sigma_x: 0.00025
+      distribution_type_y: radial
+      sigma_y: 0.00025
+      offset_x: 0
+      offset_y: 0
+    laser_3ps_gaussian:
+      distribution_type_z: g
+      sigma_t: 0.000000000003
+      gaussian_cutoff_x: 3
+      gaussian_cutoff_y: 3
+      gaussian_cutoff_z: 3
+    laser_2ps_flattop:
+      distribution_type_z: p
+      plateau_bunch_length: 0.000000000002
+      plateau_rise_time: 0.0000000000002
+
 
 Define `generator` in `settings.def` file:
 
-```
-<global>:
-  ...
-generator:
-  default: laser_2ps_flattop
-files:
-  ...
-```
+.. code-block:: yaml
+
+    generator:
+      default: laser_2ps_flattop
+    files:
+      ...
+
 
 Load in generator settings
 
-```
-import simba.Framework as fw
+.. code-block:: python
 
-framework = fw.Framework(
-        master_lattice=master_lattice_location,
-        simcodes=simcodes_location,
-        directory=directory,
-        generator_defaults=f"defaults.yaml"
-        clean=True,
-        verbose=False,
-    )
-framework.loadSettings("Lattices/settings.def")
-framework.change_generator("opal")
-framework.generator.load_defaults("laser_3ps_gaussian")
-```
+    import simba.Framework as fw
+
+    framework = fw.Framework(
+            master_lattice=master_lattice_location,
+            simcodes=simcodes_location,
+            directory=directory,
+            generator_defaults=f"defaults.yaml"
+            clean=True,
+            verbose=False,
+        )
+    framework.loadSettings("Lattices/settings.def")
+    framework.change_generator("GPT")
+    framework.generator.load_defaults("laser_3ps_gaussian")
+
 
 Classes:
-     - :class:`~simba.Codes.Generators.frameworkGenerator`: Defines parameters to be fed into
-     a beam generator for specific codes.
+     - :class:`~simba.Codes.Generators.frameworkGenerator`: Defines parameters to be fed into a beam generator for specific codes.
 """
 
 import os
@@ -154,9 +154,13 @@ class frameworkGenerator(BaseModel):
     The top-level :class:`~simba.Framework.Framework` class has a
     :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
     `MasterLattice.Generators` directory. Specific distributions can be specified therein.
-    Example: loading generator defaults
-    Prepare `defaults.yaml` file for generators in `<master_lattice_location>/Generators/`
+
+    Example: loading generator defaults.
+
+    Prepare `defaults.yaml` file for generators in `<master_lattice_location>/Generators/`:
+
     .. code-block:: yaml
+
         defaults:
           combine_distributions: false
           species: electron
@@ -187,16 +191,22 @@ class frameworkGenerator(BaseModel):
           distribution_type_z: p
           plateau_bunch_length: 0.000000000002
           plateau_rise_time: 0.0000000000002
+
     Define `generator` in `settings.def` file:
+
     .. code-block:: yaml
+
         <global>:
           ...
         generator:
           default: laser_2ps_flattop
         files:
           ...
+
     Load in generator settings
+
     .. code-block:: python
+
         import simba.Framework as fw
 
         framework = fw.Framework(
@@ -635,7 +645,7 @@ class frameworkGenerator(BaseModel):
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + self.filename,
-            toffset=self.offset_t,
+            toffset=self.reference_time,
         )
 
     def generate_transverse_distribution(self, name: str) -> np.ndarray:

@@ -1,139 +1,252 @@
 .. _getting-started:
 
-Getting started with SimFrame
-=============================
+Getting started with SIMBA
+==========================
 
 .. _creating-the-lattice-elements:
 
-Creating the Lattice Elements
------------------------------
+Lattice Definition
+------------------
 
-The first step in starting a new ``SimFrame`` simulation is to define the lattice, using the :ref:`MasterLattice <masterlattice>`.
+Accelerator lattices in :mod:`SIMBA` are derived from the `NALA <https://github.com/astec-stfc/nala/>`_
+standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
+layouts; see the `NALA documentation <https://nala-accelerator.readthedocs.io/en/latest/#>`_ for more details.
 
-The following is part of the ``CLARA`` Injector, in a file  called ``YAML/CLA_Gun400.yaml`` for example:
+Given that this format is designed to capture all relevant information about accelerator elements,
+and that it includes a built-in translator module for exporting lattice files to various simulation codes,
+it can be used within :mod:`SIMBA` for loading, modifying, writing and exporting input and lattice
+files for simulation codes.
 
-.. code-block:: yaml
-
-    elements:
-        CLA-HRG1-SIM-APER-01:
-            centre: [0, 0, 0]
-            global_rotation: [0, 0, 0]
-            horizontal_size: 0.017
-            shape: rectangular
-            type: aperture
-            vertical_size: 0.017
-        CLA-HRG1-GUN-CAV-01:
-            Structure_Type: StandingWave
-            centre: [0.0, 0.0, 0.16]
-            crest: 145.789
-            field_amplitude: 120000000.0
-            field_definition: $master_lattice_location$Data_Files/HRRG_1D_RF.hdf5
-            frequency: 2998500000.0
-            global_rotation: [0, 0, 0]
-            length: 0.32
-            n_cells: 1.5
-            phase: 9
-            type: cavity
-            sub_elements:
-                EBT-HRG1-MAG-SOL-01:
-                    centre: [0.0, 0.0, 0.16241]
-                    field_amplitude: 0.345
-                    field_definition: $master_lattice_location$Data_Files/HRRG_combined_sols_100mm_onaxis.hdf5
-                    global_rotation: [0, 0, 0]
-                    length: 0.32
-                    type: solenoid
-        CLA-S01-SIM-APER-01:
-            centre: [0.0, 0.0, 0.32]
-            global_rotation: [0, 0, 0]
-            horizontal_size: 0.017
-            shape: rectangular
-            type: aperture
-
-Note the use of ``sub_elements`` to define elements that overlap an existing element (in this case, a solenoid placed around the gun). 
-We make extensive use of `substitutions` to define the locations of field definition files.
-
-Element specific options (such as RF parameters) are also specified.
-
-Defining the Lattice Simulation
--------------------------------
-
-The simulation of the lattice is defined in a separate ``YAML`` file, for example ``CLA-Injector.def``:
-
-.. code-block:: yaml
-
-    generator:
-        default: clara_400_3ps
-    files:
-        injector400:
-            code: ASTRA
-            charge:
-                cathode: True
-                space_charge_mode: 2D
-                mirror_charge: True
-            input:
-                particle_definition: 'initial_distribution'
-            output:
-                zstart: 0
-                end_element: CLA-L01-SIM-APER-01
-        Linac:
-            code: elegant
-            starting_rotation: 0
-            charge:
-                cathode: False
-                space_charge_mode: 3D
-            input:
-                {}
-            output:
-                start_element: CLA-L01-SIM-APER-01
-                end_element: CLA-S02-SIM-APER-01
-    elements:
-        filename: YAML/CLA_Gun400.yaml
-
-This lattice definition would produce several output files (called ``injector400.in`` and ``Linac.lte``) for running in the **ASTRA** and **Elegant** beam tracking codes.
-The elements are loaded from the file ``YAML/CLA_Gun400.yaml`` defined above. Element definitions can also be defined directly in the ``.def`` file.
-
-As this simulation starts from the cathode, the ``input`` definiton is required for the first `injector400` ``file`` block. 
-
-For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the ``output: end_element`` definition 
-from the previous ``file`` block.
-
-
-Running SimFrame
-----------------
-
-The following example assumes that :ref:`MasterLattice <masterlattice>` has already been installed
-(see :ref:`Installation <installation>`) and that the :ref:`SimCodes <simcodes>` directory has
-been prepared.
+We would be remiss not to begin with a simple FODO:
 
 .. code-block:: python
 
-    import SimulationFramework.Framework as fw
+    from nala.models.element import Quadrupole, Marker  # noqa E402
+    from nala.models.elementList import MachineModel  # noqa E402
+    from nala.Exporters.YAML import export_machine
+    from nala import NALA  # noqa E402
+
+    outdir = "/path/to/lattice/directory"
+
+    m1 = Marker(
+        name="M1",
+        machine_area="FODO",
+        hardware_class="Marker",
+        physical={
+            "middle": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+            }
+        }
+    )
+
+    # Make some quads and add them to the machine
+    q1f = Quadrupole(
+        name="QUAD1F",
+        machine_area="FODO",
+        magnetic={
+            "length": 1.0,
+            "k1l": -1,
+        },
+        physical={
+            "length": 1.0,
+            "middle": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.75,
+            },
+        },
+    )
+
+    q1d = Quadrupole(
+        name="QUAD1D",
+        machine_area="FODO",
+        magnetic={
+            "length": 1.0,
+            "k1l": 1.0,
+        },
+        physical={
+            "length": 1.0,
+            "middle": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 3.25,
+            }
+        },
+    )
+
+    m3 = Marker(
+        name="M3",
+        machine_area="FODO",
+        hardware_class="Marker",
+        physical={
+            "middle": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 4.0,
+            }
+        }
+    )
 
 
-    # Define a new framework instance, in directory 'example'.
-    #       "clean" will empty (delete everything!) in the directory if true
-    #       "verbose" will print a progressbar if true
-    simcodes_location = "/path/to/simcodes/directory"
-    framework = fw.Framework(
-        directory="./example",
-        simcodes_location=simcodes_location,
-        clean=True,
-        verbose=True,
+    sections = {
+        "sections": {
+            "FODO": ["M1", "QUAD1F", "QUAD1D", "M3"],
+        }
+    }
+    layouts = {
+        "default_layout": "line1",
+        "layouts": {
+            "line1": ["FODO"],
+        }
+    }
+
+    machine = NALA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
+    export_machine(path=f"{outdir}/Lattice", machine=machine, overwrite=True)
+    
+Generating an input beam
+------------------------
+
+The simulation requires a macroparticle distribution to run. This can be generated using the 
+:ref:`frameworkGenerator <generator-class>` as follows:
+
+.. code-block:: python
+
+    from simba.Codes.Generators import frameworkGenerator
+    import simba.Modules.Beams as rbf
+
+    gen = frameworkGenerator(
+        global_parameters={"master_subdir": outdir},
+        filename="M1.openpmd.hdf5",
+        initial_momentum=5e6,
+        sigma_x=1e-4,
+        sigma_px=1e3,
+        sigma_y=1e-4,
+        sigma_py=1e3,
+        sigma_z=1e-3,
+        sigma_pz=1e3,
+        gaussian_cutoff_x=3,
+        gaussian_cutoff_y=3,
+        gaussian_cutoff_z=3,
+        gaussian_cutoff_px=3,
+        gaussian_cutoff_py=3,
+        gaussian_cutoff_pz=3,
+        charge=100e-12,
+    )
+    gen.write()
+    beam = rbf.beam(filename=f"{outdir}/M1.openpmd.hdf5")
+    
+Defining the Lattice Simulation
+-------------------------------
+
+With the initial beam distribution and lattice now defined, the simulation can be prepared.
+This involves passing a group of settings to :mod:`SIMBA`, including:
+
+* The ``files`` to run; this defines the start and end element (or longitudinal position) in the lattice and creates the sections;
+* The simulation code used to run each section;
+* Additional settings, such as the enabling of collective effects, or transverse matching parameters for the initial beam;
+* Settings for beam generation;
+* Locations for :mod:`NALA` files.
+
+These are all read in when :mod:`SIMBA` is instantiated. The example below shows how to create these settings in :mod:`python`;
+alternatively, one can create a settings file in YAML and pass that in; see :ref:`Loading a lattice <loading-a-lattice>`:
+
+.. code-block:: python
+
+    from simba.Framework_Settings import FrameworkSettings
+
+    settings = FrameworkSettings()
+    files = {}
+    for sec, elems in machine.sections.items():
+        files.update(
+            {
+                sec: {
+                    "code": "ocelot",
+                    "charge": {
+                        "space_charge_mode": "False",
+                    },
+                    "input": {
+                        "twiss": {
+                            "beta_x": 3.2844606,
+                            "alpha_x": 2.48956886,
+                            "nemit_x": 1e-6,
+                            "beta_y": 3.2846606,
+                            "alpha_y": -2.48956886,
+                            "nemit_y": 1e-6,
+                        },
+                    },
+                    "output": {
+                        "start_element": elems[0].name,
+                        "end_element": elems[-1].name,
+                    },
+                }
+            }
         )
-    # Load a lattice definition file. These can be found in Masterlattice/Lattices by default.
-    framework.loadSettings("Lattices/clara400_v13.def")
-    # Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector can not be done in Elegant)
-    framework.change_Lattice_Code("All", "ASTRA", exclude=["VBC"])
-    # Again, but put the VBC in Elegant for CSR
-    framework.change_Lattice_Code("VBC", "Elegant")
-    # This is the code that generates the laser distribution (ASTRA or GPT)
-    framework.change_generator("ASTRA")
-    # Load a starting laser distribution setting
-    framework.generator.load_defaults("clara_400_2ps_Gaussian")
-    # Set the thermal emittance for the generator
-    framework.generator.thermal_emittance = 0.0005
-    # This is a scaling parameter
-    # This defines the number of particles to create at the gun (this is "ASTRA generator" which creates distributions)
-    framework.generator.number_of_particles = 2 ** (3 * scaling)
-    # Track the lattice
+    settings.files = files
+    settings.layout = machine.layout
+    settings.section = {"sections": {name: e.names for name, e in machine.sections.items()}}
+    settings.element_list = f"{outdir}/Lattice"
+
+This lattice definition would produce a lattice file (called ``FODO.py``) for running in the **Ocelot** beam tracking code.
+
+If the :mod:`MachineModel` defined above consisted of sequential sections rather than just a FODO, these would then
+be added automatically to the tracking.
+
+Running SIMBA
+-------------
+
+With everything now prepared, :mod:`SIMBA` can be used to track through the simple FODO lattice.
+
+Note that, in order to run executables (i.e. **ASTRA**, **ELEGANT**) rather than simulation codes based only on 
+python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must be set up; see
+:ref:`SimCodes <simcodes>`.
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    from simba.Framework import load_directory
+
+    framework = fw.Framework(
+        machine=machine,
+        simcodes='/path/to/simcodes/',
+        directory=f"{outdir}/ocelot",
+        clean=True, 
+        verbose=True
+    )
+    framework.loadSettings(settings=settings)
+    framework.global_parameters["beam"] = beam
+    framework["FODO"].lsc_enable = False
+    framework["FODO"].csr_enable = False
+    framework.set_lattice_prefix("FODO", "../")
+
     framework.track()
+
+    fwdir = load_directory(f"{outdir}/ocelot")
+
+    fwdir.plot(xkey="z", ykeys=['sigma_x', 'sigma_y'], ykeys2=["ecnx", "ecny"])
+    
+Which produces the plot in :numref:`fig-ocelot-fodo`:
+
+.. _fig-ocelot-fodo:
+.. figure:: assets/ocelot-fodo.png
+
+   Output of simple FODO tracking in **Ocelot**
+    
+The same lattice can also be tracked using a different code as follows:
+
+.. code-block: python
+
+    framework.global_parameters["beam"] = beam
+    framework.change_Lattice_Code("FODO", "elegant")
+    framework.setSubDirectory(f"{outdir}/elegant")
+    framework.track()
+    fwdir = load_directory(f"{outdir}/elegant")
+    fwdir.plot(xkey="z", ykeys=['sigma_x', 'sigma_y'], ykeys2=["ecnx", "ecny"])
+    
+Producing the output in :numref:`fig-elegant-fodo`:
+
+.. _fig-elegant-fodo:
+.. figure:: assets/elegant-fodo.png
+
+   Output of simple FODO tracking in **ELEGANT**

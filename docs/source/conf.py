@@ -122,6 +122,9 @@ autodoc_mock_imports = [
     "pydantic",
     "ocelot",
     "cheetah",
+    "PyQt5",
+    "PyQt4",
+    "ctypes",
     ]
 
 autodoc_default_options = {

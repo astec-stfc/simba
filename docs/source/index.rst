@@ -1,12 +1,12 @@
-.. SimFrame documentation master file, created by
+.. SIMBA documentation master file, created by
    sphinx-quickstart on Tue Sep 24 10:00:24 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-The Accelerator Simulation Framework
-====================================
+SIMBA - Simulations for Integrated Modeling of Beams in Accelerators
+====================================================================
 
-The **Accelerator Simulation Framework** otherwise known as **SimFrame** is a ``python`` package for performing start-to-end (S2E) simulations of linear particle accelerators.
+**SIMBA** is a ``python`` package for performing start-to-end (S2E) simulations of linear particle accelerators.
 
 It provides a wrapper for several well-known particle tracking codes:
 
@@ -15,10 +15,9 @@ It provides a wrapper for several well-known particle tracking codes:
 * `Elegant <https://www.aps.anl.gov/Accelerator-Operations-Physics/Software#elegant>`_ :cite:`Elegant`
 * `CSRTrack <https://www.desy.de/xfel-beam/csrtrack/>`_ :cite:`CSRTrack`
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
+* `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
-
-The primary use for SimFrame has been for simulating the `CLARA <https://www.astec.stfc.ac.uk/Pages/CLARA.aspx>`_
-particle accelerator :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.041602`.
+* `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
 
 Setup
 -----
@@ -31,7 +30,7 @@ Setup
    
    installation
    getting-started
-   MasterLattice
+   loading-a-lattice
    SimCodes
    
 
@@ -49,9 +48,9 @@ Setup
 Participation
 -------------
 
-We welcome contributions and suggestions from the community! :mod:`SimFrame` is currently under active development,
+We welcome contributions and suggestions from the community! :mod:`SIMBA` is currently under active development,
 and as such certain features may be missing or not working as expected. If you find any issues, please
-raise it `here <https://github.com/astec-stfc/simframe/issues>`_.
+raise it `here <https://github.com/astec-stfc/simba/issues>`_.
 
 We are also happy to help with installation and setting up your accelerator lattice. 
    

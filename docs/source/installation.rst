@@ -4,38 +4,30 @@ Installation
 ============
 
 .. note::
-   | **SimFrame** is compatible only with python `3.12` and above.
+   | **SIMBA** is compatible only with python `3.10` and above.
    | Contact `Alex Brynes <mailto:alexander.brynes@stfc.ac.uk>`_ in case of any issues during installation / testing / etc.
 
 Cloning from Github
 -------------------
 
-Clone ``SimFrame`` from Github:
+Clone :mod:`SIMBA` from Github:
 
 .. code-block:: bash
 
-    git clone https://github.com/astec-stfc/simframe.git
+    git clone https://github.com/astec-stfc/simba.git
 
 Install via pip
--------------------
+---------------
 
-(It is recommended to activate a ``python3.12`` virtual environment to run ``SimFrame``.)
+(It is recommended to activate a ``python3.10`` (or higher) virtual environment to run :mod:`SIMBA`.)
 
-The package and its dependencies can be installed using the following command in the ``SimFrame`` directory:
+The package and its dependencies can be installed using the following command in the :mod:`SIMBA` directory:
 
 .. code-block:: bash
 
     pip install .
 
-
-To install the ``MasterLattice`` package along with ``SimFrame``, use this command from
-the ``SimFrame`` directory:
-
-.. code-block:: bash
-
-    pip install .[test]
-
-In order to enable ``SimFrame`` to access the simulation codes, refer to the instructions
+In order to enable :mod:`SIMBA` to access the simulation codes, refer to the instructions
 :ref:`here <simcodes>` -- this step is necessary to perform the tests.
 
 To check that the install was completed successfully, run this command from the top level:
@@ -46,28 +38,18 @@ To check that the install was completed successfully, run this command from the 
 
 
 
-Install from pypi / conda-force
--------------------
+Install from pypi / conda-forge
+-------------------------------
 
 WIP.....
 
 Required Dependencies
 ---------------------
 
-Check out the ``pyproject.toml`` file for a full list of dependencies for ``SimFrame``.
+Check out the ``pyproject.toml`` file for a full list of dependencies for ``SIMBA``.
 
 Optional Dependencies
 ---------------------
 
-The following dependency is optional, but is generally required for running ``CLARA`` simulations:
-
-* `MasterLattice <https://github.com/astec-stfc/masterlattice.git>`__
-
-This can be installed via `pip`:
-
-.. code-block:: bash
-
-    pip install MasterLattice
-
-Finally, in order to set up the ``SimCodes`` required for running simulations, refer to
+In order to set up the :mod:`SimCodes` required for running simulations, refer to
 :ref:`SimCodes <simcodes>`

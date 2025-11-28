@@ -7,11 +7,11 @@ Classes:
     - :class:`~simba.Framework_objects.runSetup`: Defines simulation run settings, allowing
     for single runs, element scans or jitter/error studies.
 
-    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SimFrame,
+    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA,
     including lattice elements and simulation code commands.
 
     - :class:`~simba.Framework_objects.frameworkElement`: Base class for generic
-     lattice elements in SimFrame, including lattice elements and simulation code commands.
+     lattice elements in SIMBA, including lattice elements and simulation code commands.
 
     - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices,
     consisting of a line of :class:`~simba.Framework_objects.frameworkObject` s.
@@ -40,14 +40,16 @@ Classes:
 import os
 import subprocess
 from warnings import warn
+import stat
 import yaml
+from copy import deepcopy
+import time
+
 from nala import NALA
 from nala.models.elementList import SectionLattice, ElementList
 from nala.models.physical import Position
-from nala.models.element import Element
+from nala.models.element import Element, Quadrupole, Sextupole, Octupole
 from nala.translator.converters.section import SectionLatticeTranslator
-
-import time
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
@@ -665,6 +667,7 @@ class frameworkLattice(BaseModel):
     @csr_enable.setter
     def csr_enable(self, csr: bool) -> None:
         self._csr_enable = csr
+        self.section.csr_enable = csr
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.csr_enable = csr
@@ -701,6 +704,7 @@ class frameworkLattice(BaseModel):
     @lsc_enable.setter
     def lsc_enable(self, lsc: bool) -> None:
         self._lsc_enable = lsc
+        self.section.lsc_enable = lsc
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
@@ -719,6 +723,7 @@ class frameworkLattice(BaseModel):
     @lsc_bins.setter
     def lsc_bins(self, lsc: int) -> None:
         self._lsc_bins = lsc
+        self.section.lsc_bins = lsc
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_bins = lsc
@@ -784,6 +789,7 @@ class frameworkLattice(BaseModel):
                     self.global_parameters["beam"],
                     os.path.abspath(filepath),
                 )
+                self.getInitialTwiss()
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
         if "$" in particle_definition:
@@ -1273,25 +1279,27 @@ class frameworkLattice(BaseModel):
         """
         ssh = self.connect_remote()
         subdir = self.global_parameters["master_subdir"]
-        self.files.extend(
-            [
-                f'{subdir}/{e.generate_field_file_name(e.field_definition, self.code)}'
-                for e in self.elements.values() if isinstance(e.field_definition, field)
-            ]
-        )
-        self.files.extend(
-            [
-                f'{subdir}/{e.generate_field_file_name(e.wakefield_definition, self.code)}'
-                for e in self.elements.values() if isinstance(e.wakefield_definition, field)
-            ]
-        )
+        cod = self.code.lower() if self.code.lower() != "elegant" else "sdds"
+        for e in self.elements.values():
+            if isinstance(e.simulation.field_definition, str):
+                fn = e.simulation.field_definition.split('/')[-1].split('\\')[-1]
+                filename = os.path.splitext(fn)[0]
+                self.files.append(f'{subdir}/{filename}.{cod.lower()}')
+            if isinstance(e.simulation.wakefield_definition, str):
+                fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
+                filename = os.path.splitext(fn)[0]
+                self.files.append(f'{subdir}/{filename}.{cod.lower()}')
         starttime = time.time()
-        rel_subdir = str(os.path.relpath(subdir))
+        subdir = self.global_parameters["master_subdir"]
+        rel_subdir = f"/home/{self.remote_setup['username']}/{os.path.basename(subdir)}"
+        cmd = f"mkdir -p {rel_subdir}"
         ssh.exec_command(f"mkdir -p {rel_subdir}")
-        sftp = ssh.open_sftp()
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdout.channel.recv_exit_status()
         for file in self.files:
             remote_file = os.path.join(rel_subdir, os.path.basename(file))
-            sftp.put(file, remote_file)
+            with ssh.open_sftp() as sftp:
+                sftp.put(file, remote_file)
         suffix = ".ele" if self.code.lower() == "elegant" else ".in"
         command = self.objectname + suffix
         full_command = ""
@@ -1299,20 +1307,26 @@ class frameworkLattice(BaseModel):
             full_command += f"export RPN_DEFNS={self.remote_setup["host"]["rpn"]} && "
         full_command += f"cd {rel_subdir} && "
         full_command +=  f"{' '.join(self.executables[self.code])} {command}"
-        print(full_command)
         stdin, stdout, stderr = ssh.exec_command(full_command, get_pty=True)
         stdout.channel.recv_exit_status()
 
-        for attr in sftp.listdir_attr(rel_subdir):
-            remote_path = os.path.join(rel_subdir, attr.filename)
-            local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
+        with ssh.open_sftp() as sftp:
+            for attr in sftp.listdir_attr(rel_subdir):
 
-            # Compare modification time (seconds since epoch)
-            if attr.st_mtime >= starttime:
-                sftp.get(remote_path, local_path)
-                print(f"Retrieved: {remote_path} -> {local_path}")
+                # Skip directories
+                if stat.S_ISDIR(attr.st_mode):
+                    continue
 
-        sftp.close()
+                # Only download files modified since starttime
+                if attr.st_mtime >= starttime:
+                    remote_path = os.path.join(rel_subdir, attr.filename)
+                    local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
+                    sftp.get(remote_path, local_path)
+
+        # sftp.close()
+        cmd = f"rm -rf '{rel_subdir}'"
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdout.channel.recv_exit_status()
         ssh.close()
 
     def connect_remote(self) -> Any:
@@ -1529,9 +1543,14 @@ class frameworkLattice(BaseModel):
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:
-            matchtwiss = self.match(self.file_block["match"])
-            if matchtwiss:
-                self.elementObjects = matchtwiss
+            domatch = True
+            if "enable" in self.file_block["match"]:
+                if not self.file_block["match"]["enable"]:
+                    domatch = False
+            if domatch:
+                self.match(self.file_block["match"])
+            # if matchtwiss:
+            #     self.elementObjects = matchtwiss
         if "longitudinal_match" in self.file_block:
             self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
@@ -1786,36 +1805,22 @@ class frameworkLattice(BaseModel):
             * An rbf.beam object containing the beam parameters.
             * A list of element names in the Xsuite Line.
         """
-        beam = rbf.beam()
         prefix = self.get_prefix()
-        prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        HDF5filename = prefix + self.particle_definition + ".hdf5"
-        if os.path.isfile(expand_substitution(self, HDF5filename)):
-            filepath = expand_substitution(self, HDF5filename)
-        else:
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
-        rbf.hdf5.read_HDF5_beam_file(
-            beam,
-            os.path.abspath(filepath),
-        )
-        elements = self.createDrifts()
+        self.read_input_file(prefix, self.particle_definition)
         import xtrack as xt
-        env = xt.Environment()
-        line = env.new_line()
-        for i, element in enumerate(list(elements.values())):
-            if not element.subelement:
-                name, component, properties = element.write_Xsuite(
-                    beam_length=len(beam.x.val)
-                )
-                line.append(element.name, component(**properties))
-        names = line.element_names
-        line.particle_ref = xt.Particles(
+        beam = self.global_parameters["beam"]
+        particle_ref = xt.Particles(
             p0c=[beam.centroids.mean_cp.val],
-            mass0=[beam.particle_rest_energy_eV.val[0]],
+            mass0=[beam.particle_rest_energy_eV.val],
             q0=-1,
             zeta=0.0,
         )
-        return line, beam, names
+        line = self.section.to_xsuite(
+            beam_length=len(self.global_parameters["beam"].x.val),
+            particle_ref=particle_ref,
+        )
+        beam = deepcopy(self.global_parameters["beam"])
+        return line, beam, self.getNames()
 
     def r_matrix(
             self,
@@ -1854,15 +1859,13 @@ class frameworkLattice(BaseModel):
             return matrix["R_matrix_ebe"]
         return matrix["R_matrix"]
 
-    def match(self, params: Dict) -> Dict | None:
+    def match(self, params: Dict) -> None:
         """
-        Perform transverse matching of the lattice using Xsuite's built-in matching algorithm.
+        Perform transverse matching of the lattice using Ocelot's built-in matching algorithm.
 
         The `params` dictionary should contain the following
         keys:
-            - "variables": A dictionary where keys are element names and values are dictionaries
-              with keys "name" (the parameter to vary), "step" (optional step size), and "limits"
-              (optional limits for the parameter).
+            - "variables": A list of element names (magnets only).
             - "targets": A dictionary where keys are element names and values are dictionaries
               with keys corresponding to Twiss parameters ("beta_x", "beta_y", "alpha_x",
               "alpha_y", "eta_x", "eta_y", "eta_xp", "eta_yp", "mux", "muy") and their target values.
@@ -1877,9 +1880,9 @@ class frameworkLattice(BaseModel):
             <.....>
             match:
               variables:
-                Q1: {name: k1, step: 0.01, limits: [-10, 10]}
-                Q2: {name: k1l, step: 0.01, limits: [-10, 10]}
-                S1: {name: k2, step: 0.01, limits: [-10, 10]}
+                Q1
+                Q2
+                S1
               targets:
                 SCR1: {beta_x: 10.0, alpha_x: 0.0}
                 SCR2: {beta_y: 12.0, alpha_y: 0.0}
@@ -1909,86 +1912,60 @@ class frameworkLattice(BaseModel):
             raise ValueError("No matching variables provided")
         if "targets" not in params:
             raise ValueError("No matching targets provided")
-        line, beam, names = self.setup_xsuite_line()
-        import xtrack as xt
-        be_twiss = beam.twiss
-        tw_map = {
-            "betx": "beta_x",
-            "bety": "beta_y",
-            "alfx": "alpha_x",
-            "alfy": "alpha_y",
-            "dx": "eta_x",
-            "dy": "eta_y",
-            "dpx": "eta_xp",
-            "dpy": "eta_yp",
-        }
-        tw_init = {p: getattr(be_twiss, v).val for p, v in zip(tw_map.keys(), tw_map.values())}
-        start = params["start"] if "start" in params else names[0]
-        end = params["end"] if "end" in params else names[-1]
-        vary = []
-        targets = []
-        for name, param in params["variables"].items():
-            if name not in names:
-                raise ValueError(f"Variable {name} not in lattice")
-            if self.elements[name].hardware_type.lower() in ["quadrupole", "sextupole", "octupole"]:
-                if param["name"][-1] == 'l':
-                    param["name"] = param["name"].strip('l')
-                line.vars[f"{name}.{param['name']}"] = getattr(self.elements[name], param["name"])
-                setattr(line.element_refs[name], param["name"], line.vars[f"{name}.{param['name']}"])
-                step = None if "step" not in param else param["step"]
-                limits = None if "limits" not in param else param["limits"]
-                vary.append(xt.Vary(f"{name}.{param['name']}", step=step, limits=limits))
-            else:
-                warn(f"Matching variable not implemented for element type {self.elements[name].hardware_type}")
-        if not vary:
-            warn("No matching variables available; leaving lattice unchanged")
-            return
-        tw_map.update({"mux": "mux", "muy": "muy"})
-        for name, target in params["targets"].items():
-            if name not in names:
-                raise ValueError(f"Target {name} not in lattice")
-            target_convert = {}
-            for p, t in target.items():
-                if p not in list(tw_map.values()):
-                    raise ValueError(f"Target {p} not recognized")
-                target_convert[list(tw_map.keys())[list(tw_map.values()).index(p)]] = t
-            for k, v in target_convert.items():
-                if isinstance(v, Dict):
-                    if "mode" in v:
-                        if v["mode"] == "greaterthan":
-                            t = xt.GreaterThan(v["value"])
-                        elif v["mode"] == "lessthan":
-                            t = xt.LessThan(v["value"])
-                        else:
-                            warn(f"Target mode {v['mode']} not recognized; using exact match")
-                            t = v["value"]
-                    else:
-                        warn(f"Target mode not specified; using exact match")
-                        t = v["value"]
-                else:
-                    t = v
-                targets.append(xt.Target(k, t, at=name))
+        from .Framework_lattices import ocelotLattice
+        from ocelot.cpbd.beam import Twiss
+        from ocelot.cpbd.match import match as match_oce
+        latcopy = deepcopy(self)
+        lat = ocelotLattice(
+            name=f"{latcopy.name}_match",
+            file_block=latcopy.file_block,
+            machine=latcopy.machine,
+            elementObjects=latcopy.elementObjects,
+            groupObjects=latcopy.groupObjects,
+            runSettings=latcopy.runSettings,
+            executables=latcopy.executables,
+            global_parameters=latcopy.global_parameters,
+            settings=latcopy.settings,
+        )
+        prefix = lat.get_prefix()
+        prefix = prefix if lat.trackBeam else prefix + lat.particle_definition
+        lat.read_input_file(prefix, lat.particle_definition)
+        lat.ref_s = self.global_parameters["beam"].s
+        lat.ref_idx = self.global_parameters["beam"].reference_particle_index
+        lat.hdf5_to_npz(prefix)
+        lat.writeElements()
+        beam = lat.global_parameters["beam"]
+        twsobj = Twiss(
+            beta_x=beam.twiss.beta_x.val,
+            beta_y=beam.twiss.beta_y.val,
+            alpha_x=beam.twiss.alpha_x.val,
+            alpha_y=beam.twiss.alpha_y.val,
+            # Dx=beam.twiss.eta_x.val,
+            # Dy=beam.twiss.eta_y.val,
+            # Dxp=beam.twiss.eta_xp.val,
+            # Dyp=beam.twiss.eta_yp.val,
+            E=beam.centroids.mean_cp.val * 1e-9
+        )
+        matchelems = [e for e in lat.lat_obj.sequence if e.id in params["targets"].keys()]
+        constr = {e: params["targets"][e.id] for e in matchelems}
+        if "global" in params["targets"]:
+            constr.update({"global": params["targets"]["global"]})
+        varelems = []
+        for p in params["variables"]:
+            if p in self.elements.keys():
+                if type(self.elements[p]) in [Quadrupole, Sextupole, Octupole]:
+                    varelems.append([e for e in lat.lat_obj.sequence if e.id == p][0])
         try:
-            opt = line.match(
-                start=start,
-                end=end,
-                vary=vary,
-                targets=targets,
-                **tw_init,
-            )
-            print("Matching successful")
-        except RuntimeError:
-            print("Matching failed")
-            return
-
-        results = opt._log["knobs"][-1]
-        keys = list(params["variables"].keys())
-        values = [p["name"] for p in params["variables"].values()]
-        for i, res in enumerate(results):
-            print(f"Updating element {self.elementObjects[keys[i]].name}:{values[i]} = {res}")
-            setattr(self.elementObjects[keys[i]], values[i], res)
-        return self.elementObjects
-
+            max_iter = params["max_iterations"]
+        except KeyError:
+            max_iter = 10000
+        if len(varelems) == 0:
+            raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
+        res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
+        for i, r in enumerate(res):
+            magnetic_order = self.elementObjects[params["variables"][i]].magnetic.order
+            magnetic_length = self.elementObjects[params["variables"][i]].magnetic.length
+            setattr(self.elementObjects[params["variables"][i]], f"k{magnetic_order}l", r * magnetic_length)
 
 class global_error(frameworkObject):
     """

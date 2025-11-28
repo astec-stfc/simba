@@ -167,7 +167,7 @@ def write_HDF5_summary_file(filename, beams=[], clean=False):
 def read_HDF5_beam_file(self, filename, local=False):
     self.reset_dicts()
     self.filename = filename
-    self.code = "SimFrame"
+    self.code = "SIMBA"
     with h5py.File(filename, "r") as h5file:
         if h5file.get("beam/reference_particle") is not None:
             self.reference_particle = np.array(

@@ -798,9 +798,9 @@ class twiss(BaseModel):
             The value of the specified twiss parameter at the given element name.
             If the element name is found, it returns the corresponding value; otherwise, it returns None.
         """
-        if element_name in self.element_name:
-            idx = list(self.element_name).index(element_name)
-            return self[param][idx]
+        if element_name in self.element_name.val:
+            idx = list(self.element_name.val).index(element_name)
+            return getattr(self, param).val[idx]
         return None
 
     def get_twiss_dict(self, idx: int) -> Dict[str, float]:

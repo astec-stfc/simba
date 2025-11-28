@@ -157,6 +157,7 @@ class opalLattice(frameworkLattice):
                 self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
         saveFile(command_file, output, "w")
+        self.files.append(command_file)
 
     def preProcess(self):
         super().preProcess()
@@ -194,6 +195,7 @@ class opalLattice(frameworkLattice):
             ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
         )
         self.headers["run"] = opal_run()
+        self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 
     def postProcess(self):
@@ -256,21 +258,24 @@ class opalLattice(frameworkLattice):
 
     def run(self):
         """Run the code with input 'filename'"""
-        if not os.name == "nt":
-            command = "bash -c '" + " ".join(self.executables[self.code] + [self.objectname + ".in"]) + "'"
-            with open(
-                os.path.abspath(
-                    self.global_parameters["master_subdir"]
-                    + "/"
-                    + self.objectname
-                    + ".log"
-                ),
-                "w",
-            ) as f:
-                subprocess.call(
-                    command,
-                    stdout=f,
-                    cwd=self.global_parameters["master_subdir"],
-                    env={**os.environ},
-                    shell=True
-                )
+        if self.remote_setup:
+            self.run_remote()
+        else:
+            if not os.name == "nt":
+                command = "bash -c '" + " ".join(self.executables[self.code] + [self.objectname + ".in"]) + "'"
+                with open(
+                    os.path.abspath(
+                        self.global_parameters["master_subdir"]
+                        + "/"
+                        + self.objectname
+                        + ".log"
+                    ),
+                    "w",
+                ) as f:
+                    subprocess.call(
+                        command,
+                        stdout=f,
+                        cwd=self.global_parameters["master_subdir"],
+                        env={**os.environ},
+                        shell=True
+                    )

@@ -4,13 +4,12 @@ SIMBA Framework Module
 The main class for handling the tracking of a particle distribution through a lattice.
 
 Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
-:class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-:class:`~simba.Framework_objects.frameworkElement` objects.
+:class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
 Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-sequentially, and output beam distributions are generated and converted to the standard SimFrame HDF5 format.
+sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
 
 Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
 
@@ -29,10 +28,8 @@ from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
-from deepdiff import DeepDiff
-import sys
 from nala import NALA
-from nala.models.element import Element
+from nala.models.element import Element, Dipole
 from nala.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -54,6 +51,9 @@ from .FrameworkHelperFunctions import (
     _rotation_matrix,
     clean_directory,
     convert_numpy_types,
+    compare_multiple_models,
+    set_deep_attr,
+    flatten_changes_dict,
 )
 from pydantic import (
     BaseModel,
@@ -169,7 +169,7 @@ class Framework(BaseModel):
     These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
     Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-    sequentially, and output beam distributions are generated and converted to the standard SimFrame HDF5 format.
+    sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
 
     Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
     """
@@ -354,6 +354,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_opal_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command()
         return executables
 
@@ -404,14 +408,14 @@ class Framework(BaseModel):
 
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the :ref:`MasterLattice` package.
+        Set the location of the ``NALA`` package.
 
         This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the MasterLattice folder
+            The full path to the ``NALA`` master lattice folder
         """
         global MasterLatticeLocation
         if master_lattice is None:
@@ -745,7 +749,7 @@ class Framework(BaseModel):
         settings = convert_numpy_types(settings)
         with open(os.path.join(directory, filename), "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.safe_dump(settings, yaml_file, sort_keys=False)
+            yaml.dump(settings, yaml_file, sort_keys=False, Dumper=NumpySafeDumper)
 
     def read_Lattice(self, name: str, lattice: dict) -> None:
         """
@@ -781,60 +785,12 @@ class Framework(BaseModel):
             machine=self.machine,
             globalSettings=self.globalSettings,
         )
-
-    def deepdiff_to_nested(self, diff: dict) -> dict:
-        """
-        Convert a DeepDiff result (values_changed only)
-        into a nested dictionary structure.
-        """
-        nested = {}
-
-        if 'values_changed' not in diff:
-            return nested
-
-        for path, change in diff['values_changed'].items():
-            # Strip the "root" prefix and split the path into keys
-            parts = path.replace("root", "").strip(".")
-            keys = []
-            current = ""
-            in_brackets = False
-
-            # Parse keys like ['a']['b'][0]['c'] → ['a','b',0,'c']
-            for char in parts:
-                if char == "[":
-                    in_brackets = True
-                    current = ""
-                elif char == "]":
-                    in_brackets = False
-                    key = current.strip("'\"")
-                    keys.append(int(key) if key.isdigit() else key)
-                elif in_brackets:
-                    current += char
-
-            # Build nested dicts
-            d = nested
-            for k in keys[:-1]:
-                d = d.setdefault(k, {})
-            d[keys[-1]] = {
-                "old": change["old_value"],
-                "new": change["new_value"],
-            }
-
-        return nested
-
-    def compare_multiple_models(self, model_pairs: list[tuple[Element, Element]]) -> dict:
-        """
-        Given a list of (old_model, new_model) pairs,
-        return a nested dictionary of all changes.
-        """
-        all_changes = {}
-
-        for i, (old, new) in enumerate(model_pairs, start=1):
-            diff = DeepDiff(old.model_dump(), new.model_dump(), ignore_order=True)
-            nested_diff = self.deepdiff_to_nested(diff)
-            all_changes[old.name] = nested_diff
-
-        return all_changes
+        if "remote" in lattice:
+            self.setup_remote_execution(
+                lattice=name,
+                code=code.lower(),
+                **lattice["remote"],
+            )
 
     def detect_changes(
         self,
@@ -892,7 +848,7 @@ class Framework(BaseModel):
                 if isinstance(element, Element):
                     pairs = [(orig, element)]
 
-                    changes = self.compare_multiple_models(pairs)
+                    changes = compare_multiple_models(pairs)
                     if changes[element.name]:
                         changedict.update(**changes)
                     # except Exception:
@@ -978,7 +934,7 @@ class Framework(BaseModel):
         filename: str | tuple | list | None = None,
         apply: bool = True,
         verbose: bool = False,
-    ) -> dict | list:
+    ) -> dict | list | None:
         """
         Loads a saved changes file and applies the settings to the current lattice.
         Returns a list of changes.
@@ -1009,6 +965,7 @@ class Framework(BaseModel):
                 changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
+                return
             return changes
 
     def apply_changes(self, changes: dict, verbose: bool = False) -> None:
@@ -1027,10 +984,11 @@ class Framework(BaseModel):
             # print 'found change element = ', e
             if e in self.elementObjects:
                 # print 'change element exists!'
-                for k, v in list(d.items()):
-                    self.modifyElement(e, k, v)
+                flat = flatten_changes_dict(d)
+                for param in flat:
+                    self.modifyElement(e, param[0], param[1])
                     if verbose:
-                        print("modifying ", e, "[", k, "]", " = ", v)
+                        print("modifying ", e, "[", param[0], "]", " = ", param[1])
             if e in self.groupObjects:
                 # print ('change group exists!')
                 for k, v in list(d.items()):
@@ -1252,7 +1210,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if self.elementObjects[element].name.lower() == typ.lower()
+            if self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
@@ -1282,6 +1240,9 @@ class Framework(BaseModel):
         if len(elems) == len(values):
             for e, v in zip(elems, values):
                 setattr(self[e["name"]], setting, v)
+                if self[e["name"]].hardware_type.lower() == "dipole" and setting == "angle":
+                    self[e["name"]].magnetic.multipoles.K0L.normal = v
+
         else:
             raise ValueError
 
@@ -1314,7 +1275,11 @@ class Framework(BaseModel):
         elif elementName in self.groupObjects:
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
-            setattr(self.elementObjects[elementName], parameter, value)
+            if "." in parameter:
+                obj = self.elementObjects[elementName]
+                set_deep_attr(obj, parameter, value)
+            else:
+                setattr(self.elementObjects[elementName], parameter, value)
         else:
             warn("incorrect parameters passed to modifyElement")
 
@@ -1526,7 +1491,7 @@ class Framework(BaseModel):
             warn("could not parse parameters; they should be a dict, list or tuple")
         with open(file, "w") as yaml_file:
             yaml.default_flow_style = True
-            yaml.dump(output, yaml_file)
+            yaml.dump(output, yaml_file, Dumper=NumpySafeDumper)
 
     def set_lattice_prefix(
         self,
@@ -1908,6 +1873,10 @@ class Framework(BaseModel):
                     )  # noqa E701
                 latt.postProcess()
                 self.progress = base_percentage + 1 * percentage_step
+                if lattice_name != "generator":
+                    for name, elem in latt.elementObjects.items():
+                        if name in self.elementObjects:
+                            self.elementObjects[name] = elem
             if self.verbose:
                 pbar.update()  # noqa E701
         if self.verbose:
@@ -2289,6 +2258,6 @@ class frameworkDirectory(BaseModel):
 def load_directory(
     directory: str = ".", twiss: bool = True, beams: bool = False, **kwargs
 ) -> frameworkDirectory:
-    """Load a directory from a SimFrame tracking run and return a frameworkDirectory object"""
+    """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
     fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
     return fw

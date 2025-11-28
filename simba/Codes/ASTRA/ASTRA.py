@@ -77,7 +77,7 @@ class astraLattice(frameworkLattice):
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ASTRA into the SimFrame generic 
+    """Function for converting all screen outputs from ASTRA into the SIMBA generic 
     :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "astra"

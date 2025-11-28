@@ -1,5 +1,5 @@
 """
-Simframe Ocelot Module
+SIMBA Ocelot Module
 
 Various objects and functions to handle OCELOT lattices and commands. See `Ocelot github`_ for more details.
 
@@ -29,7 +29,6 @@ with open(
     oceglobal = safe_load(infile)
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Callable
 from typing import Dict, List, Any, ClassVar
 from nala.models.diagnostic import DiagnosticElement
 
@@ -45,7 +44,7 @@ class ocelotLattice(frameworkLattice):
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ELEGANT into the SimFrame generic 
+    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
     :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "ocelot"

@@ -1,12 +1,9 @@
 [build-system]
-requires = [
-    "setuptools",
-    "versioneer",
-]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AcceleratorSimFrame"
+name = "simba-accelerator"
 description = "A python framework for particle accelerator simulations"
 readme = "README.md"
 dynamic = ["version"]
@@ -46,6 +43,8 @@ dependencies = [
     "cheetah-accelerator>=0.7.5",
     "openpmd-beamphysics>=0.10",
     "xopt",
+    "Wake-T>=0.8.0",
+    "nala-accelerator",
 ]
 
 requires-python = ">= 3.10"
@@ -71,18 +70,16 @@ docs = [
     "sphinxcontrib-bibtex",
 ]
 
-[project.urls]
-Homepage = "https://github.com/astec-stfc/simframe"
-Repository = "https://github.com/astec-stfc/simframe.git"
-Issues = "https://github.com/astec-stfc/simframe/-/issues/"
+[tool.setuptools_scm]
+version_scheme = "post-release"   # valid built-in scheme
+local_scheme = "no-local-version" # removes +untagged suffix
 
-[tool.coverage.run]
-omit = [
-    # omit this single file
-    "_version.py",
-    "SimulationFramework/Codes/MAD8/MAD8.py",
-    "SimulationFramework/Modules/Beams/mad8.py",
-    ]
+
+[project.urls]
+Homepage = "https://github.com/astec-stfc/simba"
+Repository = "https://github.com/astec-stfc/simba.git"
+Issues = "https://github.com/astec-stfc/simba/-/issues/"
+
 
 [tool.setuptools]
 include-package-data = true
