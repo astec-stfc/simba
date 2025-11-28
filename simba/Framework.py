@@ -934,7 +934,7 @@ class Framework(BaseModel):
         filename: str | tuple | list | None = None,
         apply: bool = True,
         verbose: bool = False,
-    ) -> dict | list:
+    ) -> dict | list | None:
         """
         Loads a saved changes file and applies the settings to the current lattice.
         Returns a list of changes.
@@ -965,6 +965,7 @@ class Framework(BaseModel):
                 changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
+                return
             return changes
 
     def apply_changes(self, changes: dict, verbose: bool = False) -> None:
@@ -1875,7 +1876,6 @@ class Framework(BaseModel):
                 if lattice_name != "generator":
                     for name, elem in latt.elementObjects.items():
                         if name in self.elementObjects:
-                            print(name)
                             self.elementObjects[name] = elem
             if self.verbose:
                 pbar.update()  # noqa E701
