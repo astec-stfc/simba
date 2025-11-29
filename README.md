@@ -44,6 +44,15 @@ The package and its dependencies can be installed using the following command in
 ```bash
 pip install .
 ```
+
+Install from PyPI
+-----------------
+
+Alternatively, `SIMBA` can be installed directly from PyPI using:
+
+```bash
+pip install simba-accelerator
+```
     
 Optional Dependencies
 ---------------------
@@ -67,9 +76,9 @@ We are also happy to help with installation and setting up your accelerator latt
 Getting started with SIMBA
 -----------------------------
 
-Accelerator lattices in :mod:`SIMBA` are derived from the `NALA <https://github.com/astec-stfc/nala/>`_
+Accelerator lattices in `SIMBA` are derived from the [NALA](https://github.com/astec-stfc/nala/)
 standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
-layouts **TODO add hyperlinks to NALA doc page once it exists**.
+layouts; see [NALA documentation](https://nala-accelerator.readthedocs.io/en/latest/).
 
 Given that this format is designed to capture all relevant information about accelerator elements,
 and that it includes a built-in translator module for exporting lattice files to various simulation codes,
@@ -127,7 +136,8 @@ The elements are loaded from the directory ``/path/to/nala-lattices/CLARA/YAML/`
 
 As this simulation starts from the cathode, the ``input`` definition is required for the first
 `injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
-point to an existing beam file **#TODO add reference to beams page**.
+point to an existing 
+[beam file](https://simba-accelerator.readthedocs.io/en/latest/examples/notebooks/beams_example.html).
 
 For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the 
 ``output: end_element`` definition from the previous ``file`` block.
