@@ -23,13 +23,11 @@ Classes:
 
 import os
 import yaml
-import re
 import inspect
 from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
-from deepdiff import DeepDiff
 from nala import NALA
 from nala.models.element import Element, Dipole
 from nala.Exporters.YAML import export_machine, export_elements
@@ -53,6 +51,9 @@ from .FrameworkHelperFunctions import (
     _rotation_matrix,
     clean_directory,
     convert_numpy_types,
+    compare_multiple_models,
+    set_deep_attr,
+    flatten_changes_dict,
 )
 from pydantic import (
     BaseModel,
@@ -771,86 +772,6 @@ class Framework(BaseModel):
                 **lattice["remote"],
             )
 
-    def normalize(self, obj):
-        if isinstance(obj, dict):
-            return {k: self.normalize(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self.normalize(v) for v in obj]
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
-            return obj.item()
-        else:
-            return obj
-
-    def deepdiff_to_nested(self, diff_dict):
-        nested = {}
-        for key, change in diff_dict.get('values_changed', {}).items():
-            # Extract path parts from DeepDiff key
-            parts = re.findall(r"\['([^]]+)'\]", key)
-            current = nested
-            for part in parts[:-1]:
-                current = current.setdefault(part, {})
-            current[parts[-1]] = {
-                'old_value': change['old_value'],
-                'new_value': change['new_value']
-            }
-        return nested
-
-    def deepdiff_to_nested(self, diff: dict) -> dict:
-        """
-        Convert a DeepDiff result (values_changed only)
-        into a nested dictionary structure.
-        """
-        nested = {}
-
-        if 'values_changed' not in diff:
-            return nested
-
-        for path, change in diff['values_changed'].items():
-            # Strip the "root" prefix and split the path into keys
-            parts = path.replace("root", "").strip(".")
-            keys = []
-            current = ""
-            in_brackets = False
-
-            # Parse keys like ['a']['b'][0]['c'] → ['a','b',0,'c']
-            for char in parts:
-                if char == "[":
-                    in_brackets = True
-                    current = ""
-                elif char == "]":
-                    in_brackets = False
-                    key = current.strip("'\"")
-                    keys.append(int(key) if key.isdigit() else key)
-                elif in_brackets:
-                    current += char
-
-            # Build nested dicts
-            d = nested
-            for k in keys[:-1]:
-                d = d.setdefault(k, {})
-            d[keys[-1]] = {
-                "old": change["old_value"],
-                "new": change["new_value"],
-            }
-
-        return nested
-
-    def compare_multiple_models(self, model_pairs: list[tuple[Element, Element]]) -> dict:
-        """
-        Given a list of (old_model, new_model) pairs,
-        return a nested dictionary of all changes.
-        """
-        all_changes = {}
-        for old, new in model_pairs:
-            old_dump = self.normalize(old.model_dump())
-            new_dump = self.normalize(new.model_dump())
-            diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
-            nested_diff = self.deepdiff_to_nested(diff.to_dict())
-            all_changes[old.name] = nested_diff
-        return all_changes
-
     def detect_changes(
         self,
         elementtype: str | None = None,
@@ -906,7 +827,7 @@ class Framework(BaseModel):
                     orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
-                    changes = self.compare_multiple_models(pairs)
+                    changes = compare_multiple_models(pairs)
                     if changes[element.name]:
                         changedict.update(**changes)
                     # except Exception:
@@ -992,7 +913,7 @@ class Framework(BaseModel):
         filename: str | tuple | list | None = None,
         apply: bool = True,
         verbose: bool = False,
-    ) -> dict | list:
+    ) -> dict | list | None:
         """
         Loads a saved changes file and applies the settings to the current lattice.
         Returns a list of changes.
@@ -1023,6 +944,7 @@ class Framework(BaseModel):
                 changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
+                return
             return changes
 
     def apply_changes(self, changes: dict, verbose: bool = False) -> None:
@@ -1041,10 +963,11 @@ class Framework(BaseModel):
             # print 'found change element = ', e
             if e in self.elementObjects:
                 # print 'change element exists!'
-                for k, v in list(d.items()):
-                    self.modifyElement(e, k, v)
+                flat = flatten_changes_dict(d)
+                for param in flat:
+                    self.modifyElement(e, param[0], param[1])
                     if verbose:
-                        print("modifying ", e, "[", k, "]", " = ", v)
+                        print("modifying ", e, "[", param[0], "]", " = ", param[1])
             if e in self.groupObjects:
                 # print ('change group exists!')
                 for k, v in list(d.items()):
@@ -1333,10 +1256,7 @@ class Framework(BaseModel):
         elif elementName in self.elementObjects:
             if "." in parameter:
                 obj = self.elementObjects[elementName]
-                subattr = parameter.split(".")[0]
-                subobj = getattr(obj, subattr)
-                setattr(subobj, parameter.split(".")[1], value)
-                setattr(self.elementObjects[elementName], subattr, subobj)
+                set_deep_attr(obj, parameter, value)
             else:
                 setattr(self.elementObjects[elementName], parameter, value)
         else:
@@ -1935,7 +1855,6 @@ class Framework(BaseModel):
                 if lattice_name != "generator":
                     for name, elem in latt.elementObjects.items():
                         if name in self.elementObjects:
-                            print(name)
                             self.elementObjects[name] = elem
             if self.verbose:
                 pbar.update()  # noqa E701

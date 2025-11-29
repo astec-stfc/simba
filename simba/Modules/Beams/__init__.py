@@ -1,5 +1,5 @@
 """
-Simframe Beams Module
+SIMBA Beams Module
 
 This module defines the base class and utilities for representing particle beams and groups of beams.
 

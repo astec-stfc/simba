@@ -4,7 +4,9 @@ from shutil import copyfile
 import numpy as np
 from .Modules.Fields import field
 from pydantic import BaseModel
+from deepdiff import DeepDiff
 
+from nala.models.element import Element
 
 def readFile(fname):
     with open(fname) as f:
@@ -299,3 +301,95 @@ def pydantic_basemodel_dump_computed_fields(self, *args, **kwargs):
     }
     full_dump = BaseModel().model_dump(*args, **kwargs)
     return {k: v for k, v in full_dump.items() if k in computed_keys}
+
+def normalize(obj):
+    if isinstance(obj, dict):
+        return {k: normalize(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [normalize(v) for v in obj]
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
+        return obj.item()
+    else:
+        return obj
+
+def deepdiff_to_nested(diff: dict) -> dict:
+    """
+    Convert a DeepDiff result (values_changed only)
+    into a nested dictionary structure.
+    """
+    nested = {}
+
+    if 'values_changed' not in diff:
+        return nested
+
+    for path, change in diff['values_changed'].items():
+        # Strip the "root" prefix and split the path into keys
+        parts = path.replace("root", "").strip(".")
+        keys = []
+        current = ""
+        in_brackets = False
+
+        # Parse keys like ['a']['b'][0]['c'] → ['a','b',0,'c']
+        for char in parts:
+            if char == "[":
+                in_brackets = True
+                current = ""
+            elif char == "]":
+                in_brackets = False
+                key = current.strip("'\"")
+                keys.append(int(key) if key.isdigit() else key)
+            elif in_brackets:
+                current += char
+
+        # Build nested dicts
+        d = nested
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = {
+            "old": change["old_value"],
+            "new": change["new_value"],
+        }
+
+    return nested
+
+def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
+    """
+    Given a list of (old_model, new_model) pairs,
+    return a nested dictionary of all changes.
+    """
+    all_changes = {}
+    for old, new in model_pairs:
+        old_dump = normalize(old.model_dump())
+        new_dump = normalize(new.model_dump())
+        diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
+        nested_diff = deepdiff_to_nested(diff.to_dict())
+        all_changes[old.name] = nested_diff
+    return all_changes
+
+def set_deep_attr(obj, dotted_path, value):
+    """Set nested attribute using a dotted path like 'a.b.c.d'."""
+    attrs = dotted_path.split('.')
+    target = obj
+    for attr in attrs[:-1]:
+        target = getattr(target, attr)
+    setattr(target, attrs[-1], value)
+
+def flatten_changes_dict(d, parent_key=""):
+    """
+    Flattens nested dict keys into dotted paths.
+    Returns a list of (dotted_path, value).
+    """
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}.{k}" if parent_key else k
+        if isinstance(v, dict) and not ("old" in v and "new" in v):
+            items.extend(flatten_changes_dict(v, new_key))
+        elif isinstance(v, dict) and "new" in v:
+            # This node contains the actual value diff
+            items.append((new_key, v["new"]))
+        else:
+            # Simple leaf
+            items.append((new_key, v))
+    return items
