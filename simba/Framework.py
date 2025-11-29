@@ -3,8 +3,8 @@ SIMBA Framework Module
 
 The main class for handling the tracking of a particle distribution through a lattice.
 
-Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
-:class:`~simba.Framework_objects.frameworkLattice` objects.
+Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files.
+This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
@@ -14,11 +14,9 @@ sequentially, and output beam distributions are generated and converted to the s
 Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
 
 Classes:
-    - :class:`~simba.Framework.Framework`: Top-level class for loading and modifying lattice
-    settings and tracking through them
+    - :class:`~simba.Framework.Framework`: Top-level class for loading and modifying lattice settings and tracking through them
 
-    - :class:`~simba.Framework.frameworkDirectory`: Class to load a tracking run from a directory
-    and reading the Beam and Twiss files and making them available.
+    - :class:`~simba.Framework.frameworkDirectory`: Class to load a tracking run from a directory and reading the Beam and Twiss files and making them available.
 """
 
 import os
@@ -48,7 +46,6 @@ from . import Framework_lattices as frameworkLattices
 from . import Framework_elements as frameworkElements
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import (
-    _rotation_matrix,
     clean_directory,
     convert_numpy_types,
     compare_multiple_models,
@@ -57,7 +54,6 @@ from .FrameworkHelperFunctions import (
 )
 from pydantic import (
     BaseModel,
-    field_validator,
     ConfigDict,
 )
 from warnings import warn
