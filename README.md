@@ -49,7 +49,7 @@ Optional Dependencies
 ---------------------
 
 In order to access the accelerator code executables, they must also inform ``SIMBA`` of their
-locations. See the entry on [SimCodes](https://simba.readthedocs.io/en/latest/SimCodes.html).
+locations. See the entry on [SimCodes](https://simba-accelerator.readthedocs.io/en/latest/SimCodes.html).
 
 Participation
 -------------
