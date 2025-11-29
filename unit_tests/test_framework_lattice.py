@@ -24,8 +24,9 @@ def test_get_element_returns_specific_param(framework_with_elements):
 
 def test_get_element_nonexistent_returns_empty_dict(framework_with_elements):
     fw = framework_with_elements
-    result = fw.getElement("NON_EXISTENT")
-    assert result == {}
+    with pytest.warns(UserWarning):
+        result = fw.getElement("NON_EXISTENT")
+        assert result == {}
 
 def test_get_element_type_returns_all(framework_with_elements):
     fw = framework_with_elements

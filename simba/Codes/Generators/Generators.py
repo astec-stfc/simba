@@ -224,7 +224,7 @@ class frameworkGenerator(BaseModel):
     name: str = "generator"
     """Name of this generator class"""
 
-    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework"] = "ASTRA"
+    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
     """Simulation code to be used for generating distributions"""
 
     sigma_x: float = 0.0
