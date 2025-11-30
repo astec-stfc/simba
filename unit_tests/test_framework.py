@@ -129,6 +129,7 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
     framework.track()
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
     os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/M1.openpmd.hdf5")
+    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/test.def")
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):
