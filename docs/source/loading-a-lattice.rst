@@ -69,7 +69,7 @@ The elements are loaded from the directory ``/path/to/nala-lattices/CLARA/YAML/`
 
 As this simulation starts from the cathode, the ``input`` definition is required for the first
 `injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
-point to an existing beam file **#TODO add reference to beams page**.
+point to an existing beam file.
 
 For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the ``output: end_element`` definition 
 from the previous ``file`` block.

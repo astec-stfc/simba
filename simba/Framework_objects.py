@@ -8,11 +8,9 @@ Classes:
 
     - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA, including lattice elements and simulation code commands.
 
-    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices,
-    consisting of a line of `NALA` elements.
+    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `NALA` elements.
 
-    - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same
-    type in ASTRA and CSRTrack
+    - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same type in ASTRA and CSRTrack
 
     - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping elements together and controlling them all simultaneously.
 
@@ -461,7 +459,7 @@ class frameworkLattice(BaseModel):
     retrieve information about the elements and groups, as well as methods to run
     simulations and process results.
 
-    See :ref:`creating-the-lattice-elements`
+    See :ref:`getting-started` and :ref:`loading-a-lattice`.
     """
 
     model_config = ConfigDict(
@@ -1864,21 +1862,22 @@ class frameworkLattice(BaseModel):
 
         The matching dictionary should have this structure within the lattice file block:
 
-        .. file_block:: yaml
-        files:
-          line:
-            <.....>
-            match:
-              variables:
-                Q1
-                Q2
-                S1
-              targets:
-                SCR1: {beta_x: 10.0, alpha_x: 0.0}
-                SCR2: {beta_y: 12.0, alpha_y: 0.0}
-                SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
-              start: Q1
-              end: SCR3
+        .. code-block:: yaml
+
+            files:
+              line:
+                <.....>
+                match:
+                  variables:
+                    Q1
+                    Q2
+                    S1
+                  targets:
+                    SCR1: {beta_x: 10.0, alpha_x: 0.0}
+                    SCR2: {beta_y: 12.0, alpha_y: 0.0}
+                    SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
+                  start: Q1
+                  end: SCR3
 
         Parameters
         ----------

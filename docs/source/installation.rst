@@ -41,7 +41,11 @@ To check that the install was completed successfully, run this command from the 
 Install from pypi / conda-forge
 -------------------------------
 
-WIP.....
+:mod:`SIMBA` is available from pypi:
+
+.. code-block:: bash
+
+    pip install simba-accelerator
 
 Required Dependencies
 ---------------------
