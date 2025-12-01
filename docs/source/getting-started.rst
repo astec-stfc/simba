@@ -113,7 +113,7 @@ The simulation requires a macroparticle distribution to run. This can be generat
 
 .. code-block:: python
 
-    from simba.Codes.Generators import frameworkGenerator
+    from simba.Codes.Generators imoutdirport frameworkGenerator
     import simba.Modules.Beams as rbf
 
     gen = frameworkGenerator(

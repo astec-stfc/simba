@@ -1,4 +1,4 @@
-deepdiff>=5
+deepdiff>=8.6
 h5py>=2.10
 munch>=2.5
 numpy>=2
@@ -31,4 +31,4 @@ pyfftw
 paramiko
 numexpr
 Wake-T>=0.8.0
-nala-lattice
+nala-accelerator

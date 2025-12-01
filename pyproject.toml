@@ -17,7 +17,7 @@ maintainers = [
     {name = "Mark Johnson", email = "mark.johnson@stfc.ac.uk"},
 ]
 dependencies = [
-    "deepdiff>=5",
+    "deepdiff>=8.6",
     "h5py>=2.10",
     "munch>=2.5",
     "numpy>=2",
@@ -58,7 +58,6 @@ classifiers = [
 test = [
     "pytest",
     "pytest-cov",
-    "MasterLattice",
 ]
 
 docs = [
@@ -66,7 +65,6 @@ docs = [
     "sphinx-rtd-theme",
     "myst-nb",
     "sphinx_autodoc_typehints>=3",
-    "MasterLattice",
     "sphinxcontrib-bibtex",
 ]
 

@@ -61,6 +61,7 @@ We are also happy to help with installation and setting up your accelerator latt
    :maxdepth: 2
    :caption: API
    
+   Framework
    Framework_objects
    Framework_elements
    simba.Codes

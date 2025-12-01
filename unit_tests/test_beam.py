@@ -1,5 +1,5 @@
-import SimulationFramework.Modules.Beams as rbf  # noqa E402
-from SimulationFramework.Modules.units import UnitValue
+import simba.Modules.Beams as rbf  # noqa E402
+from simba.Modules.units import UnitValue
 import pytest
 import numpy as np
 from scipy.constants import m_e, c, e, m_p
@@ -23,13 +23,12 @@ def simple_beam():
     beam.Particles.px = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
     beam.Particles.py = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
     beam.Particles.pz = UnitValue(np.random.normal(1e9 * q_over_c, 1e3 * q_over_c, beam_length), "kg*m/s")
-    beam.Particles.charge = UnitValue(
-        np.full(shape=beam_length, fill_value=bunch_charge / beam_length, dtype=np.float64), "C")
     beam.Particles.particle_mass = UnitValue(np.full(shape=beam_length, fill_value=m_e, dtype=np.float64), "kg")
-    beam.Particles.total_charge = UnitValue(bunch_charge, "C")
+    beam.Particles.set_total_charge(bunch_charge)
     beam.Particles.nmacro = UnitValue(np.full(shape=beam_length, fill_value=1, dtype=np.int64), "")
     beam.code = "simframe"
     beam.filename = "test.hdf5"
+    beam.set_species("positron")
     return beam
 
 def test_beam_matching(simple_beam):
@@ -68,7 +67,6 @@ def test_beam_matching(simple_beam):
 
     simple_beam.Particles.rematchXPlanePeakISlice(beta=10, alpha=-10, nEmit=1e-6)
     simple_beam.Particles.rematchYPlanePeakISlice(beta=5, alpha=10, nEmit=1e-6)
-
     assert all(
         np.isclose(
             [

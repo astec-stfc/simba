@@ -1,5 +1,3 @@
-include versioneer.py
-include simba/_version.py
 include simba/Executables.yaml
 prune simba/Support_Files
 recursive-include simba *.yaml

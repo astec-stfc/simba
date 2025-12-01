@@ -4,37 +4,25 @@ SIMBA Objects Module
 Various objects and functions to handle simulation lattices, commands, and elements.
 
 Classes:
-    - :class:`~simba.Framework_objects.runSetup`: Defines simulation run settings, allowing
-    for single runs, element scans or jitter/error studies.
+    - :class:`~simba.Framework_objects.runSetup`: Defines simulation run settings, allowing for single runs, element scans or jitter/error studies.
 
-    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA,
-    including lattice elements and simulation code commands.
+    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA, including lattice elements and simulation code commands.
 
-    - :class:`~simba.Framework_objects.frameworkElement`: Base class for generic
-     lattice elements in SIMBA, including lattice elements and simulation code commands.
+    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `NALA` elements.
 
-    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices,
-    consisting of a line of :class:`~simba.Framework_objects.frameworkObject` s.
+    - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same type in ASTRA and CSRTrack
 
-    - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same
-    type in ASTRA and CSRTrack
+    - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping elements together and controlling them all simultaneously.
 
-    - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping together
-    :class:`~simba.Framework_objects.frameworkObject` s and controlling them all simultaneously.
-
-    - :class:`~simba.Framework_objects.element_group`: Subclass of
-    :class:`~simba.Framework_objects.frameworkGroup` for grouping elements.
+    - :class:`~simba.Framework_objects.element_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements.
     # TODO is this ever used?
 
-    - :class:`~simba.Framework_objects.r56_group`: Subclass of
-    :class:`~simba.Framework_objects.frameworkGroup` for grouping elements with an R56.
+    - :class:`~simba.Framework_objects.r56_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements with an R56.
     # TODO is this ever used?
 
-    - :class:`~simba.Framework_objects.chicane`: Subclass of\
-    :class:`~simba.Framework_objects.frameworkGroup` for a 4-dipole bunch compressor chicane.
+    - :class:`~simba.Framework_objects.chicane`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for a 4-dipole bunch compressor chicane.
 
-    - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number
-    of space charge grids given a number of particles.
+    - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number of space charge grids given a number of particles.
 """
 
 import os
@@ -471,7 +459,7 @@ class frameworkLattice(BaseModel):
     retrieve information about the elements and groups, as well as methods to run
     simulations and process results.
 
-    See :ref:`creating-the-lattice-elements`
+    See :ref:`getting-started` and :ref:`loading-a-lattice`.
     """
 
     model_config = ConfigDict(
@@ -1874,21 +1862,22 @@ class frameworkLattice(BaseModel):
 
         The matching dictionary should have this structure within the lattice file block:
 
-        .. file_block:: yaml
-        files:
-          line:
-            <.....>
-            match:
-              variables:
-                Q1
-                Q2
-                S1
-              targets:
-                SCR1: {beta_x: 10.0, alpha_x: 0.0}
-                SCR2: {beta_y: 12.0, alpha_y: 0.0}
-                SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
-              start: Q1
-              end: SCR3
+        .. code-block:: yaml
+
+            files:
+              line:
+                <.....>
+                match:
+                  variables:
+                    Q1
+                    Q2
+                    S1
+                  targets:
+                    SCR1: {beta_x: 10.0, alpha_x: 0.0}
+                    SCR2: {beta_y: 12.0, alpha_y: 0.0}
+                    SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
+                  start: Q1
+                  end: SCR3
 
         Parameters
         ----------

@@ -236,7 +236,7 @@ def read_gdf_beam_file(
             )
 
     self._beam.nmacro = UnitValue(gdfbeamdata.nmacro, units='C')
-    self._beam.charge = UnitValue(gdfbeamdata.nmacro * self._beam.particle_charge, units='C')
+    self._beam.set_total_charge(gdfbeamdata.nmacro * self._beam.particle_charge)
 
     self._beam.status = UnitValue(np.full(len(self.z), 5))
 

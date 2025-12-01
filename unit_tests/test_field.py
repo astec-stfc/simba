@@ -1,6 +1,6 @@
-import SimulationFramework.Modules.Fields as rff  # noqa E402
-from SimulationFramework.Modules.Fields.FieldParameter import FieldParameter
-from SimulationFramework.Modules.units import UnitValue
+import simba.Modules.Fields as rff  # noqa E402
+from simba.Modules.Fields.FieldParameter import FieldParameter
+from simba.Modules.units import UnitValue
 import pytest
 import numpy as np
 import os

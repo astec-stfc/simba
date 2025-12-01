@@ -30,7 +30,7 @@ Creating a SimCodes Directory
 -----------------------------
 
 One can create a top-level directory containing sub-folders for each tracking code, and instantiate :mod:`SIMBA`
-with a ``simcodes_location`` argument:
+with a ``simcodes`` argument:
 
 .. code-block:: python
 
@@ -40,7 +40,7 @@ with a ``simcodes_location`` argument:
 
     fw = Framework(
         directory=directory,
-        simcodes_location=simcodes_location,
+        simcodes=simcodes_location,
     )
 
 Alternatively, one can set up :mod:`SIMBA` without this argument and set up the ``SimCodes`` location afterwards:

@@ -96,6 +96,8 @@ def read_SDDS_beam_file(
             units="m",
         )
         self.reference_particle = None
+    if "s" not in beamprops:
+        beamprops["s"] = 0
     self._beam.s = UnitValue(beamprops["s"], units="m")
 
 

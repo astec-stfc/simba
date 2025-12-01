@@ -3,8 +3,8 @@ SIMBA Framework Module
 
 The main class for handling the tracking of a particle distribution through a lattice.
 
-Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
-:class:`~simba.Framework_objects.frameworkLattice` objects.
+Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files.
+This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
@@ -14,11 +14,9 @@ sequentially, and output beam distributions are generated and converted to the s
 Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
 
 Classes:
-    - :class:`~simba.Framework.Framework`: Top-level class for loading and modifying lattice
-    settings and tracking through them
+    - :class:`~simba.Framework.Framework`: Top-level class for loading and modifying lattice settings and tracking through them
 
-    - :class:`~simba.Framework.frameworkDirectory`: Class to load a tracking run from a directory
-    and reading the Beam and Twiss files and making them available.
+    - :class:`~simba.Framework.frameworkDirectory`: Class to load a tracking run from a directory and reading the Beam and Twiss files and making them available.
 """
 
 import os
@@ -48,7 +46,6 @@ from . import Framework_lattices as frameworkLattices
 from . import Framework_elements as frameworkElements
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import (
-    _rotation_matrix,
     clean_directory,
     convert_numpy_types,
     compare_multiple_models,
@@ -57,7 +54,6 @@ from .FrameworkHelperFunctions import (
 )
 from pydantic import (
     BaseModel,
-    field_validator,
     ConfigDict,
 )
 from warnings import warn
@@ -245,12 +241,6 @@ class Framework(BaseModel):
     tracking: bool = False
     """Flag to indicate whether the Framework is tracking"""
 
-    basedirectory: str = ""
-    """Current working directory"""
-
-    filedirectory: str = ""
-    """Directory for files"""
-
     generator: frameworkGenerator | None = None
     """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator` object"""
 
@@ -296,20 +286,6 @@ class Framework(BaseModel):
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
-
-    @field_validator("basedirectory", mode="before")
-    @classmethod
-    def validate_base_directory(cls, value: str) -> str:
-        if len(value) > 0 and os.path.isdir(value):
-            return value
-        return os.getcwd()
-
-    @field_validator("filedirectory", mode="before")
-    @classmethod
-    def validate_file_directory(cls, value: str) -> str:
-        if len(value) > 0 and os.path.isdir(value):
-            return value
-        return os.path.dirname(os.path.abspath(__file__))
 
     def __repr__(self) -> repr:
         return repr(
@@ -834,7 +810,12 @@ class Framework(BaseModel):
                 if new is not None:
                     if e not in changedict:
                         changedict[e] = {}
-                    changedict[e][k] = convert_numpy_types(getattr(new, k))
+                    changedict[e][k] = {
+                        "new": convert_numpy_types(getattr(new, k)),
+                        "old": convert_numpy_types(
+                            getattr(self.original_elementObjects[e], k)
+                        ),
+                    }
         else:
             for e in changeelements:
                 element = None
@@ -842,10 +823,9 @@ class Framework(BaseModel):
                     element = self.elementObjects[e]
                 elif e == "generator":
                     element = self.generator
-                cond = False
-                orig = self.original_elementObjects[e]
-                new = element
+                    e = "generator"
                 if isinstance(element, Element):
+                    orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
                     changes = compare_multiple_models(pairs)
@@ -882,16 +862,18 @@ class Framework(BaseModel):
         dict or None
             If `dictionary`, return a dict; otherwise, save a file and return `None`
         """
-        if filename is None:
-            pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
-            filename = pre + "_changes.yaml"
         changedict = self.detect_changes(elementtype=typ, elements=elements)
         if dictionary:
             return changedict
-        else:
-            with open(filename, "w") as yaml_file:
-                yaml.default_flow_style = True
-                yaml.dump(changedict, yaml_file, Dumper=NumpySafeDumper)
+        if filename is None:
+            if self.settingsFilename is not None:
+                pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
+                filename = pre + "_changes.yaml"
+            else:
+                raise ValueError("settingsFilename not set; cannot determine changes filename")
+        with open(filename, "w") as yaml_file:
+            yaml.default_flow_style = True
+            yaml.dump(changedict, yaml_file, Dumper=NumpySafeDumper)
 
     def save_lattice(
         self,
@@ -913,7 +895,10 @@ class Framework(BaseModel):
 
         """
         if filename is None:
-            pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
+            if self.settingsFilename is not None:
+                pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
+            else:
+                raise ValueError("settingsFilename not set; cannot determine lattice filename")
         else:
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
@@ -1052,44 +1037,6 @@ class Framework(BaseModel):
 
         return noerror
 
-    def check_lattice_drifts(self, decimals: int = 4) -> bool:
-        """
-        Checks that there are no positioning errors in the lattice.
-
-        Parameters
-        ----------
-        decimals: int
-            Number of decimals to check errors
-
-        Returns
-        -------
-        bool
-            True if errors are detected
-        """
-        noerror = True
-        for elem in self.elementObjects.values():
-            start = elem.position_start
-            end = elem.position_end
-            length = elem.length
-            theta = elem.global_rotation[2]
-            if elem.objecttype == "dipole" and abs(float(elem.angle)) > 0:
-                angle = float(elem.angle)
-                rho = length / angle
-                clength = np.array([rho * (np.cos(angle) - 1), 0, rho * np.sin(angle)])
-            else:
-                clength = np.array([0, 0, length])
-            cend = start + np.dot(clength, _rotation_matrix(theta))
-            if not np.round(cend - end, decimals=decimals).any() == 0:
-                noerror = False
-                print(
-                    "check_lattice_drifts error:",
-                    elem.objectname,
-                    cend,
-                    end,
-                    cend - end,
-                )
-        return noerror
-
     def change_Lattice_Code(
             self,
             latticename: str,
@@ -1180,7 +1127,7 @@ class Framework(BaseModel):
     def getElementType(
         self,
         typ: str | list | tuple,
-        param: str | None = None,
+        param: str | list | tuple | None = None,
     ) -> dict | list | Any:
         """
         Gets all elements of the specified type, or the parameter of each of those elements
@@ -1407,7 +1354,7 @@ class Framework(BaseModel):
             #     code = OPALGenerator
             elif kwargs["code"].lower() == "astra":
                 code = ASTRAGenerator
-            elif kwargs["code"].lower() in ["generic", "framework"]:
+            elif kwargs["code"].lower() in ["generic", "framework", "simba"]:
                 code = frameworkGenerator
             else:
                 raise NotImplementedError(f"Generator {kwargs['code']} not supported; must be ASTRA or GPT")
@@ -1448,7 +1395,7 @@ class Framework(BaseModel):
             generator = GPTGenerator(**old_kwargs)
         # elif generator.lower() == "opal":
         #     generator = OPALGenerator(**old_kwargs)
-        elif generator.lower() in ["generic", "framework"]:
+        elif generator.lower() in ["generic", "framework", "simba"]:
             generator = frameworkGenerator(**old_kwargs)
         else:
             if generator.lower() != "astra":

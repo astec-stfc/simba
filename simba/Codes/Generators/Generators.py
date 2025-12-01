@@ -153,11 +153,11 @@ class frameworkGenerator(BaseModel):
     The parameters can be modified after the class is instantiated, and the defaults can be loaded in from a .yaml file.
     The top-level :class:`~simba.Framework.Framework` class has a
     :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
-    `MasterLattice.Generators` directory. Specific distributions can be specified therein.
+    `<master_lattice>.Generators` directory. Specific distributions can be specified therein.
 
     Example: loading generator defaults.
 
-    Prepare `defaults.yaml` file for generators in `<master_lattice_location>/Generators/`:
+    Prepare `defaults.yaml` file for generators in `<master_lattice>/Generators/`:
 
     .. code-block:: yaml
 
@@ -224,7 +224,7 @@ class frameworkGenerator(BaseModel):
     name: str = "generator"
     """Name of this generator class"""
 
-    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework"] = "ASTRA"
+    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
     """Simulation code to be used for generating distributions"""
 
     sigma_x: float = 0.0

@@ -44,7 +44,7 @@ def xopt_optimisation(
     directory : str
         The root framework run directory. Each iteration of the optimisation will produce a subdirectory.
     settings_file : str
-        The .def file in MasterLattice/Lattices/
+        The .def file in <master_lattice>/Lattices/
     start_lattice : Optional[str]
         The starting lattice line
     end_lattice : Optional[str]
