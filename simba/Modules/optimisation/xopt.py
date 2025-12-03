@@ -108,10 +108,15 @@ def xopt_optimisation(
     data = {}
     for index in range(len(fwdir.beams)):
         beam = fwdir.beams[index]
-        scr = re.split(r' |/|\\', beam.filename)[-1].split('.')[0]
+        scr = re.split(r' |/|\\', beam.filename)[-1].strip(".openpmd.hdf5")
         for param in params:
-            pp = float(getattr(beam, param))
-            if param in ["enx", "eny"]:
-                pp = abs(pp)
+            try:
+                pp = float(getattr(beam, param))
+                if param in ["enx", "eny"]:
+                    pp = abs(pp)
+            except ZeroDivisionError:
+                pp = float('inf')
+            except RecursionError:
+                pp = float('inf')
             data.update({f'{scr}:{param}': pp})
     return data

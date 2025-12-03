@@ -10,7 +10,7 @@ def read_SDDS_beam_file(
 ):
     self.reset_dicts()
     self.sddsindex += 1
-    elegantObject = SDDSFile(index=None, ascii=ascii)
+    elegantObject = SDDSFile(index=self.sddsindex, ascii=ascii)
     elegantObject.read_file(fileName, page=page)
     elegantData = elegantObject.data
     required_keys = ["x", "y", "t", "xp", "yp", "p"]
