@@ -41,6 +41,7 @@ from . import mad8
 from . import openpmd
 from . import xsuite
 from . import opal
+from . import genesis
 
 try:
     from . import plot

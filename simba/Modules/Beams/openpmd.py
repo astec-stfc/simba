@@ -84,6 +84,7 @@ def write_openpmd_beam_file(
     if hasattr(self, "reference_particle") and self.reference_particle is not None:
         write_openpmd_reference_particle(self, h5file_species)
     h5file.close()
+    return particles
 
 
 def write_openpmd_reference_particle(self, h5: File):

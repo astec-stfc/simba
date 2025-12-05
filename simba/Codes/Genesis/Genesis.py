@@ -262,6 +262,7 @@ class genesisLattice(frameworkLattice):
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".lat"
         )
         saveFile(lattice_file, self.writeElements())
+        self.files.append(lattice_file)
         # try:
         command_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
@@ -276,6 +277,7 @@ class genesisLattice(frameworkLattice):
                     elif isinstance(cfile, list):
                         for cf in cfile:
                             saveFile(command_file, cf.write_Genesis(), "a")
+            self.files.append(command_file)
         else:
             warn("commandFiles length is zero; run preProcess first")
 
@@ -310,6 +312,7 @@ class genesisLattice(frameworkLattice):
             ngrid=self.ngrid,
             dgrid=self.dgrid,
             waist_size=self.waist_size,
+            waist_pos=self.wigglers[0].physical.middle.z - self.startObject.physical.start.z
         )
         self.commandFiles["track"] = genesis_track_command()
         self.commandFiles["write"] = genesis_write_command(
@@ -338,16 +341,16 @@ class genesisLattice(frameworkLattice):
         first_wiggler = self.wigglers[0]
         if not self.fundamental_wavelength:
             self.fundamental_wavelength = first_wiggler.period / (2 * gamma0**2)
-            self.fundamental_wavelength *= (1 + first_wiggler.strength**2 / 2)
+            self.fundamental_wavelength *= (1 + first_wiggler.normalized_strength**2)
         else:
-            lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.strength**2 / 2)
+            lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.normalized_strength**2)
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
                 warn(f"First undulator strength is not close to fundamental_wavelength")
         delz = first_wiggler.period
         self.commandFiles["setup"] = genesis_setup_command(
             rootname=self.objectname,
             lattice=self.objectname + ".lat",
-            outputdir=self.global_parameters["master_subdir"],
+            #outputdir=self.global_parameters["master_subdir"],
             beamline=self.objectname,
             one4one=self.one4one,
             lambda0=self.fundamental_wavelength,
@@ -385,7 +388,7 @@ class genesisLattice(frameworkLattice):
             rbf.genesis.write_genesis_beam_file(
                 self.global_parameters["beam"],
                 genesisbeamfilename,
-                n_slice = int(self.npart / self.nbins),
+                n_slice = int(self.nbins),
             )
             beam_profile_properties = self.get_beam_profile_properties()
             props = {}
@@ -400,6 +403,7 @@ class genesisLattice(frameworkLattice):
                 )
                 props.update({b: f"{b}_profile"})
             self.commandFiles["beam"] = genesis_beam_command(**props)
+            self.files.append(f"{self.global_parameters['master_subdir']}/{self.start}.genesis.hdf5")
         elif self.beam_type == "beam":
             beam_properties = self.get_average_beam_properties()
             self.commandFiles["beam"] = genesis_beam_command(**beam_properties)
@@ -499,8 +503,8 @@ class genesis_setup_command(genesisCommandFile):
     """The basic string, with which all output files will start, 
     unless the output filename is directly overwritten (see write namelist)"""
 
-    outputdir: str
-    """Output directory name."""
+    #outputdir: str
+    #"""Output directory name."""
 
     lattice: str
     """The name of the file which contains the undulator lattice description. 
@@ -587,35 +591,35 @@ class genesis_setup_command(genesisCommandFile):
     By setting the flag to false the current profile is written out at each output step 
     similar to radiation power and bunching profile."""
 
-    exclude_twiss_output: bool = True
-    """Flag to reduce the size of the twiss (emittance, beta and alpha values) dataset 
-    for the electron beam. Under most circumstances the twiss parameters are constant 
-    and only the initial values are written out. However, simulation with :attr:`~one4one` 
-    set to True and sorting events the twiss parameters might change. Example are 
-    ESASE/HGHG schemes. By setting the flag to false the twiss values written out 
-    at each output step similar to radiation power and bunching profile."""
+    #exclude_twiss_output: bool = True
+    #"""Flag to reduce the size of the twiss (emittance, beta and alpha values) dataset
+    #for the electron beam. Under most circumstances the twiss parameters are constant
+    #and only the initial values are written out. However, simulation with :attr:`~one4one`
+    #set to True and sorting events the twiss parameters might change. Example are
+    #ESASE/HGHG schemes. By setting the flag to false the twiss values written out
+    #at each output step similar to radiation power and bunching profile."""
 
     exclude_field_dump: bool = False
     """Exclude the field dump to .fld.h5."""
 
-    write_meta_file: bool = False
-    """Write a metadata file."""
+    #write_meta_file: bool = False
+    #"""Write a metadata file."""
 
-    semaphore_file_name: str = ""
-    """Providing a file name for the semaphore file always switches on writing the 
-    "done" semaphore file, overriding 'write_semaphore_file' flag. 
-    This allows to switch on semaphore functionality just by specifying corresponding 
-    command line argument -- no modification of G4 input file needed."""
+    #semaphore_file_name: str = ""
+    #"""Providing a file name for the semaphore file always switches on writing the
+    #"done" semaphore file, overriding 'write_semaphore_file' flag.
+    #This allows to switch on semaphore functionality just by specifying corresponding
+    #command line argument -- no modification of G4 input file needed."""
 
-    write_semaphore_file: bool = False
-    """Write a semaphore file when the simulation has completed."""
+    #write_semaphore_file: bool = False
+    #"""Write a semaphore file when the simulation has completed."""
 
-    write_semaphore_file_done: bool = False
-    """Alias for write_semaphore_file. 
-    This takes precedence over :attr:`~write_semaphore_file` if both are specified."""
+    #write_semaphore_file_done: bool = False
+    #"""Alias for write_semaphore_file.
+    #This takes precedence over :attr:`~write_semaphore_file` if both are specified."""
 
-    write_semaphore_file_started: bool = False
-    """Write a semaphore file at startup, after the setup block is parsed."""
+    #write_semaphore_file_started: bool = False
+    #"""Write a semaphore file at startup, after the setup block is parsed."""
 
 class genesis_alter_setup_command(genesisCommandFile):
     """
@@ -1480,6 +1484,6 @@ class genesis_track_command(genesisCommandFile):
     bunchharm: int = Field(default=1, gt=1)
     """Bunching harmonic output setting. Must be >= 1."""
 
-    exclusive_harmonics: bool = False
-    """If set to true than only the requested bunching harmonic is included in output. 
-    Otherwise all harmonic sup and including the specified harmonics are included."""
+    #exclusive_harmonics: bool = False
+    #"""If set to true than only the requested bunching harmonic is included in output.
+    #Otherwise all harmonic sup and including the specified harmonics are included."""
