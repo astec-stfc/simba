@@ -1,7 +1,13 @@
+import os
+import h5py
+import numpy as np
+from .. import constants
+
 def get_mean(data, is_array: bool):
     if is_array:
         return np.mean(data, axis=1)
     return data
+
 def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
     if reset:
         self.reset_dicts()
@@ -51,7 +57,7 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.sigma_xp.val = np.append(self.sigma_xp.val, py)
         self.sigma_yp.val = np.append(self.sigma_yp.val, py)
         self.mean_x.val = np.append(self.mean_x.val, get_mean(file["/Beam/xposition"][()], is_array))
-        self.mean_x.val = np.append(self.mean_x.val, get_mean(file["/Beam/yposition"][()], is_array))
+        self.mean_y.val = np.append(self.mean_y.val, get_mean(file["/Beam/yposition"][()], is_array))
         if len(self.sigma_t.val) > 0:
             self.sigma_t.val = np.append(self.sigma_t.val, np.full(len(s), self.sigma_t.val[-1]))
         else:
