@@ -1436,9 +1436,9 @@ class genesis_write_command(genesisCommandFile):
     """If a filename is defined, Genesis writes out the particle distribution. 
     The filename gets the extension.par.h5 automatically"""
 
-    stride: int = 1
-    """For values larger than 1 the amount of particles written to the file is reduced 
-    by only writing each stride-th particle to the dump file."""
+    #stride: int = 1
+    #"""For values larger than 1 the amount of particles written to the file is reduced
+    #by only writing each stride-th particle to the dump file."""
 
 
 class genesis_track_command(genesisCommandFile):

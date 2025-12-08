@@ -1,13 +1,7 @@
-import os
-import h5py
-import numpy as np
-from .. import constants
-
 def get_mean(data, is_array: bool):
     if is_array:
         return np.mean(data, axis=1)
     return data
-
 def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
     if reset:
         self.reset_dicts()
@@ -25,7 +19,7 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
             is_array = False
         self.z.val = np.append(self.z.val, s)
         self.s.val = np.append(self.s.val, s)
-        cp = get_mean(file["/Beam/energy"][::,0], is_array) * self.E0
+        cp = get_mean(file["/Beam/energy"], is_array) * self.E0
         # self.append('cp', cp)
         ke = np.array(
             (np.sqrt(self.E0 ** 2 + cp ** 2) - self.E0 ** 2) / constants.elementary_charge
@@ -36,24 +30,24 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.cp.val = np.append(self.cp.val, cp)
         self.gamma.val = np.append(self.gamma.val, gamma)
         self.p.val = np.append(self.p.val, cp * self.q_over_c)
-        self.enx.val = np.append(self.enx.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array)))
-        self.ex.val = np.append(self.ex.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array) / gamma))
-        self.ecnx.val = np.append(self.ecnx.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array)))
-        self.eny.val = np.append(self.eny.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array)))
-        self.ey.val = np.append(self.ey.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array) / gamma))
-        self.ecny.val = np.append(self.ecny.val, np.full(len(s), get_mean(file["/Beam/emitx"][::,0], is_array)))
-        self.beta_x.val = np.append(self.beta_x.val, np.full(len(s), get_mean(file["/Beam/betax"][::,0], is_array)))
-        self.alpha_x.val = np.append(self.alpha_x.val, np.full(len(s), get_mean(file["/Beam/alphax"][::,0], is_array)))
-        self.beta_y.val = np.append(self.beta_y.val, np.full(len(s), get_mean(file["/Beam/betay"][::,0], is_array)))
-        self.alpha_y.val = np.append(self.alpha_y.val, np.full(len(s), get_mean(file["/Beam/alphax"][::,0], is_array)))
-        self.beta_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/betax"][::,0], is_array)))
-        self.beta_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/betay"][::,0], is_array)))
-        self.alpha_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/alphax"][::,0], is_array)))
-        self.alpha_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/alphay"][::,0], is_array)))
+        self.enx.val = np.append(self.enx.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array)))
+        self.ex.val = np.append(self.ex.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array) / gamma))
+        self.ecnx.val = np.append(self.ecnx.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array)))
+        self.eny.val = np.append(self.eny.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array)))
+        self.ey.val = np.append(self.ey.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array) / gamma))
+        self.ecny.val = np.append(self.ecny.val, np.full(len(s), get_mean(file["/Beam/emitx"], is_array)))
+        self.beta_x.val = np.append(self.beta_x.val, np.full(len(s), get_mean(file["/Beam/betax"], is_array)))
+        self.alpha_x.val = np.append(self.alpha_x.val, np.full(len(s), get_mean(file["/Beam/alphax"], is_array)))
+        self.beta_y.val = np.append(self.beta_y.val, np.full(len(s), get_mean(file["/Beam/betay"], is_array)))
+        self.alpha_y.val = np.append(self.alpha_y.val, np.full(len(s), get_mean(file["/Beam/alphax"], is_array)))
+        self.beta_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/betax"], is_array)))
+        self.beta_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/betay"], is_array)))
+        self.alpha_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/alphax"], is_array)))
+        self.alpha_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/alphay"], is_array)))
         self.sigma_x.val = np.append(self.sigma_x.val, get_mean(file["/Beam/xsize"][()], is_array))
         self.sigma_y.val = np.append(self.sigma_y.val, get_mean(file["/Beam/ysize"][()], is_array))
-        px = (get_mean(file["/Beam/pxmax"][()], is_array) - get_mean(file["/Beam/pxmin"][()], is_array)) / 2
-        py = (get_mean(file["/Beam/pymax"][()], is_array) - get_mean(file["/Beam/pymin"][()], is_array)) / 2
+        px = get_mean(file["/Beam/pxposition"][()], is_array)
+        py = get_mean(file["/Beam/pyposition"][()], is_array)
         self.sigma_xp.val = np.append(self.sigma_xp.val, py)
         self.sigma_yp.val = np.append(self.sigma_yp.val, py)
         self.mean_x.val = np.append(self.mean_x.val, get_mean(file["/Beam/xposition"][()], is_array))
@@ -72,10 +66,10 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.ez.val = np.append(self.ez.val, np.zeros(len(s)))
 
         self.gamma_x.val = np.append(
-            self.gamma_x.val, (1 + np.full(len(s), get_mean(file["/Beam/alphax"][::,0], is_array)) ** 2) / np.full(len(s), get_mean(file["/Beam/betax"][::,0], is_array))
+            self.gamma_x.val, (1 + np.full(len(s), get_mean(file["/Beam/alphax"], is_array)) ** 2) / np.full(len(s), get_mean(file["/Beam/betax"], is_array))
         )
         self.gamma_y.val = np.append(
-            self.gamma_x.val, (1 + np.full(len(s), get_mean(file["/Beam/alphay"][::,0], is_array)) ** 2) / np.full(len(s), get_mean(file["/Beam/betay"][::,0], is_array))
+            self.gamma_x.val, (1 + np.full(len(s), get_mean(file["/Beam/alphay"], is_array)) ** 2) / np.full(len(s), get_mean(file["/Beam/betay"], is_array))
         )
         self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(s)))
         self.gamma_z.val = np.append(self.gamma_z.val, np.zeros(len(s)))
@@ -108,4 +102,3 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.eta_y_beam.val = np.append(self.eta_y_beam.val, np.zeros(len(s)))
         self.eta_yp_beam.val = np.append(self.eta_yp_beam.val, np.zeros(len(s)))
         file.close()
-
