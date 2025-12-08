@@ -17,8 +17,7 @@ beam_evaluate = (
     "peak_current",
     "enx",
     "eny",
-    "mean_energy",
-    "momentum_spread",
+    "mean_cp",
 )
 
 def xopt_optimisation(

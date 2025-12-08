@@ -515,7 +515,7 @@ class elegantLattice(frameworkLattice):
             self.hdf5_to_sdds()
         self.createCommandFiles()
 
-    @lox.thread(40)
+    @lox.thread(60)
     def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int, **kwargs) -> None:
         """
         Convert output from ELEGANT screen to HDF5 format
@@ -527,16 +527,16 @@ class elegantLattice(frameworkLattice):
         sddsindex: int
             SDDS object index
         """
-        try:
-            return self.sdds_to_hdf5(
-                scr,
-                sddsindex,
-                toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                **kwargs,
-            )
-        except Exception as e:
-            print(f"Screen error {scr.name}, {e}")
-            return None
+        # try:
+        return self.sdds_to_hdf5(
+            scr,
+            sddsindex,
+            toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
+            **kwargs,
+        )
+        # except Exception as e:
+        #     print(f"Screen error {scr.name}, {e}")
+        #     return None
 
     def postProcess(self) -> None:
         """
@@ -548,7 +548,13 @@ class elegantLattice(frameworkLattice):
         super().postProcess()
         if self.trackBeam:
             for i, s in enumerate(self.screens_and_markers_and_bpms):
-                self.screen_threaded_function.scatter(s, i, ref_index=self.ref_idx)
+                self.sdds_to_hdf5(
+                    s,
+                    i,
+                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
+                    ref_index=self.ref_idx,
+                )
+                # self.screen_threaded_function.scatter(s, i, ref_index=self.ref_idx)
             if (
                 self.final_screen is not None
                 and not self.final_screen.output_filename.lower()
@@ -556,12 +562,18 @@ class elegantLattice(frameworkLattice):
                     s.output_filename.lower() for s in self.screens_and_markers_and_bpms
                 ]
             ):
-                self.screen_threaded_function.scatter(
+                self.sdds_to_hdf5(
                     self.final_screen,
                     len(self.screens_and_markers_and_bpms),
-                    ref_index=self.ref_idx
+                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
+                    ref_index=self.ref_idx,
                 )
-        self.screen_threaded_function.gather()
+        #         self.screen_threaded_function.scatter(
+        #             self.final_screen,
+        #             len(self.screens_and_markers_and_bpms),
+        #             ref_index=self.ref_idx
+        #         )
+        # self.screen_threaded_function.gather()
         self.commandFiles = {}
 
     def hdf5_to_sdds(self, write: bool = True) -> None:
