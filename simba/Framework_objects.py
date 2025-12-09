@@ -1951,10 +1951,12 @@ class frameworkLattice(BaseModel):
         if len(varelems) == 0:
             raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
         res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
+        print("Matching results:")
         for i, r in enumerate(res):
             magnetic_order = self.elementObjects[params["variables"][i]].magnetic.order
             magnetic_length = self.elementObjects[params["variables"][i]].magnetic.length
             setattr(self.elementObjects[params["variables"][i]], f"k{magnetic_order}l", r * magnetic_length)
+            print("\t", self.elementObjects[params["variables"][i]].name, f"k{magnetic_order}l =", r * magnetic_length)
 
 class global_error(frameworkObject):
     """

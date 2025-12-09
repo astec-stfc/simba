@@ -380,9 +380,18 @@ def plotScreenImage(
     use_scipy=False,
     subtract_mean=[False, False],
     title="",
+    filename=None,
+    fig=None,
+    ax=None,            # external Axes
+    labelsize=None,     # axis label font size
     **kwargs,
 ):
-    # Do the self-consistent density estimate
+    import numpy as np
+    import os
+    import matplotlib.pyplot as plt
+    from scipy import stats
+
+    # --- Process inputs ---
     key1, key2 = keys
     if not isinstance(subtract_mean, (list, tuple)):
         subtract_mean = [subtract_mean, subtract_mean]
@@ -391,6 +400,7 @@ def plotScreenImage(
     if not isinstance(size, (list, tuple)):
         size = [size, size]
 
+    # --- Get arrays from beam ---
     x, f1, p1 = nice_array(
         scale[0] * (getattr(beam, key1) - subtract_mean[0] * np.mean(getattr(beam, key1)))
     )
@@ -399,20 +409,16 @@ def plotScreenImage(
     )
 
     u1, u2 = [getattr(beam, k).units for k in keys]
-    ux = p1 + u1
-    uy = p2 + u2
+    labelx = f"{key1} ({p1 + u1})"
+    labely = f"{key2} ({p2 + u2})"
 
-    labelx = f"{key1} ({ux})"
-    labely = f"{key2} ({uy})"
-
+    # --- Compute PDF ---
     if fastKDE_installed and not use_scipy:
         myPDF, axes = fastKDE.pdf(x, y, use_xarray=False, **kwargs)
         v1, v2 = axes
     elif SciPy_installed:
-        xmin = x.min()
-        xmax = x.max()
-        ymin = y.min()
-        ymax = y.max()
+        xmin, xmax = x.min(), x.max()
+        ymin, ymax = y.min(), y.max()
         v1, v2 = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
         positions = np.vstack([v1.ravel(), v2.ravel()])
         values = np.vstack([x, y])
@@ -420,201 +426,120 @@ def plotScreenImage(
         myPDF = np.reshape(kernel(positions).T, v1.shape)
     else:
         raise Exception("fastKDE or SciPy required")
-    # normalise the PDF to 1
+
     myPDF = myPDF / myPDF.max() * iscale
 
-    # Initialise the plot objects
-    # start with a square Figure
-
-    # Add a gridspec with two rows and two columns and a ratio of 2 to 7 between
-    # the size of the marginal axes and the main axes in both directions.
-    # Also adjust the subplot parameters for a square plot.
-    if marginals:
-        fig = plt.figure(figsize=(12.41, 12.41))
-        gs = fig.add_gridspec(
-            2,
-            2,
-            width_ratios=(8, 2),
-            height_ratios=(2, 8),
-            left=0.1,
-            right=0.9,
-            bottom=0.1,
-            top=0.95,
-            wspace=0.05,
-            hspace=0.05,
-        )
-        ax = fig.add_subplot(gs[1, 0])
-        ax_histx = fig.add_subplot(gs[0, 0], sharex=ax)
-        ax_histy = fig.add_subplot(gs[1, 1], sharey=ax)
+    # --- Figure / Axes creation ---
+    if ax is None:
+        if marginals:
+            fig = plt.figure(figsize=(12.41, 12.41))
+            gs = fig.add_gridspec(
+                2, 2,
+                width_ratios=(8, 2),
+                height_ratios=(2, 8),
+                left=0.1, right=0.9,
+                bottom=0.1, top=0.95,
+                wspace=0.05, hspace=0.05
+            )
+            ax = fig.add_subplot(gs[1, 0])
+            ax_histx = fig.add_subplot(gs[0, 0], sharex=ax)
+            ax_histy = fig.add_subplot(gs[1, 1], sharey=ax)
+        else:
+            fig = plt.figure(figsize=(10, 10))
+            fig.subplots_adjust(top=0.95)
+            ax = fig.add_subplot()
     else:
-        fig = plt.figure(figsize=(10, 10))
-        fig.subplots_adjust(top=0.95)
-        ax = fig.add_subplot()
+        fig = ax.figure
+        if marginals:
+            raise ValueError("marginals=True cannot be used when an external ax= is provided.")
 
-    # Define ticks
-    # Major ticks every 5, minor ticks every 1
+    # --- Determine size and limits ---
     if size[0] is None:
         use_size = False
         if not screen:
-            xmin, xmax = [min(v1.flatten()), max(v1.flatten())]
-            ymin, ymax = [min(v2.flatten()), max(v2.flatten())]
+            xmin, xmax = v1.min(), v1.max()
+            ymin, ymax = v2.min(), v2.max()
             size = [xmax - xmin, ymax - ymin]
         else:
-            xmin, xmax = -15, 15
-            ymin, ymax = -15, 15
+            xmin, xmax, ymin, ymax = -15, 15, -15, 15
             size = [15, 15]
-        minvalx = xmin
-        maxvalx = xmax
-        meanvalx = (xmin + xmax) / 2.0 if not subtract_mean[0] else 0
-        minvaly = ymin
-        maxvaly = ymax
-        meanvaly = (ymin + ymax) / 2.0 if not subtract_mean[1] else 0
+        meanvalx = 0 if subtract_mean[0] else (xmin + xmax)/2
+        meanvaly = 0 if subtract_mean[1] else (ymin + ymax)/2
     else:
         use_size = True
-        maxvalx = size[0] / f1
-        minvalx = -maxvalx
-        meanvalx = (max(v1) + min(v1)) / 2.0 if not subtract_mean[0] else 0
-        maxvaly = size[1] / f2
-        minvaly = -maxvaly
-        meanvaly = (max(v2) + min(v2)) / 2.0 if not subtract_mean[1] else 0
-        size[0] = size[0] / f1
-        size[1] = size[1] / f2
+        meanvalx = 0 if subtract_mean[0] else (v1.max() + v1.min())/2
+        meanvaly = 0 if subtract_mean[1] else (v2.max() + v2.min())/2
+        size[0] = size[0]/f1
+        size[1] = size[1]/f2
 
-    # print(meanvaly, minvaly, maxvaly)
-    # major_ticksx = meanvalx + np.arange(
-    #     minvalx, maxvalx + (maxvalx - minvalx) / 100, (maxvalx - minvalx) / 4
-    # )
-    # minor_ticksx = meanvalx + np.arange(
-    #     minvalx, maxvalx + (maxvalx - minvalx) / 100, (maxvalx - minvalx) / 40
-    # )
-    # ax.set_xticks(major_ticksx)
-    # ax.set_xticks(minor_ticksx, minor=True)
-    # major_ticksy = meanvaly + np.arange(
-    #     minvaly, maxvaly + (maxvaly - minvaly) / 100, (maxvaly - minvaly) / 4
-    # )
-    # minor_ticksy = meanvaly + np.arange(
-    #     minvaly, maxvaly + (maxvaly - minvaly) / 100, (maxvaly - minvaly) / 40
-    # )
-    # # print(minvaly, maxvaly, meanvaly, major_ticksy)
-    # ax.set_yticks(major_ticksy)
-    # ax.set_yticks(minor_ticksy, minor=True)
-
-    if marginals:
-        hist, bin_edges = myPDF.sum(axis=0)[:-1], v1
-        hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
-        hist_width = np.diff(bin_edges)
-        hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
-        ax_histx.bar(hist_x, hist_y, hist_width, color=colormap(hist_y / max(hist_y)))
-
-        hist, bin_edges = myPDF.sum(axis=1)[:-1], v2
-        hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
-        hist_width = np.diff(bin_edges)
-        hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
-        ax_histy.barh(hist_x, hist_y, hist_width, color=colormap(hist_y / max(hist_y)))
-
-    # Make a circle for the edges of the screen
-    if screen:
-        draw_circle = plt.Circle(
-            (meanvalx, meanvaly),
-            15,
-            fill=True,
-            ec="w",
-            fc=colormap(0),
-            zorder=-1,
-        )
-        ax.add_artist(draw_circle)
-    if screen:
-        ax.set_facecolor("k")
-    else:
-        ax.set_facecolor(colormap(0))
-
-    # Make a circle to clip the PDF
-    if screen:
-        circ = plt.Circle((meanvalx, meanvaly), 15, facecolor="none")
-    else:
-        circ = plt.Circle((meanvalx, meanvaly), 3 * max(size), facecolor="none")
-    # ax.add_patch(circ) # Plot the outline
-
-    # Plot the PDF
-    if grid:
-        # Add a grid
-        ax.grid(which="minor", color="w", alpha=0.3, clip_path=circ)
-        ax.grid(which="major", color="w", alpha=0.55, clip_path=circ)
-    # Set the image limits to slightly larger than the screen size
-    if limits:
-        if isinstance(limits, (int, float)):
-            limits = (-limits, limits)
-        if np.array(limits).shape == (2, 2):
+    # --- Set axis limits ---
+    if limits is not None:
+        limits = np.array(limits)
+        if limits.shape == (2, 2):
             ax.set_xlim(limits[0])
             ax.set_ylim(limits[1])
-            bbox = plt.Rectangle(
-                (min(limits[0]), min(limits[1])),
-                max(limits[0]) - min(limits[0]),
-                max(limits[1]) - min(limits[1]),
-                facecolor="none",
-                edgecolor="none",
-            )
-        elif np.array(limits).shape == (2,):
+        elif limits.shape == (2,):
             ax.set_xlim(limits)
             ax.set_ylim(limits)
-            # make a bounding box for the limits
-            bbox = plt.Rectangle(
-                (min(limits), min(limits)),
-                max(limits) - min(limits),
-                max(limits) - min(limits),
-                facecolor="none",
-                edgecolor="none",
-            )
     elif screen or use_size:
         ax.set_xlim([meanvalx - (size[0] + 0.5), meanvalx + (size[0] + 0.5)])
         ax.set_ylim([meanvaly - (size[1] + 0.5), meanvaly + (size[1] + 0.5)])
-        bbox = plt.Rectangle(
-            (-(size[0] + 0.5), -(size[1] + 0.5)),
-            size[0] + 0,
-            size[1] + 0,
-            facecolor="none",
-            edgecolor="none",
-        )
     else:
-        ax.set_xlim([min(v1), max(v1)])
-        ax.set_ylim([min(v2), max(v2)])
-        bbox = plt.Polygon(
-            [
-                (min(v1), min(v2)),
-                (min(v1), max(v2)),
-                (max(v1), max(v2)),
-                (max(v1), min(v2)),
-            ],
-            facecolor="none",
-            edgecolor="none",
-        )
-    # ax.add_artist(bbox)
+        ax.set_xlim([v1.min(), v1.max()])
+        ax.set_ylim([v2.min(), v2.max()])
 
-    mesh = ax.pcolormesh(
-        v1, v2, myPDF, cmap=colormap, zorder=1, shading="auto"
-    )  # , clip_path=bbox)
-    # if screen:
-    #     mesh.set_clip_path(circ)
+    # --- Optional marginals ---
     if marginals:
-        plt.setp(ax_histx.get_xticklabels(), visible=False)
-        plt.setp(ax_histy.get_yticklabels(), visible=False)
-    # ax_histy.set_ylim([-(size + 0.5), (size + 0.5)])
-    ax.set_xlabel(labelx)
-    ax.set_ylabel(labely)
+        hist, bin_edges = myPDF.sum(axis=0)[:-1], v1
+        hist_x = bin_edges[:-1] + np.diff(bin_edges)/2
+        hist_width = np.diff(bin_edges)
+        hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
+        ax_histx.bar(hist_x, hist_y, hist_width, color=colormap(hist_y/max(hist_y)))
 
-    # Extract the screen name
-    file, ext = os.path.splitext(os.path.basename(beam.filename))
-    # Set the screen name as the title
-    if title == "":
-        plt.suptitle(file)
+        hist, bin_edges = myPDF.sum(axis=1)[:-1], v2
+        hist_x = bin_edges[:-1] + np.diff(bin_edges)/2
+        hist_width = np.diff(bin_edges)
+        hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
+        ax_histy.barh(hist_x, hist_y, hist_width, color=colormap(hist_y/max(hist_y)))
+
+    # --- Screen circle and face color ---
+    if screen:
+        circ = plt.Circle((meanvalx, meanvaly), 15, facecolor="none")
+        ax.add_artist(plt.Circle((meanvalx, meanvaly), 15, fill=True, ec="w", fc=colormap(0), zorder=-1))
+        ax.set_facecolor("k")
     else:
-        plt.suptitle(title)
-    # Show the final image
-    plt.draw()
-    return ax
+        circ = plt.Circle((meanvalx, meanvaly), 3*max(size), facecolor="none")
+        ax.set_facecolor(colormap(0))
 
+    # --- Grid ---
+    if grid:
+        ax.grid(which="minor", color="w", alpha=0.3, clip_path=circ)
+        ax.grid(which="major", color="w", alpha=0.55, clip_path=circ)
+
+    # --- Main PDF ---
+    mesh = ax.pcolormesh(v1, v2, myPDF, cmap=colormap, zorder=1, shading="auto")
+
+    # --- Axis labels with optional size ---
+    if labelsize is not None:
+        ax.set_xlabel(labelx, fontsize=labelsize)
+        ax.set_ylabel(labely, fontsize=labelsize)
+        ax.tick_params(axis='both', which='major', labelsize=labelsize)
+    else:
+        ax.set_xlabel(labelx)
+        ax.set_ylabel(labely)
+
+    # --- Suptitle ---
+    file, ext = os.path.splitext(os.path.basename(beam.filename))
+    # plt.suptitle(title if title else file)
+
+    # --- Save file ---
     if isinstance(filename, str):
         plt.savefig(filename)
+
+    plt.draw()
+    return fig, ax
+
+
 
 def getScreenImage(
     beam,
