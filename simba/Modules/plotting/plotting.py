@@ -370,166 +370,151 @@ def plot(
         "aperture",
     ],
     grid=False,
+    ax_top=None,
+    ax_field_layout=None,
+    ax_magnet_layout=None,
     **kwargs,
 ):
-    """
-    Plots stat output multiple keys.
 
-    If a list of ykeys2 is given, these will be put on the right hand axis. This can also be given as a single key.
-
-    Logical switches, all default to True:
-        nice: a nice SI prefix and scaling will be used to make the numbers reasonably sized.
-
-        include_legend: The plot will include the legend
-
-        include_layout: the layout plot will be displayed at the bottom
-
-        include_labels: the layout will include element labels.
-
-    Copied almost verbatim from lume-impact's Impact.plot.plot_stats_with_layout
-    """
-    twiss = framework_object.twiss  # convenience
-    twiss.sort()  # sort before plotting!
+    twiss = framework_object.twiss
+    twiss.sort()
     P = framework_object.beams
 
+    # ------------------------------------------------------------
+    # AXIS CREATION OR AXIS INJECTION
+    # ------------------------------------------------------------
+    external_axes = (
+        ax_top is not None
+        and (include_layout is False or (ax_field_layout is not None and ax_magnet_layout is not None))
+    )
+
     if include_layout is not False:
-        if "sharex" not in kwargs:
-            kwargs["sharex"] = True
-        fig, all_axis = plt.subplots(
-            3,
-            gridspec_kw={"height_ratios": [4, 1, 1]},
-            subplot_kw=dict(frameon=False),
-            **kwargs,
-        )
-        plt.subplots_adjust(hspace=0.0)
-        ax_field_layout = all_axis[1]
-        ax_magnet_layout = all_axis[2]
-        ax_plot = [all_axis[0]]
+        if not external_axes:
+            if "sharex" not in kwargs:
+                kwargs["sharex"] = True
+            fig, all_axis = plt.subplots(
+                3,
+                gridspec_kw={"height_ratios": [4, 1, 1]},
+                subplot_kw=dict(frameon=False),
+                **kwargs,
+            )
+            ax_top = all_axis[0]
+            ax_field_layout = all_axis[1]
+            ax_magnet_layout = all_axis[2]
+            fig.subplots_adjust(hspace=0)
     else:
-        fig, all_axis = plt.subplots(**kwargs)
-        ax_plot = [all_axis]
+        if not external_axes:
+            fig, ax_top = plt.subplots(**kwargs)
 
     if grid:
-        ax_plot[0].grid(visible=True, which="major", color="#666666", linestyle="-")
+        ax_top.grid(visible=True, which="major", color="#666666", linestyle="-")
 
-    # collect axes
+    # Collect data keys
     if isinstance(ykeys, str):
         ykeys = [ykeys]
 
     if ykeys2:
         if isinstance(ykeys2, str):
             ykeys2 = [ykeys2]
-        ax_plot.append(ax_plot[0].twinx())
+        ax_right = ax_top.twinx()
+        ax_plot = [ax_top, ax_right]
+    else:
+        ax_plot = [ax_top]
 
-    # No need for a legend if there is only one plot
     if len(ykeys) == 1 and not ykeys2:
         include_legend = False
 
+    # X-axis data
     X = twiss.stat(xkey).val
-    if not isinstance(X, twissParameter):
-        if xkey in list(twiss_defaults.keys()):
-            X = twissParameter(val=X, **twiss_defaults[xkey])
-        else:
-            X = twissParameter(val=X, name=xkey, unit="")
+    if xkey in twiss_defaults:
+        X = twissParameter(val=X, **twiss_defaults[xkey])
+    else:
+        X = twissParameter(val=X, name=xkey, unit="")
 
-    # Only get the data we need
+    # Apply limits
     if limits:
         good = np.logical_and(X.val >= limits[0], X.val <= limits[1])
-        idx = list(np.where(good is True)[0])
+        idx = np.where(good)[0]
         if len(idx) > 0:
             if idx[0] > 0:
                 good[idx[0] - 1] = True
-            if (idx[-1] + 1) < len(good):
+            if idx[-1] + 1 < len(good):
                 good[idx[-1] + 1] = True
             X = X[good]
         if min(X.val) > limits[0]:
-            limits[0] = min(X.val)
+            limits = (min(X.val), limits[1])
         if max(X.val) < limits[1]:
-            limits[1] = max(X.val)
+            limits = (limits[0], max(X.val))
     else:
-        limits = min(X.val), max(X.val)
-        good = slice(None, None, None)  # everything
+        limits = (min(X.val), max(X.val))
+        good = slice(None)
 
-    # Try particles within these bounds
+    # Particles
     Pnames = []
     X_particles = []
-
     if include_particles:
-        # try:
-        for pname in range(len(P)):  # Modified from Impact
-            xp = np.mean(np.array(getattr(P[pname], xkey)))
-            if xp >= limits[0] and xp <= limits[1]:
+        for pname in range(len(P)):
+            xp = np.mean(getattr(P[pname], xkey))
+            if limits[0] <= xp <= limits[1]:
                 Pnames.append(pname)
                 X_particles.append(xp)
         X_particles = np.array(X_particles)
-    # except:
-    #     Pnames = []
-    else:
-        Pnames = []
 
-    # X axis scaling
-    units_x = str(twiss.stat(xkey).unit)
+    # Units + nice scaling
+    units_x = X.unit
     if nice:
         X.val, factor_x, prefix_x = nice_array(X.val)
         units_x = prefix_x + units_x
     else:
         factor_x = 1
 
-    # set all but the layout
-    if include_layout is not False:
-        ax_magnet_layout.set_xlim(limits[0] / factor_x, limits[1] / factor_x)
-        ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})")
+    # Set x axis label
+    ax_plot[0].set_xlabel(f"{xkey} ({units_x})")
 
-    # Draw for Y1 and Y2
+    # Plot ykeys + ykeys2
     linestyles = ["solid", "dashed"]
-
     legend_labels = []
+    line_index = -1
 
-    ii = -1  # counter for colors
-    for ix, keys in enumerate([ykeys, ykeys2]):
+    for idx_axis, keys in enumerate([ykeys, ykeys2]):
         if not keys:
             continue
+        ax = ax_plot[idx_axis]
+        linestyle = linestyles[idx_axis]
 
-        ax = ax_plot[ix]
-        ax.ticklabel_format(useOffset=False)
-        linestyle = linestyles[ix]
-
-        ulist = []
+        # Determine units
+        units_list = []
         for key in keys:
             Y = twiss.stat(key).val
-            if not isinstance(Y, twissParameter):
-                if xkey in list(twiss_defaults.keys()):
-                    Y = twissParameter(val=Y, **twiss_defaults[key])
-                else:
-                    Y = twissParameter(val=Y, name=key, unit="")
-            ulist.append(Y.unit)
+            if key in twiss_defaults:
+                Y = twissParameter(val=Y, **twiss_defaults[key])
+            else:
+                Y = twissParameter(val=Y, name=key, unit="")
+            units_list.append(Y.unit)
 
-        # Check that units are compatible
-        # ulist = [twiss.stat(key).unit for key in keys]
-        if len(ulist) > 1:
-            for u2 in ulist[1:]:
-                assert ulist[0] == u2, f"Incompatible units: {ulist[0]} and {u2}"
+        # Unit compatibility
+        if len(set(units_list)) > 1:
+            raise ValueError("Incompatible units among ykeys.")
 
-        # String Unit representation
-        unit = str(ulist[0])
-
-        # Data
-        data = [twiss.stat(key).val[good] for key in keys]
-
-        # Labels
+        unit = units_list[0]
+        data_list = [twiss.stat(key).val[good] for key in keys]
         labels = [twiss.stat(key).label for key in keys]
 
         if nice:
-            factor, prefix = nice_scale_prefix(np.ptp(data))
+            factor, prefix = nice_scale_prefix(np.ptp(data_list))
             unit = prefix + unit
         else:
             factor = 1
 
-        # Make a line and point
-        for key, dat, label in zip(keys, data, labels):
-            legend_labels.append("$" + label.replace("sigma", r"\sigma") + "$")
-            ii += 1
-            color = "C" + str(ii)
+        for key, dat, label in zip(keys, data_list, labels):
+            line_index += 1
+            color = f"C{line_index}"
+            for symbol in ["beta", "alpha", "gamma", "sigma"]:
+                if symbol in label:
+                    label = "$" + label.replace(symbol, '\\' + symbol) + "$"
+            legend_labels.append(label)
+
+
             ax.plot(
                 X.val,
                 dat / factor,
@@ -538,52 +523,35 @@ def plot(
                 linestyle=linestyle,
             )
 
-            # Particles
-            if Pnames:
-                # try:
-                # print(Pnames, [key in P._parameters['data'] for key in Pnames])
-                Y_particles = np.array(
-                    [
-                        (
-                            np.std(getattr(P[name], key))
-                            if key in P._parameters["data"]
-                            else getattr(P[name], key)
-                        )
-                        for name in Pnames
-                    ]
-                )
-                if not all(v is None for v in Y_particles):
-                    ax.scatter(
-                        X_particles / factor_x, Y_particles / factor, color=color
-                    )
-            # except:
-            #     pass
-        labels = ["$" + k.replace("sigma", r"\sigma") + "$" for k in labels]
-        ax.set_ylabel(", ".join(labels) + f" ({unit})")
+            # Particle plots
+            if len(Pnames) > 0:
+                Yp = np.array([
+                    np.std(getattr(P[name], key))
+                    if key in P._parameters["data"]
+                    else getattr(P[name], key)
+                    for name in Pnames
+                ])
+                ax.scatter(X_particles / factor_x, Yp / factor, color=color)
 
-    # Collect legend
+        ylabel = []
+        for l in labels:
+            for symbol in ["beta", "alpha", "gamma", "sigma"]:
+                if symbol in l:
+                    l = "$" + l.replace(symbol, '\\' + symbol) + "$"
+            ylabel.append(f"{l}")
+        ylabel = ", ".join(ylabel)
+        ax.set_ylabel(ylabel + f" ({unit})")
+
+    # Legend
     if include_legend:
-        lines = []
-        # labels = []
+        handles = []
         for ax in ax_plot:
-            a, _ = ax.get_legend_handles_labels()
-            lines += a
-            # labels += b
-        ax_plot[0].legend(lines, legend_labels, loc="best")
+            h, _ = ax.get_legend_handles_labels()
+            handles.extend(h)
+        ax_plot[0].legend(handles, legend_labels, loc="best")
 
-    # Layout
-    if include_layout is not False:
-
-        # Gives some space to the top plot
-        # ax_layout.set_ylim(-1, 1.5)
-
-        if xkey == "z":
-            # ax_layout.set_axis_off()
-            ax_field_layout.set_xlim(limits[0], limits[1])
-            ax_magnet_layout.set_xlim(limits[0], limits[1])
-        # else:
-        #     ax_layout.set_xlabel('mean_z')
-        #     limits = (0, I.stop)
+    # Accelerator layout
+    if include_layout:
         add_fieldmaps_to_axes(
             framework_object.framework,
             ax_field_layout,
@@ -601,7 +569,42 @@ def plot(
                 zip(twiss.stat("z").val[good], twiss.stat("kinetic_energy").val[good])
             ),
         )
-    return plt, fig, all_axis
+        ax_field_layout.set_xlim(ax_top.get_xlim())
+        ax_magnet_layout.set_xlim(ax_top.get_xlim())
+
+    if external_axes and include_layout:
+        ax_field_layout.sharex(ax_top)
+        ax_magnet_layout.sharex(ax_top)
+
+    # 2. X label placement
+    if include_layout:
+        if external_axes:
+            # external axes: put label only on bottom axis
+            ax_top.set_xlabel("")
+            ax_field_layout.set_xlabel("")
+            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})")
+
+            # show ticks only on bottom axis
+            ax_top.tick_params(labelbottom=False)
+            ax_field_layout.tick_params(labelbottom=False)
+            ax_magnet_layout.tick_params(labelbottom=True)
+
+        else:
+            # internal axes: bottom axis gets the x-label
+            ax_top.set_xlabel("")
+            ax_field_layout.set_xlabel("")
+            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})")
+
+            ax_top.tick_params(labelbottom=False)
+            ax_field_layout.tick_params(labelbottom=False)
+            ax_magnet_layout.tick_params(labelbottom=True)
+
+    else:
+        # No layout → single axis case
+        ax_top.set_xlabel(f"{xkey} ({units_x})")
+
+    return ax_top, ax_field_layout, ax_magnet_layout
+
 
 
 def getattrsplit(self, attr):
@@ -731,7 +734,8 @@ def general_plot(
             factor = 1
 
         # Make a line and point
-        keys = ["$" + k.replace("sigma", r"\sigma") + "$" for k in keys]
+        for symbol in ["beta", "alpha", "gamma", "sigma"]:
+            keys = ["$" + k.replace(symbol, r"\\" + symbol) + "$" for k in keys]
         for key, dat in zip(keys, data):
             #
             ii += 1
