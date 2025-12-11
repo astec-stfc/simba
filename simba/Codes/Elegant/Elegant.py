@@ -550,7 +550,6 @@ class elegantLattice(frameworkLattice):
             for i, s in enumerate(self.screens_and_markers_and_bpms):
                 self.sdds_to_hdf5(
                     s,
-                    i,
                     toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
                     ref_index=self.ref_idx,
                 )
@@ -564,7 +563,6 @@ class elegantLattice(frameworkLattice):
             ):
                 self.sdds_to_hdf5(
                     self.final_screen,
-                    len(self.screens_and_markers_and_bpms),
                     toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
                     ref_index=self.ref_idx,
                 )
@@ -593,7 +591,6 @@ class elegantLattice(frameworkLattice):
     def sdds_to_hdf5(
             self,
             screen: DiagnosticElement,
-            sddsindex: int = 1,
             toffset: float = 0.0,
             ref_index: int = None
     ) -> None:
@@ -612,7 +609,6 @@ class elegantLattice(frameworkLattice):
             Reference particle index
         """
         beam = rbf.beam()
-        beam.sddsindex = sddsindex
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
         rbf.sdds.read_SDDS_beam_file(

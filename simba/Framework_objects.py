@@ -1292,7 +1292,7 @@ class frameworkLattice(BaseModel):
         command = self.objectname + suffix
         full_command = ""
         if self.code.lower() == "elegant":
-            full_command += f"export RPN_DEFNS={self.remote_setup["host"]["rpn"]} && "
+            full_command += f'export RPN_DEFNS={self.remote_setup["host"]["rpn"]} && '
         full_command += f"cd {rel_subdir} && "
         full_command +=  f"{' '.join(self.executables[self.code])} {command}"
         stdin, stdout, stderr = ssh.exec_command(full_command, get_pty=True)

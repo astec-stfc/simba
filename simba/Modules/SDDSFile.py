@@ -10,7 +10,7 @@ import enum
 
 
 def read_sdds_file(filename, ascii=False, object=None):
-    sddsobject = SDDSFile(index=0, ascii=ascii)
+    sddsobject = SDDSFile(ascii=ascii)
     sddsobject.read_file(filename)
     if object is None:
         object = munch.Munch()
@@ -271,9 +271,9 @@ class SDDSFile(object):
             index = 0
         self._index = index
         try:
-            self._sddsObject = sdds.SDDS(self._index)
+            self._sddsObject = sdds.SDDS()
         except:
-            self._sddsObject = sdds.sdds.SDDS(self._index)
+            self._sddsObject = sdds.sdds.SDDS()
         if ascii:
             self._sddsObject.mode = self._sddsObject.SDDS_ASCII
         else:
