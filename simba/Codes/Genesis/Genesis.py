@@ -281,7 +281,7 @@ class genesisLattice(frameworkLattice):
                                 "end": self.groupObjects[chicane].elements[-1].name,
                                 "r56": self.groupObjects[chicane].r56,
                                 "dipole_length": self.groupObjects[chicane].elements[0].magnetic.length,
-                                "drift_length": self.groupObjects[chicane].drift_d1_to_d2,
+                                "drift_length": self.groupObjects[chicane].elements[1].start.z - self.groupObjects[chicane].elements[0].end.z,
                                 "length": self.groupObjects[chicane].elements[-1].end.z - self.groupObjects[chicane].elements[0].start.z,
                             },
                         },
