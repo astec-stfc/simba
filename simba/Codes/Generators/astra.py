@@ -31,6 +31,8 @@ class ASTRAGenerator(frameworkGenerator):
     :ivar apply_alias_and_multiplier: Method to apply aliases and multipliers to the parameters.
     """
 
+    Lprompt: bool = False
+
     filename: str = "generator.txt"
     """Name of the output file."""
 
