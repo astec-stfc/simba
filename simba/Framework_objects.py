@@ -2297,6 +2297,46 @@ class chicane(frameworkGroup):
         return None
 
     @property
+    def drift_d1_to_d2(self) -> float:
+        """
+        Drift length between dipole 1 and dipole 2
+
+        Returns
+        -------
+        float
+            The drift length between dipole 1 and dipole 2
+        """
+        e1 = self.elements[0]
+        e2 = self.elements[1]
+        return np.sqrt(np.sum([(getattr(e2.start, d) - getattr(e1.end, d)) ** 2 for d in ["x", "y", "z"]]))
+
+    @property
+    def r56(self) -> float:
+        """
+        R56 of the chicane
+
+        Returns
+        -------
+        float
+            R56 = 2 * angle^2 * (L1 + 2/3 * L2)
+        """
+        e1 = self.elements[0]
+        ld = self.drift_d1_to_d2
+        return 2 * self.angle ** 2 * (ld * (2 * e1.magnetic.length) / 3)
+
+    @property
+    def delay(self) -> float:
+        """
+        Delay (longitudinal slippage) of the chicane
+
+        Returns
+        -------
+        float
+            Delay = 2 * R56
+        """
+        return 2 * self.r56
+
+    @property
     def angle(self) -> float:
         """
         Bending angle of the chicane

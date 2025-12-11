@@ -5,6 +5,14 @@ Various objects and functions to handle Genesis lattices and commands. See `Gene
 
     .. _Genesis manual: https://github.com/svenreiche/Genesis-1.3-Version4/tree/master/manual
 
+SASE and HGHG are currently supported, with HGHG running if a laser is associated with the first
+undulator in the lattice. In this case, a chicane should also be defined after the first undulator in
+the simulation configuration file. Harmonic conversion is calculated based on the strength of
+the first undulator in the beamline after `<lattice>.split_element` which must also be passed
+to the simulation configuration file.
+
+Advanced schemes such as EEHG are not yet supported.
+
 Classes:
     - :class:`~simba.Codes.Genesis.Genesis.genesisLattice`: The Genesis lattice object, used for
     creating a string representation of the lattice suitable for Genesis input and lattice files.
@@ -124,7 +132,7 @@ command_files_order = [
     "profile_file",
     "profile_const",
     "profile_polynom",
-    "profile_gauus",
+    "profile_gauss",
     "field",
     "importdistribution",
     "importbeam",
@@ -132,6 +140,7 @@ command_files_order = [
     "beam",
     "alter_setup",
     "alter_beam",
+    "field_2",
     "sort",
     "track",
     "write",
@@ -228,6 +237,15 @@ class genesisLattice(frameworkLattice):
     one4one: bool = False
     """If `True`, run in one-for-one mode; if not, use :attr:`~npart` and :attr:`~nbins`"""
 
+    chicanes: str | list = None
+    """Names of chicanes in the beamline; these should be defined as `chicane` groups
+    in the simulation configuration file."""
+
+    split_element: str = None
+    """Name of the element at which to split the lattice for hamonic conversion.
+    Only one split is currently allowed. Harmonic conversion is based on the strength of the 
+    first undulator after the split."""
+
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -250,7 +268,25 @@ class genesisLattice(frameworkLattice):
         str
             The lattice represented as a string compatible with Genesis
         """
-        return self.section.to_genesis()
+        chicane_dict = {}
+        if self.chicanes is not None:
+            if isinstance(self.chicanes, str):
+                self.chicanes = [self.chicanes]
+            for chicane in self.chicanes:
+                if chicane in self.groupObjects:
+                    chicane_dict.update(
+                        {
+                            chicane: {
+                                "start": self.groupObjects[chicane].elements[0].name,
+                                "end": self.groupObjects[chicane].elements[-1].name,
+                                "r56": self.groupObjects[chicane].r56,
+                                "dipole_length": self.groupObjects[chicane].elements[0].magnetic.length,
+                                "drift_length": self.groupObjects[chicane].drift_d1_to_d2,
+                                "length": self.groupObjects[chicane].elements[-1].end.z - self.groupObjects[chicane].elements[0].start.z,
+                            },
+                        },
+                    )
+        return self.section.to_genesis(split_element=self.split_element, chicanes=chicane_dict)
 
     def write(self) -> None:
         """
@@ -308,13 +344,37 @@ class genesisLattice(frameworkLattice):
                 zmatch=self.match_location,
             )
         self.commandFiles["field"] = genesis_field_command(
-            power=self.field_power,
+            power=self.get_field_power(),
             ngrid=self.ngrid,
             dgrid=self.dgrid,
-            waist_size=self.waist_size,
+            waist_size=self.get_waist_size(),
             waist_pos=self.wigglers[0].physical.middle.z - self.startObject.physical.start.z
         )
         self.commandFiles["track"] = genesis_track_command()
+        if isinstance(self.split_element, str):
+            first_wiggler = None
+            for elem in self.elements:
+                if elem.name == self.split_element:
+                    continue
+                if elem.element_type == "wiggler":
+                    first_wiggler = elem
+                    break
+            if first_wiggler is None:
+                raise ValueError(f"No undulator found after split_element {self.split_element}")
+            gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
+            lambda0_from_und = first_wiggler.period / (2 * gamma0 ** 2) * (1 + first_wiggler.normalized_strength ** 2)
+            harmonic_number = int(round(self.fundamental_wavelength / lambda0_from_und))
+            self.commandFiles["alter_setup"] = genesis_alter_setup_command(
+                beamline=f"{self.objectname}_SPLIT_2",
+                delz=first_wiggler.period,
+                harmonic=harmonic_number,
+            )
+            self.commandFiles["field_2"] = genesis_field_command(
+                power=0,
+                ngrid=self.ngrid,
+                dgrid=self.dgrid,
+                accumulate=True,
+            )
         self.commandFiles["write"] = genesis_write_command(
             field=f"{self.end}_FIELD",
             beam=f"{self.end}_BEAM",
@@ -347,11 +407,18 @@ class genesisLattice(frameworkLattice):
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
                 warn(f"First undulator strength is not close to fundamental_wavelength")
         delz = first_wiggler.period
+        if isinstance(self.split_element, str):
+            if self.split_element in self.elements:
+                beamline = f"{self.objectname}_SPLIT_1"
+            else:
+                raise ValueError(f"split_element {self.split_element} not found in elements")
+        else:
+            beamline = self.objectname
         self.commandFiles["setup"] = genesis_setup_command(
             rootname=self.objectname,
             lattice=self.objectname + ".lat",
             #outputdir=self.global_parameters["master_subdir"],
-            beamline=self.objectname,
+            beamline=beamline,
             one4one=self.one4one,
             lambda0=self.fundamental_wavelength,
             gamma0=gamma0,
@@ -434,6 +501,14 @@ class genesisLattice(frameworkLattice):
         return ddd
 
     def get_beam_profile_properties(self) -> List:
+        """
+        Get the list of beam profile properties to be written to Genesis.
+
+        Returns
+        -------
+        List
+            List of beam profile properties
+        """
         return [
             "betax",
             "betay",
@@ -454,6 +529,45 @@ class genesisLattice(frameworkLattice):
         # self.pin = rbf.beam.write_ocelot_beam_file(
         #     self.global_parameters["beam"], ocebeamfilename, write=write
         # )
+
+    def get_field_power(self) -> float | str:
+        """
+        Get the initial field power if the first undulator has a laser associated with it.
+        If not, return :attr:`~field_power`.
+
+        Returns
+        -------
+        float
+            Label of laser field profile if laser is associated with first undulator; else, :attr:`~field_power`
+        """
+        first_wiggler = self.wigglers[0]
+        if first_wiggler.laser:
+            self.commandFiles["profile_gauss"] = genesis_profile_gauss_command(
+                label=first_wiggler.name + "_laser_profile",
+                c0=first_wiggler.laser.max_power,
+                s0=first_wiggler.laser.initial_position,
+                sig=first_wiggler.laser.pulse_duration_rms * speed_of_light,
+            )
+            return f"@{first_wiggler.name}_laser_profile"
+        else:
+            return self.field_power
+
+    def get_waist_size(self) -> float:
+        """
+        Get the waist size if the first undulator has a laser associated with it.
+        If not, return :attr:`~waist_size`.
+
+        Returns
+        -------
+        float
+            Waist size
+        """
+        first_wiggler = self.wigglers[0]
+        if first_wiggler.laser:
+            waist = first_wiggler.laser.waist
+            return waist
+        else:
+            return self.waist_size
 
     def run(self) -> None:
         """
@@ -632,7 +746,7 @@ class genesis_alter_setup_command(genesisCommandFile):
     objecttype: str = "alter_setup"
     """Type of object for frameworkObject"""
 
-    rootname: str
+    rootname: str | None = None
     """The basic string, with which all output files will start, 
     unless the output filename is directly overwritten (see 
     :class:`~simba.Codes.Genesis.Genesis.genesis_write_command`)"""
@@ -1099,7 +1213,7 @@ class genesis_field_command(genesisCommandFile):
     """Position where the focal point is located relative to the undulator entrance. 
     Negative values place it before, resulting in a diverging radiation field."""
 
-    waist_size: float | str
+    waist_size: float | str | None = None
     """Waist size according to the definition of w 0 according to Siegman’s ’Laser’ handbook"""
 
     xcenter: float = 0.0
