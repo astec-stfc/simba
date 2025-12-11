@@ -971,9 +971,12 @@ class Framework(BaseModel):
                 # print 'change element exists!'
                 flat = flatten_changes_dict(d)
                 for param in flat:
-                    self.modifyElement(e, param[0], param[1])
-                    if verbose:
-                        print("modifying ", e, "[", param[0], "]", " = ", param[1])
+                    try:
+                        self.modifyElement(e, param[0], param[1])
+                        if verbose:
+                            print("modifying ", e, "[", param[0], "]", " = ", param[1])
+                    except AttributeError as ex:
+                        print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
             if e in self.groupObjects:
                 # print ('change group exists!')
                 for k, v in list(d.items()):
