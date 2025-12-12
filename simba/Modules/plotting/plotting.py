@@ -734,10 +734,9 @@ def general_plot(
             factor = 1
 
         # Make a line and point
-        for symbol in ["beta", "alpha", "gamma", "sigma"]:
-            keys = ["$" + k.replace(symbol, r"\\" + symbol) + "$" for k in keys]
+        symbols = ["beta", "alpha", "gamma", "sigma"]
+        keys = ["$" + k.replace(symbol, "\\" + symbol) + "$" for symbol in symbols for k in keys if symbol in k]
         for key, dat in zip(keys, data):
-            #
             ii += 1
             color = "C" + str(ii)
             ax.plot(
