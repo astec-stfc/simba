@@ -138,6 +138,7 @@ command_files_order = [
     "importbeam",
     "importfield",
     "beam",
+    "track_first",
     "alter_setup",
     "alter_beam",
     "field_2",
@@ -214,7 +215,7 @@ class genesisLattice(frameworkLattice):
     field_power: float = 1e3
     """Initial power for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
 
-    dgrid: float = 1e-4
+    dgrid: float = 1e-3
     """Grid size for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
 
     ngrid: int = 251
@@ -277,12 +278,14 @@ class genesisLattice(frameworkLattice):
                     chicane_dict.update(
                         {
                             chicane: {
-                                "start": self.groupObjects[chicane].elements[0].name,
-                                "end": self.groupObjects[chicane].elements[-1].name,
+                                "start": self.groupObjects[chicane].elementObjects[0].name,
+                                "end": self.groupObjects[chicane].elementObjects[-1].name,
                                 "r56": self.groupObjects[chicane].r56,
-                                "dipole_length": self.groupObjects[chicane].elements[0].magnetic.length,
-                                "drift_length": self.groupObjects[chicane].elements[1].start.z - self.groupObjects[chicane].elements[0].end.z,
-                                "length": self.groupObjects[chicane].elements[-1].end.z - self.groupObjects[chicane].elements[0].start.z,
+                                "dipole_length": self.groupObjects[chicane].elementObjects[0].magnetic.length,
+                                "drift_length": self.groupObjects[chicane].elementObjects[1].start.z -
+                                                self.groupObjects[chicane].elementObjects[0].end.z,
+                                "length": self.groupObjects[chicane].elementObjects[-1].end.z -
+                                          self.groupObjects[chicane].elementObjects[0].start.z,
                             },
                         },
                     )
@@ -353,10 +356,10 @@ class genesisLattice(frameworkLattice):
         self.commandFiles["track"] = genesis_track_command()
         if isinstance(self.split_element, str):
             first_wiggler = None
-            for elem in self.elements:
+            for elem in self.elementObjects.values():
                 if elem.name == self.split_element:
                     continue
-                if elem.element_type == "wiggler":
+                if elem.hardware_class.lower() == "wiggler":
                     first_wiggler = elem
                     break
             if first_wiggler is None:
@@ -364,6 +367,7 @@ class genesisLattice(frameworkLattice):
             gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
             lambda0_from_und = first_wiggler.period / (2 * gamma0 ** 2) * (1 + first_wiggler.normalized_strength ** 2)
             harmonic_number = int(round(self.fundamental_wavelength / lambda0_from_und))
+            self.commandFiles["track_first"] = genesis_track_command()
             self.commandFiles["alter_setup"] = genesis_alter_setup_command(
                 beamline=f"{self.objectname}_SPLIT_2",
                 delz=first_wiggler.period,

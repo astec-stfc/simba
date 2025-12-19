@@ -2278,6 +2278,7 @@ class chicane(frameworkGroup):
     def __init__(self, name, elementObjects, type, elements, **kwargs):
         super(chicane, self).__init__(name, elementObjects, type, elements, **kwargs)
         self.ratios = (1, -1, -1, 1)
+        self.elementObjects = [self.allElementObjects[e] for e in self.elements]
 
     def update(self, **kwargs) -> None:
         """
@@ -2306,8 +2307,8 @@ class chicane(frameworkGroup):
         float
             The drift length between dipole 1 and dipole 2
         """
-        e1 = self.elements[0]
-        e2 = self.elements[1]
+        e1 = self.elementObjects[0]
+        e2 = self.elementObjects[1]
         return np.sqrt(np.sum([(getattr(e2.start, d) - getattr(e1.end, d)) ** 2 for d in ["x", "y", "z"]]))
 
     @property
@@ -2320,7 +2321,7 @@ class chicane(frameworkGroup):
         float
             R56 = 2 * angle^2 * (L1 + 2/3 * L2)
         """
-        e1 = self.elements[0]
+        e1 = self.elementObjects[0]
         ld = self.drift_d1_to_d2
         return 2 * self.angle ** 2 * (ld * (2 * e1.magnetic.length) / 3)
 
