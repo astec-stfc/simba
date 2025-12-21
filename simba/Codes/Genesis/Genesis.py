@@ -124,6 +124,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Literal
+import h5py
 
 command_files_order = [
     "setup",
@@ -398,7 +399,15 @@ class genesisLattice(frameworkLattice):
         HDF5filename = f"{rootname}.openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         self.commandFiles = {}
-
+        with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.out.h5", "r+") as f:
+            dset = f["/Lattice/z"]
+            dset[:] = dset[:] + self.startObject.physical.start.z
+        try:
+            with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.Run2.out.h5", "r+") as f:
+                dset = f["/Lattice/z"]
+                dset[:] = dset[:] + self.elementObjects[self.split_element].physical.start.z
+        except FileNotFoundError:
+            pass
 
     def write_setup_file(self) -> None:
         gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
@@ -472,7 +481,7 @@ class genesisLattice(frameworkLattice):
                         ydata=f"{self.start}.genesis.hdf5/{b}",
                     )
                 )
-                props.update({b: f"{b}_profile"})
+                props.update({b: f"@{b}_profile"})
             self.commandFiles["beam"] = genesis_beam_command(**props)
             self.files.append(f"{self.global_parameters['master_subdir']}/{self.start}.genesis.hdf5")
         elif self.beam_type == "beam":

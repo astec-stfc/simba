@@ -256,7 +256,7 @@ def add_fieldmaps_to_axes(
         for a in ax:
             a.set_yticks([])
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.getSValues()), 0]])
     ax[0].plot(*data.T, color="black")
 
 
@@ -314,7 +314,7 @@ def add_magnets_to_axes(
             for name, (data, c) in fmaps[section].items():
                 a.fill(*data.T, color=c)
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.getSValues()), 0]])
     ax[0].plot(*data.T, color="black")
     if bounds:
         ax1.set_xlim(bounds[0], bounds[1])
