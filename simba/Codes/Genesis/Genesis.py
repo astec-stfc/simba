@@ -149,6 +149,22 @@ command_files_order = [
     "end",
 ]
 
+beam_profile_properties = [
+    "betax",
+    "betay",
+    "alphax",
+    "alphay",
+    "gamma",
+    "delgam",
+    "current",
+    "xcenter",
+    "ycenter",
+    "pxcenter",
+    "pycenter",
+    "ex",
+"ey"
+]
+
 class genesisLattice(frameworkLattice):
     """
     Class for defining the Genesis lattice object, used for
@@ -470,7 +486,6 @@ class genesisLattice(frameworkLattice):
                 genesisbeamfilename,
                 n_slice = int(self.nbins),
             )
-            beam_profile_properties = self.get_beam_profile_properties()
             props = {}
             self.commandFiles["profile_file"] = []
             for b in beam_profile_properties:
@@ -512,36 +527,6 @@ class genesisLattice(frameworkLattice):
             "ey": float(beam.emittance.normalized_vertical_emittance.val),
         }
         return ddd
-
-    def get_beam_profile_properties(self) -> List:
-        """
-        Get the list of beam profile properties to be written to Genesis.
-
-        Returns
-        -------
-        List
-            List of beam profile properties
-        """
-        return [
-            "betax",
-            "betay",
-            "alphax",
-            "alphay",
-            "gamma",
-            "delgam",
-            "current",
-            "xcenter",
-            "ycenter",
-            "pxcenter",
-            "pycenter",
-            "ex",
-            "ey"
-        ]
-
-        # ocebeamfilename = hdf5outname.replace("hdf5", "ocelot.npz")
-        # self.pin = rbf.beam.write_ocelot_beam_file(
-        #     self.global_parameters["beam"], ocebeamfilename, write=write
-        # )
 
     def get_field_power(self) -> float | str:
         """
