@@ -17,8 +17,8 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
             read_genesis_twiss_files(self, f, reset=False)
     elif os.path.isfile(filename):
         file = h5py.File(filename, "r")
-        s = np.array(file["/Lattice/z"][()] + startS)
-        s = np.append(s, file["/Lattice/z"][-1] + startS)
+        s = np.array(file["/Lattice/z"][()])# + startS)
+        s = np.append(s, file["/Lattice/z"][-1])# + startS)
         if file["/Beam/energy"].shape[1] > 1:
             is_array = True
         else:
@@ -43,25 +43,25 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.ey.val = np.append(self.ey.val, np.full(len(s), get_mean(file["/Beam/emitx"][()], is_array)))# / gamma))
         self.ecny.val = np.append(self.ecny.val, np.full(len(s), get_mean(file["/Beam/emitx"][()], is_array)))
         self.alpha_x.val = np.append(self.alpha_x.val, np.full(len(s), get_mean(file["/Beam/alphax"][()], is_array)))
-        self.beta_x.val = np.append(self.beta_x.val, np.full(len(s), get_mean(file["/Beam/betax"][()], is_array)))
-        self.beta_y.val = np.append(self.beta_y.val, np.full(len(s), get_mean(file["/Beam/betay"][()], is_array)))
+        # self.beta_x.val = np.append(self.beta_x.val, np.full(len(s), get_mean(file["/Beam/betax"][()], is_array)))
+        # self.beta_y.val = np.append(self.beta_y.val, np.full(len(s), get_mean(file["/Beam/betay"][()], is_array)))
         self.alpha_y.val = np.append(self.alpha_y.val, np.full(len(s), get_mean(file["/Beam/alphax"][()], is_array)))
-        self.beta_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/betax"][()], is_array)))
-        self.beta_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/betay"][()], is_array)))
+        # self.beta_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/betax"][()], is_array)))
+        # self.beta_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/betay"][()], is_array)))
         self.alpha_x_beam.val = np.append(self.beta_x_beam.val, np.full(len(s), get_mean(file["/Beam/alphax"][()], is_array)))
         self.alpha_y_beam.val = np.append(self.beta_y_beam.val, np.full(len(s), get_mean(file["/Beam/alphay"][()], is_array)))
-        self.sigma_x.val = np.append(self.sigma_x.val, get_mean(file["/Beam/xsize"][()], is_array))
-        self.sigma_y.val = np.append(self.sigma_y.val, get_mean(file["/Beam/ysize"][()], is_array))
-        # sigx = get_mean(file["/Beam/xsize"][()], is_array)
-        # sigy = get_mean(file["/Beam/ysize"][()], is_array)
-        # ex = get_mean(file["/Beam/emitx"][()], is_array) / file["/Global/gamma0"]
-        # ey = get_mean(file["/Beam/emity"][()], is_array) / file["/Global/gamma0"]
-        # self.beta_x.val = np.append(self.beta_x.val, sigx ** 2 / ex)
-        # self.beta_y.val = np.append(self.beta_y.val, sigy ** 2 / ey)
-        # self.beta_x_beam.val = np.append(self.beta_x_beam.val, sigx ** 2 / ex)
-        # self.beta_y_beam.val = np.append(self.beta_y_beam.val, sigy ** 2 / ey)
-        # self.sigma_x.val = np.append(self.sigma_x.val, sigx)
-        # self.sigma_y.val = np.append(self.sigma_y.val, sigy)
+        # self.sigma_x.val = np.append(self.sigma_x.val, get_mean(file["/Beam/xsize"][()], is_array))
+        # self.sigma_y.val = np.append(self.sigma_y.val, get_mean(file["/Beam/ysize"][()], is_array))
+        sigx = get_mean(file["/Beam/xsize"][()], is_array)
+        sigy = get_mean(file["/Beam/ysize"][()], is_array)
+        ex = get_mean(file["/Beam/emitx"][()], is_array) / file["/Global/gamma0"]
+        ey = get_mean(file["/Beam/emity"][()], is_array) / file["/Global/gamma0"]
+        self.beta_x.val = np.append(self.beta_x.val, sigx ** 2 / ex)
+        self.beta_y.val = np.append(self.beta_y.val, sigy ** 2 / ey)
+        self.beta_x_beam.val = np.append(self.beta_x_beam.val, sigx ** 2 / ex)
+        self.beta_y_beam.val = np.append(self.beta_y_beam.val, sigy ** 2 / ey)
+        self.sigma_x.val = np.append(self.sigma_x.val, sigx)
+        self.sigma_y.val = np.append(self.sigma_y.val, sigy)
         px = get_mean(file["/Beam/pxposition"][()], is_array)
         py = get_mean(file["/Beam/pyposition"][()], is_array)
         self.sigma_xp.val = np.append(self.sigma_xp.val, px)

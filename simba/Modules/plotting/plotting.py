@@ -74,7 +74,8 @@ def fieldmap_data(element, master_lattice):
         scale = element.simulation.field_amplitude
     if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
-
+        if element.structure_Type == "StandingWave" and element.n_cells > 2:
+            scale = scale / element.physical.length
     # file
     element = translate_elements(elements=[element], master_lattice_location=master_lattice)[element.name]
     element.update_field_definition()
