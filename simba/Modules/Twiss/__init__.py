@@ -744,8 +744,8 @@ class twiss(BaseModel):
         np.ndarray:
             An array of values from the specified twiss parameter array between the start and end z positions.
         """
-        startidx = self.find_nearest_idx(getattr(self, "z"), start)
-        endidx = self.find_nearest_idx(getattr(self, "z"), end) + 1
+        startidx = self.find_nearest_idx(self.z.val, start)
+        endidx = self.find_nearest_idx(self.z.val, end) + 1
         return getattr(self, name)[startidx:endidx]
 
     def get_parameter_at_z(self, param: str, z: UnitValue, tol: float = 1e-3) -> float:
@@ -847,8 +847,8 @@ class twiss(BaseModel):
             otherwise, it returns None.
             If `before` is True, it returns the parameters before the specified element.
         """
-        if element_name in self.element_name:
-            idx = list(self.element_name).index(element_name)
+        if element_name in self.element_name.val:
+            idx = list(self.element_name.val).index(element_name)
             if before:
                 idx = idx - 1
             return self.get_twiss_dict(idx)
@@ -873,13 +873,13 @@ class twiss(BaseModel):
             If z is not found, it finds the nearest z position and checks if it's within the tolerance.
             If it is, it returns the corresponding twiss parameters; otherwise, it interpolates the values.
         """
-        if z in self.z:
-            idx = list(self.z).index(z)
+        if z in self.z.val:
+            idx = list(self.z.val).index(z)
             return self.get_twiss_dict(idx)
         else:
-            nearest_z = self.find_nearest(self.z, z)
+            nearest_z = self.find_nearest(self.z.val, z)
             if abs(nearest_z - z) < tol:
-                idx = list(self.z).index(nearest_z)
+                idx = list(self.z.val).index(nearest_z)
                 return self.get_twiss_dict(idx)
             else:
                 twissdict = {}
