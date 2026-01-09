@@ -69,7 +69,7 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         self.mean_x.val = np.append(self.mean_x.val, get_mean(file["/Beam/xposition"][()], is_array))
         self.mean_y.val = np.append(self.mean_y.val, get_mean(file["/Beam/yposition"][()], is_array))
         if len(self.sigma_t.val) > 0:
-            self.sigma_t.val = np.append(self.sigma_t.val, np.full(len(s), self.sigma_t.val[-1]))
+            self.sigma_t.val = np.append(self.sigma_t.val, np.full(len(s), min(self.sigma_t.val)))
         else:
             self.sigma_t.val = np.append(self.sigma_t.val, np.zeros(len(s)))
         self.eta_x.val = np.append(self.eta_x.val, np.zeros(len(s)))
@@ -93,7 +93,10 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
 
         beta = np.sqrt(1 - (gamma ** -2))
         self.t.val = np.append(self.t.val, s / (beta * constants.speed_of_light))
-        self.sigma_z.val = np.append(self.sigma_z.val, np.zeros(len(s)))
+        if len(self.sigma_z.val) > 0:
+            self.sigma_z.val = np.append(self.sigma_z.val, np.full(len(s), min(self.sigma_z.val)))
+        else:
+            self.sigma_z.val = np.append(self.sigma_z.val, np.zeros(len(s)))
         self.sigma_cp.val = np.append(
             self.sigma_cp.val, get_mean(file["/Beam/energyspread"][()], is_array) * 0.511 * 1e6
         )
