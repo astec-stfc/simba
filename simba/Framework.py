@@ -268,6 +268,10 @@ class Framework(BaseModel):
     password: str = ""
     """Password for remote execution"""
 
+    tracking_success: bool = False
+    """Flag to indicate whether tracking was successful"""
+
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
@@ -1719,6 +1723,7 @@ class Framework(BaseModel):
         save_summary: bool = True,
         frameworkDirec: bool = False,
         check_lattice: bool = True,
+        crash_on_fail: bool = True,
     ) -> Any | None:
         """
         Tracks the current machine, or a subset based on the 'files' list.
@@ -1750,6 +1755,8 @@ class Framework(BaseModel):
             If True, return a :class:`~simba.Framework.frameworkDirectory` object
         check_lattice: bool
             Call :func:`~check_lattice` before tracking
+        crash_on_fail: bool
+            Flag to indicate whether to crash out if any step of tracking fails.
 
         Returns
         -------
@@ -1759,6 +1766,8 @@ class Framework(BaseModel):
         if check_lattice:
             if not self.check_lattice():
                 raise Exception("Lattice Error - check definitions")
+        self.tracking_success = False
+        success = True
         self.tracking = True
         self.progress = 0
         if files is None:
@@ -1780,53 +1789,62 @@ class Framework(BaseModel):
             base_percentage = 100 * (i / len(files))
             lattice_name = files[i]
             self.progress = base_percentage
-            if lattice_name == "generator" and hasattr(self, "generator"):
-                latt = self.generator
-                base_description = "Generator[" + self.generator.code + "]"
-            else:
-                latt = self.latticeObjects[lattice_name]
-                base_description = lattice_name + "[" + latt.code + "]"
-            if self.verbose:
-                pbar.set_description(base_description + ":              ")  # noqa E701
-            if preprocess and lattice_name != "generator":
+            if success:
+                if lattice_name == "generator" and hasattr(self, "generator"):
+                    latt = self.generator
+                    base_description = "Generator[" + self.generator.code + "]"
+                else:
+                    latt = self.latticeObjects[lattice_name]
+                    base_description = lattice_name + "[" + latt.code + "]"
+                if self.verbose:
+                    pbar.set_description(base_description + ":              ")  # noqa E701
+                try:
+                    if preprocess and lattice_name != "generator":
 
-                if self.verbose:
-                    pbar.set_description(
-                        base_description + ": pre-process  "
-                    )  # noqa E701
-                latt.preProcess()
-                self.progress = base_percentage + 0.25 * percentage_step
-            if self.verbose:
-                pbar.update()  # noqa E701
-            if write:
-                if self.verbose:
-                    pbar.set_description(
-                        base_description + ": write        "
-                    )  # noqa E701
-                latt.write()
-                self.progress = base_percentage + 0.5 * percentage_step
-            if self.verbose:
-                pbar.update()  # noqa E701
-            if track:
-                if self.verbose:
-                    pbar.set_description(
-                        base_description + ": track        "
-                    )  # noqa E701
-                latt.run()
-                self.progress = base_percentage + 0.75 * percentage_step
-            if self.verbose:
-                pbar.update()  # noqa E701
-            if postprocess:
-                if self.verbose:
-                    pbar.set_description(
-                        base_description + ": post-process "
-                    )  # noqa E701
-                latt.postProcess()
-                self.progress = base_percentage + 1 * percentage_step
-                if lattice_name != "generator":
-                    for name, elem in latt.elementObjects.items():
-                        if name in self.elementObjects:
-                            self.elementObjects[name] = elem
+                        if self.verbose:
+                            pbar.set_description(
+                                base_description + ": pre-process  "
+                            )  # noqa E701
+                        latt.preProcess()
+                        self.progress = base_percentage + 0.25 * percentage_step
+                    if self.verbose:
+                        pbar.update()  # noqa E701
+                    if write:
+                        if self.verbose:
+                            pbar.set_description(
+                                base_description + ": write        "
+                            )  # noqa E701
+                        latt.write()
+                        self.progress = base_percentage + 0.5 * percentage_step
+                    if self.verbose:
+                        pbar.update()  # noqa E701
+                    if track:
+                        if self.verbose:
+                            pbar.set_description(
+                                base_description + ": track        "
+                            )  # noqa E701
+                        latt.run()
+                        self.progress = base_percentage + 0.75 * percentage_step
+                    if self.verbose:
+                        pbar.update()  # noqa E701
+                    if postprocess:
+                        if self.verbose:
+                            pbar.set_description(
+                                base_description + ": post-process "
+                            )  # noqa E701
+                        latt.postProcess()
+                        self.progress = base_percentage + 1 * percentage_step
+                        if lattice_name != "generator":
+                            for name, elem in latt.elementObjects.items():
+                                if name in self.elementObjects:
+                                    self.elementObjects[name] = elem
+                except Exception as ex:
+                    warn(f"Tracking failed for lattice {lattice_name}: {ex}")
+                    success = False
+                    if crash_on_fail:
+                        raise ex
+            else:
+                warn(f"Skipping lattice {lattice_name} due to previous errors")
             if self.verbose:
                 pbar.update()  # noqa E701
         if self.verbose:
@@ -1841,6 +1859,7 @@ class Framework(BaseModel):
         if save_summary:
             self.save_summary_files()
         self.tracking = False
+        self.tracking_success = success
         if frameworkDirec:
             return frameworkDirectory(
                 directory=self.subdirectory,

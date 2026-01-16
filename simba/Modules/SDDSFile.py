@@ -271,9 +271,9 @@ class SDDSFile(object):
             index = 0
         self._index = index
         try:
-            self._sddsObject = sdds.SDDS()
+            self._sddsObject = sdds.SDDS(self._index)
         except:
-            self._sddsObject = sdds.sdds.SDDS()
+            self._sddsObject = sdds.sdds.SDDS(self._index)
         if ascii:
             self._sddsObject.mode = self._sddsObject.SDDS_ASCII
         else:
