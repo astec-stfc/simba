@@ -36,7 +36,7 @@ import time
 from nala import NALA
 from nala.models.elementList import SectionLattice, ElementList
 from nala.models.physical import Position
-from nala.models.element import Element, Quadrupole, Sextupole, Octupole
+from nala.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from nala.translator.converters.section import SectionLatticeTranslator
 
 from .Modules.merge_two_dicts import merge_two_dicts
