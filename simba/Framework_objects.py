@@ -629,7 +629,7 @@ class frameworkLattice(BaseModel):
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 
-    def insert_element(self, index: int, element: "Element") -> None:
+    def insert_element(self, index: int, element: "PhysicalBaseElement") -> None:
         """
         Insert an element at a specific index in the elements dictionary.
 
@@ -808,7 +808,7 @@ class frameworkLattice(BaseModel):
                 if self.groupSettings[g] is not None:
                     self.groupObjects[g].update(**self.groupSettings[g])
 
-    def getElement(self, element: str, param: str = None) -> dict | Element:
+    def getElement(self, element: str, param: str = None) -> dict | PhysicalBaseElement:
         """
         Get an element or group object by its name and optionally a specific parameter.
         This method checks if the element exists in the allElements dictionary or in the groupObjects dictionary.
@@ -866,7 +866,7 @@ class frameworkLattice(BaseModel):
         if isinstance(param, (list, tuple)):
             return zip(*[self.getElementType(typ, param=p) for p in param])
         return [
-            self.elements[element] if param is None else self.elements[element][param]
+            self.elements[element] if param is None else getattr(self.elements[element], param)
             for element in list(self.elements.keys())
             if self.elements[element].hardware_type.lower() == typ.lower()
         ]
@@ -1109,17 +1109,18 @@ class frameworkLattice(BaseModel):
             return self.file_block["output"]["start_element"]
         elif "zstart" in self.file_block["output"]:
             for name, elem in self.elementObjects.items():
-                if (
-                    np.isclose(elem.physical.start.z,
-                    self.file_block["output"]["zstart"], atol=1e-2)
-                ) and not elem.subelement:
-                    return name
+                if isinstance(elem, PhysicalBaseElement):
+                    if (
+                        np.isclose(elem.physical.start.z,
+                        self.file_block["output"]["zstart"], atol=1e-2)
+                    ) and not elem.subelement:
+                        return name
             return list(self.elementObjects.keys())[0]
         else:
             return list(self.elementObjects.keys())[0]
 
     @property
-    def startObject(self) -> "Element":
+    def startObject(self) -> "PhysicalBaseElement":
         """
         Property to get the starting element of the lattice.
         See :func:`start` for more details.
@@ -1152,23 +1153,24 @@ class frameworkLattice(BaseModel):
         elif "zstop" in self.file_block["output"]:
             endelems = []
             for name, elem in self.elementObjects.keys():
-                if (
-                    np.isclose(elem.physical.end.z,
-                    self.file_block["output"]["zstop"], atol=1e-2)
-                ) and not elem.subelement:
-                    endelems.append(name)
-                elif (
-                    elem.physical.end.z
-                    > self.file_block["output"]["zstop"]
-                    and len(endelems) == 0
-                ) and not elem.subelement:
-                    endelems.append(name)
+                if isinstance(elem, PhysicalBaseElement):
+                    if (
+                        np.isclose(elem.physical.end.z,
+                        self.file_block["output"]["zstop"], atol=1e-2)
+                    ) and not elem.subelement:
+                        endelems.append(name)
+                    elif (
+                        elem.physical.end.z
+                        > self.file_block["output"]["zstop"]
+                        and len(endelems) == 0
+                    ) and not elem.subelement:
+                        endelems.append(name)
             return endelems[-1]
         else:
             return list(self.elementObjects.keys())[-1]
 
     @property
-    def endObject(self) -> "Element":
+    def endObject(self) -> "PhysicalBaseElement":
         """
         Property to get the final element of the lattice.
         See :func:`end` for more details.
@@ -1194,7 +1196,7 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
-            vals = {k: self.machine.get_element(k) for k in keys}
+            vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
             section = SectionLattice(
                 order=keys,
                 elements=ElementList(elements=vals),

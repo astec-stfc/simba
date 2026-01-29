@@ -27,7 +27,7 @@ from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from nala import NALA
-from nala.models.element import Element, Dipole
+from nala.models.element import PhysicalBaseElement, Dipole
 from nala.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -671,7 +671,7 @@ class Framework(BaseModel):
                 master_lattice_location=self.global_parameters["master_lattice_location"],
             )
 
-            self.elementObjects = {k: v for k, v in self.machine.elements.items()}
+            self.elementObjects = {k: v for k, v in self.machine.elements.items() if isinstance(k, PhysicalBaseElement)}
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
@@ -824,7 +824,7 @@ class Framework(BaseModel):
                 elif e == "generator":
                     element = self.generator
                     e = "generator"
-                if isinstance(element, Element):
+                if isinstance(element, PhysicalBaseElement):
                     orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
@@ -1096,7 +1096,7 @@ class Framework(BaseModel):
         self,
         element: str,
         param: str | None = None,
-    ) -> dict | Any | Element:
+    ) -> dict | Any | PhysicalBaseElement:
         """
         Returns the element object or a parameter of that element
 
@@ -2170,7 +2170,7 @@ class frameworkDirectory(BaseModel):
         else:
             raise ValueError("Beam files have not been read in")
 
-    def element(self, element: str, field: str | None = None) -> Any | Element:
+    def element(self, element: str, field: str | None = None) -> Any | PhysicalBaseElement:
         """
         Get an element definition from the framework object.
 
