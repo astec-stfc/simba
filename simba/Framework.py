@@ -671,7 +671,7 @@ class Framework(BaseModel):
                 master_lattice_location=self.global_parameters["master_lattice_location"],
             )
 
-            self.elementObjects = {k: v for k, v in self.machine.elements.items() if isinstance(k, PhysicalBaseElement)}
+            self.elementObjects = {k: v for k, v in self.machine.elements.items()}
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
@@ -1000,43 +1000,44 @@ class Framework(BaseModel):
         """
         noerror = True
         for elem in self.elementObjects.values():
-            middle = np.array([elem.physical.middle.x, elem.physical.middle.y, elem.physical.middle.z])
-            end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
-            length = elem.physical.length
-            physical_angle = elem.physical.physical_angle
-
-            # Calculate local offset from middle to end
-            if abs(physical_angle) > 1e-9:
-                # Bent element - correct arc geometry
-                ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
-                ey_local = 0
-                ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
-            else:
-                # Straight element
-                ex_local = 0
-                ey_local = 0
-                ez_local = length / 2.0
-
-            local_offset = np.array([ex_local, ey_local, ez_local])
-
-            # Apply the full 3D rotation matrix
-            rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-
-            # Calculate expected end position
-            cend = middle + np.array(rotated_offset)
-
-            # Check if calculated end matches actual end
-            diff = cend - end
-            if not np.allclose(diff, 0, atol=10 ** (-decimals)):
-                noerror = False
-                print(f"check_lattice error: {elem.name}")
-                print(f"  Middle: {middle}")
-                print(f"  Calculated end: {cend}")
-                print(f"  Actual end: {end}")
-                print(f"  Difference: {diff}")
-                print(f"  Physical angle: {physical_angle}")
-                print(
-                    f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]")
+            if isinstance(elem, PhysicalBaseElement):
+                middle = np.array([elem.physical.middle.x, elem.physical.middle.y, elem.physical.middle.z])
+                end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
+                length = elem.physical.length
+                physical_angle = elem.physical.physical_angle
+    
+                # Calculate local offset from middle to end
+                if abs(physical_angle) > 1e-9:
+                    # Bent element - correct arc geometry
+                    ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
+                    ey_local = 0
+                    ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
+                else:
+                    # Straight element
+                    ex_local = 0
+                    ey_local = 0
+                    ez_local = length / 2.0
+    
+                local_offset = np.array([ex_local, ey_local, ez_local])
+    
+                # Apply the full 3D rotation matrix
+                rotated_offset = elem.physical.rotated_position(local_offset.tolist())
+    
+                # Calculate expected end position
+                cend = middle + np.array(rotated_offset)
+    
+                # Check if calculated end matches actual end
+                diff = cend - end
+                if not np.allclose(diff, 0, atol=10 ** (-decimals)):
+                    noerror = False
+                    print(f"check_lattice error: {elem.name}")
+                    print(f"  Middle: {middle}")
+                    print(f"  Calculated end: {cend}")
+                    print(f"  Actual end: {end}")
+                    print(f"  Difference: {diff}")
+                    print(f"  Physical angle: {physical_angle}")
+                    print(
+                        f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]")
 
         return noerror
 
