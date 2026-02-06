@@ -838,16 +838,16 @@ class Framework(BaseModel):
                     new = element
                     orig = self.original_elementObjects[e]
                     kval = [
-                        k for k in new.model_fields_set if k not in disallowed_changes
+                        k for k in new.model_dump().keys() if k not in disallowed_changes
                     ]
                     new_model_fields = {
-                        k: getattr(new, k)
-                        for k in new.model_fields_set
+                        k: v
+                        for k, v in new.model_dump().items()
                         if k not in disallowed_changes
                     }
                     orig_model_fields = {
-                        k: getattr(orig, k)
-                        for k in orig.model_fields_set
+                        k: v
+                        for k, v in orig.model_dump().items()
                         if k not in disallowed_changes
                     }
                     for k in kval:
