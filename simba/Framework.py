@@ -150,6 +150,9 @@ disallowed_changes = [
     "beam",
     "field_definition",
     "wakefield_definition",
+    "generator_keywords",
+    "allowedKeyWords",
+    "executables",
 ]
 
 supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
@@ -831,6 +834,45 @@ class Framework(BaseModel):
                     changes = compare_multiple_models(pairs)
                     if changes[element.name]:
                         changedict.update(**changes)
+                elif isinstance(element, frameworkGenerator):
+                    new = element
+                    orig = self.original_elementObjects[e]
+                    kval = [
+                        k for k in new.model_fields_set if k not in disallowed_changes
+                    ]
+                    new_model_fields = {
+                        k: getattr(new, k)
+                        for k in new.model_fields_set
+                        if k not in disallowed_changes
+                    }
+                    orig_model_fields = {
+                        k: getattr(orig, k)
+                        for k in orig.model_fields_set
+                        if k not in disallowed_changes
+                    }
+                    for k in kval:
+                        if k not in list(orig_model_fields.keys()):
+                            cond = True
+                        elif new_model_fields[k] != orig_model_fields[k]:
+                            cond = True
+                    if cond:
+                        orig = self.original_elementObjects[e]
+                        new = element
+                        # try:
+                        changedict[e] = {
+                            k[0]: convert_numpy_types(getattr(new, k[0]))
+                            for k in new
+                            if k[0] in orig
+                               and not getattr(new, k[0]) == getattr(orig, k[0])
+                               and k[0] not in disallowed_changes
+                        }
+                        changedict[e].update(
+                            {
+                                k[0]: convert_numpy_types(getattr(new, k[0]))
+                                for k in new
+                                if k[0] not in orig and k[0] not in disallowed_changes
+                            }
+                        )
                     # except Exception:
                     #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
                     #     pass
