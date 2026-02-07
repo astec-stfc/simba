@@ -1,6 +1,6 @@
 import pytest
 import simba.Framework as sfw
-from nala.models.element import Quadrupole, Marker, Element
+from laura.models.element import Quadrupole, Marker, Element
 
 @pytest.fixture
 def framework_with_elements(tmp_path):

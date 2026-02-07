@@ -5,7 +5,7 @@ import numpy as np
 from ..units import nice_array, nice_scale_prefix
 from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
-from nala.translator.converters.converter import translate_elements
+from laura.translator.converters.converter import translate_elements
 
 # from units import nice_array, nice_scale_prefix
 

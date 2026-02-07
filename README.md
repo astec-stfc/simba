@@ -7,7 +7,7 @@
 Our mission statement is *"To create a start to end framework for consistent, transparent simulations of particle 
 accelerators and FELs that anybody can use, and that everybody trusts."*
 
-By leveraging a [standard accelerator lattice format](https://github.com/astec-stfc/nala.git), `SIMBA` 
+By leveraging a [standard accelerator lattice format](https://github.com/astec-stfc/laura.git), `SIMBA` 
 is able to generate and run input files for a range of accelerator simulation codes, enabling seamless transfer 
 of input and output distributions. 
 
@@ -76,9 +76,9 @@ We are also happy to help with installation and setting up your accelerator latt
 Getting started with SIMBA
 -----------------------------
 
-Accelerator lattices in `SIMBA` are derived from the [NALA](https://github.com/astec-stfc/nala/)
+Accelerator lattices in `SIMBA` are derived from the [LAURA](https://github.com/astec-stfc/laura/)
 standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
-layouts; see [NALA documentation](https://nala-accelerator.readthedocs.io/en/latest/).
+layouts; see [LAURA documentation](https://laura-accelerator.readthedocs.io/en/latest/).
 
 Given that this format is designed to capture all relevant information about accelerator elements,
 and that it includes a built-in translator module for exporting lattice files to various simulation codes,
@@ -123,16 +123,16 @@ groups:
   bunch_compressor:
     type: chicane
     elements: [CLA-VBC-MAG-DIP-01, CLA-VBC-MAG-DIP-02, CLA-VBC-MAG-DIP-03, CLA-VBC-MAG-DIP-04]
-layout: /path/to/nala-lattices/CLARA/layouts.yaml
-section: /path/to/nala-lattices/CLARA/sections.yaml
-element_list: /path/to/nala-lattices/CLARA/YAML/
+layout: /path/to/laura-lattices/CLARA/layouts.yaml
+section: /path/to/laura-lattices/CLARA/sections.yaml
+element_list: /path/to/laura-lattices/CLARA/YAML/
 
 ```
 
 This lattice definition would produce several output files (called ``injector400.in``, ``Linac.lte``,
 and ``FEBE.py``) for running in the **ASTRA**, **Elegant** and **Ocelot** beam tracking codes.
 
-The elements are loaded from the directory ``/path/to/nala-lattices/CLARA/YAML/`` defined above.
+The elements are loaded from the directory ``/path/to/laura-lattices/CLARA/YAML/`` defined above.
 
 As this simulation starts from the cathode, the ``input`` definition is required for the first
 `injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
@@ -155,9 +155,9 @@ import simba.Framework as fw
 #       "verbose" will print a progressbar if true
 simcodes_location = "/path/to/simcodes/directory"
 framework = fw.Framework(
-    master_lattice="/path/to/nala-lattices/CLARA",
+    master_lattice="/path/to/laura-lattices/CLARA",
     directory="./example",
-    generator_defaults="/path/to/nala-lattices/CLARA/Generators/clara.yaml",
+    generator_defaults="/path/to/laura-lattices/CLARA/Generators/clara.yaml",
     simcodes_location=simcodes_location,
     clean=True,
     verbose=True,

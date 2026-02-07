@@ -79,7 +79,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Any
-from nala.models.diagnostic import DiagnosticElement
+from laura.models.diagnostic import DiagnosticElement
 
 
 class elegantLattice(frameworkLattice):

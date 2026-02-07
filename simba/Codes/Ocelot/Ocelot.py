@@ -30,7 +30,7 @@ with open(
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
-from nala.models.diagnostic import DiagnosticElement
+from laura.models.diagnostic import DiagnosticElement
 
 
 class ocelotLattice(frameworkLattice):

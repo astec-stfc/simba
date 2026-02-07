@@ -3,7 +3,7 @@ SIMBA Framework Module
 
 The main class for handling the tracking of a particle distribution through a lattice.
 
-Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files.
+Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files.
 This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
@@ -26,9 +26,9 @@ from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
-from nala import NALA
-from nala.models.element import PhysicalBaseElement, Dipole
-from nala.Exporters.YAML import export_machine, export_elements
+from laura import LAURA
+from laura.models.element import PhysicalBaseElement, Dipole
+from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
@@ -158,9 +158,9 @@ class Framework(BaseModel):
     """
     The main class for handling the tracking of a particle distribution through a lattice.
 
-    Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
+    Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files. This creates
     :class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-    :class:`~nala.models.element.Element` objects.
+    :class:`~laura.models.element.Element` objects.
 
     These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
@@ -211,7 +211,7 @@ class Framework(BaseModel):
     """Dictionary containing global parameters accessible to all classes"""
 
     elementObjects: Dict = {}
-    """Dictionary containing all :class:`~nala.models.element.Element` objects"""
+    """Dictionary containing all :class:`~laura.models.element.Element` objects"""
 
     latticeObjects: Dict = {}
     """Dictionary containing all :class:`~simba.Framework_objects.frameworkLattice` objects"""
@@ -232,7 +232,7 @@ class Framework(BaseModel):
     """Dictionary containing all generator settings"""
 
     original_elementObjects: Dict = {}
-    """Dictionary containing all :class:`~nala.models.element.Element` objects
+    """Dictionary containing all :class:`~laura.models.element.Element` objects
     before changes are made"""
 
     progress: int | float = 0
@@ -250,8 +250,8 @@ class Framework(BaseModel):
     settingsFilename: str | None = None
     """Filename containing lattice settings"""
 
-    machine: NALA = None
-    """NALA model of lattice"""
+    machine: LAURA = None
+    """LAURA model of lattice"""
 
     generator_defaults: str | None = None
     """File pointing to defaults for constructing the
@@ -298,11 +298,11 @@ class Framework(BaseModel):
             }
         )
 
-    def setupNALA(self) -> None:
+    def setupLAURA(self) -> None:
         """
-        Sets up the `NALA` machine
+        Sets up the `LAURA` machine
         """
-        self.machine = NALA(layout=self.layout, section=self.section, element_list=self.element_list)
+        self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
 
     def prepare_executables(
             self,
@@ -384,14 +384,14 @@ class Framework(BaseModel):
 
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the ``NALA`` package.
+        Set the location of the ``LAURA`` package.
 
         This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the ``NALA`` master lattice folder
+            The full path to the ``LAURA`` master lattice folder
         """
         global MasterLatticeLocation
         if master_lattice is None:
@@ -664,7 +664,7 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            self.machine = NALA(
+            self.machine = LAURA(
                 layout=self.settings["layout"],
                 section=self.settings["section"],
                 element_list=self.settings["element_list"],
@@ -711,7 +711,7 @@ class Framework(BaseModel):
         directory: str
             Directory to which the settings will be saved
         elements: dict or None
-            Dictionary of :class:`~nala.models.element.Element` objects to save
+            Dictionary of :class:`~laura.models.element.Element` objects to save
         """
         # if filename is None:
         #     pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
@@ -1110,7 +1110,7 @@ class Framework(BaseModel):
 
         Returns
         -------
-        dict or Any or :class:`~nala.models.element.Element
+        dict or Any or :class:`~laura.models.element.Element
             Get the `param` associated with `element`, or the entire element, or an empty dictionary if
             the element does not exist in the entire lattice
         """
@@ -2186,7 +2186,7 @@ class frameworkDirectory(BaseModel):
         -------
         Any or Element
             Get the `field` of `element`, or the entire
-            :class:`~nala.models.element.Element` if not `field`
+            :class:`~laura.models.element.Element` if not `field`
         """
         elem = self.framework.getElement(element)
         if field:

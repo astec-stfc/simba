@@ -6,7 +6,7 @@ from .Modules.Fields import field
 from pydantic import BaseModel
 from deepdiff import DeepDiff
 
-from nala.models.element import Element
+from laura.models.element import Element
 
 def readFile(fname):
     with open(fname) as f:

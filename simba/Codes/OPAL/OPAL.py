@@ -15,7 +15,7 @@ from ...Modules.SDDSFile import SDDSFile
 # import mpi4py
 # mpi4py.rc.initialize = False
 
-from nala.translator.converters.codes.opal import (
+from laura.translator.converters.codes.opal import (
     opal_option,
     opal_distribution,
     opal_fieldsolver,
