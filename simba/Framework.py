@@ -669,6 +669,7 @@ class Framework(BaseModel):
                 section=self.settings["section"],
                 element_list=self.settings["element_list"],
                 master_lattice_location=self.global_parameters["master_lattice_location"],
+                exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
 
             self.elementObjects = {k: v for k, v in self.machine.elements.items()}
