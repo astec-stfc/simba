@@ -276,6 +276,7 @@ class Framework(BaseModel):
             "GPTLICENSE": gptlicense,
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
+            "master_lattice": self.master_lattice,
         }
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
