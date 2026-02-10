@@ -2342,9 +2342,9 @@ class chicane(frameworkGroup):
         ref_angle = None
         for i in range(len(obj)):
             if dipole_number > 0:
-                adj = obj[i].physical.middle.z - ref_pos[2]
+                adj = obj[i].physical.middle.z - ref_pos["z"]
                 obj[i].physical.middle = Position(
-                    x=ref_pos[0] + np.tan(-1.0 * ref_angle) * adj,
+                    x=ref_pos["x"] + np.tan(-1.0 * ref_angle) * adj,
                     y=0,
                     z=obj[i].physical.middle.z,
                 )

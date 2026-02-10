@@ -584,7 +584,7 @@ class elegantLattice(frameworkLattice):
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
                 self.global_parameters["master_subdir"] + "/" + sddsbeamfilename,
-                xyzoffset=self.startObject.physical.start.model_dump(),
+                xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
