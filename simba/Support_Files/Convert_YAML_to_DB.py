@@ -33,8 +33,8 @@ class Converter(Framework):
             clean=False,
             verbose=True,
         )
-        global master_lattice_location
-        master_lattice_location = self.master_lattice_location
+        global master_lattice
+        master_lattice = self.master_lattice
         self.mariadb_connection = mariadb.connect(
             host="astecnas2",
             user="root",
@@ -51,7 +51,7 @@ class Converter(Framework):
         if os.path.exists(filename):
             stream = open(filename, "r")
         else:
-            stream = open(master_lattice_location + filename, "r")
+            stream = open(master_lattice + filename, "r")
         self.settings = yaml.load(stream, Loader=yaml.UnsafeLoader)
         self.globalSettings = self.settings["global"]
         master_run_no = (

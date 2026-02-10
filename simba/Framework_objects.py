@@ -1201,7 +1201,7 @@ class frameworkLattice(BaseModel):
                 order=keys,
                 elements=ElementList(elements=vals),
                 name=self.objectname,
-                master_lattice_location=self.global_parameters["master_lattice_location"],
+                master_lattice=self.global_parameters["master_lattice"],
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.directory = self.global_parameters["master_subdir"]

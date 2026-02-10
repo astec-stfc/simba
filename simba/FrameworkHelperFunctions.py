@@ -162,9 +162,9 @@ def path_function(a, b):
 def expand_substitution(self, param, subs={}, elements={}, absolute=False):
     # print(param)
     if isinstance(param, (str)):
-        subs["master_lattice_location"] = (
+        subs["master_lattice"] = (
             path_function(
-                self.global_parameters["master_lattice_location"],
+                self.global_parameters["master_lattice"],
                 self.global_parameters["master_subdir"],
             )
             + "/"

@@ -67,7 +67,7 @@
 #             element = elem(
 #                 name="ELEMENT",
 #                 type=elem.__name__,
-#                 global_parameters={"master_subdir": ".", "master_lattice_location": "."},
+#                 global_parameters={"master_subdir": ".", "master_lattice": "."},
 #                 length=1.0,
 #             )
 #             if elem.__name__ == "dipole":

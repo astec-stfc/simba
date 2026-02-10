@@ -260,7 +260,7 @@ class Framework(BaseModel):
     generator_keywords: Dict = {}
     """Default keywords for the
     :class:`~simba.Codes.Generators.Generators.frameworkGenerator` loaded
-    from :attr:`~generator_defaults` in `master_lattice_location`/Generators"""
+    from :attr:`~generator_defaults` in `master_lattice`/Generators"""
 
     username: str = ""
     """Username for remote execution"""
@@ -290,8 +290,8 @@ class Framework(BaseModel):
     def __repr__(self) -> repr:
         return repr(
             {
-                "master_lattice_location": self.global_parameters[
-                    "master_lattice_location"
+                "master_lattice": self.global_parameters[
+                    "master_lattice"
                 ],
                 "subdirectory": self.subdirectory,
                 "settingsFilename": self.settingsFilename,
@@ -386,7 +386,7 @@ class Framework(BaseModel):
         """
         Set the location of the ``LAURA`` package.
 
-        This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
+        This then also sets the `master_lattice` in :attr:`~global_parameters`.
 
         Parameters
         ----------
@@ -396,13 +396,13 @@ class Framework(BaseModel):
         global MasterLatticeLocation
         if master_lattice is None:
             if MasterLatticeLocation is not None:
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     MasterLatticeLocation.replace("\\", "/")
                 )
                 if self.verbose:
                     print(
                         "Found MasterLattice Package =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -411,7 +411,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__))
                         + "/../../MasterLattice/MasterLattice"
@@ -421,7 +421,7 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 2-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -430,7 +430,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__))
                         + "/../MasterLattice/MasterLattice"
@@ -440,7 +440,7 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -448,7 +448,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
                     )
@@ -457,19 +457,19 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             else:
                 if self.verbose:
                     print(
                         "Master Lattice not available - specify using master_lattice=<location>"
                     )
-                    self.global_parameters["master_lattice_location"] = "."
+                    self.global_parameters["master_lattice"] = "."
         else:
-            self.global_parameters["master_lattice_location"] = os.path.join(
+            self.global_parameters["master_lattice"] = os.path.join(
                 os.path.abspath(master_lattice), "./"
             )
-        MasterLatticeLocation = self.global_parameters["master_lattice_location"]
+        MasterLatticeLocation = self.global_parameters["master_lattice"]
         self.updateGlobalParameters()
 
     def setSimCodesLocation(self, simcodes: str | None = None) -> None:
@@ -568,8 +568,8 @@ class Framework(BaseModel):
 
         if not generator_defaults:
             return self.generator_keywords
-        if os.path.isfile(self.global_parameters["master_lattice_location"] + f"Generators/{generator_defaults}"):
-            defaults = self.global_parameters["master_lattice_location"] + f"Generators/{generator_defaults}"
+        if os.path.isfile(self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"):
+            defaults = self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"
         elif os.path.isfile(generator_defaults):
             defaults = generator_defaults
         else:
@@ -606,7 +606,7 @@ class Framework(BaseModel):
                     elements = yaml.safe_load(stream)["elements"]
             else:
                 with open(
-                    self.global_parameters["master_lattice_location"] + f, "r"
+                    self.global_parameters["master_lattice"] + f, "r"
                 ) as stream:
                     elements = yaml.safe_load(stream)["elements"]
             for name, elem in list(elements.items()):
@@ -635,9 +635,9 @@ class Framework(BaseModel):
                 self.settings.loadSettings(filename)
             elif os.path.isfile(os.path.join(self.subdirectory, filename)):
                 self.settings.loadSettings(os.path.join(self.subdirectory, filename))
-            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice_location"], filename)):
+            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice"], filename)):
                 self.settings.loadSettings(
-                    os.path.join(self.global_parameters["master_lattice_location"], filename)
+                    os.path.join(self.global_parameters["master_lattice"], filename)
                 )
             else:
                 raise FileNotFoundError(f"Could not find settings file with name {filename}")
@@ -668,7 +668,7 @@ class Framework(BaseModel):
                 layout=self.settings["layout"],
                 section=self.settings["section"],
                 element_list=self.settings["element_list"],
-                master_lattice_location=self.global_parameters["master_lattice_location"],
+                master_lattice=self.global_parameters["master_lattice"],
                 exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
 
