@@ -578,6 +578,8 @@ class frameworkLattice(BaseModel):
         if "input" in self.file_block:
             if "sample_interval" in self.file_block["input"]:
                 self.sample_interval = self.file_block["input"]["sample_interval"]
+        else:
+            self.file_block.update({"input": {}})
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -798,6 +800,7 @@ class frameworkLattice(BaseModel):
             return filepath
         raise Exception(
             f'HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!')
+
     def update_groups(self) -> None:
         """
         Update the group objects in the lattice with their settings.
@@ -1204,6 +1207,9 @@ class frameworkLattice(BaseModel):
                 master_lattice=self.global_parameters["master_lattice"],
             )
             slt = SectionLatticeTranslator.from_section(section)
+            slt.lsc_enable = self.lsc_enable
+            slt.csr_enable = self.csr_enable
+            slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
             return slt

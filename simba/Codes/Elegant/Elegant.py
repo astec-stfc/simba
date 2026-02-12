@@ -402,7 +402,7 @@ class elegantLattice(frameworkLattice):
                 lattice=self.objectname + ".lte",
                 p_central=np.mean(self.global_parameters["beam"].BetaGamma),
                 seed=seed,
-                losses="%s.loss",
+                # losses="%s.loss",
                 s_start=self.startObject.physical.start.z,
                 use_beamline=self.objectname,
             )
@@ -472,6 +472,7 @@ class elegantLattice(frameworkLattice):
             self.commandFiles["floor_coordinates"] = elegant_floor_coordinates_command(
                 # lattice=self,
                 X0=self.startObject.physical.start.x,
+                Y0=self.startObject.physical.start.y,
                 Z0=self.startObject.physical.start.z,
             )
             # print('matrix_output')
@@ -614,7 +615,7 @@ class elegantLattice(frameworkLattice):
         rbf.sdds.read_SDDS_beam_file(
             beam,
             elegantbeamfilename,
-            z0=screen.physical.middle.z,
+            xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             ref_index=ref_index
         )
         HDF5filename = f"{rootname}.openpmd.hdf5"
@@ -966,6 +967,9 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     X0: float = 0.0
     """Initial horizontal floor position"""
 
+    Y0: float = 0.0
+    """Initial horizontal floor position"""
+
     Z0: float = 0.0
     """Initial longitudinal floor position"""
 
@@ -984,6 +988,10 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     @property
     def x0(self) -> float:
         return self.X0
+
+    @property
+    def y0(self) -> float:
+        return self.Y0
 
     @property
     def z0(self) -> float:

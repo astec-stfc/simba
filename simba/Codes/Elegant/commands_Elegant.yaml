@@ -270,6 +270,7 @@ find_aperture :
 floor_coordinates :
   filename: string
   X0: double
+  Y0: double
   Z0: double
   theta0: double
   include_vertices: long
