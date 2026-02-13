@@ -838,6 +838,7 @@ class Framework(BaseModel):
                     if changes[element.name]:
                         changedict.update(**changes)
                 elif isinstance(element, frameworkGenerator):
+                    cond = False
                     new = element
                     orig = self.original_elementObjects[e]
                     kval = [
