@@ -719,12 +719,12 @@ class twiss(BaseModel):
             Otherwise, it returns the interpolated value at the specified z position.
         """
         if z is None:
-            return np.interp(z, getattr(self, index), getattr(self, value))
+            return np.interp(z, getattr(self, index), getattr(self, value).val)
         else:
-            if z > max(self[index]):
+            if z > max(getattr(self, index).val):
                 return 10**6
             else:
-                return float(np.interp(z, self[index], self[value]))
+                return float(np.interp(z, getattr(self, index).val, getattr(self, value).val))
 
     def extract_values(self, name: str, start: float, end: float) -> np.ndarray:
         """
@@ -884,7 +884,7 @@ class twiss(BaseModel):
             else:
                 twissdict = {}
                 for param in [
-                    k for k in self.model_fields if getattr(self, k).dtype == "f"
+                    k for k in self.model_fields if isinstance(getattr(self, k), twissParameter) and getattr(self, k).dtype == "f"
                 ]:
                     twissdict[param] = self.interpolate(z=z, value=param, index="z")
                 return twissdict

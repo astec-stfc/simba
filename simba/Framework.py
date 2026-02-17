@@ -3,7 +3,7 @@ SIMBA Framework Module
 
 The main class for handling the tracking of a particle distribution through a lattice.
 
-Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files.
+Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files.
 This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
@@ -26,9 +26,9 @@ from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
-from nala import NALA
-from nala.models.element import PhysicalBaseElement, Dipole
-from nala.Exporters.YAML import export_machine, export_elements
+from laura import LAURA
+from laura.models.element import PhysicalBaseElement, Dipole
+from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
@@ -150,7 +150,11 @@ disallowed_changes = [
     "beam",
     "field_definition",
     "wakefield_definition",
+    "generator_keywords",
+    "allowedKeyWords",
+    "executables",
 ]
+
 
 supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
 
@@ -158,9 +162,9 @@ class Framework(BaseModel):
     """
     The main class for handling the tracking of a particle distribution through a lattice.
 
-    Settings files can be loaded in, consisting of one or more :ref:`NALA` YAML files. This creates
+    Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files. This creates
     :class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-    :class:`~nala.models.element.Element` objects.
+    :class:`~laura.models.element.Element` objects.
 
     These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
 
@@ -211,7 +215,7 @@ class Framework(BaseModel):
     """Dictionary containing global parameters accessible to all classes"""
 
     elementObjects: Dict = {}
-    """Dictionary containing all :class:`~nala.models.element.Element` objects"""
+    """Dictionary containing all :class:`~laura.models.element.Element` objects"""
 
     latticeObjects: Dict = {}
     """Dictionary containing all :class:`~simba.Framework_objects.frameworkLattice` objects"""
@@ -232,7 +236,7 @@ class Framework(BaseModel):
     """Dictionary containing all generator settings"""
 
     original_elementObjects: Dict = {}
-    """Dictionary containing all :class:`~nala.models.element.Element` objects
+    """Dictionary containing all :class:`~laura.models.element.Element` objects
     before changes are made"""
 
     progress: int | float = 0
@@ -250,8 +254,8 @@ class Framework(BaseModel):
     settingsFilename: str | None = None
     """Filename containing lattice settings"""
 
-    machine: NALA = None
-    """NALA model of lattice"""
+    machine: LAURA = None
+    """LAURA model of lattice"""
 
     generator_defaults: str | None = None
     """File pointing to defaults for constructing the
@@ -260,7 +264,7 @@ class Framework(BaseModel):
     generator_keywords: Dict = {}
     """Default keywords for the
     :class:`~simba.Codes.Generators.Generators.frameworkGenerator` loaded
-    from :attr:`~generator_defaults` in `master_lattice_location`/Generators"""
+    from :attr:`~generator_defaults` in `master_lattice`/Generators"""
 
     username: str = ""
     """Username for remote execution"""
@@ -276,6 +280,7 @@ class Framework(BaseModel):
             "GPTLICENSE": gptlicense,
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
+            "master_lattice": self.master_lattice,
         }
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
@@ -290,19 +295,19 @@ class Framework(BaseModel):
     def __repr__(self) -> repr:
         return repr(
             {
-                "master_lattice_location": self.global_parameters[
-                    "master_lattice_location"
+                "master_lattice": self.global_parameters[
+                    "master_lattice"
                 ],
                 "subdirectory": self.subdirectory,
                 "settingsFilename": self.settingsFilename,
             }
         )
 
-    def setupNALA(self) -> None:
+    def setupLAURA(self) -> None:
         """
-        Sets up the `NALA` machine
+        Sets up the `LAURA` machine
         """
-        self.machine = NALA(layout=self.layout, section=self.section, element_list=self.element_list)
+        self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
 
     def prepare_executables(
             self,
@@ -384,25 +389,25 @@ class Framework(BaseModel):
 
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the ``NALA`` package.
+        Set the location of the ``LAURA`` package.
 
-        This then also sets the `master_lattice_location` in :attr:`~global_parameters`.
+        This then also sets the `master_lattice` in :attr:`~global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the ``NALA`` master lattice folder
+            The full path to the ``LAURA`` master lattice folder
         """
         global MasterLatticeLocation
         if master_lattice is None:
             if MasterLatticeLocation is not None:
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     MasterLatticeLocation.replace("\\", "/")
                 )
                 if self.verbose:
                     print(
                         "Found MasterLattice Package =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -411,7 +416,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__))
                         + "/../../MasterLattice/MasterLattice"
@@ -421,7 +426,7 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 2-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -430,7 +435,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__))
                         + "/../MasterLattice/MasterLattice"
@@ -440,7 +445,7 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             elif os.path.isdir(
                 os.path.abspath(
@@ -448,7 +453,7 @@ class Framework(BaseModel):
                 )
                 + "/"
             ):
-                self.global_parameters["master_lattice_location"] = (
+                self.global_parameters["master_lattice"] = (
                     os.path.abspath(
                         os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
                     )
@@ -457,19 +462,19 @@ class Framework(BaseModel):
                 if self.verbose:
                     print(
                         "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice_location"],
+                        self.global_parameters["master_lattice"],
                     )
             else:
                 if self.verbose:
                     print(
                         "Master Lattice not available - specify using master_lattice=<location>"
                     )
-                    self.global_parameters["master_lattice_location"] = "."
+                    self.global_parameters["master_lattice"] = "."
         else:
-            self.global_parameters["master_lattice_location"] = os.path.join(
+            self.global_parameters["master_lattice"] = os.path.join(
                 os.path.abspath(master_lattice), "./"
             )
-        MasterLatticeLocation = self.global_parameters["master_lattice_location"]
+        MasterLatticeLocation = self.global_parameters["master_lattice"]
         self.updateGlobalParameters()
 
     def setSimCodesLocation(self, simcodes: str | None = None) -> None:
@@ -568,8 +573,8 @@ class Framework(BaseModel):
 
         if not generator_defaults:
             return self.generator_keywords
-        if os.path.isfile(self.global_parameters["master_lattice_location"] + f"Generators/{generator_defaults}"):
-            defaults = self.global_parameters["master_lattice_location"] + f"Generators/{generator_defaults}"
+        if os.path.isfile(self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"):
+            defaults = self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"
         elif os.path.isfile(generator_defaults):
             defaults = generator_defaults
         else:
@@ -606,7 +611,7 @@ class Framework(BaseModel):
                     elements = yaml.safe_load(stream)["elements"]
             else:
                 with open(
-                    self.global_parameters["master_lattice_location"] + f, "r"
+                    self.global_parameters["master_lattice"] + f, "r"
                 ) as stream:
                     elements = yaml.safe_load(stream)["elements"]
             for name, elem in list(elements.items()):
@@ -635,9 +640,9 @@ class Framework(BaseModel):
                 self.settings.loadSettings(filename)
             elif os.path.isfile(os.path.join(self.subdirectory, filename)):
                 self.settings.loadSettings(os.path.join(self.subdirectory, filename))
-            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice_location"], filename)):
+            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice"], filename)):
                 self.settings.loadSettings(
-                    os.path.join(self.global_parameters["master_lattice_location"], filename)
+                    os.path.join(self.global_parameters["master_lattice"], filename)
                 )
             else:
                 raise FileNotFoundError(f"Could not find settings file with name {filename}")
@@ -664,11 +669,12 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            self.machine = NALA(
+            self.machine = LAURA(
                 layout=self.settings["layout"],
                 section=self.settings["section"],
                 element_list=self.settings["element_list"],
-                master_lattice_location=self.global_parameters["master_lattice_location"],
+                master_lattice=self.global_parameters["master_lattice"],
+                exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
 
             self.elementObjects = {k: v for k, v in self.machine.elements.items()}
@@ -711,7 +717,7 @@ class Framework(BaseModel):
         directory: str
             Directory to which the settings will be saved
         elements: dict or None
-            Dictionary of :class:`~nala.models.element.Element` objects to save
+            Dictionary of :class:`~laura.models.element.Element` objects to save
         """
         # if filename is None:
         #     pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
@@ -831,7 +837,48 @@ class Framework(BaseModel):
                     changes = compare_multiple_models(pairs)
                     if changes[element.name]:
                         changedict.update(**changes)
-                    # except Exception:
+                elif isinstance(element, frameworkGenerator):
+                    cond = False
+                    new = element
+                    orig = self.original_elementObjects[e]
+                    kval = [
+                        k for k in new.model_dump().keys() if k not in disallowed_changes
+                    ]
+                    new_model_fields = {
+                        k: v
+                        for k, v in new.model_dump().items()
+                        if k not in disallowed_changes
+                    }
+                    orig_model_fields = {
+                        k: v
+                        for k, v in orig.model_dump().items()
+                        if k not in disallowed_changes
+                    }
+                    for k in kval:
+                        if k not in list(orig_model_fields.keys()):
+                            cond = True
+                        elif new_model_fields[k] != orig_model_fields[k]:
+                            cond = True
+                    if cond:
+                        orig = self.original_elementObjects[e]
+                        new = element
+                        # try:
+                        changedict[e] = {
+                            k[0]: convert_numpy_types(getattr(new, k[0]))
+                            for k in new
+                            if k[0] in orig
+                               and not getattr(new, k[0]) == getattr(orig, k[0])
+                               and k[0] not in disallowed_changes
+                        }
+                        changedict[e].update(
+                            {
+                                k[0]: convert_numpy_types(getattr(new, k[0]))
+                                for k in new
+                                if k[0] not in orig and k[0] not in disallowed_changes
+                            }
+                        )
+
+                # except Exception:
                     #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
                     #     pass
         return changedict
@@ -1110,7 +1157,7 @@ class Framework(BaseModel):
 
         Returns
         -------
-        dict or Any or :class:`~nala.models.element.Element
+        dict or Any or :class:`~laura.models.element.Element
             Get the `param` associated with `element`, or the entire element, or an empty dictionary if
             the element does not exist in the entire lattice
         """
@@ -2186,7 +2233,7 @@ class frameworkDirectory(BaseModel):
         -------
         Any or Element
             Get the `field` of `element`, or the entire
-            :class:`~nala.models.element.Element` if not `field`
+            :class:`~laura.models.element.Element` if not `field`
         """
         elem = self.framework.getElement(element)
         if field:

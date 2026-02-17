@@ -5,7 +5,7 @@ import numpy as np
 from ..units import nice_array, nice_scale_prefix
 from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
-from nala.translator.converters.converter import translate_elements
+from laura.translator.converters.converter import translate_elements
 
 # from units import nice_array, nice_scale_prefix
 
@@ -76,7 +76,7 @@ def fieldmap_data(element, master_lattice):
         scale = scale / 1e6
 
     # file
-    element = translate_elements(elements=[element], master_lattice_location=master_lattice)[element.name]
+    element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
     element.update_field_definition()
     field = element.simulation.field_definition
     data = field.get_field_data(code="astra")
@@ -177,7 +177,7 @@ def load_elements(
     verbose=False,
     scale=1,
 ):
-    master_lattice = lattice.global_parameters["master_lattice_location"]
+    master_lattice = lattice.global_parameters["master_lattice"]
     fmap = {}
     mpd = magnet_plotting_data(kinetic_energy=kinetic_energy)
     for t in types:

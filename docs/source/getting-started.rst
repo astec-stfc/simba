@@ -8,9 +8,9 @@ Getting started with SIMBA
 Lattice Definition
 ------------------
 
-Accelerator lattices in :mod:`SIMBA` are derived from the `NALA <https://github.com/astec-stfc/nala/>`_
+Accelerator lattices in :mod:`SIMBA` are derived from the `LAURA <https://github.com/astec-stfc/laura/>`_
 standard lattice format. This is a schema for providing generic descriptions of accelerator elements and
-layouts; see the `NALA documentation <https://nala-accelerator.readthedocs.io/en/latest/#>`_ for more details.
+layouts; see the `LAURA documentation <https://laura-accelerator.readthedocs.io/en/latest/#>`_ for more details.
 
 Given that this format is designed to capture all relevant information about accelerator elements,
 and that it includes a built-in translator module for exporting lattice files to various simulation codes,
@@ -21,10 +21,10 @@ We would be remiss not to begin with a simple FODO:
 
 .. code-block:: python
 
-    from nala.models.element import Quadrupole, Marker  # noqa E402
-    from nala.models.elementList import MachineModel  # noqa E402
-    from nala.Exporters.YAML import export_machine
-    from nala import NALA  # noqa E402
+    from laura.models.element import Quadrupole, Marker  # noqa E402
+    from laura.models.elementList import MachineModel  # noqa E402
+    from laura.Exporters.YAML import export_machine
+    from laura import LAURA  # noqa E402
 
     outdir = "/path/to/lattice/directory"
 
@@ -102,7 +102,7 @@ We would be remiss not to begin with a simple FODO:
         }
     }
 
-    machine = NALA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
+    machine = LAURA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
     export_machine(path=f"{outdir}/Lattice", machine=machine, overwrite=True)
     
 Generating an input beam
@@ -147,7 +147,7 @@ This involves passing a group of settings to :mod:`SIMBA`, including:
 * The simulation code used to run each section;
 * Additional settings, such as the enabling of collective effects, or transverse matching parameters for the initial beam;
 * Settings for beam generation;
-* Locations for :mod:`NALA` files.
+* Locations for :mod:`LAURA` files.
 
 These are all read in when :mod:`SIMBA` is instantiated. The example below shows how to create these settings in :mod:`python`;
 alternatively, one can create a settings file in YAML and pass that in; see :ref:`Loading a lattice <loading-a-lattice>`:

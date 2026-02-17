@@ -6,7 +6,7 @@ from .Modules.Fields import field
 from pydantic import BaseModel
 from deepdiff import DeepDiff
 
-from nala.models.element import Element
+from laura.models.element import Element
 
 def readFile(fname):
     with open(fname) as f:
@@ -162,9 +162,9 @@ def path_function(a, b):
 def expand_substitution(self, param, subs={}, elements={}, absolute=False):
     # print(param)
     if isinstance(param, (str)):
-        subs["master_lattice_location"] = (
+        subs["master_lattice"] = (
             path_function(
-                self.global_parameters["master_lattice_location"],
+                self.global_parameters["master_lattice"],
                 self.global_parameters["master_subdir"],
             )
             + "/"

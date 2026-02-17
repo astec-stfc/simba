@@ -8,7 +8,7 @@ Classes:
 
     - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA, including lattice elements and simulation code commands.
 
-    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `NALA` elements.
+    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `LAURA` elements.
 
     - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same type in ASTRA and CSRTrack
 
@@ -33,11 +33,11 @@ import yaml
 from copy import deepcopy
 import time
 
-from nala import NALA
-from nala.models.elementList import SectionLattice, ElementList
-from nala.models.physical import Position
-from nala.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
-from nala.translator.converters.section import SectionLatticeTranslator
+from laura import LAURA
+from laura.models.elementList import SectionLattice, ElementList
+from laura.models.physical import Position
+from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
+from laura.translator.converters.section import SectionLatticeTranslator
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
@@ -480,8 +480,8 @@ class frameworkLattice(BaseModel):
     file_block: Dict
     """File block containing input and output settings for the lattice."""
 
-    machine: NALA
-    """NALA model of the lattice"""
+    machine: LAURA
+    """LAURA model of the lattice"""
 
     elementObjects: Dict
     """Dictionary of element objects, where keys are element names and values are element instances."""
@@ -551,7 +551,7 @@ class frameworkLattice(BaseModel):
     """Initial Twiss parameters for the lattice, used for tracking and analysis."""
 
     _section: SectionLatticeTranslator = None
-    """NALA SectionLatticeTranslator object"""
+    """LAURA SectionLatticeTranslator object"""
 
     remote_setup: Dict = {}
     """Dictionary containing parameters for running executables remotely."""
@@ -578,6 +578,8 @@ class frameworkLattice(BaseModel):
         if "input" in self.file_block:
             if "sample_interval" in self.file_block["input"]:
                 self.sample_interval = self.file_block["input"]["sample_interval"]
+        else:
+            self.file_block.update({"input": {}})
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -798,6 +800,7 @@ class frameworkLattice(BaseModel):
             return filepath
         raise Exception(
             f'HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!')
+
     def update_groups(self) -> None:
         """
         Update the group objects in the lattice with their settings.
@@ -822,7 +825,7 @@ class frameworkLattice(BaseModel):
 
         Returns
         -------
-        dict | :class:`~nala.models.element.Element`
+        dict | :class:`~laura.models.element.Element`
             The element object or the specified parameter of the element.
         """
         if element in self.elements:
@@ -1192,7 +1195,7 @@ class frameworkLattice(BaseModel):
         Returns
         -------
         SectionLatticeTranslator
-            NALA `SectionLatticeTranslator`
+            LAURA `SectionLatticeTranslator`
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
@@ -1201,9 +1204,12 @@ class frameworkLattice(BaseModel):
                 order=keys,
                 elements=ElementList(elements=vals),
                 name=self.objectname,
-                master_lattice_location=self.global_parameters["master_lattice_location"],
+                master_lattice=self.global_parameters["master_lattice"],
             )
             slt = SectionLatticeTranslator.from_section(section)
+            slt.lsc_enable = self.lsc_enable
+            slt.csr_enable = self.csr_enable
+            slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
             return slt
@@ -2342,9 +2348,9 @@ class chicane(frameworkGroup):
         ref_angle = None
         for i in range(len(obj)):
             if dipole_number > 0:
-                adj = obj[i].physical.middle.z - ref_pos[2]
+                adj = obj[i].physical.middle.z - ref_pos["z"]
                 obj[i].physical.middle = Position(
-                    x=ref_pos[0] + np.tan(-1.0 * ref_angle) * adj,
+                    x=ref_pos["x"] + np.tan(-1.0 * ref_angle) * adj,
                     y=0,
                     z=obj[i].physical.middle.z,
                 )

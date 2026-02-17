@@ -16,7 +16,7 @@ from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Any
-from nala.translator.converters.codes.csrtrack import (
+from laura.translator.converters.codes.csrtrack import (
     csrtrack_particles,
     csrtrack_forces,
     csrtrack_track_step,
