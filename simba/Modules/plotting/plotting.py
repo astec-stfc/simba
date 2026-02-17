@@ -5,7 +5,7 @@ import numpy as np
 from ..units import nice_array, nice_scale_prefix
 from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
-from nala.translator.converters.converter import translate_elements
+from laura.translator.converters.converter import translate_elements
 
 # from units import nice_array, nice_scale_prefix
 
@@ -77,7 +77,7 @@ def fieldmap_data(element, master_lattice):
         if element.structure_Type == "StandingWave" and element.n_cells > 2:
             scale = scale / element.physical.length
     # file
-    element = translate_elements(elements=[element], master_lattice_location=master_lattice)[element.name]
+    element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
     element.update_field_definition()
     field = element.simulation.field_definition
     data = field.get_field_data(code="astra")
@@ -178,7 +178,7 @@ def load_elements(
     verbose=False,
     scale=1,
 ):
-    master_lattice = lattice.global_parameters["master_lattice_location"]
+    master_lattice = lattice.global_parameters["master_lattice"]
     fmap = {}
     mpd = magnet_plotting_data(kinetic_energy=kinetic_energy)
     for t in types:
@@ -735,10 +735,9 @@ def general_plot(
             factor = 1
 
         # Make a line and point
-        for symbol in ["beta", "alpha", "gamma", "sigma"]:
-            keys = ["$" + k.replace(symbol, r"\\" + symbol) + "$" for k in keys]
+        symbols = ["beta", "alpha", "gamma", "sigma"]
+        keys = ["$" + k.replace(symbol, "\\" + symbol) + "$" for symbol in symbols for k in keys if symbol in k]
         for key, dat in zip(keys, data):
-            #
             ii += 1
             color = "C" + str(ii)
             ax.plot(

@@ -6,7 +6,7 @@ from ..SDDSFile import SDDSFile, SDDS_Types
 
 
 def read_SDDS_beam_file(
-    self, fileName, charge=None, ascii=False, page=-1, z0=0, ref_index=None
+    self, fileName, charge=None, ascii=False, page=-1, xyzoffset=[0, 0, 0], ref_index=None
 ):
     self.reset_dicts()
     self.sddsindex += 1
@@ -56,8 +56,8 @@ def read_SDDS_beam_file(
     # print('SDDS', self._beam["particle_charge"])
 
     self.code = "SDDS"
-    self._beam.x = UnitValue(beamprops["x"], units="m")
-    self._beam.y = UnitValue(beamprops["y"], units="m")
+    self._beam.x = UnitValue(beamprops["x"] + xyzoffset[0], units="m")
+    self._beam.y = UnitValue(beamprops["y"] + xyzoffset[1], units="m")
     self._beam.t = UnitValue(beamprops["t"], units="s")
     cp = beamprops["p"] * self.particle_rest_energy_eV
     cpz = cp / np.sqrt(beamprops["xp"] ** 2 + beamprops["yp"] ** 2 + 1)
@@ -78,7 +78,7 @@ def read_SDDS_beam_file(
         self.reference_particle_index = int(ref_index)
         """ If we have a reference particle, t=0 is relative to it """
         self._beam.z = UnitValue(
-            z0
+            xyzoffset[2]
             + (-1 * self._beam.Bz * constants.speed_of_light)
             * (self._beam.t - self._beam.t[self.reference_particle_index]),
             units="m",
@@ -90,7 +90,7 @@ def read_SDDS_beam_file(
     else:
         """ If we don't have a reference particle, t=0 is relative to mean(t) """
         self._beam.z = UnitValue(
-            z0
+            xyzoffset[2]
             + (-1 * self._beam.Bz * constants.speed_of_light)
             * (self._beam.t - np.mean(self._beam.t)),
             units="m",
@@ -109,7 +109,11 @@ def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]
     xoffset = xyzoffset[0]
     yoffset = xyzoffset[1]
     self.sddsindex += 1
-    x = SDDSFile(index=(self.sddsindex), ascii=ascii)
+    try:
+        x = SDDSFile(index=self.sddsindex, ascii=ascii)
+    except ValueError:
+        self.sddsindex += 1
+        x = SDDSFile(index=self.sddsindex, ascii=ascii)
 
     Cnames = ["x", "xp", "y", "yp", "t", "p"]
     Ctypes = [

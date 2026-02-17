@@ -24,7 +24,7 @@ from typing import Dict, Any, ClassVar
 import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from nala.models.diagnostic import DiagnosticElement
+from laura.models.diagnostic import DiagnosticElement
 
 
 with open(
@@ -208,7 +208,7 @@ class cheetahLattice(frameworkLattice):
 
         Parameters
         ----------
-        scr: NALA DiagnosticElement
+        scr: LAURA DiagnosticElement
             Screen object
         outname: str
             Name of Cheetah beam file

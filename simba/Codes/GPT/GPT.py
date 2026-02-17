@@ -52,7 +52,7 @@ Classes:
 import os
 import subprocess
 import numpy as np
-from nala.models.diagnostic import DiagnosticElement
+from laura.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile
@@ -61,7 +61,7 @@ from ...Modules.constants import speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
-from nala.translator.converters.codes.gpt import (
+from laura.translator.converters.codes.gpt import (
     gpt_setfile,
     gpt_charge,
     gpt_setreduce,
@@ -519,7 +519,7 @@ class gptLattice(frameworkLattice):
 
         Parameters
         ----------
-        screen: nala.models.diagnostic.DiagnosticElement
+        screen: laura.models.diagnostic.DiagnosticElement
             Diagnostic element
         gptbeamfilename: str
             Name of GPT beam file

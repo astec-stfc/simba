@@ -68,7 +68,7 @@ class Converter(Framework):
             clean=False,
             verbose=True,
         )
-        self.master_lattice_location = self.global_parameters["master_lattice_location"]
+        self.master_lattice = self.global_parameters["master_lattice"]
         # self.mariadb_connection = mariadb.connect(host='astecnas2', user='root', password='control123', database='master_lattice')
         # self.cursor = self.mariadb_connection.cursor(buffered=True)
         self.datums = {
@@ -109,7 +109,7 @@ class Converter(Framework):
         if os.path.exists(filename):
             stream = open(filename, "r")
         else:
-            stream = open(self.master_lattice_location + filename, "r")
+            stream = open(self.master_lattice + filename, "r")
         self.settings = yaml.load(stream, Loader=yaml.UnsafeLoader)
         self.globalSettings = self.settings["global"]
         master_run_no = (
@@ -180,7 +180,7 @@ class Converter(Framework):
                 with open(f, "r") as stream:
                     elements = yaml.load(stream, Loader=yaml.UnsafeLoader)["elements"]
             else:
-                with open(self.master_lattice_location + f, "r") as stream:
+                with open(self.master_lattice + f, "r") as stream:
                     elements = yaml.load(stream, Loader=yaml.UnsafeLoader)["elements"]
             for name, elem in list(elements.items()):
                 self.read_Element(name, elem)

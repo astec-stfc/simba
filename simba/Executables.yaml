@@ -6,6 +6,7 @@ nt:
   elegant: [$simcodes$/Elegant/elegant.exe]
   csrtrack: [$simcodes$/CSRTrack/csrtrack.exe]
   gpt: ['C:\Program Files\General Particle Tracer\bin\gpt.exe','-j',$ncpu$]
+  genesis: [$simcodes$/Genesis/genesis4]
 apclara1:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['mpirun','-np',$ncpu$,'/opt/ASTRA/astra_MPICH2.sh']

@@ -158,8 +158,8 @@ class elegant2YAML(Framework):
             clean=False,
             verbose=True,
         )
-        global master_lattice_location
-        master_lattice_location = self.master_lattice_location
+        global master_lattice
+        master_lattice = self.master_lattice
 
     def load_elegant_file(self, filename, floor_filename=None):
         interpret = elegantInterpret()

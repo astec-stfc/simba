@@ -14,9 +14,9 @@ from simba.Framework_lattices import (
     astraLattice,
     cheetahLattice,
 )
-from nala.models.element import Quadrupole, Marker, Element
-from nala import NALA
-from nala.Exporters.YAML import export_machine
+from laura.models.element import Quadrupole, Marker, Element
+from laura import LAURA
+from laura.Exporters.YAML import export_machine
 
 @pytest.fixture
 def simple_machine():
@@ -47,7 +47,7 @@ def simple_machine():
     )
     sections = {"sections": {"FODO": ["M1", "QUAD1F", "QUAD1D", "M3"]}}
     layouts = {"default_layout": "line1", "layouts": {"line1": ["FODO"]}}
-    machine = NALA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
+    machine = LAURA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
     export_machine(path=f"{outdir}/lattice", machine=machine, overwrite=True)
     return machine, outdir
 

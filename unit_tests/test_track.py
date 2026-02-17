@@ -110,7 +110,7 @@
 #         "beam": deepcopy(simple_beam),
 #         "simcodes_location": SimCodesLocation,
 #         "master_subdir": f'./fodo/{code}',
-#         "master_lattice_location": f'./fodo/{code}',
+#         "master_lattice": f'./fodo/{code}',
 #         "delete_tracking_files": False,
 #     }
 #     executables = exes.Executables(global_parameters)

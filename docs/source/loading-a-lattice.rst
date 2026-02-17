@@ -4,16 +4,16 @@ Loading in a Lattice File
 =========================
 
 :ref:`Getting started <getting-started>` demonstrated how to create a
-`NALA <https://github.com/astec-stfc/nala/>`_ lattice in :mod:`python`.
+`LAURA <https://github.com/astec-stfc/laura/>`_ lattice in :mod:`python`.
 This page will describe how to generate a :mod:`SIMBA` instance based on pre-existing
-`NALA <https://github.com/astec-stfc/nala/>`_ element and lattice definitions.
+`LAURA <https://github.com/astec-stfc/laura/>`_ element and lattice definitions.
 
 .. _setup-from-file:
 
 Setting up a Simulation From Files
 ----------------------------------
 
-Given a :mod:`NALA` ``MachineModel``, which contains:
+Given a :mod:`LAURA` ``MachineModel``, which contains:
 
 * All of the elements in an accelerator lattice;
 * The various sections that compose that lattice;
@@ -58,14 +58,14 @@ for the CLARA :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.04
       bunch_compressor:
         type: chicane
         elements: [CLA-VBC-MAG-DIP-01, CLA-VBC-MAG-DIP-02, CLA-VBC-MAG-DIP-03, CLA-VBC-MAG-DIP-04]
-    layout: /path/to/nala-lattices/CLARA/layouts.yaml
-    section: /path/to/nala-lattices/CLARA/sections.yaml
-    element_list: /path/to/nala-lattices/CLARA/YAML/
+    layout: /path/to/laura-lattices/CLARA/layouts.yaml
+    section: /path/to/laura-lattices/CLARA/sections.yaml
+    element_list: /path/to/laura-lattices/CLARA/YAML/
 
 This lattice definition would produce several output files (called ``injector400.in``, ``Linac.lte``,
 and ``FEBE.py``) for running in the **ASTRA**, **Elegant** and **Ocelot** beam tracking codes.
 
-The elements are loaded from the directory ``/path/to/nala-lattices/CLARA/YAML/`` defined above.
+The elements are loaded from the directory ``/path/to/laura-lattices/CLARA/YAML/`` defined above.
 
 As this simulation starts from the cathode, the ``input`` definition is required for the first
 `injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
@@ -78,7 +78,7 @@ from the previous ``file`` block.
 Running SIMBA
 -------------
 
-The following example assumes that `NALA <https://github.com/astec-stfc/nala/>`_ has already been installed
+The following example assumes that `LAURA <https://github.com/astec-stfc/laura/>`_ has already been installed
 (see :ref:`Installation <installation>`) and that the :ref:`SimCodes <simcodes>` directory has
 been prepared.
 
@@ -92,7 +92,7 @@ been prepared.
     #       "verbose" will print a progressbar if true
     simcodes_location = "/path/to/simcodes/directory"
     framework = fw.Framework(
-        master_lattice="/path/to/nala-lattices/CLARA",
+        master_lattice="/path/to/laura-lattices/CLARA",
         directory="./example",
         generator_defaults="clara.yaml",
         simcodes_location=simcodes_location,

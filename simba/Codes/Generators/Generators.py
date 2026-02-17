@@ -16,11 +16,11 @@ based on the definitions in ``aliases.yaml``, which is read into the ``aliases``
 These attributes can be loaded in from a .yaml file, or modified after the class is instantiated. The top-level
 :class:`~simba.Framework.Framework` class has a
 :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
-``<master_lattice_location>.Generators`` directory. Specific distributions can be specified therein.
+``<master_lattice>.Generators`` directory. Specific distributions can be specified therein.
 
 Example: loading generator defaults
 
-Prepare `defaults.yaml` file for generators in ``<master_lattice_location>/Generators/``
+Prepare `defaults.yaml` file for generators in ``<master_lattice>/Generators/``
 
 .. code-block:: yaml
 
@@ -71,7 +71,7 @@ Load in generator settings
     import simba.Framework as fw
 
     framework = fw.Framework(
-            master_lattice=master_lattice_location,
+            master_lattice=master_lattice,
             simcodes=simcodes_location,
             directory=directory,
             generator_defaults=f"defaults.yaml"
@@ -210,7 +210,7 @@ class frameworkGenerator(BaseModel):
         import simba.Framework as fw
 
         framework = fw.Framework(
-            master_lattice=master_lattice_location,
+            master_lattice=master_lattice,
             simcodes=simcodes_location,
             directory=directory,
             generator_defaults=f"defaults.yaml"

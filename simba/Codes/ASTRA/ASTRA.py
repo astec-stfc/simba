@@ -38,10 +38,10 @@ from pydantic import Field, field_validator, ConfigDict
 from ...Framework_objects import frameworkLattice, global_error
 from ...FrameworkHelperFunctions import expand_substitution, saveFile
 from ...Modules import Beams as rbf
-from nala.models.diagnostic import DiagnosticElement
-from nala.models.element import PhysicalBaseElement
-from nala.models.physical import PhysicalElement
-from nala.translator.converters.codes.astra import (
+from laura.models.diagnostic import DiagnosticElement
+from laura.models.element import PhysicalBaseElement
+from laura.models.physical import PhysicalElement
+from laura.translator.converters.codes.astra import (
     astra_newrun,
     astra_charge,
     astra_output,
@@ -371,7 +371,7 @@ class astraLattice(frameworkLattice):
         ----------
         objectname: str
             Name of screen object
-        scr: :class:`~nala.models.diagnostic.DiagnosticElement`
+        scr: :class:`~laura.models.diagnostic.DiagnosticElement`
             Screen object
         cathode: bool
             True if beam was emitted from a cathode
@@ -452,8 +452,8 @@ class astraLattice(frameworkLattice):
         ----------
         lattice: str
             Lattice name
-        scr: nala.models.diagnostic.DiagnosticElement
-            NALA DiagnosticElement
+        scr: laura.models.diagnostic.DiagnosticElement
+            LAURA DiagnosticElement
         cathode: bool
             True if beam was emitted from a cathode
         mult: int
@@ -517,8 +517,8 @@ class astraLattice(frameworkLattice):
         ----------
         lattice: str
             The name of the lattice
-        scr: nala.models.diagnostic.DiagnosticElement
-            NALA DiagnosticElement
+        scr: laura.models.diagnostic.DiagnosticElement
+            LAURA DiagnosticElement
         master_run_no: int
             The run number
         mult: int

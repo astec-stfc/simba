@@ -79,7 +79,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Any
-from nala.models.diagnostic import DiagnosticElement
+from laura.models.diagnostic import DiagnosticElement
 
 
 class elegantLattice(frameworkLattice):
@@ -402,7 +402,7 @@ class elegantLattice(frameworkLattice):
                 lattice=self.objectname + ".lte",
                 p_central=np.mean(self.global_parameters["beam"].BetaGamma),
                 seed=seed,
-                losses="%s.loss",
+                # losses="%s.loss",
                 s_start=self.startObject.physical.start.z,
                 use_beamline=self.objectname,
             )
@@ -472,6 +472,7 @@ class elegantLattice(frameworkLattice):
             self.commandFiles["floor_coordinates"] = elegant_floor_coordinates_command(
                 # lattice=self,
                 X0=self.startObject.physical.start.x,
+                Y0=self.startObject.physical.start.y,
                 Z0=self.startObject.physical.start.z,
             )
             # print('matrix_output')
@@ -550,7 +551,6 @@ class elegantLattice(frameworkLattice):
             for i, s in enumerate(self.screens_and_markers_and_bpms):
                 self.sdds_to_hdf5(
                     s,
-                    i,
                     toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
                     ref_index=self.ref_idx,
                 )
@@ -564,7 +564,6 @@ class elegantLattice(frameworkLattice):
             ):
                 self.sdds_to_hdf5(
                     self.final_screen,
-                    len(self.screens_and_markers_and_bpms),
                     toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
                     ref_index=self.ref_idx,
                 )
@@ -586,14 +585,13 @@ class elegantLattice(frameworkLattice):
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
                 self.global_parameters["master_subdir"] + "/" + sddsbeamfilename,
-                xyzoffset=self.startObject.physical.start.model_dump(),
+                xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
     def sdds_to_hdf5(
             self,
             screen: DiagnosticElement,
-            sddsindex: int = 1,
             toffset: float = 0.0,
             ref_index: int = None
     ) -> None:
@@ -612,13 +610,12 @@ class elegantLattice(frameworkLattice):
             Reference particle index
         """
         beam = rbf.beam()
-        beam.sddsindex = sddsindex
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
         rbf.sdds.read_SDDS_beam_file(
             beam,
             elegantbeamfilename,
-            z0=screen.physical.middle.z,
+            xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             ref_index=ref_index
         )
         HDF5filename = f"{rootname}.openpmd.hdf5"
@@ -970,6 +967,9 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     X0: float = 0.0
     """Initial horizontal floor position"""
 
+    Y0: float = 0.0
+    """Initial horizontal floor position"""
+
     Z0: float = 0.0
     """Initial longitudinal floor position"""
 
@@ -988,6 +988,10 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     @property
     def x0(self) -> float:
         return self.X0
+
+    @property
+    def y0(self) -> float:
+        return self.Y0
 
     @property
     def z0(self) -> float:
