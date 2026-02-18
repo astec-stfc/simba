@@ -615,7 +615,7 @@ class elegantLattice(frameworkLattice):
         rbf.sdds.read_SDDS_beam_file(
             beam,
             elegantbeamfilename,
-            xyzoffset=list(self.startObject.physical.start.model_dump().values()),
+            xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
             ref_index=ref_index
         )
         HDF5filename = f"{rootname}.openpmd.hdf5"
