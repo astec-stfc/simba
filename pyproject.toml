@@ -79,6 +79,16 @@ Repository = "https://github.com/astec-stfc/simba.git"
 Issues = "https://github.com/astec-stfc/simba/-/issues/"
 
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Pydantic serializer warnings:UserWarning",
+    "ignore:datetime.datetime.utcnow:DeprecationWarning",
+    "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning",
+    "ignore:module 'sre_:DeprecationWarning",
+    "ignore:pkg_resources:DeprecationWarning",
+    "ignore::pyparsing.exceptions.PyparsingDeprecationWarning",
+]
+
 [tool.setuptools]
 include-package-data = true
 

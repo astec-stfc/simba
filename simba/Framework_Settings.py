@@ -3,6 +3,11 @@ import sys
 import yaml
 from munch import Munch, unmunchify
 
+try:
+    _FastLoader = yaml.CSafeLoader
+except AttributeError:
+    _FastLoader = yaml.SafeLoader
+
 _mapping_tag = yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG
 
 
@@ -33,7 +38,7 @@ class FrameworkSettings(Munch):
     def loadSettings(self, filename):
         self.settingsFilename = filename
         with open(filename, "r") as stream:
-            settings = yaml.safe_load(stream)
+            settings = yaml.load(stream, Loader=_FastLoader)
         for k, v in settings.items():
             if k in self.isthistheissue:
                 self.update({k: v})

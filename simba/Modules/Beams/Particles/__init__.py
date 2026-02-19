@@ -24,10 +24,19 @@ from .sigmas import sigmas as sigmasobject
 from .centroids import centroids as centroidsobject
 from .kde import kde as kdeobject
 
-try:
-    from .mve import MVE as MVEobject
-except ImportError:
-    pass
+# Defer heavy MVE import (scipy.stats ~0.6s) until actually needed
+MVEobject = None
+
+def _get_mve_class():
+    global MVEobject
+    if MVEobject is None:
+        try:
+            from .mve import MVE as _MVE
+            MVEobject = _MVE
+        except ImportError:
+            MVEobject = False  # Sentinel to avoid retrying
+    return MVEobject if MVEobject is not False else None
+
 from ...units import UnitValue, unit_multiply
 from pydantic import (
     BaseModel,
@@ -355,7 +364,11 @@ class Particles(BaseModel):
             The MVE
         """
         if not hasattr(self, "_mve"):
-            self._mve = MVEobject(self)
+            _MVEclass = _get_mve_class()
+            if _MVEclass is not None:
+                self._mve = _MVEclass(self)
+            else:
+                raise ImportError("MVE module not available")
         return self._mve
 
     def covariance(

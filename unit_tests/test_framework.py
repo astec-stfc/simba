@@ -118,9 +118,10 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
         clean=True,
         verbose=True
     )
+    test_dir = os.path.dirname(os.path.abspath(__file__))
     framework.loadSettings(settings=settings)
-    framework.save_settings("test.def")
-    framework.loadSettings(filename="test.def")
+    framework.save_settings("test.def", directory=test_dir)
+    framework.loadSettings(filename=os.path.join(test_dir, "test.def"))
     framework.global_parameters["beam"] = MagicMock()
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False

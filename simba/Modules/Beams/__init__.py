@@ -58,12 +58,21 @@ from .Particles.sigmas import sigmas as sigmasobject
 from .Particles.centroids import centroids as centroidsobject
 from .Particles.kde import kde as kdeobject
 
-try:
-    from .Particles.mve import MVE as MVEobject
+# Defer heavy MVE import (triggers scipy.stats ~0.6s)
+imported_mve = None  # Lazy sentinel
+MVEobject = None
 
-    imported_mve = True
-except ImportError:
-    imported_mve = False
+
+def _get_mve():
+    global imported_mve, MVEobject
+    if imported_mve is None:
+        try:
+            from .Particles.mve import MVE as _MVE
+            MVEobject = _MVE
+            imported_mve = True
+        except ImportError:
+            imported_mve = False
+    return imported_mve
 
 
 # I can't think of a clever way of doing this, so...
@@ -82,7 +91,7 @@ parameters = {
     "sigmas": get_properties(sigmasobject),
     "centroids": get_properties(centroidsobject),
     "kde": get_properties(kdeobject),
-    "mve": get_properties(MVEobject) if imported_mve else [],
+    "mve": [],  # Populated lazily when MVE is first used
 }
 
 

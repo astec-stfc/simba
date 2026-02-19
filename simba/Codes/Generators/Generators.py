@@ -104,42 +104,47 @@ import yaml
 from easygdf import load
 import warnings
 
+try:
+    _FastLoader = yaml.CSafeLoader
+except AttributeError:
+    _FastLoader = yaml.SafeLoader
+
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/astra.yaml",
     "r",
 ) as infile:
-    astra_generator_keywords = yaml.safe_load(infile)
+    astra_generator_keywords = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/gpt.yaml",
     "r",
 ) as infile:
-    gpt_generator_keywords = yaml.safe_load(infile)
+    gpt_generator_keywords = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/elegant.yaml",
     "r",
 ) as infile:
     elegant_generator_keywords = {"defaults": {}}
-    elegant_generator_keywords.update(yaml.safe_load(infile))
+    elegant_generator_keywords.update(yaml.load(infile, Loader=_FastLoader))
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/opal.yaml",
     "r",
 ) as infile:
-    opal_generator_keywords = yaml.safe_load(infile)
+    opal_generator_keywords = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/aliases.yaml",
     "r",
 ) as infile:
-    aliases = yaml.safe_load(infile)
+    aliases = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/species.yaml",
     "r",
 ) as infile:
-    code_species = yaml.safe_load(infile)
+    code_species = yaml.load(infile, Loader=_FastLoader)
 
 allowed_species = ["electron", "proton", "positron", "hydrogen"]
 

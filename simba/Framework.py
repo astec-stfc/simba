@@ -22,12 +22,19 @@ Classes:
 import os
 import yaml
 import inspect
+import warnings
 from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
+
+try:
+    _FastLoader = yaml.CSafeLoader
+except AttributeError:
+    _FastLoader = yaml.SafeLoader
+
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement, Dipole
+from laura.models.element import PhysicalBaseElement, Dipole, Element
 from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -51,6 +58,9 @@ from .FrameworkHelperFunctions import (
     compare_multiple_models,
     set_deep_attr,
     flatten_changes_dict,
+    pep8_adaptor,
+    alias_classes_to_pep8,
+    expand_substitution_recursive,
 )
 from pydantic import (
     BaseModel,
@@ -103,6 +113,39 @@ def numpy_scalar_representer(dumper, data):
     else:
         return dumper.represent_str(str(data))
 
+
+class _FrozenSnapshot:
+    """Lightweight snapshot of a Pydantic model for comparison.
+    
+    Stores the model_dump() dict and provides attribute access,
+    avoiding expensive deepcopy of the full Pydantic model tree.
+    """
+    __slots__ = ('_data', 'name')
+
+    def __init__(self, model):
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
+            self._data = model.model_dump()
+        self.name = getattr(model, 'name', None)
+
+    def __getattr__(self, key):
+        if key in ('_data', 'name'):
+            raise AttributeError(key)
+        try:
+            return self._data[key]
+        except KeyError:
+            raise AttributeError(key)
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def model_dump(self, **kwargs):
+        return self._data.copy()
+
+    def __iter__(self):
+        return iter(((k, v) for k, v in self._data.items()))
+
+
 # Register custom representers for SafeDumper
 yaml.SafeDumper.add_representer(np.ndarray, numpy_array_representer)
 yaml.SafeDumper.add_representer(np.generic, numpy_scalar_representer)
@@ -122,15 +165,22 @@ NumpySafeDumper.add_representer(np.bool_, numpy_scalar_representer)
 yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
-latticeClasses = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
-]
+latticeClasses = None  # Lazily initialized
+
+
+def _get_lattice_classes():
+    global latticeClasses
+    if latticeClasses is None:
+        latticeClasses = [
+            [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+        ]
+    return latticeClasses
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml",
     "r",
 ) as infile:
-    hosts = yaml.safe_load(infile)
+    hosts = yaml.load(infile, Loader=_FastLoader)
 
 disallowed = [
     "allowedkeywords",
@@ -156,8 +206,9 @@ disallowed_changes = [
 ]
 
 
-supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
+supported_codes = frameworkLattices.supported_codes
 
+@pep8_adaptor
 class Framework(BaseModel):
     """
     The main class for handling the tracking of a particle distribution through a lattice.
@@ -569,7 +620,7 @@ class Framework(BaseModel):
                 os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml",
                 "r",
         ) as infile:
-            self.generator_keywords = {"keywords": yaml.safe_load(infile)}
+            self.generator_keywords = {"keywords": yaml.load(infile, Loader=_FastLoader)}
 
         if not generator_defaults:
             return self.generator_keywords
@@ -580,7 +631,7 @@ class Framework(BaseModel):
         else:
             raise FileNotFoundError(f"Could not find generator file {generator_defaults}")
         with open(defaults, "r",) as infile:
-            fi = yaml.safe_load(infile)
+            fi = yaml.load(infile, Loader=_FastLoader)
             defaults = fi["defaults"]
             self.generator_keywords.update({"defaults": defaults})
             for k, v in fi.items():
@@ -605,15 +656,15 @@ class Framework(BaseModel):
         for f in filename:
             if os.path.isfile(f):
                 with open(f, "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
+                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
             elif os.path.isfile(os.path.join(self.subdirectory, f)):
                 with open(os.path.join(self.subdirectory, f), "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
+                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
             else:
                 with open(
                     self.global_parameters["master_lattice"] + f, "r"
                 ) as stream:
-                    elements = yaml.safe_load(stream)["elements"]
+                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
             for name, elem in list(elements.items()):
                 self.read_Element(name, elem)
 
@@ -669,13 +720,46 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
+            # Expand $master_lattice$ substitutions in layout and section before passing to LAURA
+            expanded_layout = expand_substitution_recursive(self, self.settings["layout"])
+            expanded_section = expand_substitution_recursive(self, self.settings["section"])
+            expanded_element_list = expand_substitution_recursive(self, self.settings["element_list"])
+            
             self.machine = LAURA(
-                layout=self.settings["layout"],
-                section=self.settings["section"],
-                element_list=self.settings["element_list"],
+                layout=expanded_layout,
+                section=expanded_section,
+                element_list=expanded_element_list,
                 master_lattice=self.global_parameters["master_lattice"],
                 exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
+            
+            # Set master_lattice_location on all LAURA elements for expand_substitution to work
+            # and recursively expand all substitutions in element properties
+            master_lattice_path = self.global_parameters["master_lattice"].rstrip("/").rstrip("\\")
+            for element in self.machine.elements.values():
+                try:
+                    object.__setattr__(element, 'master_lattice_location', master_lattice_path)
+                except (AttributeError, TypeError):
+                    # If we can't set the attribute directly, use the object dictionary
+                    element.__dict__['master_lattice_location'] = master_lattice_path
+                
+                # Recursively expand all substitutions in element properties
+                try:
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
+                        element_dict = element.model_dump()
+                    expanded_dict = expand_substitution_recursive(self, element_dict)
+                    for key, value in expanded_dict.items():
+                        if value != element_dict.get(key):
+                            try:
+                                setattr(element, key, value)
+                            except Exception:
+                                try:
+                                    object.__setattr__(element, key, value)
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
 
             self.elementObjects = {k: v for k, v in self.machine.elements.items()}
 
@@ -696,8 +780,9 @@ class Framework(BaseModel):
 
             self.original_elementObjects = {}
             for e in self.elementObjects:
-                self.original_elementObjects[e] = deepcopy(self.elementObjects[e])
-            self.original_elementObjects["generator"] = deepcopy(self.generator)
+                self.original_elementObjects[e] = _FrozenSnapshot(self.elementObjects[e])
+            if self.generator is not None:
+                self.original_elementObjects["generator"] = _FrozenSnapshot(self.generator)
 
             self.updateGlobalParameters()
 
@@ -830,7 +915,7 @@ class Framework(BaseModel):
                 elif e == "generator":
                     element = self.generator
                     e = "generator"
-                if isinstance(element, PhysicalBaseElement):
+                if isinstance(element, (PhysicalBaseElement, Element)):
                     orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
@@ -994,7 +1079,7 @@ class Framework(BaseModel):
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
             with open(filename, "r") as infile:
-                changes = dict(yaml.safe_load(infile))
+                changes = dict(yaml.load(infile, Loader=_FastLoader))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
                 return
@@ -1962,7 +2047,7 @@ class Framework(BaseModel):
         Updates the 'Run Settings' in each of the lattices
         """
         for ln, latticeObject in self.latticeObjects.items():
-            if isinstance(latticeObject, tuple(latticeClasses)):
+            if isinstance(latticeObject, tuple(_get_lattice_classes())):
                 latticeObject.updateRunSettings(self.runSetup)
 
     def setNRuns(self, nruns: int) -> None:
@@ -2068,6 +2153,7 @@ class Framework(BaseModel):
             # )
 
 
+@pep8_adaptor
 class frameworkDirectory(BaseModel):
     """
     Class to load a tracking run from a directory and read the Beam and Twiss files and make them available
@@ -2259,3 +2345,5 @@ def load_directory(
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
     fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
     return fw
+
+alias_classes_to_pep8(globals())

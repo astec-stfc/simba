@@ -33,6 +33,11 @@ import yaml
 from copy import deepcopy
 import time
 
+try:
+    _FastLoader = yaml.CSafeLoader
+except AttributeError:
+    _FastLoader = yaml.SafeLoader
+
 from laura import LAURA
 from laura.models.elementList import SectionLattice, ElementList
 from laura.models.physical import Position
@@ -42,7 +47,11 @@ from laura.translator.converters.section import SectionLatticeTranslator
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution
+from .FrameworkHelperFunctions import (
+    expand_substitution,
+    pep8_adaptor,
+    alias_classes_to_pep8,
+)
 from .Modules.Fields import field
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
@@ -81,7 +90,7 @@ with open(
     os.path.dirname(os.path.abspath(__file__)) + "/Codes/type_conversion_rules.yaml",
     "r",
 ) as infile:
-    type_conversion_rules = yaml.safe_load(infile)
+    type_conversion_rules = yaml.load(infile, Loader=_FastLoader)
     type_conversion_rules_Elegant = type_conversion_rules["elegant"]
     type_conversion_rules_Names = type_conversion_rules["name"]
     type_conversion_rules_Opal = type_conversion_rules["opal"]
@@ -90,19 +99,19 @@ with open(
     os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/commands_Elegant.yaml",
     "r",
 ) as infile:
-    commandkeywords_elegant = yaml.safe_load(infile)
+    commandkeywords_elegant = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/Codes/OPAL/commands_Opal.yaml",
     "r",
 ) as infile:
-    commandkeywords_opal = yaml.safe_load(infile)
+    commandkeywords_opal = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/Codes/Genesis/commands_Genesis.yaml",
     "r",
 ) as infile:
-    commandkeywords_genesis = yaml.safe_load(infile)
+    commandkeywords_genesis = yaml.load(infile, Loader=_FastLoader)
 
 commandkeywords = commandkeywords_elegant | commandkeywords_opal
 commandkeywords = commandkeywords | commandkeywords_genesis
@@ -110,22 +119,23 @@ commandkeywords = commandkeywords | commandkeywords_genesis
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/elementkeywords.yaml", "r"
 ) as infile:
-    elementkeywords = yaml.safe_load(infile)
+    elementkeywords = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__))
     + "/Codes/Elegant/keyword_conversion_rules_elegant.yaml",
     "r",
 ) as infile:
-    keyword_conversion_rules_elegant = yaml.safe_load(infile)
+    keyword_conversion_rules_elegant = yaml.load(infile, Loader=_FastLoader)
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/elements_Elegant.yaml",
     "r",
 ) as infile:
-    elements_Elegant = yaml.safe_load(infile)
+    elements_Elegant = yaml.load(infile, Loader=_FastLoader)
 
 
+@pep8_adaptor
 class runSetup(object):
     """
     Class defining settings for simulations that include multiple runs
@@ -198,7 +208,7 @@ class runSetup(object):
         error_setup = None
         if isinstance(file, str) and (".yaml" in file):
             with open(file, "r") as inputfile:
-                error_setup = dict(yaml.safe_load(inputfile))
+                error_setup = dict(yaml.load(inputfile, Loader=_FastLoader))
         # define errors from dictionary
         elif isinstance(file, dict):
             error_setup = file
@@ -267,6 +277,7 @@ class runSetup(object):
         self.elementErrors = None
 
 
+@pep8_adaptor
 class frameworkObject(BaseModel):
     """
     Class defining a framework object, which is the base class for all elements
@@ -295,6 +306,10 @@ class frameworkObject(BaseModel):
 
     global_parameters: Dict = {}
     """Global parameters to be cascaded through all objects."""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        pep8_adaptor(cls)
 
     def model_post_init(self, __context):
         extra_fields = {
@@ -452,6 +467,7 @@ class frameworkObject(BaseModel):
         return string
 
 
+@pep8_adaptor
 class frameworkLattice(BaseModel):
     """
     Class defining a framework lattice object, which contains all elements and groups
@@ -558,6 +574,10 @@ class frameworkLattice(BaseModel):
 
     files: List = []
     """List of all files needed to run the lattice."""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        pep8_adaptor(cls)
 
     def model_post_init(self, __context):
         # super().model_post_init(__context)
@@ -1211,6 +1231,19 @@ class frameworkLattice(BaseModel):
             slt.csr_enable = self.csr_enable
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
+            # Set master_lattice_location for LAURA's expand_substitution function
+            master_lattice_path = self.global_parameters["master_lattice"].rstrip("/").rstrip("\\")
+            try:
+                object.__setattr__(slt, 'master_lattice_location', master_lattice_path)
+            except (AttributeError, TypeError):
+                slt.__dict__['master_lattice_location'] = master_lattice_path
+            # Also set on all elements in the section for LAURA's expand_substitution to work
+            if hasattr(slt, 'elements') and hasattr(slt.elements, 'elements'):
+                for elem in slt.elements.elements.values():
+                    try:
+                        object.__setattr__(elem, 'master_lattice_location', master_lattice_path)
+                    except (AttributeError, TypeError):
+                        elem.__dict__['master_lattice_location'] = master_lattice_path
             self._section = slt
             return slt
         return self._section
@@ -2092,6 +2125,7 @@ class frameworkCommand(frameworkObject):
         return string
 
 
+@pep8_adaptor
 class frameworkGroup(object):
     """
     Class defining a framework group, which is used to group together elements to perform coordinated
@@ -2528,3 +2562,5 @@ class getGrids(object):
         self.value = value
         self.idx = (np.abs(self.array - self.value)).argmin()
         return self.array[self.idx]
+
+alias_classes_to_pep8(globals())
