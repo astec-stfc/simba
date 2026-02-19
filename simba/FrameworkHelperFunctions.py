@@ -303,21 +303,30 @@ def pydantic_basemodel_dump_computed_fields(self, *args, **kwargs):
     return {k: v for k, v in full_dump.items() if k in computed_keys}
 
 def normalize(obj):
+    """
+    Normalize None to empty dicts and recursively handle nested dictionaries
+    """
+    if obj is None:
+        return {}  # Normalize None to an empty dictionary
     if isinstance(obj, dict):
+        if not obj:  # Handle empty dictionaries
+            return {}
         return {k: normalize(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [normalize(v) for v in obj]
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
-    elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
+    elif isinstance(obj, np.generic):
         return obj.item()
+    elif isinstance(obj, (int, float)):
+        return float(obj)  # Normalize int to float
     else:
         return obj
 
+
 def deepdiff_to_nested(diff: dict) -> dict:
     """
-    Convert a DeepDiff result (values_changed only)
-    into a nested dictionary structure.
+    Convert a DeepDiff result (values_changed only) into a nested dictionary structure.
     """
     nested = {}
 
@@ -325,6 +334,10 @@ def deepdiff_to_nested(diff: dict) -> dict:
         return nested
 
     for path, change in diff['values_changed'].items():
+        # Normalize the old and new values before inserting them
+        old_value = normalize(change["old_value"])
+        new_value = normalize(change["new_value"])
+
         # Strip the "root" prefix and split the path into keys
         parts = path.replace("root", "").strip(".")
         keys = []
@@ -348,8 +361,8 @@ def deepdiff_to_nested(diff: dict) -> dict:
         for k in keys[:-1]:
             d = d.setdefault(k, {})
         d[keys[-1]] = {
-            "old": change["old_value"],
-            "new": change["new_value"],
+            "old": old_value,
+            "new": new_value,
         }
 
     return nested
@@ -361,12 +374,24 @@ def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
     """
     all_changes = {}
     for old, new in model_pairs:
+        # Normalize old and new models
         old_dump = normalize(old.model_dump())
         new_dump = normalize(new.model_dump())
+
+        # Log the normalized versions of the models for debugging
+
+        # Calculate DeepDiff between normalized models
         diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
+
+        # Convert the DeepDiff output into a nested dictionary format
         nested_diff = deepdiff_to_nested(diff.to_dict())
+
+        # Log the nested difference result for debugging
+
         all_changes[old.name] = nested_diff
+
     return all_changes
+
 
 def set_deep_attr(obj, dotted_path, value):
     """Set nested attribute using a dotted path like 'a.b.c.d'."""
