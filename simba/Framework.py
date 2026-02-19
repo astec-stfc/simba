@@ -42,12 +42,6 @@ from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
 from .Modules import constants
 from .Codes import Executables as exes
-from .Codes.Generators import (
-    ASTRAGenerator,
-    GPTGenerator,
-    OPALGenerator,
-    frameworkGenerator,
-)
 from .Framework_objects import runSetup
 from . import Framework_lattices as frameworkLattices
 from . import Framework_elements as frameworkElements
@@ -83,13 +77,13 @@ try:
     SimCodesLocation = os.path.dirname(SimCodes.__file__) + "/"
 except ImportError:
     SimCodesLocation = None
-try:
-    import simba.Modules.plotting.plotting as groupplot
 
-    use_matplotlib = True
-except ImportError as e:
-    print("Import error - plotting disabled. Missing package:", e)
+use_matplotlib = True
+try:
+    import matplotlib
+except ImportError:
     use_matplotlib = False
+
 from tqdm import tqdm
 
 _mapping_tag = yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG
@@ -296,7 +290,7 @@ class Framework(BaseModel):
     tracking: bool = False
     """Flag to indicate whether the Framework is tracking"""
 
-    generator: frameworkGenerator | None = None
+    generator: Any = None
     """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator` object"""
 
     settings: FrameworkSettings | None = None
@@ -736,6 +730,11 @@ class Framework(BaseModel):
             # Set master_lattice_location on all LAURA elements for expand_substitution to work
             # and recursively expand all substitutions in element properties
             master_lattice_path = self.global_parameters["master_lattice"].rstrip("/").rstrip("\\")
+            subs = {
+                "master_lattice": master_lattice_path + "/",
+                "master_subdir": "./"
+            }
+            
             for element in self.machine.elements.values():
                 try:
                     object.__setattr__(element, 'master_lattice_location', master_lattice_path)
@@ -745,19 +744,32 @@ class Framework(BaseModel):
                 
                 # Recursively expand all substitutions in element properties
                 try:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
-                        element_dict = element.model_dump()
-                    expanded_dict = expand_substitution_recursive(self, element_dict)
-                    for key, value in expanded_dict.items():
-                        if value != element_dict.get(key):
-                            try:
-                                setattr(element, key, value)
-                            except Exception:
+                    # Quick check to see if any value in the element's __dict__ contains a $
+                    # to avoid expensive model_dump and recursion for static elements
+                    contains_sub = False
+                    for val in element.__dict__.values():
+                        if isinstance(val, str) and "$" in val:
+                            contains_sub = True
+                            break
+                        elif isinstance(val, dict): # Check nested dicts for config
+                            if any(isinstance(v, str) and "$" in v for v in val.values()):
+                                contains_sub = True
+                                break
+                    
+                    if contains_sub:
+                        with warnings.catch_warnings():
+                            warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
+                            element_dict = element.model_dump()
+                        expanded_dict = expand_substitution_recursive(self, element_dict, subs=subs)
+                        for key, value in expanded_dict.items():
+                            if value != element_dict.get(key):
                                 try:
-                                    object.__setattr__(element, key, value)
+                                    setattr(element, key, value)
                                 except Exception:
-                                    pass
+                                    try:
+                                        object.__setattr__(element, key, value)
+                                    except Exception:
+                                        pass
                 except Exception:
                     pass
 
@@ -908,6 +920,7 @@ class Framework(BaseModel):
                         ),
                     }
         else:
+            from .Codes.Generators import frameworkGenerator
             for e in changeelements:
                 element = None
                 if e in self.elementObjects:
@@ -1483,6 +1496,13 @@ class Framework(BaseModel):
         default: str or None
             Name of generator code
         """
+        from .Codes.Generators import (
+            ASTRAGenerator,
+            GPTGenerator,
+            OPALGenerator,
+            frameworkGenerator,
+        )
+
         if "code" in kwargs:
             if kwargs["code"].lower() == "gpt":
                 code = GPTGenerator
@@ -1525,6 +1545,13 @@ class Framework(BaseModel):
         generator: str
             The generator code to which the generator object should be changed.
         """
+        from .Codes.Generators import (
+            ASTRAGenerator,
+            GPTGenerator,
+            OPALGenerator,
+            frameworkGenerator,
+        )
+
         old_kwargs = self.generator.model_dump()
         old_kwargs["code"] = generator
         if generator.lower() == "gpt":
@@ -2233,12 +2260,14 @@ class frameworkDirectory(BaseModel):
             """
             Return a plot object; see :func:`~simba.Modules.plotting.plotting.plot`.
             """
+            import simba.Modules.plotting.plotting as groupplot
             return groupplot.plot(self, *args, **kwargs)
 
         def general_plot(self, *args, **kwargs):
             """
             Return a general_plot object; see :func:`~simba.Modules.plotting.plotting.general_plot`.
             """
+            import simba.Modules.plotting.plotting as groupplot
             return groupplot.general_plot(self, *args, **kwargs)
 
     def __repr__(self):

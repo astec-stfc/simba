@@ -159,42 +159,48 @@ def path_function(a, b):
     return os.path.abspath(a)
 
 
-_SUBSTITUTION_REGEX = re.compile(r"\$(.*)\$")
+_SUBSTITUTION_REGEX = re.compile(r"\$(.*?)\$")
 
 
 def expand_substitution(self, param, subs={}, elements={}, absolute=False):
     # print(param)
     if isinstance(param, (str)):
         # Quick check: if no $ in string, nothing to substitute
-        if '$' not in param:
+        if "$" not in param:
             return param
-        subs["master_lattice"] = (
-            path_function(
-                self.global_parameters["master_lattice"],
-                self.global_parameters["master_subdir"],
-            )
-            + "/"
-        )
-        subs["master_subdir"] = "./"
-        s = _SUBSTITUTION_REGEX.search(param)
-        if s:
-            if isevaluable(self, s.group(1)) is True:
-                replaced_str = str(eval(_SUBSTITUTION_REGEX.sub(str(eval(s.group(1))), param)))
+        if "master_lattice" not in subs:
+            subs["master_lattice"] = (
+                path_function(
+                    self.global_parameters["master_lattice"],
+                    self.global_parameters["master_subdir"],
+                )
+                + "/"
+            ).replace("\\", "/")
+        if "master_subdir" not in subs:
+            subs["master_subdir"] = "./"
+
+        matches = _SUBSTITUTION_REGEX.findall(param)
+        if not matches:
+            return param
+
+        replaced_str = param
+        for match in matches:
+            if isevaluable(self, match):
+                val = str(eval(match))
+                replaced_str = replaced_str.replace(f"${match}$", val)
             else:
-                replaced_str = _SUBSTITUTION_REGEX.sub(s.group(1), param)
-            for key in subs:
-                replaced_str = replaced_str.replace(key, subs[key])
+                replaced_str = replaced_str.replace(f"${match}$", match)
+
+        for key, value in subs.items():
+            if key in replaced_str:
+                replaced_str = replaced_str.replace(key, str(value))
+
+        if "/" in replaced_str or "\\" in replaced_str:
             if os.path.exists(replaced_str):
                 replaced_str = path_function(
-                    replaced_str, self.global_parameters["master_subdir"]
+                    replaced_str, self.global_parameters.get("master_subdir", "./")
                 ).replace("\\", "/")
-                # print('\tpath exists', replaced_str)
-            for e in elements.keys():
-                if e in replaced_str:
-                    print("Element is in string!", e, replaced_str)
-            return replaced_str
-        else:
-            return param
+        return replaced_str
     else:
         return param
 
