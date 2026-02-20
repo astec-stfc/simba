@@ -45,6 +45,7 @@ dependencies = [
     "xopt",
     "Wake-T>=0.8.0",
     "laura-accelerator",
+    "confluent-kafka",
 ]
 
 requires-python = ">= 3.10"

@@ -1,8 +1,6 @@
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
-import os
 import json, requests
-from ...FrameworkHelperFunctions import expand_substitution
 from confluent_kafka import Consumer, Message
 import time, uuid
 from pydantic import BaseModel
