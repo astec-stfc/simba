@@ -30,4 +30,4 @@ disallowed:
   - covariance_xxp
   - covariance_yyp
   - offset_z
-  - initial_momentum
+  #- initial_momentum

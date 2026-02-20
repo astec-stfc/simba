@@ -38,6 +38,7 @@ aliases:
       multiplier: 1000
     sigma_kinetic_energy:
       alias: sig_ekin
+      multiplier: 0.001
     correlation_kinetic_energy:
       alias: cor_ekin
     bunch_length:

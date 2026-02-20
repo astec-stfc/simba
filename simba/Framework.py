@@ -2097,6 +2097,9 @@ class frameworkDirectory(BaseModel):
     framework: Framework | None = None
     """:class:`~simba.Framework.Framework` instance"""
 
+    E0: float | None = None
+    """Particle rest mass energy"""
+
     def __init__(
         self,
         *args,
@@ -2139,7 +2142,7 @@ class frameworkDirectory(BaseModel):
             self.beams = None
             self.twiss = rtf.twiss()
         if self.twiss:
-            self.twiss.load_directory(directory, verbose=self.verbose)
+            self.twiss.load_directory(directory, verbose=self.verbose, E0=self.E0)
 
     if use_matplotlib:
 

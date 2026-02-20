@@ -956,6 +956,7 @@ class twiss(BaseModel):
         preglob: str = "*",
         verbose: bool = False,
         sortkey: str = "z",
+        E0: float = None,
     ) -> "twiss":
         """
         Load twiss files from a specified directory based on the provided types and preglob pattern.
@@ -983,6 +984,8 @@ class twiss(BaseModel):
         if verbose:
             print("Directory:", directory)
         self.reset_dicts()
+        if E0:
+            self.set_E0(E0)
         for code, string in types.items():
             twiss_files = glob.glob(directory + "/" + preglob + string)
             if verbose:
