@@ -90,6 +90,8 @@ class Executables(object):
     def __init__(self, global_parameters):
         super(Executables, self).__init__()
         self.global_parameters = global_parameters
+        self.polylithic_url = None  # default should throw
+        self.kafka_url = None
         sim_codes = (
             self.global_parameters["simcodes_location"]
             if "simcodes_location" in self.global_parameters
@@ -126,9 +128,17 @@ class Executables(object):
         self.define_gpt_command()
         self.define_opal_command()
         self.define_genesis_command()
+        self.define_polylithic_url()
+        self.define_kafka_url()
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+    def define_polylithic_url(self):
+        self.polylithic_url = self.settings[os.name]["polylithic_url"]
+
+    def define_kafka_url(self):
+        self.kafka_url = self.settings[os.name]["kafka_url"]
 
     def getNCPU(
             self,

@@ -559,6 +559,9 @@ class frameworkLattice(BaseModel):
     files: List = []
     """List of all files needed to run the lattice."""
 
+    modelparameters: List[str] | None = None
+    """Additional model parameters to be passed to Polylithic."""
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):

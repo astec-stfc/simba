@@ -340,6 +340,8 @@ class Framework(BaseModel):
             ncpu=ncpu,
         )
         executables.define_ASTRAgenerator_command()
+        executables.define_polylithic_url()
+        executables.define_kafka_url()
         return executables
 
     def clear(self) -> None:
