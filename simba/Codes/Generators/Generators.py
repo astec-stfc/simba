@@ -614,7 +614,7 @@ class frameworkGenerator(BaseModel):
         """
         return self.name
 
-    def write(self):
+    def generate(self):
         if self.initial_momentum <= 0:
             raise ValueError("initial_momentum must be set to a non-zero value")
         q_over_c = UnitValue(
@@ -642,6 +642,10 @@ class frameworkGenerator(BaseModel):
         beam.Particles.t = UnitValue(abs(-z / constants.speed_of_light), units="s")
         beam.Particles.set_total_charge(self.charge)
         beam.set_species(self.species)
+        return beam
+
+    def write(self):
+        beam = self.generate()
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + self.filename,

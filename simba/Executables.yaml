@@ -7,7 +7,7 @@ nt:
   csrtrack: [$simcodes$/CSRTrack/csrtrack.exe]
   gpt: ['C:\Program Files\General Particle Tracer\bin\gpt.exe','-j',$ncpu$]
   genesis: [$simcodes$/Genesis/genesis4]
-  polylithic_url: 'http://gaia0.controls.isis.rl.ac.uk:8012'
+  polylithic_url: 'http://localhost:8012'
   kafka_url: 'athena.isis.rl.ac.uk:9092'
 apclara1:
   astragenerator: ['/opt/ASTRA/generator.sh']
@@ -18,7 +18,7 @@ apclara1:
   csrtrack: ['/opt/OpenMPI-1.4.3/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_openmpi.sh']
   opal: ["source", "/opt/OPAL-2022.1/etc/profile.d/opal.sh", ';', "mpirun", '-np', $ncpu$, "/opt/OPAL-2022.1/bin/opal", ">", "out.txt"]
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
-  polylithic_url: 'http://gaia0.controls.isis.rl.ac.uk:8012'
+  polylithic_url: 'http://localhost:8012'
   kafka_url: 'athena.isis.rl.ac.uk:9092'
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']
@@ -28,7 +28,7 @@ apclara2:
   csrtrack: ['/opt/OpenMPI-1.4.5/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_1.204_Linux_x86_64_OpenMPI_1.4.3']
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
-  polylithic_url: 'http://gaia0.controls.isis.rl.ac.uk:8012'
+  polylithic_url: 'http://localhost:8012'
   kafka_url: 'athena.isis.rl.ac.uk:9092'
 apclara3:
   astragenerator: ['/opt/ASTRA/generator.sh']
@@ -38,7 +38,7 @@ apclara3:
   csrtrack: ['/opt/OpenMPI-1.4.5/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_1.204_Linux_x86_64_OpenMPI_1.4.3']
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
-  polylithic_url: 'http://gaia0.controls.isis.rl.ac.uk:8012'
+  polylithic_url: 'http://localhost:8012'
   kafka_url: 'athena.isis.rl.ac.uk:9092'
 posix:
   astragenerator: [$simcodes$/ASTRA/generator]
@@ -49,5 +49,5 @@ posix:
   gpt: [$simcodes$/GPT/bin/gpt, '-j',$ncpu$]
   opal: ["source", $simcodes$/OPAL/etc/profile.d/opal.sh, ';', $simcodes$/OPAL/bin/opal]
   genesis: [$simcodes$/Genesis/genesis4]
-  polylithic_url: 'http://gaia0.controls.isis.rl.ac.uk:8012'
+  polylithic_url: 'http://localhost:8012'
   kafka_url: 'athena.isis.rl.ac.uk:9092'

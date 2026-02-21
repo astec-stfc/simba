@@ -1,16 +1,37 @@
 from ...Framework_objects import frameworkLattice
-from ...Modules import Beams as rbf
-import json, requests
+import requests
 from confluent_kafka import Consumer, Message
 import time, uuid
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import BaseModel
 import numpy as np
-import inspect
-from io import BytesIO
-import base64
 from copy import deepcopy
-from ocelot.cpbd.beam import Twiss
-from typing import List
+from typing import Dict
+from laura.models.element import Diagnostic
+from ...Codes.Generators.Generators import frameworkGenerator
+from ...Modules.constants import speed_of_light
+
+transform_ocelot_twiss = {
+    '_emit_xn': "ecnx",
+    '_emit_yn': "ecny",
+    '_E': ["cp", 1e-9],
+    '_beta_x': "beta_x",
+    '_beta_y': "beta_y",
+    '_alpha_x': "alpha_x",
+    '_alpha_y': "alpha_y",
+    'Dx': "eta_x",
+    'Dy': "eta_y",
+    'Dxp': "eta_xp",
+    'Dyp': "eta_yp",
+    'mux': "mux",
+    'muy': "muy",
+    's': "s",
+    'x': "mean_x",
+    'y': "mean_y",
+    'xx': "sigma_x",
+    'pxpx': "sigma_xp",
+    'yy': "sigma_y",
+    'pypy': "sigma_yp",
+}
 
 
 class polylithicLattice(frameworkLattice):
@@ -27,7 +48,11 @@ class polylithicLattice(frameworkLattice):
     model: str = None
     """String which is the model name on the PolyLithic server"""
 
-    twiss_data: List = []
+    model_output: Dict = {}
+    """Dict of model output data returned from the model"""
+
+    output_schema: Dict = {}
+    """Output schema for the model returned from poly-lithic used to determine how to interpret the model output"""
 
     class ModelParams(BaseModel):
         """
@@ -36,28 +61,12 @@ class polylithicLattice(frameworkLattice):
         model: str
         """Lattice section in which to execute the model"""
 
-        input_schema: dict
+        beam_properties: dict | list
         """Dict of beam and machine properties passed to the model"""
 
-        output_schema: dict
+        machine_settings: dict | list
         """Dict of predicted outputs provided by the model"""
 
-        @field_validator("input_schema", mode="before")
-        @classmethod
-        def validate_input_schema(cls, value: dict) -> dict:
-            """Validate the input schema to ensure it takes the appropriate values."""
-            for prop in ["beam_properties", "machine_settings"]:
-                if prop not in value:
-                    raise ValueError(f"Model {cls.model} must take {prop} as input")
-            return value
-
-        @field_validator("output_schema", mode="before")
-        @classmethod
-        def validate_output_schema(cls, value: dict) -> dict:
-            """Validate the output schema to ensure it outputs some form of beam data."""
-            if "twiss" not in value and "beam" not in value:
-                raise ValueError(f"Model {cls.model} must take return at least either `beam` or `twiss`")
-            return value
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -94,42 +103,21 @@ class polylithicLattice(frameworkLattice):
         self.global_parameters["beam"].beam.rematchYPlane(
             **self.initial_twiss["vertical"]
         )
-        tws = Twiss()
-        bea = deepcopy(self.global_parameters["beam"])
-        tws.xx = bea.sigmas.sigma_x
-        tws.yy = bea.sigmas.sigma_y
-        tws.tautau = bea.sigmas.sigma_z
-        tws.s = self.startObject.middle.z
-        self.twiss_data.append(tws)
 
     def postProcess(self):
         """
         Save the beam file(s) from the polylithic output into HDF5 format
         """
         super().postProcess()
-        HDF5filename = self.end + ".openpmd.hdf5"
-        rbf.openpmd.write_openpmd_beam_file(
-            self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + HDF5filename,
-        )
-        tws = Twiss()
-        bea = deepcopy(self.global_parameters["beam"])
-        tws.xx = bea.sigmas.sigma_x
-        tws.yy = bea.sigmas.sigma_y
-        tws.s = self.endObject.physical.middle.z
-        tws.tautau = bea.sigmas.sigma_z
-        self.twiss_data.append(tws)
-        twsdat = {e: [] for e in self.twiss_data[0].__dict__.keys()}
-        for t in self.twiss_data:
-            for k, v in t.__dict__.items():
-                # Offset the s values to the start of the lattice
-                if k == "s":
-                    v += self.startObject.physical.start.z
-                twsdat[k].append(v)
-        np.savez_compressed(
-            f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.npz',
-            **twsdat,
-        )
+        beamflag = False
+        # if "beam" in self.model_output:
+        #     self.reconstruct_beams()
+        #     beamflag = True
+        # else:
+        #     beamflag = False
+        # for key in self.model_output:
+            # if key == "twiss":
+        self.reconstruct_twiss(beam=beamflag)
 
     def run(self):
         """
@@ -144,8 +132,8 @@ class polylithicLattice(frameworkLattice):
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
-            json_string = response.text
-            model_requirements = self.ModelParams.model_validate_json(json_string)
+            json_string = response.json()
+            model_requirements = self.ModelParams.model_validate(json_string)
             # if self.objectname != model_requirements.lattice_section:
             #     raise ValueError("Specified model does not match the lattice section, did you use the wrong model?")
         except requests.RequestException as e:
@@ -155,7 +143,7 @@ class polylithicLattice(frameworkLattice):
         beamdata = {}
 
         beamcopy = deepcopy(self.global_parameters["beam"])
-        for key in model_requirements.input_schema["beam_properties"]:
+        for key in model_requirements.beam_properties:
             splitkey = key.split(':')
             if len(splitkey) == 2:
                 val = getattr(getattr(beamcopy, splitkey[0]), splitkey[1]).val
@@ -171,7 +159,7 @@ class polylithicLattice(frameworkLattice):
                 beamdata.update({key: val})
 
         machinedata = {}
-        for key in model_requirements.input_schema["machine_settings"]:
+        for key in model_requirements.machine_settings:
             splitkey = key.split(':')
             if len(splitkey) != 2:
                 raise ValueError(f"machine_settings must be indexed by elem_name:parameter, not {key}")
@@ -183,10 +171,12 @@ class polylithicLattice(frameworkLattice):
         url = f"{self.executables.polylithic_url}/v2/submit_job/{self.model}"
         job_payload = {
             "model": self.model,
-            "beam": {},
-            "lattice_name": self.objectname,
             "job_id": self.model + uuid.uuid4().hex,
-            "lattice": {"lattice": "example"}
+            "beam_properties": beamdata,
+            "machine_settings": machinedata,
+            "beam": {},
+            "lattice_name": "string",
+            "lattice": {},
         }
         try:
             response = requests.post(url, json=job_payload, timeout=10)
@@ -198,82 +188,155 @@ class polylithicLattice(frameworkLattice):
         consumer.subscribe(['pl_job_results'])
         # wait for consumer to return
         start = time.time()
-        while True:
-            msg: Message = consumer.poll(1.0)
-            print("poll")
-            if time.time() - start > 60:
-                raise TimeoutError("Timeout while waiting for kafka job")
-            if msg is None:
-                continue
-            if msg.error():
-                raise ValueError(f"Polylithic kafka consumer error: {msg.error()}")
-
-            msgvalue = msg.value().decode('utf-8')
-            print('Received message: {}'.format(msgvalue))
-            # convert msgvalue to json
-
-            msgvalue = json.loads(msgvalue)
-            if msgvalue["job_id"] == job_payload["job_id"]:
-                print("job complete")
-                break
-        consumer.close()
+        # while True:
+        #     msg: Message = consumer.poll(1.0)
+        #     print("poll")
+        #     if time.time() - start > 60:
+        #         raise TimeoutError("Timeout while waiting for kafka job")
+        #     if msg is None:
+        #         continue
+        #     if msg.error():
+        #         raise ValueError(f"Polylithic kafka consumer error: {msg.error()}")
+        #
+        #     msgvalue = msg.value().decode('utf-8')
+        #     print('Received message: {}'.format(msgvalue))
+        #     # convert msgvalue to json
+        #
+        #     msgvalue = json.loads(msgvalue)
+        #     if msgvalue["job_id"] == job_payload["job_id"]:
+        #         print("job complete")
+        #         break
+        # consumer.close()
 
         url = f"{self.executables.polylithic_url}/v2/get_result/{job_payload["job_id"]}"
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return_json = response.json()
-        except requests.RequestException as e:
-            raise RuntimeError(f"Failed to query result from polylithic FastAPI: {e}")
+        status = False
+        while True:
+            if time.time() - start > 60:
+                raise TimeoutError("Timeout while waiting to retrieve job results")
+            if status:
+                break
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                self.model_output = response.json()
+                if "job_id" in self.model_output:
+                    status = True
+            except requests.RequestException as e:
+                raise RuntimeError(f"Failed to query result from polylithic FastAPI: {e}")
 
-        return_beam = deepcopy(self.global_parameters["beam"])
 
-        # for key in return_json["beam"]:
-        #     match key:
-        #         case "data":
-        #             for p in dataprops:
-        #                 try:
-        #                     setattr(return_beam.beam, p, np.load(BytesIO(base64.b64decode(return_json["data"][p]))))
-        #                 except:
-        #                     pass
-        #         case "emittance":
-        #             for p in emitprops:
-        #                 try:
-        #                     setattr(return_beam.emittance, p,
-        #                             np.load(BytesIO(base64.b64decode(return_json["emittance"][p]))))
-        #                 except:
-        #                     pass
-        #         case "twiss":
-        #             for p in twissprops:
-        #                 try:
-        #                     setattr(return_beam.twiss, p, np.load(BytesIO(base64.b64decode(return_json["twiss"][p]))))
-        #                 except:
-        #                     pass
-        #         case "slice":
-        #             for p in sliceprops:
-        #                 try:
-        #                     setattr(return_beam.slice, p, np.load(BytesIO(base64.b64decode(return_json["slice"][p]))))
-        #                 except:
-        #                     pass
-        #         case "sigmas":
-        #             for p in sigmaprops:
-        #                 try:
-        #                     setattr(return_beam.sigmas, p, np.load(BytesIO(base64.b64decode(return_json["sigmas"][p]))))
-        #                 except:
-        #                     pass
-        #         case "centroids":
-        #             for p in centroidprops:
-        #                 try:
-        #                     setattr(return_beam.centroids, p,
-        #                             np.load(BytesIO(base64.b64decode(return_json["centroids"][p]))))
-        #                 except:
-        #                     pass
-        #         case "kde":
-        #             raise NotImplementedError()
-        #         case "mve":
-        #             raise NotImplementedError()
+    def reconstruct_beams(self):
+        raise NotImplementedError(
+            "Beam reconstruction not yet implemented for polylithic models, only twiss. "
+            "Will be added in a future update."
+        )
 
-        self.global_parameters["beam"] = return_beam
+    def reconstruct_twiss(self, beam=False):
+        self.model_output.update(
+            {
+                "twiss":
+                    {
+                        k: v for k, v in self.model_output["beam"].items() if
+                        k in transform_ocelot_twiss.values()
+                    }
+            }
+        )
+        from ocelot.cpbd.beam import Twiss
+        t = Twiss()
+        if "s" not in self.model_output["twiss"]:
+            anykey = len(self.model_output["twiss"][list(self.model_output["twiss"].keys())[0]])
+            self.model_output["twiss"]["s"] = np.linspace(
+                self.startObject.physical.start.z,
+                self.endObject.physical.end.z,
+                anykey
+            )
+        else:
+            if self.model_output["twiss"]["s"][0] < self.startObject.physical.start.z:
+                self.model_output["twiss"]["s"] += self.startObject.physical.start.z
+        twslen = len(self.model_output["twiss"]["s"])
+        twsdat = {e: [] for e in t.__dict__.keys()}
+        for k in t.__dict__.keys():
+            if k in transform_ocelot_twiss.keys():
+                k1 = transform_ocelot_twiss[k][0] if isinstance(transform_ocelot_twiss[k], list) else \
+                transform_ocelot_twiss[k]
+                if k1 in self.model_output["twiss"]:
+                    if isinstance(k1, list):
+                        twsdat[k] = self.model_output["twiss"][k1[0]] * k1[1]
+                    else:
+                        twsdat[k] = self.model_output["twiss"][k1]
+                else:
+                    twsdat[k] = np.zeros(twslen)
+            else:
+                twsdat[k] = np.zeros(twslen)
+        np.savez_compressed(
+            f'{self.global_parameters["master_subdir"]}/{self.name}_twiss.npz',
+            **twsdat,
+        )
+
+        if beam:
+            init = deepcopy(self.global_parameters["beam"])
+            for e in self.elementObjects.values():
+                if isinstance(e, Diagnostic):
+                    idx = self.find_nearest_idx(self.model_output["beam"]["s"], e.physical.middle.z)
+                    gen = frameworkGenerator(
+                        global_parameters=self.global_parameters,
+                        code="simba",
+                        species=init.species,
+                        sigma_x=self.model_output["beam"]["sigma_x"][idx] if "sigma_x" in self.model_output[
+                            "beam"] else init.sigma_x.val,
+                        sigma_y=self.model_output["beam"]["sigma_y"][idx] if "sigma_y" in self.model_output[
+                            "beam"] else init.sigma_y.val,
+                        sigma_z=self.model_output["beam"]["sigma_z"][idx] if "sigma_z" in self.model_output[
+                            "beam"] else init.sigma_z.val,
+                        sigma_px=self.model_output["beam"]["sigma_px"][idx] if "sigma_px" in self.model_output[
+                            "beam"] else init.sigma_px.val,
+                        sigma_py=self.model_output["beam"]["sigma_py"][idx] if "sigma_py" in self.model_output[
+                            "beam"] else init.sigma_py.val,
+                        sigma_pz=self.model_output["beam"]["sigma_pz"][idx] if "sigma_pz" in self.model_output[
+                            "beam"] else init.sigma_pz.val,
+                        offset_x=self.model_output["beam"]["offset_x"][idx] if "offset_x" in self.model_output[
+                            "beam"] else init.mean_x.val,
+                        offset_y=self.model_output["beam"]["offset_y"][idx] if "offset_y" in self.model_output[
+                            "beam"] else init.mean_y.val,
+                        offset_z=e.physical.middle.z,
+                        offset_t=init.mean_t + (e.physical.middle.z - init.mean_z) / speed_of_light,
+                        reference_time=init.mean_t + (e.physical.middle.z - init.mean_z) / speed_of_light,
+                        number_of_particles=len(init.x),
+                        filename=e.name + ".openpmd.hdf5",
+                        charge=init.total_charge.val,
+                        initial_momentum=self.model_output["beam"]["cp"][idx] if "cp" in self.model_output[
+                            "beam"] else init.mean_cp.val,
+                    )
+                    bea1 = gen.generate()
+                    for plane in ["x", "y"]:
+                        if f"beta_{plane}" in self.model_output["beam"] and f"alpha_{plane}" in self.model_output["beam"]:
+                            twsv = {
+                                "beta": self.model_output["beam"][f"beta_{plane}"][idx],
+                                "alpha": self.model_output["beam"][f"alpha_{plane}"][idx],
+                            }
+                            for emit in [f"ecn{plane}", f"emit_{plane}n", f"nemit_{plane}"]:
+                                if emit in self.model_output["beam"]:
+                                    twsv.update({"nEmit": self.model_output["beam"][emit][idx]})
+                            if plane == "x":
+                                bea1.beam.rematchXPlane(**twsv)
+                            else:
+                                bea1.beam.rematchYPlane(**twsv)
+                    print("init", init.species, "gen", gen.species)
+                    gen.write()
+                    if e.name == self.end:
+                        self.global_parameters["beam"] = bea1
+
+    @staticmethod
+    def find_nearest(array, value):
+        array = np.asarray(array)
+        idx = (np.abs(array - value)).argmin()
+        return array[idx]
+
+    @staticmethod
+    def find_nearest_idx(array, value):
+        array = np.asarray(array)
+        idx = (np.abs(array - value)).argmin()
+        return idx
 
 
 # match key:

@@ -91,6 +91,32 @@ class sigmas(BaseModel):
 
     @computed_field
     @property
+    def sigma_xp(self) -> UnitValue:
+        """
+        Horizontal angle signa <xp^2>
+
+        Returns
+        -------
+        :class:`~simba.Modules.units.UnitValue`
+            sigma-xp
+        """
+        return np.sqrt(self.beam.covariance(self.beam.xp, self.beam.xp))
+
+    @computed_field
+    @property
+    def sigma_yp(self) -> UnitValue:
+        """
+        Vertical angle signa <yp^2>
+
+        Returns
+        -------
+        :class:`~simba.Modules.units.UnitValue`
+            sigma-yp
+        """
+        return np.sqrt(self.beam.covariance(self.beam.yp, self.beam.yp))
+
+    @computed_field
+    @property
     def sigma_px(self) -> UnitValue:
         """
         Horizontal momentum signa <px^2>
