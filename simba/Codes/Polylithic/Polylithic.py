@@ -208,7 +208,7 @@ class polylithicLattice(frameworkLattice):
         #         break
         # consumer.close()
 
-        url = f"{self.executables.polylithic_url}/v2/get_result/{job_payload["job_id"]}"
+        url = f"{self.executables.polylithic_url}/v2/get_result/{job_payload['job_id']}"
         status = False
         while True:
             if time.time() - start > 60:
