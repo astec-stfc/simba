@@ -5,6 +5,7 @@ import numpy as np
 from .Modules.Fields import field
 from pydantic import BaseModel
 from deepdiff import DeepDiff
+from numbers import Number
 
 from laura.models.element import Element
 
@@ -303,30 +304,23 @@ def pydantic_basemodel_dump_computed_fields(self, *args, **kwargs):
     return {k: v for k, v in full_dump.items() if k in computed_keys}
 
 def normalize(obj):
-    """
-    Normalize None to empty dicts and recursively handle nested dictionaries
-    """
-    if obj is None:
-        return {}  # Normalize None to an empty dictionary
     if isinstance(obj, dict):
-        if not obj:  # Handle empty dictionaries
-            return {}
         return {k: normalize(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [normalize(v) for v in obj]
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
-    elif isinstance(obj, np.generic):
+    elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
         return obj.item()
     elif isinstance(obj, (int, float)):
         return float(obj)  # Normalize int to float
     else:
         return obj
 
-
 def deepdiff_to_nested(diff: dict) -> dict:
     """
-    Convert a DeepDiff result (values_changed only) into a nested dictionary structure.
+    Convert a DeepDiff result (values_changed only)
+    into a nested dictionary structure.
     """
     nested = {}
 
@@ -334,10 +328,6 @@ def deepdiff_to_nested(diff: dict) -> dict:
         return nested
 
     for path, change in diff['values_changed'].items():
-        # Normalize the old and new values before inserting them
-        old_value = normalize(change["old_value"])
-        new_value = normalize(change["new_value"])
-
         # Strip the "root" prefix and split the path into keys
         parts = path.replace("root", "").strip(".")
         keys = []
@@ -361,8 +351,8 @@ def deepdiff_to_nested(diff: dict) -> dict:
         for k in keys[:-1]:
             d = d.setdefault(k, {})
         d[keys[-1]] = {
-            "old": old_value,
-            "new": new_value,
+            "old": change["old_value"],
+            "new": change["new_value"],
         }
 
     return nested
