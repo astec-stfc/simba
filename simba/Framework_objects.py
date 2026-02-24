@@ -33,11 +33,6 @@ import yaml
 from copy import deepcopy
 import time
 
-try:
-    _FastLoader = yaml.CSafeLoader
-except AttributeError:
-    _FastLoader = yaml.SafeLoader
-
 from laura import LAURA
 from laura.models.elementList import SectionLattice, ElementList
 from laura.models.physical import Position
@@ -47,11 +42,7 @@ from laura.translator.converters.section import SectionLatticeTranslator
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import (
-    expand_substitution,
-    pep8_adaptor,
-    alias_classes_to_pep8,
-)
+from .FrameworkHelperFunctions import expand_substitution
 from .Modules.Fields import field
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
@@ -86,56 +77,109 @@ else:
         return True
 
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/type_conversion_rules.yaml",
-    "r",
-) as infile:
-    type_conversion_rules = yaml.load(infile, Loader=_FastLoader)
-    type_conversion_rules_Elegant = type_conversion_rules["elegant"]
-    type_conversion_rules_Names = type_conversion_rules["name"]
-    type_conversion_rules_Opal = type_conversion_rules["opal"]
+class LazyDict(dict):
+    """A dictionary that loads its content from a loader function on the first access."""
+    def __init__(self, loader):
+        self._loader = loader
+        self._loaded = False
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/commands_Elegant.yaml",
-    "r",
-) as infile:
-    commandkeywords_elegant = yaml.load(infile, Loader=_FastLoader)
+    def _ensure_loaded(self):
+        if not self._loaded:
+            data = self._loader()
+            if data:
+                self.update(data)
+            self._loaded = True
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/OPAL/commands_Opal.yaml",
-    "r",
-) as infile:
-    commandkeywords_opal = yaml.load(infile, Loader=_FastLoader)
+    def __getitem__(self, key):
+        self._ensure_loaded()
+        return super().__getitem__(key)
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Genesis/commands_Genesis.yaml",
-    "r",
-) as infile:
-    commandkeywords_genesis = yaml.load(infile, Loader=_FastLoader)
+    def __setitem__(self, key, value):
+        self._ensure_loaded()
+        super().__setitem__(key, value)
+    
+    def __contains__(self, key):
+        self._ensure_loaded()
+        return super().__contains__(key)
 
-commandkeywords = commandkeywords_elegant | commandkeywords_opal
-commandkeywords = commandkeywords | commandkeywords_genesis
+    def __len__(self):
+        self._ensure_loaded()
+        return super().__len__()
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/elementkeywords.yaml", "r"
-) as infile:
-    elementkeywords = yaml.load(infile, Loader=_FastLoader)
+    def __iter__(self):
+        self._ensure_loaded()
+        return super().__iter__()
 
-with open(
-    os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Elegant/keyword_conversion_rules_elegant.yaml",
-    "r",
-) as infile:
-    keyword_conversion_rules_elegant = yaml.load(infile, Loader=_FastLoader)
+    def items(self):
+        self._ensure_loaded()
+        return super().items()
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/elements_Elegant.yaml",
-    "r",
-) as infile:
-    elements_Elegant = yaml.load(infile, Loader=_FastLoader)
+    def values(self):
+        self._ensure_loaded()
+        return super().values()
+
+    def keys(self):
+        self._ensure_loaded()
+        return super().keys()
+
+    def get(self, key, default=None):
+        self._ensure_loaded()
+        return super().get(key, default)
+
+    def __or__(self, other):
+        self._ensure_loaded()
+        if isinstance(other, LazyDict):
+            other._ensure_loaded()
+        return super().__or__(other)
+
+    def __ror__(self, other):
+        self._ensure_loaded()
+        return super().__ror__(other)
+
+    def __repr__(self):
+        if not self._loaded:
+            return f"LazyDict(loaded=False, loader={self._loader})"
+        return super().__repr__()
 
 
-@pep8_adaptor
+try:
+    _FastLoader = yaml.CSafeLoader
+except AttributeError:
+    _FastLoader = yaml.SafeLoader
+
+
+def _load_yaml_file(path_suffix):
+    with open(os.path.dirname(os.path.abspath(__file__)) + path_suffix, "r") as infile:
+        return yaml.load(infile, Loader=_FastLoader)
+
+
+def _load_type_conversion_rules():
+    data = _load_yaml_file("/Codes/type_conversion_rules.yaml")
+    return {
+        "elegant": data["elegant"],
+        "name": data["name"],
+        "opal": data["opal"],
+    }
+
+
+type_conversion_rules_dict = LazyDict(_load_type_conversion_rules)
+type_conversion_rules_Elegant = LazyDict(lambda: type_conversion_rules_dict["elegant"])
+type_conversion_rules_Names = LazyDict(lambda: type_conversion_rules_dict["name"])
+type_conversion_rules_Opal = LazyDict(lambda: type_conversion_rules_dict["opal"])
+
+commandkeywords_elegant = LazyDict(lambda: _load_yaml_file("/Codes/Elegant/commands_Elegant.yaml"))
+commandkeywords_opal = LazyDict(lambda: _load_yaml_file("/Codes/OPAL/commands_Opal.yaml"))
+commandkeywords_genesis = LazyDict(lambda: _load_yaml_file("/Codes/Genesis/commands_Genesis.yaml"))
+
+commandkeywords = LazyDict(lambda: commandkeywords_elegant | commandkeywords_opal | commandkeywords_genesis)
+
+elementkeywords = LazyDict(lambda: _load_yaml_file("/elementkeywords.yaml"))
+executables_rules = LazyDict(lambda: _load_yaml_file("/Executables.yaml"))
+
+keyword_conversion_rules_elegant = LazyDict(lambda: _load_yaml_file("/Codes/Elegant/keyword_conversion_rules_elegant.yaml"))
+elements_Elegant = LazyDict(lambda: _load_yaml_file("/Codes/Elegant/elements_Elegant.yaml"))
+
+
 class runSetup(object):
     """
     Class defining settings for simulations that include multiple runs
@@ -208,7 +252,7 @@ class runSetup(object):
         error_setup = None
         if isinstance(file, str) and (".yaml" in file):
             with open(file, "r") as inputfile:
-                error_setup = dict(yaml.load(inputfile, Loader=_FastLoader))
+                error_setup = dict(yaml.safe_load(inputfile))
         # define errors from dictionary
         elif isinstance(file, dict):
             error_setup = file
@@ -277,7 +321,6 @@ class runSetup(object):
         self.elementErrors = None
 
 
-@pep8_adaptor
 class frameworkObject(BaseModel):
     """
     Class defining a framework object, which is the base class for all elements
@@ -306,10 +349,6 @@ class frameworkObject(BaseModel):
 
     global_parameters: Dict = {}
     """Global parameters to be cascaded through all objects."""
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        pep8_adaptor(cls)
 
     def model_post_init(self, __context):
         extra_fields = {
@@ -467,7 +506,6 @@ class frameworkObject(BaseModel):
         return string
 
 
-@pep8_adaptor
 class frameworkLattice(BaseModel):
     """
     Class defining a framework lattice object, which contains all elements and groups
@@ -574,10 +612,6 @@ class frameworkLattice(BaseModel):
 
     files: List = []
     """List of all files needed to run the lattice."""
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        pep8_adaptor(cls)
 
     def model_post_init(self, __context):
         # super().model_post_init(__context)
@@ -1231,19 +1265,6 @@ class frameworkLattice(BaseModel):
             slt.csr_enable = self.csr_enable
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
-            # Set master_lattice_location for LAURA's expand_substitution function
-            master_lattice_path = self.global_parameters["master_lattice"].rstrip("/").rstrip("\\")
-            try:
-                object.__setattr__(slt, 'master_lattice_location', master_lattice_path)
-            except (AttributeError, TypeError):
-                slt.__dict__['master_lattice_location'] = master_lattice_path
-            # Also set on all elements in the section for LAURA's expand_substitution to work
-            if hasattr(slt, 'elements') and hasattr(slt.elements, 'elements'):
-                for elem in slt.elements.elements.values():
-                    try:
-                        object.__setattr__(elem, 'master_lattice_location', master_lattice_path)
-                    except (AttributeError, TypeError):
-                        elem.__dict__['master_lattice_location'] = master_lattice_path
             self._section = slt
             return slt
         return self._section
@@ -2125,7 +2146,6 @@ class frameworkCommand(frameworkObject):
         return string
 
 
-@pep8_adaptor
 class frameworkGroup(object):
     """
     Class defining a framework group, which is used to group together elements to perform coordinated
@@ -2562,5 +2582,3 @@ class getGrids(object):
         self.value = value
         self.idx = (np.abs(self.array - self.value)).argmin()
         return self.array[self.idx]
-
-alias_classes_to_pep8(globals())

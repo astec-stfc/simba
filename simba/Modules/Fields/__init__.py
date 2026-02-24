@@ -24,11 +24,50 @@ from pydantic import (
     model_validator,
 )
 from typing import Literal, List
-from . import astra  # noqa E402
-from . import gdf  # noqa E402
-from . import hdf5  # noqa E402
-from . import sdds  # noqa E402
-from . import opal  # noqa E402
+
+import importlib
+
+_astra = None
+_gdf = None
+_hdf5 = None
+_sdds = None
+_opal = None
+
+
+def _get_astra():
+    global _astra
+    if _astra is None:
+        _astra = importlib.import_module(".astra", __name__)
+    return _astra
+
+
+def _get_gdf():
+    global _gdf
+    if _gdf is None:
+        _gdf = importlib.import_module(".gdf", __name__)
+    return _gdf
+
+
+def _get_hdf5():
+    global _hdf5
+    if _hdf5 is None:
+        _hdf5 = importlib.import_module(".hdf5", __name__)
+    return _hdf5
+
+
+def _get_sdds():
+    global _sdds
+    if _sdds is None:
+        _sdds = importlib.import_module(".sdds", __name__)
+    return _sdds
+
+
+def _get_opal():
+    global _opal
+    if _opal is None:
+        _opal = importlib.import_module(".opal", __name__)
+    return _opal
+
 
 allowed_fields = [
     "1DElectroStatic",
@@ -327,11 +366,11 @@ class field(BaseModel):
         """
         fext = os.path.splitext(os.path.basename(filename))[-1]
         if fext == ".hdf5":
-            hdf5.read_HDF5_field_file(self, filename)
+            _get_hdf5().read_HDF5_field_file(self, filename)
         else:
             if fext.lower() in [".astra", ".dat"]:
                 # print('Field: read_field_file: astra', filename, fext.lower())
-                astra.read_astra_field_file(
+                _get_astra().read_astra_field_file(
                     self,
                     filename,
                     field_type=field_type,
@@ -340,10 +379,10 @@ class field(BaseModel):
                 )
             elif fext.lower() in [".sdds"]:
                 # print('Field: read_field_file: SDDS', filename, fext.lower())
-                sdds.read_SDDS_field_file(self, filename, field_type=field_type)
+                _get_sdds().read_SDDS_field_file(self, filename, field_type=field_type)
             elif fext.lower() in [".gdf"]:
                 # print('Field: read_field_file: GPT', filename, fext.lower())
-                gdf.read_gdf_field_file(
+                _get_gdf().read_gdf_field_file(
                     self,
                     filename,
                     field_type=field_type,
@@ -353,7 +392,7 @@ class field(BaseModel):
                 )
             elif fext.lower() in [".opal"]:
                 # print('Field: read_field_file: opal', filename, fext.lower())
-                opal.read_opal_field_file(
+                _get_opal().read_opal_field_file(
                     self,
                     filename,
                     field_type=field_type,
@@ -420,14 +459,14 @@ class field(BaseModel):
             return
         # try:
         if code.lower() in ["astra", "ocelot"]:
-            return astra.generate_astra_field_data(self)
+            return _get_astra().generate_astra_field_data(self)
         return None
         # elif code.lower() in ["sdds", "elegant"]:
-        #     return sdds.write_SDDS_field_file(self)
+        #     return _get_sdds().write_SDDS_field_file(self)
         # elif code.lower() in ["gdf", "gpt"]:
-        #     return gdf.write_gdf_field_file(self)
+        #     return _get_gdf().write_gdf_field_file(self)
         # elif code.lower() == "opal":
-        #     return opal.write_opal_field_file(
+        #     return _get_opal().write_opal_field_file(
         #         self,
         #         frequency=self.frequency,
         #         radius=self.radius,
@@ -467,13 +506,13 @@ class field(BaseModel):
         else:
             self._output_location = os.path.dirname(os.path.dirname(self.filename))
         if code.lower() in ["astra", "ocelot"]:
-            return astra.write_astra_field_file(self)
+            return _get_astra().write_astra_field_file(self)
         elif code.lower() in ["sdds", "elegant"]:
-            return sdds.write_SDDS_field_file(self)
+            return _get_sdds().write_SDDS_field_file(self)
         elif code.lower() in ["gdf", "gpt"]:
-            return gdf.write_gdf_field_file(self)
+            return _get_gdf().write_gdf_field_file(self)
         elif code.lower() == "opal":
-            return opal.write_opal_field_file(
+            return _get_opal().write_opal_field_file(
                 self,
                 frequency=self.frequency,
                 radius=self.radius,
@@ -481,6 +520,30 @@ class field(BaseModel):
                 orientation=self.orientation,
             )
         elif code.lower() == "hdf5":
-            return hdf5.write_HDF5_field_file(self)
+            return _get_hdf5().write_HDF5_field_file(self)
         # except NotImplementedError:
         #     print("Supported formats are [astra, sdds, opal, gdf]")
+
+
+def __getattr__(name):
+    if name == "astra":
+        obj = _get_astra()
+        globals()[name] = obj
+        return obj
+    if name == "gdf":
+        obj = _get_gdf()
+        globals()[name] = obj
+        return obj
+    if name == "hdf5":
+        obj = _get_hdf5()
+        globals()[name] = obj
+        return obj
+    if name == "sdds":
+        obj = _get_sdds()
+        globals()[name] = obj
+        return obj
+    if name == "opal":
+        obj = _get_opal()
+        globals()[name] = obj
+        return obj
+    raise AttributeError(f"module {__name__} has no attribute {name}")

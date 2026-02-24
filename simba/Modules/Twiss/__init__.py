@@ -25,35 +25,108 @@ from typing import Dict, List, Callable
 from .. import constants
 import munch
 import glob
-from . import hdf5
-from . import gpt
-from . import astra
-from . import elegant
-from . import ocelot
-from . import cheetah
-from . import opal
-from . import xsuite
-from . import genesis
 
-try:
-    from . import plot
+import importlib
 
-    use_matplotlib = True
-except ImportError:
-    use_matplotlib = False
+_gpt = None
+_astra = None
+_elegant = None
+_ocelot = None
+_cheetah = None
+_opal = None
+_xsuite = None
+_genesis = None
+_hdf5 = None
+
+
+def _get_gpt():
+    global _gpt
+    if _gpt is None:
+        _gpt = importlib.import_module(".gpt", __name__)
+    return _gpt
+
+
+def _get_astra():
+    global _astra
+    if _astra is None:
+        _astra = importlib.import_module(".astra", __name__)
+    return _astra
+
+
+def _get_elegant():
+    global _elegant
+    if _elegant is None:
+        _elegant = importlib.import_module(".elegant", __name__)
+    return _elegant
+
+
+def _get_ocelot():
+    global _ocelot
+    if _ocelot is None:
+        _ocelot = importlib.import_module(".ocelot", __name__)
+    return _ocelot
+
+
+def _get_cheetah():
+    global _cheetah
+    if _cheetah is None:
+        _cheetah = importlib.import_module(".cheetah", __name__)
+    return _cheetah
+
+
+def _get_opal():
+    global _opal
+    if _opal is None:
+        _opal = importlib.import_module(".opal", __name__)
+    return _opal
+
+
+def _get_xsuite():
+    global _xsuite
+    if _xsuite is None:
+        _xsuite = importlib.import_module(".xsuite", __name__)
+    return _xsuite
+
+
+def _get_genesis():
+    global _genesis
+    if _genesis is None:
+        _genesis = importlib.import_module(".genesis", __name__)
+    return _genesis
+
+
+def _get_hdf5():
+    global _hdf5
+    if _hdf5 is None:
+        _hdf5 = importlib.import_module(".hdf5", __name__)
+    return _hdf5
+
+_plot = None
+use_matplotlib = None
+
+
+def _get_plot():
+    global _plot, use_matplotlib
+    if use_matplotlib is None:
+        try:
+            _plot = importlib.import_module(".plot", __name__)
+            use_matplotlib = True
+        except ImportError:
+            use_matplotlib = False
+    return _plot
 
 from ..units import UnitValue
 
 codes = {
-    "elegant": elegant.read_elegant_twiss_files,
-    "gpt": gpt.read_gdf_twiss_files,
-    "astra": astra.read_astra_twiss_files,
-    "ocelot": ocelot.read_ocelot_twiss_files,
-    "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
-    "opal": opal.read_opal_twiss_files,
-    "cheetah": cheetah.read_cheetah_twiss_files,
-    "xsuite": xsuite.read_xsuite_twiss_files,
-    "genesis": genesis.read_genesis_twiss_files,
+    "elegant": lambda *args, **kwargs: _get_elegant().read_elegant_twiss_files(*args, **kwargs),
+    "gpt": lambda *args, **kwargs: _get_gpt().read_gdf_twiss_files(*args, **kwargs),
+    "astra": lambda *args, **kwargs: _get_astra().read_astra_twiss_files(*args, **kwargs),
+    "ocelot": lambda *args, **kwargs: _get_ocelot().read_ocelot_twiss_files(*args, **kwargs),
+    "ocelot_h5": lambda *args, **kwargs: _get_ocelot().read_ocelot_twiss_files_hdf(*args, **kwargs),
+    "opal": lambda *args, **kwargs: _get_opal().read_opal_twiss_files(*args, **kwargs),
+    "cheetah": lambda *args, **kwargs: _get_cheetah().read_cheetah_twiss_files(*args, **kwargs),
+    "xsuite": lambda *args, **kwargs: _get_xsuite().read_xsuite_twiss_files(*args, **kwargs),
+    "genesis": lambda *args, **kwargs: _get_genesis().read_genesis_twiss_files(*args, **kwargs),
 }
 
 code_signatures = [
@@ -422,15 +495,15 @@ class twiss(BaseModel):
         self.reset_dicts()
         self.sddsindex = 0
         self.codes = {
-            "elegant": elegant.read_elegant_twiss_files,
-            "gpt": gpt.read_gdf_twiss_files,
-            "astra": astra.read_astra_twiss_files,
-            "ocelot": ocelot.read_ocelot_twiss_files,
-            "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
-            "opal": opal.read_opal_twiss_files,
-            "cheetah": cheetah.read_cheetah_twiss_files,
-            "xsuite": xsuite.read_xsuite_twiss_files,
-            "genesis": genesis.read_genesis_twiss_files,
+            "elegant": lambda *args, **kwargs: _get_elegant().read_elegant_twiss_files(*args, **kwargs),
+            "gpt": lambda *args, **kwargs: _get_gpt().read_gdf_twiss_files(*args, **kwargs),
+            "astra": lambda *args, **kwargs: _get_astra().read_astra_twiss_files(*args, **kwargs),
+            "ocelot": lambda *args, **kwargs: _get_ocelot().read_ocelot_twiss_files(*args, **kwargs),
+            "ocelot_h5": lambda *args, **kwargs: _get_ocelot().read_ocelot_twiss_files_hdf(*args, **kwargs),
+            "opal": lambda *args, **kwargs: _get_opal().read_opal_twiss_files(*args, **kwargs),
+            "cheetah": lambda *args, **kwargs: _get_cheetah().read_cheetah_twiss_files(*args, **kwargs),
+            "xsuite": lambda *args, **kwargs: _get_xsuite().read_xsuite_twiss_files(*args, **kwargs),
+            "genesis": lambda *args, **kwargs: _get_genesis().read_genesis_twiss_files(*args, **kwargs),
         }
         self.code_signatures = code_signatures
 
@@ -471,12 +544,12 @@ class twiss(BaseModel):
     def read_astra_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return astra.read_astra_twiss_files(self, *args, **kwargs)
+            return _get_astra().read_astra_twiss_files(self, *args, **kwargs)
 
     def read_elegant_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return elegant.read_elegant_twiss_files(self, *args, **kwargs)
+            return _get_elegant().read_elegant_twiss_files(self, *args, **kwargs)
 
     def read_gdf_twiss_files(self, *args, **kwargs) -> None:
         return self.read_GPT_twiss_files(*args, **kwargs)
@@ -484,47 +557,47 @@ class twiss(BaseModel):
     def read_GPT_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return gpt.read_gdf_twiss_files(self, *args, **kwargs)
+            return _get_gpt().read_gdf_twiss_files(self, *args, **kwargs)
 
     def read_ocelot_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return ocelot.read_ocelot_twiss_files(self, *args, **kwargs)
+            return _get_ocelot().read_ocelot_twiss_files(self, *args, **kwargs)
 
     def read_ocelot_twiss_files_hdf(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return ocelot.read_ocelot_twiss_files_hdf(self, *args, **kwargs)
+            return _get_ocelot().read_ocelot_twiss_files_hdf(self, *args, **kwargs)
 
     def read_opal_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return opal.read_opal_twiss_files(self, *args, **kwargs)
+            return _get_opal().read_opal_twiss_files(self, *args, **kwargs)
 
     def read_xsuite_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return xsuite.read_xsuite_twiss_files(self, *args, **kwargs)
+            return _get_xsuite().read_xsuite_twiss_files(self, *args, **kwargs)
 
     def read_genesis_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return genesis.read_genesis_twiss_files(self, *args, **kwargs)
+            return _get_genesis().read_genesis_twiss_files(self, *args, **kwargs)
 
     def save_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return hdf5.write_HDF5_twiss_file(self, *args, **kwargs)
+            return _get_hdf5().write_HDF5_twiss_file(self, *args, **kwargs)
 
     def read_cheetah_twiss_files(self, *args, **kwargs):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return cheetah.read_cheetah_twiss_files(self, *args, **kwargs)
+            return _get_cheetah().read_cheetah_twiss_files(self, *args, **kwargs)
 
     def read_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return hdf5.read_HDF5_twiss_file(self, *args, **kwargs)
+            return _get_hdf5().read_HDF5_twiss_file(self, *args, **kwargs)
 
     def __repr__(self):
         return repr({k: getattr(self, k) for k in self.model_fields_set})
@@ -1064,3 +1137,47 @@ def load_file(filename, *args, **kwargs):
     if code is not None:
         code(twissobject, filename, reset=False)
     return twissobject
+
+
+def __getattr__(name):
+    if name == "gpt":
+        obj = _get_gpt()
+        globals()[name] = obj
+        return obj
+    if name == "astra":
+        obj = _get_astra()
+        globals()[name] = obj
+        return obj
+    if name == "elegant":
+        obj = _get_elegant()
+        globals()[name] = obj
+        return obj
+    if name == "ocelot":
+        obj = _get_ocelot()
+        globals()[name] = obj
+        return obj
+    if name == "cheetah":
+        obj = _get_cheetah()
+        globals()[name] = obj
+        return obj
+    if name == "opal":
+        obj = _get_opal()
+        globals()[name] = obj
+        return obj
+    if name == "xsuite":
+        obj = _get_xsuite()
+        globals()[name] = obj
+        return obj
+    if name == "genesis":
+        obj = _get_genesis()
+        globals()[name] = obj
+        return obj
+    if name == "hdf5":
+        obj = _get_hdf5()
+        globals()[name] = obj
+        return obj
+    if name == "plot":
+        obj = _get_plot()
+        globals()[name] = obj
+        return obj
+    raise AttributeError(f"module {__name__} has no attribute {name}")

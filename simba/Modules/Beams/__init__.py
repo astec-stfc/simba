@@ -29,70 +29,228 @@ from warnings import warn
 import re
 import copy
 import glob
-import h5py
 from ..units import UnitValue
 from .. import constants
 from .Particles import Particles
-from . import astra
-from . import sdds
-from . import gdf
-from . import hdf5
-from . import mad8
-from . import openpmd
-from . import xsuite
-from . import opal
-from . import genesis
 
-try:
-    from . import plot
+import importlib
 
-    use_matplotlib = True
-except ImportError as e:
-    print("Import error - plotting disabled. Missing package:", e)
-    use_matplotlib = False
+_astra = None
+_sdds = None
+_gdf = None
+_hdf5 = None
+_mad8 = None
+_openpmd = None
+_xsuite = None
+_opal = None
+_genesis = None
 
-from .Particles.emittance import emittance as emittanceobject
-from .Particles.twiss import twiss as twissobject
-from .Particles.slice import slice as sliceobject
-from .Particles.sigmas import sigmas as sigmasobject
-from .Particles.centroids import centroids as centroidsobject
-from .Particles.kde import kde as kdeobject
 
-# Defer heavy MVE import (triggers scipy.stats ~0.6s)
-imported_mve = None  # Lazy sentinel
-MVEobject = None
+def _get_astra():
+    global _astra
+    if _astra is None:
+        _astra = importlib.import_module(".astra", __name__)
+    return _astra
+
+
+def _get_sdds():
+    global _sdds
+    if _sdds is None:
+        _sdds = importlib.import_module(".sdds", __name__)
+    return _sdds
+
+
+def _get_gdf():
+    global _gdf
+    if _gdf is None:
+        _gdf = importlib.import_module(".gdf", __name__)
+    return _gdf
+
+
+def _get_hdf5():
+    global _hdf5
+    if _hdf5 is None:
+        _hdf5 = importlib.import_module(".hdf5", __name__)
+    return _hdf5
+
+
+def _get_mad8():
+    global _mad8
+    if _mad8 is None:
+        _mad8 = importlib.import_module(".mad8", __name__)
+    return _mad8
+
+
+def _get_openpmd():
+    global _openpmd
+    if _openpmd is None:
+        _openpmd = importlib.import_module(".openpmd", __name__)
+    return _openpmd
+
+
+def _get_xsuite():
+    global _xsuite
+    if _xsuite is None:
+        _xsuite = importlib.import_module(".xsuite", __name__)
+    return _xsuite
+
+
+def _get_opal():
+    global _opal
+    if _opal is None:
+        _opal = importlib.import_module(".opal", __name__)
+    return _opal
+
+
+def _get_genesis():
+    global _genesis
+    if _genesis is None:
+        _genesis = importlib.import_module(".genesis", __name__)
+    return _genesis
+
+
+_plot = None
+use_matplotlib = None
+
+
+def _get_plot():
+    global _plot, use_matplotlib
+    if use_matplotlib is None:
+        try:
+            _plot = importlib.import_module(".plot", __name__)
+            use_matplotlib = True
+        except ImportError as e:
+            print("Import error - plotting disabled. Missing package:", e)
+            use_matplotlib = False
+    return _plot
+
+
+# Defer heavy imports until actually needed
+_emittanceobject = None
+_twissobject = None
+_sliceobject = None
+_sigmasobject = None
+_centroidsobject = None
+_kdeobject = None
+_MVEobject = None
+_mve_imported = None
+
+
+def _get_emittance_class():
+    global _emittanceobject
+    if _emittanceobject is None:
+        from .Particles.emittance import emittance as _emittance
+        _emittanceobject = _emittance
+    return _emittanceobject
+
+
+def _get_twiss_class():
+    global _twissobject
+    if _twissobject is None:
+        from .Particles.twiss import twiss as _twiss
+        _twissobject = _twiss
+    return _twissobject
+
+
+def _get_slice_class():
+    global _sliceobject
+    if _sliceobject is None:
+        from .Particles.slice import slice as _slice
+        _sliceobject = _slice
+    return _sliceobject
+
+
+def _get_sigmas_class():
+    global _sigmasobject
+    if _sigmasobject is None:
+        from .Particles.sigmas import sigmas as _sigmas
+        _sigmasobject = _sigmas
+    return _sigmasobject
+
+
+def _get_centroids_class():
+    global _centroidsobject
+    if _centroidsobject is None:
+        from .Particles.centroids import centroids as _centroids
+        _centroidsobject = _centroids
+    return _centroidsobject
+
+
+def _get_kde_class():
+    global _kdeobject
+    if _kdeobject is None:
+        from .Particles.kde import kde as _kde
+        _kdeobject = _kde
+    return _kdeobject
 
 
 def _get_mve():
-    global imported_mve, MVEobject
-    if imported_mve is None:
+    global _mve_imported, _MVEobject
+    if _mve_imported is None:
         try:
             from .Particles.mve import MVE as _MVE
-            MVEobject = _MVE
-            imported_mve = True
+            _MVEobject = _MVE
+            _mve_imported = True
         except ImportError:
-            imported_mve = False
-    return imported_mve
+            _mve_imported = False
+    return _mve_imported
 
+
+_properties_cache = {}
 
 # I can't think of a clever way of doing this, so...
 def get_properties(obj):
+    if obj in _properties_cache:
+        return _properties_cache[obj]
     props = [f for f in dir(obj) if type(getattr(obj, f)) is property and f != "__fields_set__"]
     if hasattr(obj, "model_fields"):
         props += list(obj.model_fields.keys())
+    _properties_cache[obj] = props
     return props
 
 
-parameters = {
-    "data": get_properties(Particles),
-    "emittance": get_properties(emittanceobject),
-    "twiss": get_properties(twissobject),
-    "slice": get_properties(sliceobject),
-    "sigmas": get_properties(sigmasobject),
-    "centroids": get_properties(centroidsobject),
-    "kde": get_properties(kdeobject),
-    "mve": [],  # Populated lazily when MVE is first used
-}
+class ParameterDict(dict):
+    _cache = {}
+    def __getitem__(self, key):
+        # Only import and get properties if strictly necessary
+        if key in self._cache:
+            return self._cache[key]
+        if key == "emittance":
+            val = get_properties(_get_emittance_class())
+        elif key == "twiss":
+            val = get_properties(_get_twiss_class())
+        elif key == "slice":
+            val = get_properties(_get_slice_class())
+        elif key == "sigmas":
+            val = get_properties(_get_sigmas_class())
+        elif key == "centroids":
+            val = get_properties(_get_centroids_class())
+        elif key == "kde":
+            # The kde class currently has no properties that need reflecting
+            val = []
+        elif key == "mve":
+            val = []
+        elif key == "data":
+            val = get_properties(Particles)
+        else:
+            return super().__getitem__(key)
+        self._cache[key] = val
+        return val
+
+    def __iter__(self):
+        yield from [
+            "data",
+            "emittance",
+            "twiss",
+            "slice",
+            "sigmas",
+            "centroids",
+            "kde",
+            "mve",
+        ]
+
+
+parameters = ParameterDict()
 
 
 class particlesGroup(BaseModel):
@@ -481,7 +639,7 @@ class beam(BaseModel):
         return self._beam
 
     @property
-    def sigmas(self) -> sigmasobject:
+    def sigmas(self) -> Any:
         """
         Property defining the beam sigmas
 
@@ -493,7 +651,7 @@ class beam(BaseModel):
         return self._beam.sigmas
 
     @property
-    def centroids(self) -> centroidsobject:
+    def centroids(self) -> Any:
         """
         Property defining the beam centroids
 
@@ -505,7 +663,7 @@ class beam(BaseModel):
         return self._beam.centroids
 
     @property
-    def twiss(self) -> twissobject:
+    def twiss(self) -> Any:
         """
         Property defining the beam twiss properties
 
@@ -517,7 +675,7 @@ class beam(BaseModel):
         return self._beam.twiss
 
     @property
-    def slice(self) -> sliceobject:
+    def slice(self) -> Any:
         """
         Property defining the beam slice properties
 
@@ -529,7 +687,7 @@ class beam(BaseModel):
         return self._beam.slice
 
     @property
-    def emittance(self) -> emittanceobject:
+    def emittance(self) -> Any:
         """
         Property defining the beam emittances
 
@@ -541,7 +699,7 @@ class beam(BaseModel):
         return self._beam.emittance
 
     @property
-    def kde(self) -> kdeobject:
+    def kde(self) -> Any:
         """
         Property defining the beam kernel density estimator
 
@@ -680,35 +838,35 @@ class beam(BaseModel):
         Load in an HDF5-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        hdf5.read_HDF5_beam_file(self, *args, **kwargs)
+        _get_hdf5().read_HDF5_beam_file(self, *args, **kwargs)
 
     def read_SDDS_beam_file(self, *args, **kwargs):
         """
         Load in an SDDS-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        sdds.read_SDDS_beam_file(self, *args, **kwargs)
+        _get_sdds().read_SDDS_beam_file(self, *args, **kwargs)
 
     def read_gdf_beam_file(self, *args, **kwargs):
         """
         Load in a GDF-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        gdf.read_gdf_beam_file(self, *args, **kwargs)
+        _get_gdf().read_gdf_beam_file(self, *args, **kwargs)
 
     def read_astra_beam_file(self, *args, **kwargs):
         """
         Load in an ASTRA-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        astra.read_astra_beam_file(self, *args, **kwargs)
+        _get_astra().read_astra_beam_file(self, *args, **kwargs)
 
     def read_xsuite_beam_file(self, *args, **kwargs):
         """
         Load in an Xsuite-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        xsuite.read_xsuite_beam_file(self, *args, **kwargs)
+        _get_xsuite().read_xsuite_beam_file(self, *args, **kwargs)
 
     def read_ocelot_beam_file(self, *args, **kwargs):
         """
@@ -724,7 +882,7 @@ class beam(BaseModel):
         Load in an OPAL-type beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
         """
-        opal.read_opal_beam_file(self, *args, **kwargs)
+        _get_opal().read_opal_beam_file(self, *args, **kwargs)
 
     def read_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
@@ -734,37 +892,37 @@ class beam(BaseModel):
         """
         Write out an openpmd-type beam distribution file.
         """
-        openpmd.write_openpmd_beam_file(self, *args, **kwargs)
+        _get_openpmd().write_openpmd_beam_file(self, *args, **kwargs)
 
     def write_HDF5_beam_file(self, *args, **kwargs):
         """
         Write out an HDF5-type beam distribution file.
         """
-        hdf5.write_HDF5_beam_file(self, *args, **kwargs)
+        _get_hdf5().write_HDF5_beam_file(self, *args, **kwargs)
 
     def write_SDDS_beam_file(self, *args, **kwargs):
         """
         Write out an SDDS-type beam distribution file.
         """
-        sdds.write_SDDS_file(self, *args, **kwargs)
+        _get_sdds().write_SDDS_file(self, *args, **kwargs)
 
     def write_gdf_beam_file(self, *args, **kwargs):
         """
         Write out a GDF-type beam distribution file.
         """
-        gdf.write_gdf_beam_file(self, *args, **kwargs)
+        _get_gdf().write_gdf_beam_file(self, *args, **kwargs)
 
     def write_astra_beam_file(self, *args, **kwargs):
         """
         Write out an ASTRA-type beam distribution file.
         """
-        astra.write_astra_beam_file(self, *args, **kwargs)
+        _get_astra().write_astra_beam_file(self, *args, **kwargs)
 
     def write_xsuite_beam_file(self, *args, **kwargs):
         """
         Write out an Xsuite-type beam distribution file.
         """
-        return xsuite.write_xsuite_beam_file(self, *args, **kwargs)
+        return _get_xsuite().write_xsuite_beam_file(self, *args, **kwargs)
 
     def write_ocelot_beam_file(self, *args, **kwargs):
         """
@@ -778,7 +936,7 @@ class beam(BaseModel):
         """
         Write out an OPAL-type beam distribution file.
         """
-        opal.write_opal_beam_file(self, *args, **kwargs)
+        _get_opal().write_opal_beam_file(self, *args, **kwargs)
 
     def write_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
@@ -788,7 +946,7 @@ class beam(BaseModel):
         """
         Write out a MAD8-type beam distribution file.
         """
-        mad8.write_mad8_beam_file(self, *args, **kwargs)
+        _get_mad8().write_mad8_beam_file(self, *args, **kwargs)
 
     def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
         """
@@ -815,49 +973,56 @@ class beam(BaseModel):
                 cheetah.read_cheetah_beam_file(self, filename, beam_energy)
             else:
                 if "openpmd" in pre.lower():
-                    openpmd.read_openpmd_beam_file(self, filename)
+                    _get_openpmd().read_openpmd_beam_file(self, filename)
                 else:
-                    hdf5.read_HDF5_beam_file(self, filename)
+                    _get_hdf5().read_HDF5_beam_file(self, filename)
         elif ext.lower() == ".sdds":
-            sdds.read_SDDS_beam_file(self, filename)
+            _get_sdds().read_SDDS_beam_file(self, filename)
         elif ext.lower() == ".gdf":
-            gdf.read_gdf_beam_file(self, filename)
+            _get_gdf().read_gdf_beam_file(self, filename)
         elif (ext.lower() == ".npz") and (".ocelot" in filename):
             from . import ocelot
 
             ocelot.read_ocelot_beam_file(self, filename)
         elif ext.lower() == ".astra":
-            astra.read_astra_beam_file(self, filename)
+            _get_astra().read_astra_beam_file(self, filename)
         elif (ext.lower() == ".h5") and ("opal" in pre):
-            opal.read_opal_beam_file(self, filename, step=step)
+            _get_opal().read_opal_beam_file(self, filename, step=step)
         elif ext.lower() == ".json":
-            xsuite.read_xsuite_beam_file(self, filename)
+            _get_xsuite().read_xsuite_beam_file(self, filename)
         elif re.match(r".*.\d\d\d\d." + run_extension, filename):
-            astra.read_astra_beam_file(self, filename)
+            _get_astra().read_astra_beam_file(self, filename)
         else:
             try:
                 with open(filename, "r") as f:
                     firstline = f.readline()
                     if "SDDS" in firstline:
-                        sdds.read_SDDS_beam_file(self, filename)
+                        _get_sdds().read_SDDS_beam_file(self, filename)
             except UnicodeDecodeError:
-                if gdf.rgf.is_gdf_file(filename):
-                    gdf.read_gdf_beam_file(self, filename)
+                if _get_gdf().rgf.is_gdf_file(filename):
+                    _get_gdf().read_gdf_beam_file(self, filename)
                 else:
                     warn("Could not load file")
 
-    if use_matplotlib:
+    def plot(self, **kwargs):
+        plot_mod = _get_plot()
+        if plot_mod:
+            return plot_mod.plot(self, **kwargs)
+        warn("Plotting disabled. Missing package.")
 
-        def plot(self, **kwargs):
-            return plot.plot(self, **kwargs)
+    def slice_plot(self, *args, **kwargs):
+        plot_mod = _get_plot()
+        if plot_mod:
+            return plot_mod.slice_plot(self, *args, **kwargs)
+        warn("Plotting disabled. Missing package.")
 
-        def slice_plot(self, *args, **kwargs):
-            return plot.slice_plot(self, *args, **kwargs)
+    def plotScreenImage(self, **kwargs):
+        plot_mod = _get_plot()
+        if plot_mod:
+            return plot_mod.plotScreenImage(self, **kwargs)
+        warn("Plotting disabled. Missing package.")
 
-        def plotScreenImage(self, **kwargs):
-            return plot.plotScreenImage(self, **kwargs)
-
-    def resample(self, npart, **kwargs) -> beam:
+    def resample(self, npart, **kwargs) -> "beam":
         """
         Resample the beam using a kernel density estimator, updating the number of particles.
         See :class:`~simba.Modules.Beams.Particles.kde.kde`.
@@ -894,10 +1059,10 @@ class beam(BaseModel):
         return newbeam
 
     def rotate_beamXZ(self, theta, preOffset=[0, 0, 0], postOffset=[0, 0, 0]):
-        hdf5.rotate_beamXZ(self, theta, preOffset=preOffset, postOffset=postOffset)
+        _get_hdf5().rotate_beamXZ(self, theta, preOffset=preOffset, postOffset=postOffset)
 
     def unrotate_beamXZ(self):
-        hdf5.unrotate_beamXZ(self)
+        _get_hdf5().unrotate_beamXZ(self)
 
 
 def load_directory(directory=".", types={"SIMBA": ".hdf5"}, verbose=False) -> beamGroup:
@@ -962,6 +1127,7 @@ def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary
                 pass
                 # print(f'[save_HDF5_summary_file] {scr} NOT found as {bf}')
     if files is None:
+        import h5py
         # print('[save_HDF5_summary_file] No screens or files found - globbing!')
         beam_files = glob.glob(directory + "/*openpmd.hdf5")
         files = []
@@ -969,14 +1135,59 @@ def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary
             with h5py.File(bf, "r") as f:
                 if "/particles" in f:
                     files.append(bf)
-    hdf5.write_HDF5_summary_file(filename, files)
+    _get_hdf5().write_HDF5_summary_file(filename, files)
 
 
 def load_HDF5_summary_file(filename):
     dir = os.path.dirname(filename)
+    import h5py
     bg = beamGroup()
     with h5py.File(filename, "r") as f:
         for screen in list(f.keys()):
             bg.add(os.path.join(dir, screen + ".hdf5"))
     bg.sort()
     return bg
+
+
+def __getattr__(name):
+    if name == "astra":
+        obj = _get_astra()
+        globals()[name] = obj
+        return obj
+    if name == "sdds":
+        obj = _get_sdds()
+        globals()[name] = obj
+        return obj
+    if name == "gdf":
+        obj = _get_gdf()
+        globals()[name] = obj
+        return obj
+    if name == "hdf5":
+        obj = _get_hdf5()
+        globals()[name] = obj
+        return obj
+    if name == "mad8":
+        obj = _get_mad8()
+        globals()[name] = obj
+        return obj
+    if name == "openpmd":
+        obj = _get_openpmd()
+        globals()[name] = obj
+        return obj
+    if name == "xsuite":
+        obj = _get_xsuite()
+        globals()[name] = obj
+        return obj
+    if name == "opal":
+        obj = _get_opal()
+        globals()[name] = obj
+        return obj
+    if name == "genesis":
+        obj = _get_genesis()
+        globals()[name] = obj
+        return obj
+    if name == "plot":
+        obj = _get_plot()
+        globals()[name] = obj
+        return obj
+    raise AttributeError(f"module {__name__} has no attribute {name}")

@@ -17,15 +17,57 @@ import warnings
 from math import copysign
 import numpy as np
 from ... import constants
-from .emittance import emittance as emittanceobject
-from .twiss import twiss as twissobject
-from .slice import slice as sliceobject
-from .sigmas import sigmas as sigmasobject
-from .centroids import centroids as centroidsobject
-from .kde import kde as kdeobject
 
-# Defer heavy MVE import (scipy.stats ~0.6s) until actually needed
+# Defer heavy imports until actually needed
+_emittanceobject = None
+_twissobject = None
+_sliceobject = None
+_sigmasobject = None
+_centroidsobject = None
+_kdeobject = None
 MVEobject = None
+
+def _get_emittance_class():
+    global _emittanceobject
+    if _emittanceobject is None:
+        from .emittance import emittance as _emittance
+        _emittanceobject = _emittance
+    return _emittanceobject
+
+def _get_twiss_class():
+    global _twissobject
+    if _twissobject is None:
+        from .twiss import twiss as _twiss
+        _twissobject = _twiss
+    return _twissobject
+
+def _get_slice_class():
+    global _sliceobject
+    if _sliceobject is None:
+        from .slice import slice as _slice
+        _sliceobject = _slice
+    return _sliceobject
+
+def _get_sigmas_class():
+    global _sigmasobject
+    if _sigmasobject is None:
+        from .sigmas import sigmas as _sigmas
+        _sigmasobject = _sigmas
+    return _sigmasobject
+
+def _get_centroids_class():
+    global _centroidsobject
+    if _centroidsobject is None:
+        from .centroids import centroids as _centroids
+        _centroidsobject = _centroids
+    return _centroidsobject
+
+def _get_kde_class():
+    global _kdeobject
+    if _kdeobject is None:
+        from .kde import kde as _kde
+        _kdeobject = _kde
+    return _kdeobject
 
 def _get_mve_class():
     global MVEobject
@@ -270,7 +312,7 @@ class Particles(BaseModel):
         return mod_dump
 
     @property
-    def slice(self) -> sliceobject:
+    def slice(self) -> Any:
         """
         Get the slice properties from the distribution.
 
@@ -280,11 +322,11 @@ class Particles(BaseModel):
             The slice properties
         """
         if not hasattr(self, "_slice"):
-            self._slice = sliceobject(self)
+            self._slice = _get_slice_class()(self)
         return self._slice
 
     @property
-    def emittance(self) -> emittanceobject:
+    def emittance(self) -> Any:
         """
         Get the emittance calculations from the distribution.
 
@@ -294,11 +336,11 @@ class Particles(BaseModel):
             Beam emittance
         """
         if not hasattr(self, "_emittance"):
-            self._emittance = emittanceobject(self)
+            self._emittance = _get_emittance_class()(self)
         return self._emittance
 
     @property
-    def twiss(self) -> twissobject:
+    def twiss(self) -> Any:
         """
         Get the Twiss parameters from the distribution.
 
@@ -308,11 +350,11 @@ class Particles(BaseModel):
             Twiss parameters
         """
         if not hasattr(self, "_twiss"):
-            self._twiss = twissobject(self)
+            self._twiss = _get_twiss_class()(self)
         return self._twiss
 
     @property
-    def sigmas(self) -> sigmasobject:
+    def sigmas(self) -> Any:
         """
         Get the beam sigmas from the distribution.
 
@@ -322,11 +364,11 @@ class Particles(BaseModel):
             Beam sigmas
         """
         if not hasattr(self, "_sigmas"):
-            self._sigmas = sigmasobject(self)
+            self._sigmas = _get_sigmas_class()(self)
         return self._sigmas
 
     @property
-    def centroids(self) -> centroidsobject:
+    def centroids(self) -> Any:
         """
         Get the centroids from the distribution.
 
@@ -336,11 +378,11 @@ class Particles(BaseModel):
             Beam centroids
         """
         if not hasattr(self, "_mean"):
-            self._mean = centroidsobject(self)
+            self._mean = _get_centroids_class()(self)
         return self._mean
 
     @property
-    def kde(self) -> kdeobject:
+    def kde(self) -> Any:
         """
         Get the kernel density estimator from the distribution.
 
@@ -350,7 +392,7 @@ class Particles(BaseModel):
             KDE
         """
         if not hasattr(self, "_kde"):
-            self._kde = kdeobject(self)
+            self._kde = _get_kde_class()(self)
         return self._kde
 
     @property

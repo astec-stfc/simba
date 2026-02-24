@@ -9,4 +9,5 @@ magnet-table/src/pip-delete-this-directory.txt
 .idea
 v2/
 Support_Files/newYAML/
-examples/testing/
+testing/
+notebooks/

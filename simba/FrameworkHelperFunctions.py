@@ -87,7 +87,7 @@ def sortByPositionFunction(element):
 def rotationMatrix(theta):
     """Simple 3D rotation matrix"""
     c, s = np.cos(theta), np.sin(theta)
-    return np.array([[c, 0, -s], [0, 1, 0], [s, 0, c]])
+    return np.matrix([[c, 0, -s], [0, 1, 0], [s, 0, c]])
 
 
 def getParameter(dicts, param, default=0):
@@ -159,48 +159,37 @@ def path_function(a, b):
     return os.path.abspath(a)
 
 
-_SUBSTITUTION_REGEX = re.compile(r"\$(.*?)\$")
-
-
 def expand_substitution(self, param, subs={}, elements={}, absolute=False):
     # print(param)
     if isinstance(param, (str)):
-        # Quick check: if no $ in string, nothing to substitute
-        if "$" not in param:
-            return param
-        if "master_lattice" not in subs:
-            subs["master_lattice"] = (
-                path_function(
-                    self.global_parameters["master_lattice"],
-                    self.global_parameters["master_subdir"],
-                )
-                + "/"
-            ).replace("\\", "/")
-        if "master_subdir" not in subs:
-            subs["master_subdir"] = "./"
-
-        matches = _SUBSTITUTION_REGEX.findall(param)
-        if not matches:
-            return param
-
-        replaced_str = param
-        for match in matches:
-            if isevaluable(self, match):
-                val = str(eval(match))
-                replaced_str = replaced_str.replace(f"${match}$", val)
+        subs["master_lattice"] = (
+            path_function(
+                self.global_parameters["master_lattice"],
+                self.global_parameters["master_subdir"],
+            )
+            + "/"
+        )
+        subs["master_subdir"] = "./"
+        regex = re.compile(r"\$(.*)\$")
+        s = re.search(regex, param)
+        if s:
+            if isevaluable(self, s.group(1)) is True:
+                replaced_str = str(eval(re.sub(regex, str(eval(s.group(1))), param)))
             else:
-                replaced_str = replaced_str.replace(f"${match}$", match)
-
-        for key, value in subs.items():
-            if key in replaced_str:
-                replaced_str = replaced_str.replace(key, str(value))
-
-        if "/" in replaced_str or "\\" in replaced_str:
+                replaced_str = re.sub(regex, s.group(1), param)
+            for key in subs:
+                replaced_str = replaced_str.replace(key, subs[key])
             if os.path.exists(replaced_str):
                 replaced_str = path_function(
-                    replaced_str, self.global_parameters.get("master_subdir", "./")
+                    replaced_str, self.global_parameters["master_subdir"]
                 ).replace("\\", "/")
-        return replaced_str
+                # print('\tpath exists', replaced_str)
+            for e in elements.keys():
+                if e in replaced_str:
+                    print("Element is in string!", e, replaced_str)
+            return replaced_str
+        else:
+            return param
     else:
         return param
 
@@ -429,56 +418,3 @@ def flatten_changes_dict(d, parent_key=""):
             # Simple leaf
             items.append((new_key, v))
     return items
-
-
-def camel_to_snake(name):
-    """Convert camelCase or PascalCase to snake_case."""
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower().replace('__', '_')
-
-
-def snake_to_camel(name):
-    """Convert snake_case to PascalCase."""
-    return ''.join(word.title() for word in name.split('_'))
-
-
-def pep8_adaptor(cls):
-    """
-    Class decorator to add PEP8 compatible aliases for methods.
-    It will add snake_case versions of camelCase methods.
-    """
-    for attr_name in list(dir(cls)):
-        if not attr_name.startswith('_'):
-            attr = getattr(cls, attr_name)
-            if callable(attr):
-                snake_name = camel_to_snake(attr_name)
-                if snake_name != attr_name and not hasattr(cls, snake_name):
-                    setattr(cls, snake_name, attr)
-    return cls
-
-
-def alias_classes_to_pep8(module_dict):
-    """
-    Given a module's __dict__, create snake_case aliases for PascalCase classes.
-    """
-    aliases = {}
-    for name, obj in list(module_dict.items()):
-        if isinstance(obj, type) and not name.startswith('_'):
-            snake_name = camel_to_snake(name)
-            if snake_name != name and snake_name not in module_dict:
-                aliases[snake_name] = obj
-    module_dict.update(aliases)
-
-
-def expand_substitution_recursive(self, obj, subs={}, elements={}, absolute=False):
-    """Recursively expand substitutions in nested dictionaries, lists, and strings"""
-    if isinstance(obj, str):
-        if '$' not in obj:
-            return obj
-        return expand_substitution(self, obj, subs, elements, absolute)
-    elif isinstance(obj, dict):
-        return {k: expand_substitution_recursive(self, v, subs, elements, absolute) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple)):
-        return type(obj)(expand_substitution_recursive(self, item, subs, elements, absolute) for item in obj)
-    else:
-        return obj

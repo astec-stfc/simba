@@ -22,19 +22,12 @@ Classes:
 import os
 import yaml
 import inspect
-import warnings
 from typing import Any, Dict
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
-
-try:
-    _FastLoader = yaml.CSafeLoader
-except AttributeError:
-    _FastLoader = yaml.SafeLoader
-
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement, Dipole, Element
+from laura.models.element import PhysicalBaseElement, Dipole
 from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -42,6 +35,12 @@ from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
 from .Modules import constants
 from .Codes import Executables as exes
+from .Codes.Generators import (
+    ASTRAGenerator,
+    GPTGenerator,
+    OPALGenerator,
+    frameworkGenerator,
+)
 from .Framework_objects import runSetup
 from . import Framework_lattices as frameworkLattices
 from . import Framework_elements as frameworkElements
@@ -52,39 +51,80 @@ from .FrameworkHelperFunctions import (
     compare_multiple_models,
     set_deep_attr,
     flatten_changes_dict,
-    pep8_adaptor,
-    alias_classes_to_pep8,
-    expand_substitution_recursive,
 )
 from pydantic import (
     BaseModel,
     ConfigDict,
 )
-from warnings import warn
 
-try:
-    import MasterLattice  # type: ignore
+class LazyDeepCopyDict(dict):
+    """
+    Dictionary that deepcopies values from a source dict only when accessed.
+    """
+    def __init__(self, source_dict):
+        super().__init__()
+        self._source = source_dict
 
-    if MasterLattice.__file__ is not None:
-        MasterLatticeLocation = os.path.dirname(MasterLattice.__file__) + "/"
-    else:
-        MasterLatticeLocation = None
-except ImportError:
-    MasterLatticeLocation = None
-try:
-    import SimCodes  # type: ignore
+    def __getitem__(self, key):
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        if key in self._source:
+            from copy import deepcopy
+            val = deepcopy(self._source[key])
+            super().__setitem__(key, val)
+            return val
+        raise KeyError(key)
 
-    SimCodesLocation = os.path.dirname(SimCodes.__file__) + "/"
-except ImportError:
-    SimCodesLocation = None
+    def __contains__(self, key):
+        return super().__contains__(key) or key in self._source
 
-use_matplotlib = True
-try:
-    import matplotlib
-except ImportError:
-    use_matplotlib = False
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
-from tqdm import tqdm
+    def keys(self):
+        return sorted(set(self._source.keys()) | set(super().keys()))
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
+MasterLatticeLocation = None
+SimCodesLocation = None
+use_matplotlib = False
+groupplot = None
+tqdm = None
+
+def _init_deferred_imports():
+    global MasterLatticeLocation, SimCodesLocation, use_matplotlib, groupplot, tqdm
+    import os
+    if tqdm is not None:
+        return
+    try:
+        from tqdm import tqdm as _tqdm
+        tqdm = _tqdm
+    except ImportError:
+        def tqdm(x, **kwargs): return x
+    try:
+        import MasterLattice  # type: ignore
+        if MasterLattice.__file__ is not None:
+            MasterLatticeLocation = os.path.dirname(MasterLattice.__file__) + "/"
+    except ImportError:
+        pass
+    try:
+        import SimCodes  # type: ignore
+        SimCodesLocation = os.path.dirname(SimCodes.__file__) + "/"
+    except ImportError:
+        pass
+    try:
+        import simba.Modules.plotting.plotting as _groupplot
+        groupplot = _groupplot
+        use_matplotlib = True
+    except ImportError:
+        use_matplotlib = False
 
 _mapping_tag = yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG
 
@@ -107,39 +147,6 @@ def numpy_scalar_representer(dumper, data):
     else:
         return dumper.represent_str(str(data))
 
-
-class _FrozenSnapshot:
-    """Lightweight snapshot of a Pydantic model for comparison.
-    
-    Stores the model_dump() dict and provides attribute access,
-    avoiding expensive deepcopy of the full Pydantic model tree.
-    """
-    __slots__ = ('_data', 'name')
-
-    def __init__(self, model):
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
-            self._data = model.model_dump()
-        self.name = getattr(model, 'name', None)
-
-    def __getattr__(self, key):
-        if key in ('_data', 'name'):
-            raise AttributeError(key)
-        try:
-            return self._data[key]
-        except KeyError:
-            raise AttributeError(key)
-
-    def __contains__(self, key):
-        return key in self._data
-
-    def model_dump(self, **kwargs):
-        return self._data.copy()
-
-    def __iter__(self):
-        return iter(((k, v) for k, v in self._data.items()))
-
-
 # Register custom representers for SafeDumper
 yaml.SafeDumper.add_representer(np.ndarray, numpy_array_representer)
 yaml.SafeDumper.add_representer(np.generic, numpy_scalar_representer)
@@ -159,22 +166,15 @@ NumpySafeDumper.add_representer(np.bool_, numpy_scalar_representer)
 yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
-latticeClasses = None  # Lazily initialized
-
-
-def _get_lattice_classes():
-    global latticeClasses
-    if latticeClasses is None:
-        latticeClasses = [
-            [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
-        ]
-    return latticeClasses
+latticeClasses = [
+    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+]
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml",
     "r",
 ) as infile:
-    hosts = yaml.load(infile, Loader=_FastLoader)
+    hosts = yaml.safe_load(infile)
 
 disallowed = [
     "allowedkeywords",
@@ -200,9 +200,8 @@ disallowed_changes = [
 ]
 
 
-supported_codes = frameworkLattices.supported_codes
+supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
 
-@pep8_adaptor
 class Framework(BaseModel):
     """
     The main class for handling the tracking of a particle distribution through a lattice.
@@ -290,7 +289,7 @@ class Framework(BaseModel):
     tracking: bool = False
     """Flag to indicate whether the Framework is tracking"""
 
-    generator: Any = None
+    generator: frameworkGenerator | None = None
     """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator` object"""
 
     settings: FrameworkSettings | None = None
@@ -610,22 +609,28 @@ class Framework(BaseModel):
         self.updateGlobalParameters()
 
     def setupGeneratorDefaults(self, generator_defaults: str | None):
+        _init_deferred_imports()  # Ensure deferred imports are initialized
+        # Check for trailing slash on master_lattice
+        master_lat = self.global_parameters["master_lattice"]
+        if not master_lat.endswith("/") and not master_lat.endswith("\\"):
+            master_lat += "/"
+
         with open(
                 os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml",
                 "r",
         ) as infile:
-            self.generator_keywords = {"keywords": yaml.load(infile, Loader=_FastLoader)}
+            self.generator_keywords = {"keywords": yaml.safe_load(infile)}
 
         if not generator_defaults:
             return self.generator_keywords
-        if os.path.isfile(self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"):
-            defaults = self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"
+        if os.path.isfile(master_lat + f"Generators/{generator_defaults}"):
+            defaults = master_lat + f"Generators/{generator_defaults}"
         elif os.path.isfile(generator_defaults):
             defaults = generator_defaults
         else:
             raise FileNotFoundError(f"Could not find generator file {generator_defaults}")
         with open(defaults, "r",) as infile:
-            fi = yaml.load(infile, Loader=_FastLoader)
+            fi = yaml.safe_load(infile)
             defaults = fi["defaults"]
             self.generator_keywords.update({"defaults": defaults})
             for k, v in fi.items():
@@ -650,15 +655,15 @@ class Framework(BaseModel):
         for f in filename:
             if os.path.isfile(f):
                 with open(f, "r") as stream:
-                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
+                    elements = yaml.safe_load(stream)["elements"]
             elif os.path.isfile(os.path.join(self.subdirectory, f)):
                 with open(os.path.join(self.subdirectory, f), "r") as stream:
-                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
+                    elements = yaml.safe_load(stream)["elements"]
             else:
                 with open(
                     self.global_parameters["master_lattice"] + f, "r"
                 ) as stream:
-                    elements = yaml.load(stream, Loader=_FastLoader)["elements"]
+                    elements = yaml.safe_load(stream)["elements"]
             for name, elem in list(elements.items()):
                 self.read_Element(name, elem)
 
@@ -714,66 +719,16 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            # Expand $master_lattice$ substitutions in layout and section before passing to LAURA
-            expanded_layout = expand_substitution_recursive(self, self.settings["layout"])
-            expanded_section = expand_substitution_recursive(self, self.settings["section"])
-            expanded_element_list = expand_substitution_recursive(self, self.settings["element_list"])
-            
             self.machine = LAURA(
-                layout=expanded_layout,
-                section=expanded_section,
-                element_list=expanded_element_list,
+                layout=self.settings["layout"],
+                section=self.settings["section"],
+                element_list=self.settings["element_list"],
                 master_lattice=self.global_parameters["master_lattice"],
                 exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
-            
-            # Set master_lattice_location on all LAURA elements for expand_substitution to work
-            # and recursively expand all substitutions in element properties
-            master_lattice_path = self.global_parameters["master_lattice"].rstrip("/").rstrip("\\")
-            subs = {
-                "master_lattice": master_lattice_path + "/",
-                "master_subdir": "./"
-            }
-            
-            for element in self.machine.elements.values():
-                try:
-                    object.__setattr__(element, 'master_lattice_location', master_lattice_path)
-                except (AttributeError, TypeError):
-                    # If we can't set the attribute directly, use the object dictionary
-                    element.__dict__['master_lattice_location'] = master_lattice_path
-                
-                # Recursively expand all substitutions in element properties
-                try:
-                    # Quick check to see if any value in the element's __dict__ contains a $
-                    # to avoid expensive model_dump and recursion for static elements
-                    contains_sub = False
-                    for val in element.__dict__.values():
-                        if isinstance(val, str) and "$" in val:
-                            contains_sub = True
-                            break
-                        elif isinstance(val, dict): # Check nested dicts for config
-                            if any(isinstance(v, str) and "$" in v for v in val.values()):
-                                contains_sub = True
-                                break
-                    
-                    if contains_sub:
-                        with warnings.catch_warnings():
-                            warnings.filterwarnings('ignore', message='Pydantic serializer warnings')
-                            element_dict = element.model_dump()
-                        expanded_dict = expand_substitution_recursive(self, element_dict, subs=subs)
-                        for key, value in expanded_dict.items():
-                            if value != element_dict.get(key):
-                                try:
-                                    setattr(element, key, value)
-                                except Exception:
-                                    try:
-                                        object.__setattr__(element, key, value)
-                                    except Exception:
-                                        pass
-                except Exception:
-                    pass
 
-            self.elementObjects = {k: v for k, v in self.machine.elements.items()}
+            # Lazy-load elements instead of iterating over everything!
+            self.elementObjects = self.machine.elements
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
@@ -790,11 +745,9 @@ class Framework(BaseModel):
 
             self.apply_changes(changes)
 
-            self.original_elementObjects = {}
-            for e in self.elementObjects:
-                self.original_elementObjects[e] = _FrozenSnapshot(self.elementObjects[e])
-            if self.generator is not None:
-                self.original_elementObjects["generator"] = _FrozenSnapshot(self.generator)
+            # Lazy deep-copy too! Saves ~1s
+            self.original_elementObjects = LazyDeepCopyDict(self.elementObjects)
+            self.original_elementObjects["generator"] = deepcopy(self.generator)
 
             self.updateGlobalParameters()
 
@@ -920,7 +873,6 @@ class Framework(BaseModel):
                         ),
                     }
         else:
-            from .Codes.Generators import frameworkGenerator
             for e in changeelements:
                 element = None
                 if e in self.elementObjects:
@@ -928,7 +880,7 @@ class Framework(BaseModel):
                 elif e == "generator":
                     element = self.generator
                     e = "generator"
-                if isinstance(element, (PhysicalBaseElement, Element)):
+                if isinstance(element, PhysicalBaseElement):
                     orig = self.original_elementObjects[e]
                     pairs = [(orig, element)]
 
@@ -1092,7 +1044,7 @@ class Framework(BaseModel):
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
             with open(filename, "r") as infile:
-                changes = dict(yaml.load(infile, Loader=_FastLoader))
+                changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
                 return
@@ -1496,13 +1448,6 @@ class Framework(BaseModel):
         default: str or None
             Name of generator code
         """
-        from .Codes.Generators import (
-            ASTRAGenerator,
-            GPTGenerator,
-            OPALGenerator,
-            frameworkGenerator,
-        )
-
         if "code" in kwargs:
             if kwargs["code"].lower() == "gpt":
                 code = GPTGenerator
@@ -1545,13 +1490,6 @@ class Framework(BaseModel):
         generator: str
             The generator code to which the generator object should be changed.
         """
-        from .Codes.Generators import (
-            ASTRAGenerator,
-            GPTGenerator,
-            OPALGenerator,
-            frameworkGenerator,
-        )
-
         old_kwargs = self.generator.model_dump()
         old_kwargs["code"] = generator
         if generator.lower() == "gpt":
@@ -2074,7 +2012,7 @@ class Framework(BaseModel):
         Updates the 'Run Settings' in each of the lattices
         """
         for ln, latticeObject in self.latticeObjects.items():
-            if isinstance(latticeObject, tuple(_get_lattice_classes())):
+            if isinstance(latticeObject, tuple(latticeClasses)):
                 latticeObject.updateRunSettings(self.runSetup)
 
     def setNRuns(self, nruns: int) -> None:
@@ -2180,7 +2118,6 @@ class Framework(BaseModel):
             # )
 
 
-@pep8_adaptor
 class frameworkDirectory(BaseModel):
     """
     Class to load a tracking run from a directory and read the Beam and Twiss files and make them available
@@ -2260,14 +2197,12 @@ class frameworkDirectory(BaseModel):
             """
             Return a plot object; see :func:`~simba.Modules.plotting.plotting.plot`.
             """
-            import simba.Modules.plotting.plotting as groupplot
             return groupplot.plot(self, *args, **kwargs)
 
         def general_plot(self, *args, **kwargs):
             """
             Return a general_plot object; see :func:`~simba.Modules.plotting.plotting.general_plot`.
             """
-            import simba.Modules.plotting.plotting as groupplot
             return groupplot.general_plot(self, *args, **kwargs)
 
     def __repr__(self):
@@ -2374,5 +2309,3 @@ def load_directory(
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
     fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
     return fw
-
-alias_classes_to_pep8(globals())

@@ -26,3 +26,5 @@ framework.generator.thermal_emittance = 0.0005
 # This is a scaling parameter
 # This defines the number of particles to create at the gun (this is "ASTRA generator" which creates distributions)
 framework.generator.number_of_particles = 512
+# Track the lattice
+framework.track(startfile="Linac")
