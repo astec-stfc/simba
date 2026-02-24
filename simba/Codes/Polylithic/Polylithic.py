@@ -109,7 +109,7 @@ class polylithicLattice(frameworkLattice):
         Save the beam file(s) from the polylithic output into HDF5 format
         """
         super().postProcess()
-        beamflag = False
+        beamflag = True
         # if "beam" in self.model_output:
         #     self.reconstruct_beams()
         #     beamflag = True
@@ -238,6 +238,7 @@ class polylithicLattice(frameworkLattice):
                     {
                         k: v for k, v in self.model_output["beam"].items() if
                         k in transform_ocelot_twiss.values()
+                        or k in [x[0] for x in transform_ocelot_twiss.values()]
                     }
             }
         )
@@ -260,8 +261,9 @@ class polylithicLattice(frameworkLattice):
                 k1 = transform_ocelot_twiss[k][0] if isinstance(transform_ocelot_twiss[k], list) else \
                 transform_ocelot_twiss[k]
                 if k1 in self.model_output["twiss"]:
-                    if isinstance(k1, list):
-                        twsdat[k] = self.model_output["twiss"][k1[0]] * k1[1]
+                    if isinstance(transform_ocelot_twiss[k], list):
+                        kl = transform_ocelot_twiss[k]
+                        twsdat[k] = [x * kl[1] for x in self.model_output["twiss"][kl[0]]]
                     else:
                         twsdat[k] = self.model_output["twiss"][k1]
                 else:
@@ -321,8 +323,7 @@ class polylithicLattice(frameworkLattice):
                                 bea1.beam.rematchXPlane(**twsv)
                             else:
                                 bea1.beam.rematchYPlane(**twsv)
-                    print("init", init.species, "gen", gen.species)
-                    gen.write()
+                    gen.write(beam=bea1)
                     if e.name == self.end:
                         self.global_parameters["beam"] = bea1
 

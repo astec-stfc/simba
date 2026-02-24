@@ -644,8 +644,9 @@ class frameworkGenerator(BaseModel):
         beam.set_species(self.species)
         return beam
 
-    def write(self):
-        beam = self.generate()
+    def write(self, beam=None):
+        if beam is None:
+            beam = self.generate()
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + self.filename,
