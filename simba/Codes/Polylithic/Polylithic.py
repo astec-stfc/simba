@@ -151,12 +151,16 @@ class polylithicLattice(frameworkLattice):
                     val = float(val)
                 beamdata.update({key: val})
             elif len(splitkey) == 3:
+                if splitkey[0] not in beamdata:
+                    beamdata.update({splitkey[0]: {}})
+                if splitkey[1] not in beamdata[splitkey[0]]:
+                    beamdata[splitkey[0]].update({splitkey[1]: {}})
                 beamattr = getattr(beamcopy, splitkey[0])
                 arg = [getattr(beamattr, a) for a in splitkey[2].split(',')]
                 val = getattr(beamattr, splitkey[1])(arg[0], arg[1]).val
                 if val.ndim == 0:
                     val = float(val)
-                beamdata.update({key: val})
+                beamdata[splitkey[0]][splitkey[1]].update({splitkey[2].split(',')[0]: {splitkey[2].split(',')[1]: val}})
 
         machinedata = {}
         for key in model_requirements.machine_settings:
@@ -172,11 +176,9 @@ class polylithicLattice(frameworkLattice):
         job_payload = {
             "model": self.model,
             "job_id": self.model + uuid.uuid4().hex,
-            "beam_properties": beamdata,
-            "machine_settings": machinedata,
-            "beam": {},
+            "beam": beamdata,
             "lattice_name": "string",
-            "lattice": {},
+            "lattice": machinedata,
         }
         try:
             response = requests.post(url, json=job_payload, timeout=10)
