@@ -61,8 +61,9 @@ class gdf_beam(Munch):
         )
 
     def get_position(self, position: float) -> dict | None:
-        if position in self._positions.keys():
-            return Munch(self._positions[position])
+        for p in self._positions.keys():
+            if np.isclose(position, p, atol=1e-2):
+                return Munch(self._positions[p])
         return None
 
     def get_time(self, time: float) -> dict | None:

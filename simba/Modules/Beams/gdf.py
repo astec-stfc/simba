@@ -239,5 +239,13 @@ def read_gdf_beam_file(
     self._beam.set_total_charge(gdfbeamdata.nmacro * self._beam.particle_charge)
 
     self._beam.status = UnitValue(np.full(len(self.z), 5))
+    self.set_species(
+        self.species_name[
+            self._beam.get_particle_index(
+                self._beam.particle_mass[0],
+                self._beam.particle_charge[0]
+            )
+        ]
+    )
 
     return gdfbeam

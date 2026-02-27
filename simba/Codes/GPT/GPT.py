@@ -105,7 +105,7 @@ class gptLattice(frameworkLattice):
     screen_step_size: float = 0.1
     """Step size for screen output"""
 
-    time_step_size: float = 1e-11
+    time_step_size: float = 1e-10
     """Step size for output data during tracking"""
 
     override_meanBz: float | int | None = None
@@ -114,7 +114,7 @@ class gptLattice(frameworkLattice):
     override_tout: float | int | None = None
     """Set the time step output manually"""
 
-    accuracy: int = 6
+    accuracy: int = 4
     """Tracking accuracy"""
 
     endScreenObject: Any = None
@@ -152,6 +152,8 @@ class gptLattice(frameworkLattice):
         self.headers["floorplan"] = gpt_writefloorplan(
             filename='"' + self.objectname + '_floor.gdf"'
         )
+        if "override_tout" in self.file_block:
+            self.override_tout = self.file_block["override_tout"]
 
     @property
     def space_charge_mode(self) -> str | None:
@@ -222,6 +224,7 @@ class gptLattice(frameworkLattice):
             self.csr_enable
             and len(self.dipoles) > 0
             and max([abs(d.angle) for d in self.dipoles]) > 0
+            and self.global_parameters["beam"].species == "electron"
         ):  # and not os.name == 'nt':
             self.headers["csr1d"] = gpt_csr1d()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
@@ -233,7 +236,8 @@ class gptLattice(frameworkLattice):
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
             Brho=self.global_parameters["beam"].Brho,
-            dtmin=self.dtmin
+            dtmin=self.dtmin,
+            charge_sign=int(np.sign(self.global_parameters["beam"].particle_charge[0].val)),
             # screen_step_size=self.screen_step_size,
         )
         return fulltext
@@ -411,6 +415,7 @@ class gptLattice(frameworkLattice):
         svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
+            self.global_parameters["beam"],
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
@@ -542,8 +547,8 @@ class gptLattice(frameworkLattice):
             position=screen.physical.middle.z,
             gdfbeam=gdf,
         )
-        self.beam.t += t0
-        self.beam.s = UnitValue(sval, units="m")
+        beam.t += t0
+        beam.s = UnitValue(sval, units="m")
         HDF5filename = screen.name + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,

@@ -131,7 +131,7 @@ class magnet_plotting_data:
 
     def quadrupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k1l) * 0.5
+        strength = e.gradient
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]

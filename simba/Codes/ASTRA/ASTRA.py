@@ -112,6 +112,9 @@ class astraLattice(frameworkLattice):
     ref_s: float = None
     """Reference s position"""
 
+    z_step_size: float = 0.01
+    """Step size in z"""
+
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
         self.starting_offset = (
@@ -133,6 +136,8 @@ class astraLattice(frameworkLattice):
         # Create a "newrun" block
         if "input" not in self.file_block:
             self.file_block["input"] = {}
+        if "z_step_size" in self.file_block:
+            self.z_step_size = self.file_block["z_step_size"]
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
         newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
@@ -184,7 +189,7 @@ class astraLattice(frameworkLattice):
             global_parameters=self.global_parameters,
             zstart=zstart,
             zstop=self.zstop,
-            zemit=int((self.zstop - zstart) / 0.01),
+            zemit=int((self.zstop - zstart) / self.z_step_size),
             screens=screens,
             **output_settings,
         )
