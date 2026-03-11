@@ -1277,11 +1277,11 @@ class frameworkLattice(BaseModel):
         subdir = self.global_parameters["master_subdir"]
         cod = self.code.lower() if self.code.lower() != "elegant" else "sdds"
         for e in self.elements.values():
-            if isinstance(e.simulation.field_definition, str):
+            if hasattr(e.simulation, "field_definition") and isinstance(e.simulation.field_definition, str):
                 fn = e.simulation.field_definition.split('/')[-1].split('\\')[-1]
                 filename = os.path.splitext(fn)[0]
                 self.files.append(f'{subdir}/{filename}.{cod.lower()}')
-            if isinstance(e.simulation.wakefield_definition, str):
+            if hasattr(e.simulation, "wakefield_definition") and isinstance(e.simulation.wakefield_definition, str):
                 fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
                 filename = os.path.splitext(fn)[0]
                 self.files.append(f'{subdir}/{filename}.{cod.lower()}')
