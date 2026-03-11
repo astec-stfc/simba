@@ -157,12 +157,12 @@ beam_profile_properties = [
     "gamma",
     "delgam",
     "current",
-    "xcenter",
-    "ycenter",
-    "pxcenter",
-    "pycenter",
+    # "xcenter",
+    # "ycenter",
+    # "pxcenter",
+    # "pycenter",
     "ex",
-"ey"
+    "ey"
 ]
 
 class genesisLattice(frameworkLattice):
@@ -219,7 +219,7 @@ class genesisLattice(frameworkLattice):
     npart: int = None
     """Number of macro particles per slice; if not provided, calculate from the beam"""
 
-    nbins: int = 4
+    nbins: int = 16
     """Number of macro particles to be grouped into beamlets"""
 
     seed: int = randint(1,10000000)
@@ -511,18 +511,21 @@ class genesisLattice(frameworkLattice):
             E0_eV = float(beam.E0_eV.val)
         else:
             E0_eV = float(beam.E0_eV.val[0])
+        slmom = beam.slice.slice_momentum_spread.val
+        lenslmom = len(slmom)
+        delgam = float(np.mean(slmom[int(lenslmom/2 - 3): int(lenslmom/2 + 3)])) / E0_eV
         ddd =  {
             "betax": float(beam.twiss.beta_x.val),
             "betay": float(beam.twiss.beta_y.val),
             "alphax": float(beam.twiss.alpha_x.val),
             "alphay": float(beam.twiss.alpha_y.val),
             "gamma": float(beam.centroids.mean_gamma.val),
-            "delgam": float(beam.sigmas.sigma_cp_eV.val) / E0_eV,
+            "delgam": delgam,
             "current": float(beam.slice.peak_current.val),
-            "xcenter": float(beam.centroids.mean_x.val),
-            "ycenter": float(beam.centroids.mean_y.val),
-            "pxcenter": float(beam.centroids.mean_cpx.val) / E0_eV,
-            "pycenter": float(beam.centroids.mean_cpy.val) / E0_eV,
+            # "xcenter": float(beam.centroids.mean_x.val),
+            # "ycenter": float(beam.centroids.mean_y.val),
+            # "pxcenter": float(beam.centroids.mean_cpx.val) / E0_eV,
+            # "pycenter": float(beam.centroids.mean_cpy.val) / E0_eV,
             "ex": float(beam.emittance.normalized_horizontal_emittance.val),
             "ey": float(beam.emittance.normalized_vertical_emittance.val),
         }
