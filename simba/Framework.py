@@ -33,6 +33,7 @@ from laura.Exporters.YAML import export_machine, export_elements
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
+from .Modules import Wavefronts as rwf
 from .Modules import constants
 from .Codes import Executables as exes
 from .Codes.Generators import (
@@ -2082,6 +2083,9 @@ class frameworkDirectory(BaseModel):
     beams: bool | rbf.beamGroup | None = False
     """Flag to indicate whether to load beam files"""
 
+    wavefronts: bool | rwf.wavefrontGroup | None = False
+    """Flag to indicate whether to load wavefront files"""
+
     verbose: bool = False
     """Flag to print status updates"""
 
@@ -2138,6 +2142,8 @@ class frameworkDirectory(BaseModel):
         else:
             self.beams = None
             self.twiss = rtf.twiss()
+        if self.wavefronts:
+            self.wavefronts = rwf.load_directory(directory)
         if self.twiss:
             self.twiss.load_directory(directory, verbose=self.verbose)
 
@@ -2254,8 +2260,8 @@ class frameworkDirectory(BaseModel):
 
 
 def load_directory(
-    directory: str = ".", twiss: bool = True, beams: bool = False, **kwargs
+    directory: str = ".", twiss: bool = True, beams: bool = False, wavefronts: bool = False, **kwargs
 ) -> frameworkDirectory:
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
-    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
+    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)
     return fw
