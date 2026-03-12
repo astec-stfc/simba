@@ -23,13 +23,12 @@ def read_opal_twiss_files(self, filename, startS=0, reset=True):
             # z += self.z.val[-1] if len(self.z.val) > 0 else 0
             self.z.val = np.append(self.z.val, z)
             self.s.val = np.append(self.s.val, z)
-            cp = opalData["ref_pz"][()]
+            cp = opalData["ref_pz"][()] * 1e6
             # self.append('cp', cp)
-            ke = np.array(
-                (np.sqrt(self.E0**2 + cp**2) - self.E0**2) / constants.elementary_charge
-            )
+            E = np.sqrt(cp ** 2 + self.E0_eV ** 2)
+            ke = E - self.E0_eV
+            gamma = E / self.E0_eV
             self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
-            gamma = 1 + ke / self.E0_eV
             cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
             self.cp.val = np.append(self.cp.val, cp)
             self.gamma.val = np.append(self.gamma.val, gamma)

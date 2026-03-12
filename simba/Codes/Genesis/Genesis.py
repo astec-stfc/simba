@@ -427,6 +427,7 @@ class genesisLattice(frameworkLattice):
 
     def write_setup_file(self) -> None:
         gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
+        print(gamma0)
         first_wiggler = self.wigglers[0]
         if not self.fundamental_wavelength:
             self.fundamental_wavelength = first_wiggler.period / (2 * gamma0**2)
@@ -435,6 +436,9 @@ class genesisLattice(frameworkLattice):
             lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.normalized_strength**2)
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
                 warn(f"First undulator strength is not close to fundamental_wavelength")
+        print(first_wiggler.period)
+        print(first_wiggler.normalized_strength)
+        print(self.fundamental_wavelength)
         delz = first_wiggler.period
         if isinstance(self.split_element, str):
             if self.split_element in self.elements:
