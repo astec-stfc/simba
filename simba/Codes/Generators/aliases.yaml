@@ -36,7 +36,7 @@ aliases:
     sigma_z:
       alias: sig_z
       multiplier: 1000
-    sigma_pz:
+    sigma_kinetic_energy:
       alias: sig_ekin
       multiplier: 0.001
     correlation_kinetic_energy:
@@ -60,7 +60,7 @@ aliases:
       alias: sig_px
     correlation_px:
       alias: cor_px
-      multiplier: 1000
+      multiplier: 1000000
     distribution_type_y:
       alias: dist_y
     sigma_y:
@@ -70,7 +70,7 @@ aliases:
       alias: sig_py
     correlation_py:
       alias: cor_py
-      multiplier: 1000
+      multiplier: 1000000
     distribution_type_px:
       alias: dist_px
     distribution_type_py:
