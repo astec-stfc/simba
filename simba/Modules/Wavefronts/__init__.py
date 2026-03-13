@@ -92,7 +92,7 @@ class wavefrontGroup(BaseModel):
         return None
 
     def getWavefronts(self):
-        return {os.path.splitext(os.path.basename(b))[0]: b for b in self.wavefronts.keys()}
+        return {".".join(os.path.splitext(os.path.basename(b))[0].split('.')[:-1]): b for b in self.wavefronts.keys()}
 
 
 def load_directory(directory=".", types={"Genesis": ".fld.h5"}, verbose=False) -> wavefrontGroup:
