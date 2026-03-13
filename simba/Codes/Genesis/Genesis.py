@@ -415,6 +415,21 @@ class genesisLattice(frameworkLattice):
         HDF5filename = f"{rootname}.openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         self.commandFiles = {}
+        outfields = sorted(
+            [
+                e for e in os.listdir(self.global_parameters["master_subdir"]) if ".fld.h5" in e and self.end not in e
+            ]
+        )
+        outbeams = sorted(
+            [
+                e for e in os.listdir(self.global_parameters["master_subdir"]) if ".par.h5" in e and self.end not in e
+            ]
+        )
+        subd = self.global_parameters["master_subdir"]
+        for outf, photon in zip(outfields, self.getElementType("photon_monitor")):
+            os.rename(f"{subd}/{outf}", f"{subd}/{photon.name}.fld.h5")
+        for outb, scr in zip(outbeams, self.getElementType("screen")):
+            os.rename(f"{subd}/{outb}", f"{subd}/{scr.name}.par.h5")
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.out.h5", "r+") as f:
             dset = f["/Lattice/z"]
             dset[:] = dset[:] + self.startObject.physical.start.z

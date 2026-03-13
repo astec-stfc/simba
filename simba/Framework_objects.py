@@ -1082,6 +1082,18 @@ class frameworkLattice(BaseModel):
         return self.getElementType("wiggler")
 
     @property
+    def photon_monitors(self) -> list:
+        """
+        Property to get all photon monitor elements in the lattice.
+
+        Returns
+        -------
+        list
+            A list of photon monitor elements in the lattice.
+        """
+        return self.getElementType("photon_monitor")
+
+    @property
     def lines(self) -> list:
         """
         Property to get all lines in the lattice.

@@ -28,14 +28,15 @@ from pmd_beamphysics.wavefront.wavefront import Wavefront
 
 class wavefrontGroup(BaseModel):
     """
-    Class for grouping together multiple particle distributions. These distributions can be loaded in
+    Class for grouping together multiple wavefronts. These distributions can be loaded in
     from a directory, for example, using the function
-    :func:`~simba.Modules.Beams.load_directory`.
+    :func:`~simba.Modules.Wavefronts.load_directory`.
 
-    Properties such as the :class:`~simba.Modules.Beams.Particles.emittance.emittance` objects
-    for these distributions are stored as properties of the `beamGroup`.
+    ****WARNING****
+    This is a work-in-progress. Many features are not yet implemented
 
-    (see :class:`~simba.Modules.Beams.particlesGroup`).
+    For now, the only interface to wavefronts is based on the openpmd-beamphysics implementation.
+    Only GENESIS-style `field` objects are supported.
     """
 
     sddsindex: int = 0
@@ -85,7 +86,7 @@ class wavefrontGroup(BaseModel):
                         del self.wavefronts[file]
 
     def getWavefront(self, wavefront):
-        for b in self.beams:
+        for b in self.wavefronts:
             if wavefront == os.path.splitext(os.path.basename(b))[0]:
                 return self.wavefronts[b]
         return None
