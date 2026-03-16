@@ -87,7 +87,7 @@ class wavefrontGroup(BaseModel):
 
     def getWavefront(self, wavefront):
         for b in self.wavefronts:
-            if wavefront == os.path.splitext(os.path.basename(b))[0]:
+            if wavefront == ".".join(os.path.splitext(os.path.basename(b))[0].split('.')[:-1]):
                 return self.wavefronts[b]
         return None
 
