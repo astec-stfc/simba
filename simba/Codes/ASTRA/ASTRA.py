@@ -28,6 +28,7 @@ Classes:
 """
 
 import os
+from copy import deepcopy
 from warnings import warn
 import numpy as np
 import lox
@@ -139,13 +140,16 @@ class astraLattice(frameworkLattice):
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
         newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        settings = deepcopy(newrun_settings)
+        if "twiss" in settings:
+            settings.pop("twiss")
         starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
         self.section.astra_headers["newrun"] = astra_newrun(
             starting_offset=starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             input_particle_definition = self.startObject.name,
-            **newrun_settings,
+            **settings,
         )
         # If the initial distribution is derived from a generator file, we should use that
         if (
