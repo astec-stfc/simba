@@ -106,6 +106,9 @@ class astraLattice(frameworkLattice):
     zstop: float = None
     """End z position of lattice"""
 
+    zstep: float = 0.01
+    """Tracking step size [m]"""
+
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
     """Headers for ASTRA input file"""
 
@@ -184,7 +187,7 @@ class astraLattice(frameworkLattice):
             global_parameters=self.global_parameters,
             zstart=zstart,
             zstop=self.zstop,
-            zemit=int((self.zstop - zstart) / 0.01),
+            zemit=int((self.zstop - zstart) / self.zstep),
             screens=screens,
             **output_settings,
         )
