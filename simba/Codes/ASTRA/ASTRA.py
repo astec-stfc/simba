@@ -106,7 +106,7 @@ class astraLattice(frameworkLattice):
     zstop: float = None
     """End z position of lattice"""
 
-    zstep: float = 0.01
+    zstep: float = 0.02
     """Tracking step size [m]"""
 
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
