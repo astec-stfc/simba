@@ -117,7 +117,7 @@ class ASTRAGenerator(frameworkGenerator):
         if self.cathode:
             HDF5filename = "laser.openpmd.hdf5"
         else:
-            HDF5filename = self.filename.replace(".txt", ".openpmd.hdf5")
+            HDF5filename = "laser.openpmd.hdf5" #self.filename.replace(".txt", ".openpmd.hdf5")
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
