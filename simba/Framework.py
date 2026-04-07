@@ -678,7 +678,10 @@ class Framework(BaseModel):
                 exclude_keys=["controls", "electrical", "manufacturer", "reference"],
             )
 
-            self.elementObjects = {k: v for k, v in self.machine.elements.items() if isinstance(v, PhysicalBaseElement)}
+            for k in list(self.machine.elements.keys()):
+                _ = self.machine.elements[k]
+
+            self.elementObjects = dict(self.machine.elements)
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
