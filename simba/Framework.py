@@ -762,7 +762,7 @@ class Framework(BaseModel):
             objectname=name,
             objecttype=code.lower() + "Lattice",
             file_block=lattice,
-            elementObjects=self.elementObjects,
+            elementObjects=deepcopy(self.elementObjects),
             groupObjects=self.groupObjects,
             runSettings=self.runSetup,
             settings=self.settings,
