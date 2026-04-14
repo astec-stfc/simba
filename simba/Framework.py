@@ -1208,7 +1208,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if self.elementObjects[element].hardware_type.lower() == typ.lower()
+            if isinstance(self.elementObjects[element], PhysicalBaseElement) and self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
