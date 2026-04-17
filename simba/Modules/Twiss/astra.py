@@ -4,7 +4,10 @@ from .. import constants
 
 
 def cumtrapz(x=[], y=[]):
-    return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
+    try:
+        return [np.trapezoid(x=x[:n], y=y[:n]) for n in range(len(x))]
+    except AttributeError as e:
+        return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 
 def read_astra_twiss_files(self, filename, reset=True) -> None:
