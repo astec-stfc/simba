@@ -130,17 +130,17 @@ class magnet_plotting_data:
         )
 
     def quadrupole(self, e):
-        # if e.gradient is None:
-        strength = np.sign(e.k1l) * 0.5
-        # else:
-        #     idx = find_nearest(self.z, e.middle[2])
-        #     ke = self.kinetic_energy[idx]
-        #     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
+        if e.gradient is None:
+            strength = e.k1l
+        else:
+            idx = find_nearest(self.z, e.middle.z)
+            ke = self.kinetic_energy[idx]
+            strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
         return self.half_rectangle(e, strength), "red"
 
     def sextupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k2l) * 0.5
+        strength = e.k2l
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]
@@ -217,6 +217,7 @@ def add_fieldmaps_to_axes(
     fields=["RFCavity", "Solenoid"],
     include_labels=True,
     verbose=False,
+    fontsize=12,
 ):
     """
     Adds fieldmaps to an axes.
@@ -231,6 +232,7 @@ def add_fieldmaps_to_axes(
     ax1 = axes
 
     ax1rhs = ax1.twinx()
+    ax1rhs.tick_params(axis='y', labelsize=fontsize)
     ax = [ax1, ax1rhs]
 
     ylabel = {"RFCavity": "$E_z$ (MV/m)", "Solenoid": "$B_z$ (T)"}
@@ -250,7 +252,7 @@ def add_fieldmaps_to_axes(
                 )
             a.plot(*data.T, label=label, color=c)
             a.yaxis.label.set_color(c)
-        a.set_ylabel(ylabel[section])
+        a.set_ylabel(ylabel[section], fontsize=fontsize)
 
     if len(fields) < 1:
         for a in ax:
@@ -269,6 +271,7 @@ def add_magnets_to_axes(
     include_labels=True,
     kinetic_energy=None,
     verbose=False,
+    fontsize=12,
 ):
     """
     Adds magnets to an axes.
@@ -289,6 +292,7 @@ def add_magnets_to_axes(
 
     ax1 = axes
     ax1rhs = ax1.twinx()
+    ax1rhs.tick_params(axis='y', labelsize=fontsize)
     ax = [ax1, ax1rhs]
 
     ylabel = {
@@ -306,7 +310,7 @@ def add_magnets_to_axes(
     for section, i in axis.items():
         a = ax[i]
         c = color[section]
-        a.set_ylabel(ylabel[section])
+        a.set_ylabel(ylabel[section], fontsize=fontsize)
         a.yaxis.label.set_color(c)
 
     for section in color.keys():
@@ -373,6 +377,7 @@ def plot(
     ax_top=None,
     ax_field_layout=None,
     ax_magnet_layout=None,
+    fontsize=12,
     **kwargs,
 ):
 
@@ -469,7 +474,7 @@ def plot(
         factor_x = 1
 
     # Set x axis label
-    ax_plot[0].set_xlabel(f"{xkey} ({units_x})")
+    ax_plot[0].set_xlabel(f"{xkey} ({units_x})", fontsize=fontsize)
 
     # Plot ykeys + ykeys2
     linestyles = ["solid", "dashed"]
@@ -540,7 +545,7 @@ def plot(
                     l = "$" + l.replace(symbol, '\\' + symbol) + "$"
             ylabel.append(f"{l}")
         ylabel = ", ".join(ylabel)
-        ax.set_ylabel(ylabel + f" ({unit})")
+        ax.set_ylabel(ylabel + f" ({unit})", fontsize=fontsize)
 
     # Legend
     if include_legend:
@@ -558,6 +563,7 @@ def plot(
             bounds=limits,
             include_labels=include_labels,
             fields=fields,
+            fontsize=fontsize,
         )
         add_magnets_to_axes(
             framework_object.framework,
@@ -568,6 +574,7 @@ def plot(
             kinetic_energy=list(
                 zip(twiss.stat("z").val[good], twiss.stat("kinetic_energy").val[good])
             ),
+            fontsize=fontsize,
         )
         ax_field_layout.set_xlim(ax_top.get_xlim())
         ax_magnet_layout.set_xlim(ax_top.get_xlim())
@@ -582,26 +589,30 @@ def plot(
             # external axes: put label only on bottom axis
             ax_top.set_xlabel("")
             ax_field_layout.set_xlabel("")
-            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})")
+            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})", fontsize=fontsize)
 
             # show ticks only on bottom axis
-            ax_top.tick_params(labelbottom=False)
-            ax_field_layout.tick_params(labelbottom=False)
-            ax_magnet_layout.tick_params(labelbottom=True)
+            ax_top.tick_params(labelbottom=False, labelsize=fontsize)
+            if len(ax_plot) > 1:
+                ax_plot[1].tick_params(labelbottom=False, labelsize=fontsize)
+            ax_field_layout.tick_params(labelbottom=False, labelsize=fontsize)
+            ax_magnet_layout.tick_params(labelbottom=True, labelsize=fontsize)
 
         else:
             # internal axes: bottom axis gets the x-label
             ax_top.set_xlabel("")
             ax_field_layout.set_xlabel("")
-            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})")
+            ax_magnet_layout.set_xlabel(f"{xkey} ({units_x})", fontsize=fontsize)
 
-            ax_top.tick_params(labelbottom=False)
-            ax_field_layout.tick_params(labelbottom=False)
-            ax_magnet_layout.tick_params(labelbottom=True)
+            ax_top.tick_params(labelbottom=False, labelsize=fontsize)
+            if len(ax_plot) > 1:
+                ax_plot[1].tick_params(labelbottom=False, labelsize=fontsize)
+            ax_field_layout.tick_params(labelbottom=False, labelsize=fontsize)
+            ax_magnet_layout.tick_params(labelbottom=True, labelsize=fontsize)
 
     else:
         # No layout → single axis case
-        ax_top.set_xlabel(f"{xkey} ({units_x})")
+        ax_top.set_xlabel(f"{xkey} ({units_x})", fontsize=fontsize)
 
     return ax_top, ax_field_layout, ax_magnet_layout
 
