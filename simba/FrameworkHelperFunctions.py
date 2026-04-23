@@ -5,6 +5,7 @@ import numpy as np
 from .Modules.Fields import field
 from pydantic import BaseModel
 from deepdiff import DeepDiff
+from numbers import Number
 
 from laura.models.element import Element
 
@@ -311,6 +312,8 @@ def normalize(obj):
         return obj.tolist()
     elif isinstance(obj, np.generic):  # np.float64, np.int64, etc.
         return obj.item()
+    elif isinstance(obj, (int, float)):
+        return float(obj)  # Normalize int to float
     else:
         return obj
 
@@ -361,12 +364,24 @@ def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
     """
     all_changes = {}
     for old, new in model_pairs:
+        # Normalize old and new models
         old_dump = normalize(old.model_dump())
         new_dump = normalize(new.model_dump())
+
+        # Log the normalized versions of the models for debugging
+
+        # Calculate DeepDiff between normalized models
         diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
+
+        # Convert the DeepDiff output into a nested dictionary format
         nested_diff = deepdiff_to_nested(diff.to_dict())
+
+        # Log the nested difference result for debugging
+
         all_changes[old.name] = nested_diff
+
     return all_changes
+
 
 def set_deep_attr(obj, dotted_path, value):
     """Set nested attribute using a dotted path like 'a.b.c.d'."""

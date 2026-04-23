@@ -273,6 +273,9 @@ class Framework(BaseModel):
     password: str = ""
     """Password for remote execution"""
 
+    eager_mode: bool = False
+    """Bypass lazy loading for LAURA"""
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
@@ -308,7 +311,10 @@ class Framework(BaseModel):
         """
         Sets up the `LAURA` machine
         """
-        self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
+        try:
+            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
+        except Exception:
+            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
 
     def prepare_executables(
             self,
@@ -670,13 +676,23 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            self.machine = LAURA(
-                layout=self.settings["layout"],
-                section=self.settings["section"],
-                element_list=self.settings["element_list"],
-                master_lattice=self.global_parameters["master_lattice"],
-                exclude_keys=["controls", "electrical", "manufacturer", "reference"],
-            )
+            try:
+                self.machine = LAURA(
+                    layout=self.settings["layout"],
+                    section=self.settings["section"],
+                    element_list=self.settings["element_list"],
+                    master_lattice=self.global_parameters["master_lattice"],
+                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                    eager_mode=self.eager_mode,
+                )
+            except Exception:
+                self.machine = LAURA(
+                    layout=self.settings["layout"],
+                    section=self.settings["section"],
+                    element_list=self.settings["element_list"],
+                    master_lattice=self.global_parameters["master_lattice"],
+                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                )
 
             for k in list(self.machine.elements.keys()):
                 _ = self.machine.elements[k]
@@ -1212,7 +1228,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if self.elementObjects[element].hardware_type.lower() == typ.lower()
+            if isinstance(self.elementObjects[element], PhysicalBaseElement) and self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(

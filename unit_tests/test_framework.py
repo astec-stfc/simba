@@ -14,7 +14,7 @@ from simba.Framework_lattices import (
     astraLattice,
     cheetahLattice,
 )
-from laura.models.element import Quadrupole, Marker, Element
+from laura.models.element import Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
@@ -138,8 +138,8 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
 @pytest.fixture
 def sample_framework(tmp_path):
     fw_obj = fw.Framework(directory=str(tmp_path))
-    e1 = Element(name="E1", hardware_class="Magnet", hardware_type="Dipole", machine_area="A1")
-    e2 = Element(name="E2", hardware_class="Magnet", hardware_type="Quadrupole", machine_area="A1")
+    e1 = PhysicalBaseElement(name="E1", hardware_class="Magnet", hardware_type="Dipole", machine_area="A1")
+    e2 = PhysicalBaseElement(name="E2", hardware_class="Magnet", hardware_type="Quadrupole", machine_area="A1")
     fw_obj.elementObjects = {"E1": e1, "E2": e2}
     fw_obj.original_elementObjects = {"E1": e1.model_copy(deep=True), "E2": e2.model_copy(deep=True)}
     return fw_obj
