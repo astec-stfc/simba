@@ -1,0 +1,9 @@
+diag_period: 50          # Period of the diagnostics in number of timesteps
+save_checkpoints: False  # Whether to write checkpoint files
+checkpoint_period: 100   # Period for writing the checkpoints
+use_restart: False       # Whether to restart from a previous checkpoint
+track_electrons: False   # Whether to track and write particle ids
+use_cuda: False          # Whether to use CUDA for GPU acceleration
+n_order: -1              # Use -1 for infinite order (advised for single-GPU/single-CPU simulation).
+                         # Use a positive number (and multiple of 2) for a finite-order stencil
+                         # (required for multi-GPU/multi-CPU with MPI)

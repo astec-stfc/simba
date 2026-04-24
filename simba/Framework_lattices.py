@@ -8,4 +8,5 @@ from .Codes.Xsuite.Xsuite import xsuiteLattice  # noqa F401
 from .Codes.Wake_T.Wake_T import waketLattice           # noqa F401
 from .Codes.Genesis.Genesis import genesisLattice           # noqa F401
 from .Codes.OPAL.OPAL import opalLattice                # noqa F401
+from .Codes.FBPIC.FBPIC import fbpicLattice                # noqa F401
 # from .MAD8.MAD8 import mad8Lattice

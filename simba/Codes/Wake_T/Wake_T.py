@@ -1,5 +1,5 @@
 """
-Simframe Wake-T Module
+SIMBA Wake-T Module
 
 Various objects and functions to handle Wake-T lattices and commands. See `Wake-T github`_ for more details.
 

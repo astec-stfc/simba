@@ -789,8 +789,8 @@ class frameworkLattice(BaseModel):
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
-        elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
+        elif os.path.isfile(os.path.join(self.global_parameters["master_subdir"], HDF5filename)):
+            filepath = os.path.join(self.global_parameters["master_subdir"] + "/" + HDF5filename)
         if os.path.isfile(filepath):
             if read_file:
                 rbf.hdf5.read_HDF5_beam_file(
