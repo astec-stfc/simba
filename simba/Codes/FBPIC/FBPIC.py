@@ -78,7 +78,7 @@ class fbpicLattice(frameworkLattice):
     track_bunch: bool = True
     """Whether to track and write particle ids"""
 
-    use_cuda: bool = False
+    use_cuda: bool = True
     """Whether to use CUDA for GPU acceleration"""
 
     n_order: int = -1
