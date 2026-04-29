@@ -51,6 +51,8 @@ def beam_to_particles(
     zval = (zval - zstart)# * constants.speed_of_light
     total_npart_actual = int(self._beam.total_charge.val / self._beam.particle_charge.val[0])
     npart_actual = np.full(len(self._beam.x), abs(int(total_npart_actual / len(self._beam.x))))
+    if boost is False:
+        boost = None
     bunch = add_particle_bunch_from_arrays(
         simulation,
         self._beam.particle_charge.val[0],

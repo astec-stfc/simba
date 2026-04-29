@@ -260,7 +260,7 @@ class fbpicLattice(frameworkLattice):
                 warn("gamma_boost not set and boost is True; cannot configure BoostConverter")
 
         from numba import cuda
-        use_cuda = True if cuda.is_available() else False
+        use_cuda = True if cuda.is_available() and self.use_cuda else False
 
         self.simulation = Simulation(
             n_longitudinal,
