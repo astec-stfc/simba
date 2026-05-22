@@ -1029,9 +1029,7 @@ class Framework(BaseModel):
             Flag to indicate which elements are being modified
         """
         for e, d in list(changes.items()):
-            # print 'found change element = ', e
-            if e in self.elementObjects:
-                # print 'change element exists!'
+            if e in self.elementObjects or e == "generator":
                 flat = flatten_changes_dict(d)
                 for param in flat:
                     try:
@@ -1294,6 +1292,8 @@ class Framework(BaseModel):
                 set_deep_attr(obj, parameter, value)
             else:
                 setattr(self.elementObjects[elementName], parameter, value)
+        elif elementName == "generator":
+            setattr(self.generator, parameter, value)
         else:
             warn("incorrect parameters passed to modifyElement")
 
