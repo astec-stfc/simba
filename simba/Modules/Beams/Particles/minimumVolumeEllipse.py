@@ -25,7 +25,7 @@ def getMinVolEllipse(P=None, tolerance=0.01):
     hull = scipy.spatial.ConvexHull(P).vertices
     P = np.array(P)[hull]
 
-    (N, d) = np.shape(P)
+    N, d = np.shape(P)
     d = float(d)
 
     # Q will be our working array
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     print((timeit.timeit(part, number=10)))
 
     Q = P  # np.array(remove_Hull(P, gaussian_fraction(1, len(P))))
-    (center, radii, rotation, hullP) = ET.getMinVolEllipse(Q, 0.001)
+    center, radii, rotation, hullP = ET.getMinVolEllipse(Q, 0.001)
 
     cov = np.cov(np.transpose(P))
     rmsemit = np.sqrt(np.linalg.det(cov))

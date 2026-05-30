@@ -1,4 +1,4 @@
-""" 
+"""
 SIMBA Beam Generator module
 
 This module defines a class for generating a beam distribution. The beam properties, code and number of particles
@@ -221,10 +221,13 @@ class frameworkGenerator(BaseModel):
         framework.change_generator("opal")
         framework.generator.load_defaults("laser_3ps_gaussian")
     """
+
     name: str = "generator"
     """Name of this generator class"""
 
-    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
+    code: Literal[
+        "ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"
+    ] = "ASTRA"
     """Simulation code to be used for generating distributions"""
 
     sigma_x: float = 0.0
@@ -302,7 +305,14 @@ class frameworkGenerator(BaseModel):
     """Vertical distribution type -- flattop, uniform or Gaussian available"""
 
     distribution_type_pz: Literal[
-        "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial", "i",
+        "g",
+        "gaussian",
+        "2dgaussian",
+        "u",
+        "uniform",
+        "r",
+        "radial",
+        "i",
     ] = "i"
     """Longitudinal momentum distribution type -- not sure about options
     # TODO not sure what this means or what the other options are"""
@@ -457,7 +467,6 @@ class frameworkGenerator(BaseModel):
     generator_keywords: Dict = {}
     """Generator keywords from :class:`~simba.Framework.Framework` class"""
 
-
     model_config = ConfigDict(
         extra="allow",
         arbitrary_types_allowed=True,
@@ -480,7 +489,11 @@ class frameworkGenerator(BaseModel):
         alias_config = config.get("aliases", {}).get(code, {})
         for k, v in alias_config.items():
             if hasattr(self, k):
-                value = getattr(self, k) * v["multiplier"] if "multiplier" in list(v.keys()) else getattr(self, k)
+                value = (
+                    getattr(self, k) * v["multiplier"]
+                    if "multiplier" in list(v.keys())
+                    else getattr(self, k)
+                )
                 setattr(self, v["alias"], value)
 
     def model_post_init(self, __context: Any) -> None:
@@ -527,7 +540,9 @@ class frameworkGenerator(BaseModel):
     def validate_longitudinal_profile(cls, v: str) -> str:
         if len(v) > 0:
             if ".gdf" not in v:
-                raise NotImplementedError("Longitudinal profiles only defined for GPT; fields must be GDF format")
+                raise NotImplementedError(
+                    "Longitudinal profiles only defined for GPT; fields must be GDF format"
+                )
             fi = load(v)
             cls.longitudinal_fields = [p["name"] for p in fi["blocks"]]
         return v
@@ -568,7 +583,9 @@ class frameworkGenerator(BaseModel):
             for k, v in defaults.items():
                 setattr(self, k, v)
         else:
-            raise ValueError(f"Could not find {defaults} in {self.generator_keywords} or it is not a valid dictionary")
+            raise ValueError(
+                f"Could not find {defaults} in {self.generator_keywords} or it is not a valid dictionary"
+            )
 
     @property
     def particles(self) -> int:
@@ -677,9 +694,15 @@ class frameworkGenerator(BaseModel):
                 f"Distribution type {dist_pi} not implemented for transverse distribution"
             )
         mu = np.array([offset_i, 0])
-        cov = np.array([[sigma_i ** 2, cov_ipi * sigma_i * sigma_pi],
-                        [cov_ipi * sigma_i * sigma_pi, sigma_pi ** 2]])
-        samples = sample_2d_gaussian_with_axis_cutoffs(self.particles, mu, cov, (cutoff_i, cutoff_pi))
+        cov = np.array(
+            [
+                [sigma_i**2, cov_ipi * sigma_i * sigma_pi],
+                [cov_ipi * sigma_i * sigma_pi, sigma_pi**2],
+            ]
+        )
+        samples = sample_2d_gaussian_with_axis_cutoffs(
+            self.particles, mu, cov, (cutoff_i, cutoff_pi)
+        )
         return samples
 
     def generate_longitudinal_distribution(self) -> np.ndarray:
@@ -702,17 +725,35 @@ class frameworkGenerator(BaseModel):
 
         # Generate z distribution
         if self.distribution_type_z.lower() in ["g", "gaussian", "r", "radial"]:
-            z = sample_gaussian(self.offset_z, self.sigma_z, self.gaussian_cutoff_z, self.particles)
-        elif self.distribution_type_z.lower() in ["u", "uniform", "flat", "flattop", "i", "plateau", "p"]:
-            z = sample_flat_top(self.offset_z, self.sigma_z, self.gaussian_cutoff_z, 0.1, self.particles)
+            z = sample_gaussian(
+                self.offset_z, self.sigma_z, self.gaussian_cutoff_z, self.particles
+            )
+        elif self.distribution_type_z.lower() in [
+            "u",
+            "uniform",
+            "flat",
+            "flattop",
+            "i",
+            "plateau",
+            "p",
+        ]:
+            z = sample_flat_top(
+                self.offset_z, self.sigma_z, self.gaussian_cutoff_z, 0.1, self.particles
+            )
         else:
-            raise NotImplementedError(f"Unsupported z distribution: {self.distribution_type_z}")
+            raise NotImplementedError(
+                f"Unsupported z distribution: {self.distribution_type_z}"
+            )
 
         # Generate base centered pz
-        pz_base = sample_gaussian(0, self.sigma_pz, self.gaussian_cutoff_pz, self.particles)
+        pz_base = sample_gaussian(
+            0, self.sigma_pz, self.gaussian_cutoff_pz, self.particles
+        )
 
         # Compute chirped curve
-        chirp_coeffs = [self.chirp] if isinstance(self.chirp, float) else list(self.chirp)
+        chirp_coeffs = (
+            [self.chirp] if isinstance(self.chirp, float) else list(self.chirp)
+        )
         chirped_curve = poly_curve(z - np.mean(z), chirp_coeffs)
 
         # Optionally center the chirp (if desired)
@@ -723,7 +764,9 @@ class frameworkGenerator(BaseModel):
 
         # Check for negative pz values if physical constraint applies
         if np.any(pz_chirped < 0):
-            warnings.warn("Some pz values are negative — consider reducing sigma_pz or curvature")
+            warnings.warn(
+                "Some pz values are negative — consider reducing sigma_pz or curvature"
+            )
 
         return np.transpose([z, pz_chirped])
 
@@ -743,7 +786,7 @@ class frameworkGenerator(BaseModel):
         self.global_parameters["beam"] = rbf.beam()
         rbf.openpmd.read_openpmd_beam_file(
             self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + self.filename
+            self.global_parameters["master_subdir"] + "/" + self.filename,
         )
 
     # TODO is this ever used?
@@ -765,8 +808,10 @@ class frameworkGenerator(BaseModel):
     #     }
     #     return latticedict
 
+
 def poly_curve(x, coeffs):
     return sum(c * x**i for i, c in enumerate(coeffs, start=1))
+
 
 def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
     """
@@ -788,9 +833,8 @@ def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
         z_white = (x - mean) @ L_inv.T  # Now z_white ~ N(0, I)
 
         # Apply per-axis cutoffs
-        mask = (
-            (np.abs(z_white[:, 0]) <= cutoffs[0]) &
-            (np.abs(z_white[:, 1]) <= cutoffs[1])
+        mask = (np.abs(z_white[:, 0]) <= cutoffs[0]) & (
+            np.abs(z_white[:, 1]) <= cutoffs[1]
         )
 
         accepted = x[mask]
@@ -798,12 +842,14 @@ def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
 
     return np.array(samples[:N])
 
+
 def sample_gaussian(offset, sigma, cutoff, size):
     while True:
         samples = np.random.normal(offset, sigma, size * 2)
         accepted = samples[np.abs(samples) <= offset + (cutoff * sigma)]
         if len(accepted) >= size:
             return accepted[:size]
+
 
 def sample_flat_top(offset, sigma, cutoff, edge_width, size):
     """
@@ -818,7 +864,10 @@ def sample_flat_top(offset, sigma, cutoff, edge_width, size):
         # weight: flat center, cosine edges
         weight = np.ones_like(samples)
         mask_ramp = np.abs(samples) > (total_width - ramp)
-        weight[mask_ramp] = 0.5 * (1 + np.cos(np.pi * (np.abs(samples[mask_ramp]) - (total_width - ramp)) / ramp))
+        weight[mask_ramp] = 0.5 * (
+            1
+            + np.cos(np.pi * (np.abs(samples[mask_ramp]) - (total_width - ramp)) / ramp)
+        )
         keep = np.random.rand(len(samples)) < weight
         final = samples[keep] + offset
         if len(final) >= size:

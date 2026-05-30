@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import os
 
+
 @pytest.fixture
 def simple_generator():
     gen = frameworkGenerator(
@@ -31,10 +32,14 @@ def simple_generator():
     )
     return gen
 
+
 def test_generator_write(simple_generator):
     simple_generator.write()
-    assert os.path.isfile(f"{os.path.dirname(os.path.abspath(__file__))}/generator.openpmd.hdf5")
+    assert os.path.isfile(
+        f"{os.path.dirname(os.path.abspath(__file__))}/generator.openpmd.hdf5"
+    )
     os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.openpmd.hdf5")
+
 
 def test_particles_property(simple_generator):
     gen = simple_generator
@@ -42,11 +47,13 @@ def test_particles_property(simple_generator):
     gen.particles = 1000
     assert gen.particles == 1000
 
+
 def test_thermal_kinetic_energy(simple_generator):
     gen = simple_generator
     energy = gen.thermal_kinetic_energy
     assert isinstance(energy, float)
     assert energy > 0
+
 
 def test_generate_transverse_distribution(simple_generator):
     gen = simple_generator
@@ -54,11 +61,13 @@ def test_generate_transverse_distribution(simple_generator):
     assert isinstance(samples, np.ndarray)
     assert samples.shape == (gen.particles, 2)
 
+
 def test_generate_longitudinal_distribution(simple_generator):
     gen = simple_generator
     samples = gen.generate_longitudinal_distribution()
     assert isinstance(samples, np.ndarray)
     assert samples.shape == (gen.particles, 2)
+
 
 def test_load_defaults_dict(simple_generator):
     gen = simple_generator
@@ -66,6 +75,7 @@ def test_load_defaults_dict(simple_generator):
     gen.load_defaults(defaults)
     assert gen.sigma_x == 2e-4
     assert gen.sigma_y == 2e-4
+
 
 @pytest.fixture
 def astra_generator():
@@ -88,13 +98,15 @@ def astra_generator():
         gaussian_cutoff_py=3,
         gaussian_cutoff_pz=3,
         charge=100e-12,
-        number_of_particles=1000
+        number_of_particles=1000,
     )
+
 
 def test_astra_generator_initialization(astra_generator):
     assert isinstance(astra_generator, ASTRAGenerator)
     assert astra_generator.code == "ASTRA"
     assert astra_generator.filename == "test_beam.txt"
+
 
 def test_astra_generator_alias_application(astra_generator):
     assert hasattr(astra_generator, "FName")
@@ -102,16 +114,22 @@ def test_astra_generator_alias_application(astra_generator):
     assert hasattr(astra_generator, "sig_x")
     assert astra_generator.sig_x == pytest.approx(1e-4 * 1000)
 
+
 def test_astra_generator_write(monkeypatch, astra_generator):
     def mock_save_file(path, content):
         assert path.endswith("test_beam.in")
         assert "&INPUT" in content
-        assert "FName = 'test_beam.txt'" in content or "FName = 'test_beam.txt'" in content
+        assert (
+            "FName = 'test_beam.txt'" in content or "FName = 'test_beam.txt'" in content
+        )
+
     import builtins
     import types
+
     mock_module = types.SimpleNamespace(saveFile=mock_save_file)
     builtins.simba = types.SimpleNamespace(FrameworkHelperFunctions=mock_module)
     astra_generator.write()
+
 
 @pytest.fixture
 def gpt_generator():
@@ -136,19 +154,23 @@ def gpt_generator():
         charge=100e-12,
         number_of_particles=1000,
         species="electron",
-        cathode=True
+        cathode=True,
     )
+
 
 def test_gpt_generator_initialization(gpt_generator):
     assert gpt_generator.code == "gpt"
     assert gpt_generator.filename == "test_gpt.in"
     assert gpt_generator.initial_momentum == 0e6
 
+
 def test_gpt_generator_write(monkeypatch, gpt_generator):
     def mock_save_file(content):
         assert "beam" in content or "E0" in content
+
     import builtins
     import types
+
     mock_module = types.SimpleNamespace(saveFile=mock_save_file)
     builtins.simba = types.SimpleNamespace(FrameworkHelperFunctions=mock_module)
     gpt_generator.write()

@@ -30,7 +30,10 @@ class gdf_beam(Munch):
         return self._positions
 
     def single_position_data(self) -> None:
-        [setattr(self, k, self.screens_touts[k]) for k in ["x", "y", "z", "GBx", "GBy", "GBz", "m", "q", "nmacro"]]
+        [
+            setattr(self, k, self.screens_touts[k])
+            for k in ["x", "y", "z", "GBx", "GBy", "GBz", "m", "q", "nmacro"]
+        ]
 
     def _create_times_dictionary(self) -> None:
         self._times = {s["time"]: s for s in self.touts}

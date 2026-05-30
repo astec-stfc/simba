@@ -20,17 +20,18 @@ beam_evaluate = (
     "mean_cp",
 )
 
+
 def xopt_optimisation(
-        settings: dict,
-        directory: str,
-        settings_file: str,
-        start_lattice: str | None = None,
-        end_lattice: str | None = None,
-        prefix: list | None = None,
-        params: list=beam_evaluate,
-        sample_interval: int = 1,
-        **kwargs,
-    ):
+    settings: dict,
+    directory: str,
+    settings_file: str,
+    start_lattice: str | None = None,
+    end_lattice: str | None = None,
+    prefix: list | None = None,
+    params: list = beam_evaluate,
+    sample_interval: int = 1,
+    **kwargs,
+):
     """
     Optimisation function for use with xopt.
 
@@ -89,15 +90,21 @@ def xopt_optimisation(
         else:
             raise ValueError("settings['code'] must be a string or a dictionary.")
     if isinstance(prefix, list):
-        if len(prefix) == 2 and isinstance(prefix[0], str) and isinstance(prefix[1], str):
+        if (
+            len(prefix) == 2
+            and isinstance(prefix[0], str)
+            and isinstance(prefix[1], str)
+        ):
             if prefix[0] != start_lattice:
-                warn(f"start_lattice is different to prefix[0], using {prefix[0]} as start_lattice.")
+                warn(
+                    f"start_lattice is different to prefix[0], using {prefix[0]} as start_lattice."
+                )
             framework.set_lattice_prefix(prefix[0], prefix[1])
             startfile = prefix[0]
     if isinstance(sample_interval, int) and isinstance(start_lattice, str):
         framework.set_lattice_sample_interval(start_lattice, sample_interval)
     for elem, val in settings.items():
-        name, param = elem.split(':')
+        name, param = elem.split(":")
         if name == "generator":
             setattr(framework.generator, name, val)
         elif (name in framework.elements) or (name in framework.groups):
@@ -107,15 +114,15 @@ def xopt_optimisation(
     data = {}
     for index in range(len(fwdir.beams)):
         beam = fwdir.beams[index]
-        scr = re.split(r' |/|\\', beam.filename)[-1].strip(".openpmd.hdf5")
+        scr = re.split(r" |/|\\", beam.filename)[-1].strip(".openpmd.hdf5")
         for param in params:
             try:
                 pp = float(getattr(beam, param))
                 if param in ["enx", "eny"]:
                     pp = abs(pp)
             except ZeroDivisionError:
-                pp = float('inf')
+                pp = float("inf")
             except RecursionError:
-                pp = float('inf')
-            data.update({f'{scr}:{param}': pp})
+                pp = float("inf")
+            data.update({f"{scr}:{param}": pp})
     return data

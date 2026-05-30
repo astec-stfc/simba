@@ -3,6 +3,7 @@ This file generates an OPAL beam file from the provided parameters.
 
 It includes methods to run the OPAL generator, write the input file, and post-process the generated beam data.
 """
+
 import os
 import subprocess
 from typing import Any, Dict
@@ -33,7 +34,9 @@ class OPALGenerator(frameworkGenerator):
     opalglobal: Dict = {}
     """Global settings for OPAL"""
 
-    breakstr: str = "//----------------------------------------------------------------------------"
+    breakstr: str = (
+        "//----------------------------------------------------------------------------"
+    )
     """String to indicate a new section of the generator txt file"""
 
     def model_post_init(self, __context: Any) -> None:
@@ -63,16 +66,26 @@ class OPALGenerator(frameworkGenerator):
         :return: The initial Lorentz factor (gamma) of the particles.
         """
         if self.species not in list(aliases["aliases"]["opal"].keys()):
-            raise NotImplementedError(f"{self.species} is not current implemented for OPAL")
+            raise NotImplementedError(
+                f"{self.species} is not current implemented for OPAL"
+            )
         ke_therm = self.thermal_kinetic_energy
         mass_eV = (
-            self.particle_mass * (constants.speed_of_light**2) / constants.elementary_charge
+            self.particle_mass
+            * (constants.speed_of_light**2)
+            / constants.elementary_charge
         )
         return (ke_therm + mass_eV) / mass_eV
 
     def _get_bunch_length(self) -> float:
         if self.distribution_type_z in ["p", "plateau", "flattop"]:
-            return sum([self.plateau_bunch_length + self.plateau_fall_time + self.plateau_rise_time])
+            return sum(
+                [
+                    self.plateau_bunch_length
+                    + self.plateau_fall_time
+                    + self.plateau_rise_time
+                ]
+            )
         else:
             return self.sigma_t * self.gaussian_cutoff_z
 
@@ -101,15 +114,39 @@ class OPALGenerator(frameworkGenerator):
         if self.distribution_type_z in ["p", "flattop"]:
             dist_dict.update({"TYPE": "FLATTOP"})
             if not getattr(self, "plateau_bunch_length") > 0:
-                raise ValueError(f"plateau_bunch_length must be defined for flattop longitudinal distribution")
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: self.plateau_bunch_length})
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: self.plateau_rise_time})
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: self.plateau_fall_time})
+                raise ValueError(
+                    f"plateau_bunch_length must be defined for flattop longitudinal distribution"
+                )
+            dist_dict.update(
+                {
+                    aliases["aliases"]["opal"]["plateau_bunch_length"][
+                        "alias"
+                    ]: self.plateau_bunch_length
+                }
+            )
+            dist_dict.update(
+                {
+                    aliases["aliases"]["opal"]["plateau_rise_time"][
+                        "alias"
+                    ]: self.plateau_rise_time
+                }
+            )
+            dist_dict.update(
+                {
+                    aliases["aliases"]["opal"]["plateau_fall_time"][
+                        "alias"
+                    ]: self.plateau_fall_time
+                }
+            )
         else:
             if not getattr(self, "sigma_t") > 0:
-                raise ValueError(f"sigma_t must be defined for flattop longitudinal distribution")
+                raise ValueError(
+                    f"sigma_t must be defined for flattop longitudinal distribution"
+                )
             dist_dict.update({"TYPE": "GAUSS"})
-            dist_dict.update({aliases["aliases"]["opal"]["sigma_t"]["alias"]: self.sigma_t})
+            dist_dict.update(
+                {aliases["aliases"]["opal"]["sigma_t"]["alias"]: self.sigma_t}
+            )
         for k, v in self.__dict__.items():
             disallowed = opal_generator_keywords["disallowed"]
             if k not in disallowed:
@@ -130,10 +167,14 @@ class OPALGenerator(frameworkGenerator):
         if self.emission_model == "NONEQUIL":
             for key in opal_generator_keywords["NONEQUIL"]:
                 if not hasattr(self, key):
-                    raise KeyError(f"Generator does not have {key} attribute required for NONEQUIL emission")
+                    raise KeyError(
+                        f"Generator does not have {key} attribute required for NONEQUIL emission"
+                    )
                 else:
                     if getattr(self, key) < 0:
-                        raise ValueError(f"{key} not defined correctly, required for NONEQUIL emission")
+                        raise ValueError(
+                            f"{key} not defined correctly, required for NONEQUIL emission"
+                        )
         output += ";\n"
         output += f"{self.breakstr}\n"
         return output
@@ -179,7 +220,7 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL line input.
         """
         output = "//EMISSION MONITOR\n"
-        output += f"MONI: MONITOR, OUTFN=\"MONI\", TYPE=TEMPORAL, ELEMEDGE={str(self._get_elemedge())};\n"
+        output += f'MONI: MONITOR, OUTFN="MONI", TYPE=TEMPORAL, ELEMEDGE={str(self._get_elemedge())};\n'
         output += f"EMISSION: LINE = (MONI);\n"
         output += f"{self.breakstr}\n"
         return output
@@ -212,7 +253,9 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL beam input.
         """
         if self.species not in list(aliases["aliases"]["opal"].keys()):
-            raise NotImplementedError(f"{self.species} is not currently implemented for OPAL")
+            raise NotImplementedError(
+                f"{self.species} is not currently implemented for OPAL"
+            )
         output = "//BEAM\n"
         output += f"BEAM1: BEAM,\n"
         output += f"\tPARTICLE = {aliases['aliases']['opal'][self.species]['alias']},\n"
@@ -237,7 +280,11 @@ class OPALGenerator(frameworkGenerator):
         output += f"\tBEAM = BEAM1,\n"
         output += f"\tMAXSTEPS = 100000,\n"
         output += "\tDT = {" + str(self.tstep) + "},\n"
-        output += "\tZSTOP = {" + str(self._get_bunch_length()*constants.speed_of_light*0.1) + "};\n"
+        output += (
+            "\tZSTOP = {"
+            + str(self._get_bunch_length() * constants.speed_of_light * 0.1)
+            + "};\n"
+        )
         output += f"{self.breakstr}\n"
         return output
 
@@ -292,7 +339,9 @@ class OPALGenerator(frameworkGenerator):
             self.global_parameters["master_subdir"] + "/" + opalbeamfilename,
             step=0,
         )
-        self.global_parameters["beam"].z = [0 for _ in range(len(self.global_parameters["beam"].x))]
+        self.global_parameters["beam"].z = [
+            0 for _ in range(len(self.global_parameters["beam"].x))
+        ]
         HDF5filename = "laser.hdf5"
         rbf.hdf5.write_HDF5_beam_file(
             self.global_parameters["beam"],

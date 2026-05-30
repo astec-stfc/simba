@@ -9,6 +9,7 @@ from numbers import Number
 
 from laura.models.element import Element
 
+
 def readFile(fname):
     with open(fname) as f:
         content = f.readlines()
@@ -295,13 +296,13 @@ def convert_numpy_types(v):
     else:
         return v
 
+
 def pydantic_basemodel_dump_computed_fields(self, *args, **kwargs):
     # Only include computed fields
-    computed_keys = {
-        f for f in self.__pydantic_decorators__.computed_fields.keys()
-    }
+    computed_keys = {f for f in self.__pydantic_decorators__.computed_fields.keys()}
     full_dump = BaseModel().model_dump(*args, **kwargs)
     return {k: v for k, v in full_dump.items() if k in computed_keys}
+
 
 def normalize(obj):
     if isinstance(obj, dict):
@@ -317,6 +318,7 @@ def normalize(obj):
     else:
         return obj
 
+
 def deepdiff_to_nested(diff: dict) -> dict:
     """
     Convert a DeepDiff result (values_changed only)
@@ -324,10 +326,10 @@ def deepdiff_to_nested(diff: dict) -> dict:
     """
     nested = {}
 
-    if 'values_changed' not in diff:
+    if "values_changed" not in diff:
         return nested
 
-    for path, change in diff['values_changed'].items():
+    for path, change in diff["values_changed"].items():
         # Strip the "root" prefix and split the path into keys
         parts = path.replace("root", "").strip(".")
         keys = []
@@ -357,6 +359,7 @@ def deepdiff_to_nested(diff: dict) -> dict:
 
     return nested
 
+
 def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
     """
     Given a list of (old_model, new_model) pairs,
@@ -385,11 +388,12 @@ def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
 
 def set_deep_attr(obj, dotted_path, value):
     """Set nested attribute using a dotted path like 'a.b.c.d'."""
-    attrs = dotted_path.split('.')
+    attrs = dotted_path.split(".")
     target = obj
     for attr in attrs[:-1]:
         target = getattr(target, attr)
     setattr(target, attrs[-1], value)
+
 
 def flatten_changes_dict(d, parent_key=""):
     """

@@ -125,34 +125,34 @@ autodoc_mock_imports = [
     "PyQt5",
     "PyQt4",
     "ctypes",
-    ]
+]
 
 autodoc_default_options = {
-    "exclude-members": ",".join([
-        "model_post_init",
-        "model_fields",
-        "model_config",
-        "model_computed_fields",
-        "model_dump",
-        "model_dump_json",
-        "model_validate",
-        "model_validate_json",
-        "model_copy",
-        "model_json_schema",
-        "construct",
-        "schema",
-        "schema_json",
-        "dict",
-        "json",
-    ]),
+    "exclude-members": ",".join(
+        [
+            "model_post_init",
+            "model_fields",
+            "model_config",
+            "model_computed_fields",
+            "model_dump",
+            "model_dump_json",
+            "model_validate",
+            "model_validate_json",
+            "model_copy",
+            "model_json_schema",
+            "construct",
+            "schema",
+            "schema_json",
+            "dict",
+            "json",
+        ]
+    ),
     "undoc-members": False,
     "inherited-members": False,
 }
 
 
-autodoc_pydantic_settings_show_config_summary = (
-    False
-)
+autodoc_pydantic_settings_show_config_summary = False
 
 autodoc_pydantic_field_list_validators = False
 autodoc_pydantic_model_show_validator_members = False

@@ -26,6 +26,7 @@ from copy import deepcopy
 from typing import List, Any
 from numpy import mean
 
+
 def all_subclasses(cls):
     subclasses = cls.__subclasses__()
     for subclass in subclasses:
@@ -35,11 +36,11 @@ def all_subclasses(cls):
 
 class waketLattice(frameworkLattice):
     """
-        Class for defining the Wake-T lattice object, used for
-        converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-        :class:`~simba.Framework_objects.frameworkLattice` into an Wake-T lattice object,
-        and for tracking through it.
-        """
+    Class for defining the Wake-T lattice object, used for
+    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
+    :class:`~simba.Framework_objects.frameworkLattice` into an Wake-T lattice object,
+    and for tracking through it.
+    """
 
     code: str = "waket"
     """String indicating the lattice object type"""
@@ -126,8 +127,12 @@ class waketLattice(frameworkLattice):
             Flag to indicate whether to save the file
         """
         self.read_input_file(prefix, self.particle_definition)
-        self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
-        self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
+        self.global_parameters["beam"].beam.rematchXPlane(
+            **self.initial_twiss["horizontal"]
+        )
+        self.global_parameters["beam"].beam.rematchYPlane(
+            **self.initial_twiss["vertical"]
+        )
         self.pin = beam_to_particle_bunch(
             self.global_parameters["beam"],
             zstart=mean(self.global_parameters["beam"].z.val),
@@ -150,7 +155,9 @@ class waketLattice(frameworkLattice):
         Convert the outputs from Wake-T to a `beam` object and save them to `master_subdir`.
         """
         super().postProcess()
-        outbeamname = f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5'
+        outbeamname = (
+            f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5'
+        )
         particle_bunch_to_beam(
             self.global_parameters["beam"],
             self.bunch_list[-1],

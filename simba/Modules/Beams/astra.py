@@ -198,7 +198,7 @@ def write_astra_beam_file(
     index: int = None,
     status: int = 5,
     normaliseZ: bool = False,
-    zoffset: float = 0.0
+    zoffset: float = 0.0,
 ):
     if filename is None:
         fn = os.path.splitext(self.filename)
@@ -229,10 +229,12 @@ def write_astra_beam_file(
     # print("write_astra", self._beam.status, statusvector)
     """ if a particle is emitting from the cathode it's z value is 0 and it's clock value is finite, otherwise z is finite and clock is irrelevant (thus zero) """
     if self.longitudinal_reference == "t":
-        zvector = np.array([
-            0 if status == -1 and t == 0 else z
-            for status, z, t in zip(statusvector, self._beam.z, self._beam.t)
-        ])
+        zvector = np.array(
+            [
+                0 if status == -1 and t == 0 else z
+                for status, z, t in zip(statusvector, self._beam.z, self._beam.t)
+            ]
+        )
     else:
         zvector = self._beam.z
     """ if the clock value is finite, we calculate it from the z value, using Betaz """
@@ -258,7 +260,7 @@ def write_astra_beam_file(
         # print(f'ASTRA Write we have a reference particle! idx = {self.reference_particle_index} pz = {ref_particle[5]}')
     #     # np.insert(array, 0, ref_particle, axis=0)
     else:
-        """ Offset the z position to the nominal starting position """
+        """Offset the z position to the nominal starting position"""
         array[:, 2] += zoffset
         """take the rms - if the rms is 0 set it to 1, so we don't get a divide by error"""
         rms_vector = [a if abs(a) > 0 else 1 for a in rms(self, array, axis=0)]

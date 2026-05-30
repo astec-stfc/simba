@@ -3,6 +3,7 @@ This file generates a GPT beam file from the provided parameters.
 
 It includes methods to run the GPT generator, write the input file, and post-process the generated beam data.
 """
+
 import os
 import numpy as np
 import subprocess
@@ -22,14 +23,14 @@ from ...Modules import Beams as rbf
 from ...Modules.units import UnitValue
 
 mass_index = {
-        "electron": "me",  # electron
-        "positron": "me",  # positron
-        "proton": "mp",    # proton
-        "hydrogen": "mp",  # hydrogen ion
-        "electrons": "me",  # electron
-        "positrons": "me",  # positron
-        "protons": "mp",    # proton
-    }
+    "electron": "me",  # electron
+    "positron": "me",  # positron
+    "proton": "mp",  # proton
+    "hydrogen": "mp",  # hydrogen ion
+    "electrons": "me",  # electron
+    "positrons": "me",  # positron
+    "protons": "mp",  # proton
+}
 charge_sign_index = {
     "electron": -1,
     "positron": 1,
@@ -90,7 +91,9 @@ class GPTGenerator(frameworkGenerator):
     def load_longitudinal_profile(self, v: str) -> None:
         if len(v) > 0:
             if ".gdf" not in v:
-                raise NotImplementedError("Longitudinal profiles only defined for GPT; fields must be GDF format")
+                raise NotImplementedError(
+                    "Longitudinal profiles only defined for GPT; fields must be GDF format"
+                )
             fi = load(v)
             self.longitudinal_profile = v
             self.longitudinal_fields = [p["name"] for p in fi["blocks"]]
@@ -102,8 +105,7 @@ class GPTGenerator(frameworkGenerator):
         These include the thermal kinetic energy, charge, and number of particles.
         :return: A string representation of the basic beam parameters.
         """
-        return (
-        f"""#--Basic beam parameters--
+        return f"""#--Basic beam parameters--
         E0 = {self.thermal_kinetic_energy};
         G = 1-(qe)*E0/({mass_index[self.species]} * c * c);
         GB = sqrt(G^2 - 1);
@@ -111,14 +113,8 @@ class GPTGenerator(frameworkGenerator):
         npart = {self.number_of_particles};
         setparticles( "beam", npart, {mass_index[self.species]}, {-charge_sign_index[self.species]}*qe, Qtot ) ;
         """
-        )
 
-    def check_xy_parameters(
-            self,
-            x: str,
-            y: str,
-            default: str
-    ) -> None:
+    def check_xy_parameters(self, x: str, y: str, default: str) -> None:
         """
         Check if the parameters x and y are set correctly.
         If one of them is None and the other is not, set the None parameter to the value of the other.
@@ -138,13 +134,13 @@ class GPTGenerator(frameworkGenerator):
             setattr(self, y, default)
 
     def _uniform_distribution(
-            self,
-            distname: str,
-            variable: str,
-            left_cutoff: float = 0,
-            right_cutoff: float = 0,
-            left_multiplier: float = 1,
-            right_multiplier: float = 2,
+        self,
+        distname: str,
+        variable: str,
+        left_cutoff: float = 0,
+        right_cutoff: float = 0,
+        left_multiplier: float = 1,
+        right_multiplier: float = 2,
     ) -> str:
         """
         Generate a uniform distribution string for the GPT input file.
@@ -158,13 +154,13 @@ class GPTGenerator(frameworkGenerator):
         return f'{distname}( "beam", "u", {left_multiplier}*{variable}, {right_multiplier}*{variable} ) ;'
 
     def _gaussian_distribution(
-            self,
-            distname: str,
-            variable: str,
-            left_multiplier: float = 3,
-            right_multiplier: float = 3,
-            left_cutoff: float = 3,
-            right_cutoff: float = 3,
+        self,
+        distname: str,
+        variable: str,
+        left_multiplier: float = 3,
+        right_multiplier: float = 3,
+        left_cutoff: float = 3,
+        right_cutoff: float = 3,
     ) -> str:
         """
         Generate a Gaussian distribution string for the GPT input file.
@@ -175,16 +171,18 @@ class GPTGenerator(frameworkGenerator):
         :param right_cutoff: The cutoff value for the right side of the distribution.
         :return: A string representation of the Gaussian distribution.
         """
-        return f'{distname}( "beam", "g", 0, {variable}, {left_cutoff}, {right_cutoff} ) ;'
+        return (
+            f'{distname}( "beam", "g", 0, {variable}, {left_cutoff}, {right_cutoff} ) ;'
+        )
 
     def _file_distribution(
-            self,
-            distname: str,
-            variable: str,
-            column1: str,
-            column2: str,
-            scaling: float = 1.0,
-            offset: float = 0.0,
+        self,
+        distname: str,
+        variable: str,
+        column1: str,
+        column2: str,
+        scaling: float = 1.0,
+        offset: float = 0.0,
     ) -> str:
         """
         Generate a Gaussian distribution string for the GPT input file.
@@ -199,13 +197,7 @@ class GPTGenerator(frameworkGenerator):
         """
         return f'{distname}( "beam", "F", "{variable}", "{column1}", "{column2}", {scaling}, {offset} ) ;'
 
-    def _distribution(
-            self,
-            param: str,
-            distname: str,
-            variable: str,
-            **kwargs
-    ) -> str:
+    def _distribution(self, param: str, distname: str, variable: str, **kwargs) -> str:
         """
         Generate a distribution string based on the type of distribution specified in the parameter.
         Only supports Gaussian and Uniform distributions.
@@ -224,7 +216,9 @@ class GPTGenerator(frameworkGenerator):
         elif param_value in ["F", "f", "file"]:
             return self._file_distribution(distname, variable, **kwargs)
         else:
-            raise NotImplementedError("Only uniform, gaussian and from-file distributions are supported")
+            raise NotImplementedError(
+                "Only uniform, gaussian and from-file distributions are supported"
+            )
 
     def generate_image_name(self, param: str) -> str:
         """
@@ -238,7 +232,10 @@ class GPTGenerator(frameworkGenerator):
         """
         basename = os.path.basename(param).replace('"', "").replace("'", "")
         location = os.path.abspath(
-            expand_substitution(self, param).replace("\\", "/").replace('"', "").replace("'", "")
+            expand_substitution(self, param)
+            .replace("\\", "/")
+            .replace('"', "")
+            .replace("'", "")
         )
         efield_basename = os.path.join(
             self.global_parameters["master_subdir"], basename
@@ -265,34 +262,40 @@ class GPTGenerator(frameworkGenerator):
             image_calibration_x = (
                 self.image_calibration_x
                 if isinstance(self.image_calibration_x, int)
-                   and self.image_calibration_x > 0
+                and self.image_calibration_x > 0
                 else 1000 * 1e3
             )
             image_calibration_y = (
                 self.image_calibration_y
                 if isinstance(self.image_calibration_y, int)
-                   and self.image_calibration_y > 0
+                and self.image_calibration_y > 0
                 else 1000 * 1e3
             )
             image_filename = self.generate_image_name(image_filename)
             return f'setxydistbmp("beam", "{image_filename}", {image_calibration_x}, {image_calibration_y}) ;\n'
-        elif self.sigma_x != self.sigma_y and self.distribution_type_x == self.distribution_type_y:
+        elif (
+            self.sigma_x != self.sigma_y
+            and self.distribution_type_x == self.distribution_type_y
+        ):
             return (
                 f"radius_x = {self.sigma_x};\n"
                 f"radius_y = {self.sigma_y};\n"
                 'setellipse("beam", 2.0*radius_x, 2.0*radius_y, 1e-12);\n'
             )
-        elif self.sigma_x == self.sigma_y and self.distribution_type_x == self.distribution_type_y:
+        elif (
+            self.sigma_x == self.sigma_y
+            and self.distribution_type_x == self.distribution_type_y
+        ):
             return (
-                    f"radius = {self.sigma_x};\n"
-                    + self._distribution(
-                "distribution_type_x",
-                "setrxydist",
-                "radius",
-                left_cutoff=0,
-                right_cutoff=self.gaussian_cutoff_x,
-            )
-                    + '\nsetphidist("beam", "u", 0, 2*pi) ;\n'
+                f"radius = {self.sigma_x};\n"
+                + self._distribution(
+                    "distribution_type_x",
+                    "setrxydist",
+                    "radius",
+                    left_cutoff=0,
+                    right_cutoff=self.gaussian_cutoff_x,
+                )
+                + '\nsetphidist("beam", "u", 0, 2*pi) ;\n'
             )
         return ""
 
@@ -353,22 +356,18 @@ setGBphidist("beam","u", 0, 2*pi);
                 if self.thermal_emittance is not None
                 else 0
             )
-            return (
-                f"""setGBxemittance("beam", {normalized_emittance_x}/2 + ({thermal_emittance}*radius_x)) ;
+            return f"""setGBxemittance("beam", {normalized_emittance_x}/2 + ({thermal_emittance}*radius_x)) ;
         setGByemittance("beam", {normalized_emittance_y}/2 + ({thermal_emittance}*radius_y)) ;
         """
-            )
         else:
             thermal_emittance = (
                 float(self.thermal_emittance)
                 if self.thermal_emittance is not None
                 else 0
             )
-            return (
-                f"""setGBxemittance("beam", {normalized_emittance_x} + ({thermal_emittance}*radius)) ;
+            return f"""setGBxemittance("beam", {normalized_emittance_x} + ({thermal_emittance}*radius)) ;
         setGByemittance("beam", {normalized_emittance_y} + ({thermal_emittance}*radius)) ;
         """
-            )
 
     def generate_longitudinal_distribution(self):
         """
@@ -381,11 +380,15 @@ setGBphidist("beam","u", 0, 2*pi);
         :return: A string representation of the longitudinal distribution command for the GPT input file.
         """
         output = ""
-        if (self.distribution_type_z.lower() in ["f", "file"]) and len(self.longitudinal_profile) > 0:
+        if (self.distribution_type_z.lower() in ["f", "file"]) and len(
+            self.longitudinal_profile
+        ) > 0:
             profile_name = os.path.abspath(self.longitudinal_profile)
             profile_name = self.generate_image_name(profile_name)
             if len(self.longitudinal_fields) != 2:
-                raise ValueError(f"length of longitudinal_fields is not correct; check {self.longitudinal_profile}")
+                raise ValueError(
+                    f"length of longitudinal_fields is not correct; check {self.longitudinal_profile}"
+                )
             variable = profile_name
             dist_params = {
                 "column1": self.longitudinal_fields[0],
@@ -406,13 +409,10 @@ setGBphidist("beam","u", 0, 2*pi);
             else:
                 output += f"""tlen = {1e12 * self.plateau_bunch_length}e-12;\n"""
         output += (
-                self._distribution(
-                    "distribution_type_z",
-                    "settdist",
-                    variable,
-                    **dist_params
-                )
-                + "\n"
+            self._distribution(
+                "distribution_type_z", "settdist", variable, **dist_params
+            )
+            + "\n"
         )
         return output
 
@@ -435,9 +435,7 @@ setGBphidist("beam","u", 0, 2*pi);
 
         :return: A string representation of the offset transform command for the GPT input file.
         """
-        return (
-            f'settransform("wcs", {self.offset_x}, {self.offset_y}, 0, 1, 0, 0, 0, 1, 0, "beam");\n'
-        )
+        return f'settransform("wcs", {self.offset_x}, {self.offset_y}, 0, 1, 0, 0, 0, 1, 0, "beam");\n'
 
     def write(self):
         """
@@ -454,7 +452,9 @@ setGBphidist("beam","u", 0, 2*pi);
         # except:
         #     npart = self.number_of_particles
         if not self.cathode:
-            raise NotImplementedError("Only cathode beams are currently supported in GPT generator")
+            raise NotImplementedError(
+                "Only cathode beams are currently supported in GPT generator"
+            )
         output = ""
         output += self.generate_particles()
         output += self.generate_radial_distribution()
@@ -487,7 +487,9 @@ setGBphidist("beam","u", 0, 2*pi);
             longitudinal_reference="t",
         )
         # Set the Z component to be zero
-        self.global_parameters["beam"].z = UnitValue(np.full(len(self.global_parameters["beam"].z), 0), units="m")
+        self.global_parameters["beam"].z = UnitValue(
+            np.full(len(self.global_parameters["beam"].z), 0), units="m"
+        )
         if self.cathode:
             HDF5filename = "laser.openpmd.hdf5"
         else:

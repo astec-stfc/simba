@@ -63,6 +63,7 @@ from copy import copy
 import subprocess
 import numpy as np
 from warnings import warn
+
 try:
     import sdds
 except Exception:
@@ -454,7 +455,8 @@ class elegantLattice(frameworkLattice):
                 # print('run_control for standard runs with no jitter')
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
-                    n_steps=1, n_passes=1
+                    n_steps=1,
+                    n_passes=1,
                 )
 
             # print('twiss_output')
@@ -517,7 +519,9 @@ class elegantLattice(frameworkLattice):
         self.createCommandFiles()
 
     @lox.thread(60)
-    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int, **kwargs) -> None:
+    def screen_threaded_function(
+        self, scr: DiagnosticElement, sddsindex: int, **kwargs
+    ) -> None:
         """
         Convert output from ELEGANT screen to HDF5 format
 
@@ -587,13 +591,12 @@ class elegantLattice(frameworkLattice):
                 self.global_parameters["master_subdir"] + "/" + sddsbeamfilename,
                 xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             )
-            self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
+            self.files.append(
+                self.global_parameters["master_subdir"] + "/" + sddsbeamfilename
+            )
 
     def sdds_to_hdf5(
-            self,
-            screen: DiagnosticElement,
-            toffset: float = 0.0,
-            ref_index: int = None
+        self, screen: DiagnosticElement, toffset: float = 0.0, ref_index: int = None
     ) -> None:
         """
         Convert the SDDS beam file name to HDF5 format and write the beam file.
@@ -615,8 +618,10 @@ class elegantLattice(frameworkLattice):
         rbf.sdds.read_SDDS_beam_file(
             beam,
             elegantbeamfilename,
-            xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
-            ref_index=ref_index
+            xyzoffset=list(
+                self.elementObjects[screen.name].physical.start.model_dump().values()
+            ),
+            ref_index=ref_index,
         )
         HDF5filename = f"{rootname}.openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
@@ -716,6 +721,7 @@ class elegantCommandFile(frameworkCommand):
     """
     Generic class for generating elements for an ELEGANT input file
     """
+
     # lattice: frameworkLattice
     # """The :class:`~simba.Framework_objects.frameworkLattice` object"""
     #
@@ -958,6 +964,7 @@ class elegant_floor_coordinates_command(elegantCommandFile):
 
     .. _Elegant floor coordinates: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu35.html#x43-420007.26
     """
+
     lattice: frameworkLattice = None
     """:class:`~simba.Framework_objects.frameworkLattice object"""
 
@@ -1107,13 +1114,13 @@ class elegantOptimisation(elegantCommandFile):
             self.add_optimisation_variable(k, **v)
 
     def add_optimisation_variable(
-            self,
-            name: str,
-            item: str=None,
-            lower: float=None,
-            upper: float=None,
-            step: float=None,
-            restrict_range: int=None,
+        self,
+        name: str,
+        item: str = None,
+        lower: float = None,
+        upper: float = None,
+        step: float = None,
+        restrict_range: int = None,
     ):
         """
         Add an optimization variable and create the command
@@ -1144,11 +1151,7 @@ class elegantOptimisation(elegantCommandFile):
         )
 
     def add_optimisation_constraint(
-            self,
-            name: str,
-            item: str=None,
-            lower: float=None,
-            upper: float=None
+        self, name: str, item: str = None, lower: float = None, upper: float = None
     ):
         """
         Add an optimization constraint and create the command
@@ -1173,10 +1176,10 @@ class elegantOptimisation(elegantCommandFile):
         )
 
     def add_optimisation_term(
-            self,
-            name: str,
-            item: str=None,
-            **kwargs,
+        self,
+        name: str,
+        item: str = None,
+        **kwargs,
     ):
         """
         Add an optimization term and create the command

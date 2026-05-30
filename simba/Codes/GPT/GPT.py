@@ -233,7 +233,7 @@ class gptLattice(frameworkLattice):
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
             Brho=self.global_parameters["beam"].Brho,
-            dtmin=self.dtmin
+            dtmin=self.dtmin,
             # screen_step_size=self.screen_step_size,
         )
         return fulltext
@@ -408,7 +408,10 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
+        svals = (
+            np.array(self.getSValues(at_entrance=False))
+            + self.startObject.physical.start.z
+        )
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
@@ -436,7 +439,7 @@ class gptLattice(frameworkLattice):
             sval=sval,
         )
 
-    def hdf5_to_gdf(self, prefix: str="") -> None:
+    def hdf5_to_gdf(self, prefix: str = "") -> None:
         """
         Convert the HDF5 beam distribution to GDF format.
 
@@ -454,7 +457,9 @@ class gptLattice(frameworkLattice):
         """
         self.read_input_file(prefix, self.particle_definition)
         if self.particle_definition == "laser":
-            self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].t, units="m")
+            self.global_parameters["beam"].z = UnitValue(
+                0 * self.global_parameters["beam"].t, units="m"
+            )
         self.headers["setfile"].time = np.mean(self.global_parameters["beam"].t)
         if self.sample_interval > 1:
             self.headers["setreduce"] = gpt_setreduce(
@@ -480,8 +485,8 @@ class gptLattice(frameworkLattice):
             )
         else:
             endpos = (
-                    self.findS(self.endObject.name)[0][1]
-                    - self.findS(self.startObject.name)[0][1]
+                self.findS(self.endObject.name)[0][1]
+                - self.findS(self.startObject.name)[0][1]
             )
             self.headers["tout"] = gpt_tout(
                 starttime=0,
@@ -503,16 +508,18 @@ class gptLattice(frameworkLattice):
             cathode=cathode,
         )
         self.Brho = self.global_parameters["beam"].Brho
-        self.files.append(self.global_parameters["master_subdir"] + "/" + gdfbeamfilename)
+        self.files.append(
+            self.global_parameters["master_subdir"] + "/" + gdfbeamfilename
+        )
 
     def gdf_to_hdf5(
-            self,
-            screen: DiagnosticElement,
-            gptbeamfilename: str,
-            cathode: bool = False,
-            gdf: gdf_beam | None = None,
-            t0: float = 0.0,
-            sval: float = 0.0,
+        self,
+        screen: DiagnosticElement,
+        gptbeamfilename: str,
+        cathode: bool = False,
+        gdf: gdf_beam | None = None,
+        t0: float = 0.0,
+        sval: float = 0.0,
     ) -> None:
         """
         Convert the GDF beam file to HDF5 format and write the beam file.

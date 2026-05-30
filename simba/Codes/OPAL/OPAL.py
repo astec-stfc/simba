@@ -12,6 +12,7 @@ from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from ...Modules.Beams.opal import find_opal_s_positions
 from ...Modules.SDDSFile import SDDSFile
+
 # import mpi4py
 # mpi4py.rc.initialize = False
 
@@ -31,23 +32,24 @@ from ...Modules.units import UnitValue
 def update_globals(global_settings, beamlen=None, sample_interval=1):
     grids = getGrids()
     with open(
-            os.path.join(os.path.dirname(__file__), "globals_Opal.yaml"), "r"
+        os.path.join(os.path.dirname(__file__), "globals_Opal.yaml"), "r"
     ) as file:
         opalglobal = yaml.load(file, Loader=yaml.Loader)
-    for sc in ['x', 'y', 'z']:
+    for sc in ["x", "y", "z"]:
         if f"SC_3D_N{sc}f" in list(global_settings.keys()):
-            scconv = sc.upper().replace('Z', 'T')
+            scconv = sc.upper().replace("Z", "T")
             global_settings.update({f"M{scconv}": global_settings[f"SC_3D_N{sc}f"]})
     for typ, vals in opalglobal.items():
         for k, v in vals.items():
             if k in global_settings.keys():
                 opalglobal[typ].update({k: v})
     if beamlen:
-        gridsize = grids.getGridSizes(
-            (beamlen / sample_interval)
+        gridsize = grids.getGridSizes((beamlen / sample_interval))
+        opalglobal["fieldsolver"].update(
+            {"MX": gridsize, "MY": gridsize, "MT": gridsize}
         )
-        opalglobal["fieldsolver"].update({"MX": gridsize, "MY": gridsize, "MT": gridsize})
     return opalglobal
+
 
 class opalLattice(frameworkLattice):
     """
@@ -69,7 +71,9 @@ class opalLattice(frameworkLattice):
     time_step_size: float = 2e-12
     """Step size for tracking"""
 
-    breakstr: str = "//----------------------------------------------------------------------------"
+    breakstr: str = (
+        "//----------------------------------------------------------------------------"
+    )
     """String used for separating headers in the input file"""
 
     version: str = "202210"
@@ -86,7 +90,6 @@ class opalLattice(frameworkLattice):
 
     ref_idx: int = None
     """Reference particle index"""
-
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -106,7 +109,6 @@ class opalLattice(frameworkLattice):
         else:
             self.particle_definition = self.start
 
-
     @property
     def space_charge_mode(self) -> str | None:
         """
@@ -121,13 +123,13 @@ class opalLattice(frameworkLattice):
 
         """
         if (
-                "charge" in self.file_block
-                and "space_charge_mode" in self.file_block["charge"]
+            "charge" in self.file_block
+            and "space_charge_mode" in self.file_block["charge"]
         ):
             return self.file_block["charge"]["space_charge_mode"]
         elif (
-                "charge" in self.globalSettings
-                and "space_charge_mode" in self.globalSettings["charge"]
+            "charge" in self.globalSettings
+            and "space_charge_mode" in self.globalSettings["charge"]
         ):
             return self.globalSettings["charge"]["space_charge_mode"]
         else:
@@ -154,7 +156,7 @@ class opalLattice(frameworkLattice):
             breakstr=self.breakstr,
         )
         command_file = (
-                self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
+            self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
         saveFile(command_file, output, "w")
         self.files.append(command_file)
@@ -171,11 +173,18 @@ class opalLattice(frameworkLattice):
         bcurrent = abs(self.global_parameters["beam"].total_charge * 1e6)
         chargesign = int(self.global_parameters["beam"].chargesign[0])
         if "particle_definition" in list(self.file_block["input"].keys()):
-            initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.start
+            initobj = (
+                "laser"
+                if self.file_block["input"]["particle_definition"]
+                == "initial_distribution"
+                else self.start
+            )
         else:
             initobj = self.start
         self.headers["option"] = opal_option()
-        self.headers["distribution"] = opal_distribution(input_particle_definition=f"\"{initobj}.opal\"")
+        self.headers["distribution"] = opal_distribution(
+            input_particle_definition=f'"{initobj}.opal"'
+        )
         self.headers["fieldsolver"] = opal_fieldsolver(
             npart=beamlen,
             sample_interval=self.sample_interval,
@@ -210,11 +219,21 @@ class opalLattice(frameworkLattice):
         )
         for elem in self.screens_and_bpms:
             if elem.name in spositions:
-                opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
+                opalbeamname = (
+                    f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
+                )
                 beam = rbf.beam()
-                beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
-                beam._beam.z = UnitValue(beam._beam.z.val + self.startObject.physical.middle.z, "m")
-                beam._beam.t = UnitValue(beam._beam.t.val + (self.startObject.physical.middle.z / speed_of_light), "s")
+                beam.read_opal_beam_file(
+                    filename=opalbeamname, step=spositions[elem.name]
+                )
+                beam._beam.z = UnitValue(
+                    beam._beam.z.val + self.startObject.physical.middle.z, "m"
+                )
+                beam._beam.t = UnitValue(
+                    beam._beam.t.val
+                    + (self.startObject.physical.middle.z / speed_of_light),
+                    "s",
+                )
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
                     f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
@@ -228,7 +247,9 @@ class opalLattice(frameworkLattice):
         )
         self.commandFiles = {}
         opalObject = SDDSFile()
-        opalObject.read_file(f"{self.global_parameters['master_subdir']}/{self.objectname}.stat")
+        opalObject.read_file(
+            f"{self.global_parameters['master_subdir']}/{self.objectname}.stat"
+        )
         opalData = opalObject.data
         for k in opalData:
             # handling for multiple elegant runs per file (e.g. error simulations)
@@ -240,7 +261,11 @@ class opalLattice(frameworkLattice):
         if self.ref_s is not None:
             opalData["s"] += self.ref_s
         import h5py
-        with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
+
+        with h5py.File(
+            f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5",
+            "w",
+        ) as f:
             for k, v in opalData.items():
                 try:
                     f.create_dataset(k, data=np.array(v))
@@ -251,7 +276,10 @@ class opalLattice(frameworkLattice):
         emitted = True if self.particle_definition == "laser" else False
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + self.particle_definition + '.opal',
+            self.global_parameters["master_subdir"]
+            + "/"
+            + self.particle_definition
+            + ".opal",
             subz=self.startObject.physical.start.z,
             emitted=emitted,
         )
@@ -262,7 +290,11 @@ class opalLattice(frameworkLattice):
             self.run_remote()
         else:
             if not os.name == "nt":
-                command = "bash -c '" + " ".join(self.executables[self.code] + [self.objectname + ".in"]) + "'"
+                command = (
+                    "bash -c '"
+                    + " ".join(self.executables[self.code] + [self.objectname + ".in"])
+                    + "'"
+                )
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
@@ -277,5 +309,5 @@ class opalLattice(frameworkLattice):
                         stdout=f,
                         cwd=self.global_parameters["master_subdir"],
                         env={**os.environ},
-                        shell=True
+                        shell=True,
                     )

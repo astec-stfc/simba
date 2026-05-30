@@ -4,7 +4,6 @@ from h5py import File
 from .. import constants
 from ..units import UnitValue
 
-
 openpmd_coords = [
     "x",
     "y",
@@ -38,7 +37,9 @@ def read_openpmd_beam_file(self, filename):
     self._beam.status = UnitValue(particles.status)
     self.set_species(particles.species)
     bunch_species = bunch_data[particles.species]
-    self._beam.s = UnitValue(bunch_species["s"], units="m") if "s" in bunch_species else None
+    self._beam.s = (
+        UnitValue(bunch_species["s"], units="m") if "s" in bunch_species else None
+    )
     self.longitudinal_reference = "t"
     if "reference_particle" in bunch_data[particles.species]:
         ref_particle = bunch_data[particles.species]["reference_particle"]
@@ -92,5 +93,5 @@ def write_openpmd_reference_particle(self, h5: File):
     h5file_reference_particle = h5.create_group("reference_particle")
     for i, coord in enumerate(openpmd_coords):
         h5file_reference_particle[coord] = UnitValue(ref_particle[i])
-    h5file_reference_particle['index'] = int(self.reference_particle_index)
+    h5file_reference_particle["index"] = int(self.reference_particle_index)
     # print(f"OpenPMD Saving reference particle idx = {self.reference_particle_index} z = {self.reference_particle[2]}")

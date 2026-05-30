@@ -36,11 +36,11 @@ CMAP1 = copy(plt.get_cmap("plasma"))
 
 
 def density_plot(
-        particle_group,
-        key="x",
-        bins=None,
-        filename=None,
-        **kwargs,
+    particle_group,
+    key="x",
+    bins=None,
+    filename=None,
+    **kwargs,
 ):
     """
     1D density plot. Also see: marginal_plot
@@ -83,18 +83,17 @@ def density_plot(
         plt.savefig(filename)
 
 
-
 def slice_plot(
-        particle_group,
-        xkey="t",
-        ykey="slice_current",
-        xlim=None,
-        nice=True,
-        include_legend=True,
-        subtract_mean=True,
-        bins=None,
-        filename=None,
-        **kwargs,
+    particle_group,
+    xkey="t",
+    ykey="slice_current",
+    xlim=None,
+    nice=True,
+    include_legend=True,
+    subtract_mean=True,
+    bins=None,
+    filename=None,
+    **kwargs,
 ):
     """
     slice plot. Also see: marginal_plot
@@ -159,7 +158,9 @@ def slice_plot(
         linestyle = linestyles[ix]
 
         # Check that units are compatible
-        ulist = [getattr(P.slice, key).units for key in keys]  # [I.units(key) for key in keys]
+        ulist = [
+            getattr(P.slice, key).units for key in keys
+        ]  # [I.units(key) for key in keys]
         if len(ulist) > 1:
             for u2 in ulist[1:]:
                 assert ulist[0] == u2, f"Incompatible units: {ulist[0]} and {u2}"
@@ -240,11 +241,17 @@ def marginal_plot(
     # Scale to nice units and get the factor, unit prefix
     x, f1, p1 = nice_array(
         scale[0]
-        * (getattr(particle_group, key1) - subtract_mean[0] * np.mean(getattr(particle_group, key1)))
+        * (
+            getattr(particle_group, key1)
+            - subtract_mean[0] * np.mean(getattr(particle_group, key1))
+        )
     )
     y, f2, p2 = nice_array(
         scale[1]
-        * (getattr(particle_group, key2) - subtract_mean[1] * np.mean(getattr(particle_group, key2)))
+        * (
+            getattr(particle_group, key2)
+            - subtract_mean[1] * np.mean(getattr(particle_group, key2))
+        )
     )
     x = x / scale[0]
     y = y / scale[1]
@@ -382,8 +389,8 @@ def plotScreenImage(
     title="",
     filename=None,
     fig=None,
-    ax=None,            # external Axes
-    labelsize=None,     # axis label font size
+    ax=None,  # external Axes
+    labelsize=None,  # axis label font size
     **kwargs,
 ):
     import numpy as np
@@ -402,10 +409,12 @@ def plotScreenImage(
 
     # --- Get arrays from beam ---
     x, f1, p1 = nice_array(
-        scale[0] * (getattr(beam, key1) - subtract_mean[0] * np.mean(getattr(beam, key1)))
+        scale[0]
+        * (getattr(beam, key1) - subtract_mean[0] * np.mean(getattr(beam, key1)))
     )
     y, f2, p2 = nice_array(
-        scale[1] * (getattr(beam, key2) - subtract_mean[1] * np.mean(getattr(beam, key2)))
+        scale[1]
+        * (getattr(beam, key2) - subtract_mean[1] * np.mean(getattr(beam, key2)))
     )
 
     u1, u2 = [getattr(beam, k).units for k in keys]
@@ -434,12 +443,16 @@ def plotScreenImage(
         if marginals:
             fig = plt.figure(figsize=(12.41, 12.41))
             gs = fig.add_gridspec(
-                2, 2,
+                2,
+                2,
                 width_ratios=(8, 2),
                 height_ratios=(2, 8),
-                left=0.1, right=0.9,
-                bottom=0.1, top=0.95,
-                wspace=0.05, hspace=0.05
+                left=0.1,
+                right=0.9,
+                bottom=0.1,
+                top=0.95,
+                wspace=0.05,
+                hspace=0.05,
             )
             ax = fig.add_subplot(gs[1, 0])
             ax_histx = fig.add_subplot(gs[0, 0], sharex=ax)
@@ -451,7 +464,9 @@ def plotScreenImage(
     else:
         fig = ax.figure
         if marginals:
-            raise ValueError("marginals=True cannot be used when an external ax= is provided.")
+            raise ValueError(
+                "marginals=True cannot be used when an external ax= is provided."
+            )
 
     # --- Determine size and limits ---
     if size[0] is None:
@@ -463,14 +478,14 @@ def plotScreenImage(
         else:
             xmin, xmax, ymin, ymax = -15, 15, -15, 15
             size = [15, 15]
-        meanvalx = 0 if subtract_mean[0] else (xmin + xmax)/2
-        meanvaly = 0 if subtract_mean[1] else (ymin + ymax)/2
+        meanvalx = 0 if subtract_mean[0] else (xmin + xmax) / 2
+        meanvaly = 0 if subtract_mean[1] else (ymin + ymax) / 2
     else:
         use_size = True
-        meanvalx = 0 if subtract_mean[0] else (v1.max() + v1.min())/2
-        meanvaly = 0 if subtract_mean[1] else (v2.max() + v2.min())/2
-        size[0] = size[0]/f1
-        size[1] = size[1]/f2
+        meanvalx = 0 if subtract_mean[0] else (v1.max() + v1.min()) / 2
+        meanvaly = 0 if subtract_mean[1] else (v2.max() + v2.min()) / 2
+        size[0] = size[0] / f1
+        size[1] = size[1] / f2
 
     # --- Set axis limits ---
     if limits is not None:
@@ -491,24 +506,28 @@ def plotScreenImage(
     # --- Optional marginals ---
     if marginals:
         hist, bin_edges = myPDF.sum(axis=0)[:-1], v1
-        hist_x = bin_edges[:-1] + np.diff(bin_edges)/2
+        hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
         hist_width = np.diff(bin_edges)
         hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
-        ax_histx.bar(hist_x, hist_y, hist_width, color=colormap(hist_y/max(hist_y)))
+        ax_histx.bar(hist_x, hist_y, hist_width, color=colormap(hist_y / max(hist_y)))
 
         hist, bin_edges = myPDF.sum(axis=1)[:-1], v2
-        hist_x = bin_edges[:-1] + np.diff(bin_edges)/2
+        hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
         hist_width = np.diff(bin_edges)
         hist_y, hist_f, hist_prefix = nice_array(hist / hist_width)
-        ax_histy.barh(hist_x, hist_y, hist_width, color=colormap(hist_y/max(hist_y)))
+        ax_histy.barh(hist_x, hist_y, hist_width, color=colormap(hist_y / max(hist_y)))
 
     # --- Screen circle and face color ---
     if screen:
         circ = plt.Circle((meanvalx, meanvaly), 15, facecolor="none")
-        ax.add_artist(plt.Circle((meanvalx, meanvaly), 15, fill=True, ec="w", fc=colormap(0), zorder=-1))
+        ax.add_artist(
+            plt.Circle(
+                (meanvalx, meanvaly), 15, fill=True, ec="w", fc=colormap(0), zorder=-1
+            )
+        )
         ax.set_facecolor("k")
     else:
-        circ = plt.Circle((meanvalx, meanvaly), 3*max(size), facecolor="none")
+        circ = plt.Circle((meanvalx, meanvaly), 3 * max(size), facecolor="none")
         ax.set_facecolor(colormap(0))
 
     # --- Grid ---
@@ -523,7 +542,7 @@ def plotScreenImage(
     if labelsize is not None:
         ax.set_xlabel(labelx, fontsize=labelsize)
         ax.set_ylabel(labely, fontsize=labelsize)
-        ax.tick_params(axis='both', which='major', labelsize=labelsize)
+        ax.tick_params(axis="both", which="major", labelsize=labelsize)
     else:
         ax.set_xlabel(labelx)
         ax.set_ylabel(labely)
@@ -538,7 +557,6 @@ def plotScreenImage(
 
     plt.draw()
     return fig, ax
-
 
 
 def getScreenImage(
@@ -592,7 +610,6 @@ def getScreenImage(
         raise Exception("fastKDE or SciPy required")
     # normalise the PDF to 1
     myPDF = myPDF / myPDF.max() * iscale
-
 
     # Define ticks
     # Major ticks every 5, minor ticks every 1

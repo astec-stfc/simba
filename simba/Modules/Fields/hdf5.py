@@ -4,7 +4,6 @@ from .FieldParameter import FieldParameter
 from ..units import UnitValue
 from warnings import warn
 
-
 allowed_cavities = [
     "StandingWave",
     "TravellingWave",

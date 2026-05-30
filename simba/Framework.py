@@ -92,8 +92,10 @@ def dict_representer(dumper, data):
 def dict_constructor(loader, node):
     return dict(loader.construct_pairs(node))
 
+
 def numpy_array_representer(dumper, data):
     return dumper.represent_list(data.tolist())
+
 
 def numpy_scalar_representer(dumper, data):
     if np.issubdtype(type(data), np.floating):
@@ -103,12 +105,15 @@ def numpy_scalar_representer(dumper, data):
     else:
         return dumper.represent_str(str(data))
 
+
 # Register custom representers for SafeDumper
 yaml.SafeDumper.add_representer(np.ndarray, numpy_array_representer)
 yaml.SafeDumper.add_representer(np.generic, numpy_scalar_representer)
 
+
 class NumpySafeDumper(yaml.SafeDumper):
     pass
+
 
 # --- Register handlers for all numpy types ---
 NumpySafeDumper.add_representer(np.ndarray, numpy_array_representer)
@@ -156,7 +161,12 @@ disallowed_changes = [
 ]
 
 
-supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
+supported_codes = [
+    code.split("Lattice")[0]
+    for code in dir(frameworkLattices)
+    if "lattice" in code.lower()
+]
+
 
 class Framework(BaseModel):
     """
@@ -298,9 +308,7 @@ class Framework(BaseModel):
     def __repr__(self) -> repr:
         return repr(
             {
-                "master_lattice": self.global_parameters[
-                    "master_lattice"
-                ],
+                "master_lattice": self.global_parameters["master_lattice"],
                 "subdirectory": self.subdirectory,
                 "settingsFilename": self.settingsFilename,
             }
@@ -311,14 +319,21 @@ class Framework(BaseModel):
         Sets up the `LAURA` machine
         """
         try:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
+            self.machine = LAURA(
+                layout=self.layout,
+                section=self.section,
+                element_list=self.element_list,
+                eager_mode=self.eager_mode,
+            )
         except Exception:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
+            self.machine = LAURA(
+                layout=self.layout, section=self.section, element_list=self.element_list
+            )
 
     def prepare_executables(
-            self,
-            location: str=None,
-            ncpu: int = 1,
+        self,
+        location: str = None,
+        ncpu: int = 1,
     ):
         executables = exes.Executables(self.global_parameters)
         executables.define_astra_command(
@@ -572,20 +587,32 @@ class Framework(BaseModel):
 
     def setupGeneratorDefaults(self, generator_defaults: str | None):
         with open(
-                os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml",
-                "r",
+            os.path.dirname(os.path.abspath(__file__))
+            + "/Codes/Generators/keywords.yaml",
+            "r",
         ) as infile:
             self.generator_keywords = {"keywords": yaml.safe_load(infile)}
 
         if not generator_defaults:
             return self.generator_keywords
-        if os.path.isfile(self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"):
-            defaults = self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"
+        if os.path.isfile(
+            self.global_parameters["master_lattice"]
+            + f"Generators/{generator_defaults}"
+        ):
+            defaults = (
+                self.global_parameters["master_lattice"]
+                + f"Generators/{generator_defaults}"
+            )
         elif os.path.isfile(generator_defaults):
             defaults = generator_defaults
         else:
-            raise FileNotFoundError(f"Could not find generator file {generator_defaults}")
-        with open(defaults, "r",) as infile:
+            raise FileNotFoundError(
+                f"Could not find generator file {generator_defaults}"
+            )
+        with open(
+            defaults,
+            "r",
+        ) as infile:
             fi = yaml.safe_load(infile)
             defaults = fi["defaults"]
             self.generator_keywords.update({"defaults": defaults})
@@ -616,9 +643,7 @@ class Framework(BaseModel):
                 with open(os.path.join(self.subdirectory, f), "r") as stream:
                     elements = yaml.safe_load(stream)["elements"]
             else:
-                with open(
-                    self.global_parameters["master_lattice"] + f, "r"
-                ) as stream:
+                with open(self.global_parameters["master_lattice"] + f, "r") as stream:
                     elements = yaml.safe_load(stream)["elements"]
             for name, elem in list(elements.items()):
                 self.read_Element(name, elem)
@@ -646,12 +671,16 @@ class Framework(BaseModel):
                 self.settings.loadSettings(filename)
             elif os.path.isfile(os.path.join(self.subdirectory, filename)):
                 self.settings.loadSettings(os.path.join(self.subdirectory, filename))
-            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice"], filename)):
+            elif os.path.isfile(
+                os.path.join(self.global_parameters["master_lattice"], filename)
+            ):
                 self.settings.loadSettings(
                     os.path.join(self.global_parameters["master_lattice"], filename)
                 )
             else:
-                raise FileNotFoundError(f"Could not find settings file with name {filename}")
+                raise FileNotFoundError(
+                    f"Could not find settings file with name {filename}"
+                )
         elif isinstance(settings, FrameworkSettings):
             self.settingsFilename = settings.settingsFilename
             self.settings = settings
@@ -681,7 +710,12 @@ class Framework(BaseModel):
                     section=self.settings["section"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                    exclude_keys=[
+                        "controls",
+                        "electrical",
+                        "manufacturer",
+                        "reference",
+                    ],
                     eager_mode=self.eager_mode,
                 )
             except Exception:
@@ -690,7 +724,12 @@ class Framework(BaseModel):
                     section=self.settings["section"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                    exclude_keys=[
+                        "controls",
+                        "electrical",
+                        "manufacturer",
+                        "reference",
+                    ],
                 )
 
             self.elementObjects = {k: v for k, v in self.machine.elements.items()}
@@ -858,7 +897,9 @@ class Framework(BaseModel):
                     new = element
                     orig = self.original_elementObjects[e]
                     kval = [
-                        k for k in new.model_dump().keys() if k not in disallowed_changes
+                        k
+                        for k in new.model_dump().keys()
+                        if k not in disallowed_changes
                     ]
                     new_model_fields = {
                         k: v
@@ -883,8 +924,8 @@ class Framework(BaseModel):
                             k[0]: convert_numpy_types(getattr(new, k[0]))
                             for k in new
                             if k[0] in orig
-                               and not getattr(new, k[0]) == getattr(orig, k[0])
-                               and k[0] not in disallowed_changes
+                            and not getattr(new, k[0]) == getattr(orig, k[0])
+                            and k[0] not in disallowed_changes
                         }
                         changedict[e].update(
                             {
@@ -895,8 +936,8 @@ class Framework(BaseModel):
                         )
 
                 # except Exception:
-                    #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
-                    #     pass
+                #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
+                #     pass
         return changedict
 
     def save_changes_file(
@@ -933,7 +974,9 @@ class Framework(BaseModel):
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
             else:
-                raise ValueError("settingsFilename not set; cannot determine changes filename")
+                raise ValueError(
+                    "settingsFilename not set; cannot determine changes filename"
+                )
         with open(filename, "w") as yaml_file:
             yaml.default_flow_style = True
             yaml.dump(changedict, yaml_file, Dumper=NumpySafeDumper)
@@ -961,7 +1004,9 @@ class Framework(BaseModel):
             if self.settingsFilename is not None:
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
             else:
-                raise ValueError("settingsFilename not set; cannot determine lattice filename")
+                raise ValueError(
+                    "settingsFilename not set; cannot determine lattice filename"
+                )
         else:
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
@@ -1037,7 +1082,9 @@ class Framework(BaseModel):
                         if verbose:
                             print("modifying ", e, "[", param[0], "]", " = ", param[1])
                     except AttributeError as ex:
-                        print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
+                        print(
+                            f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}"
+                        )
             if e in self.groupObjects:
                 # print ('change group exists!')
                 for k, v in list(d.items()):
@@ -1062,15 +1109,25 @@ class Framework(BaseModel):
         noerror = True
         for elem in self.elementObjects.values():
             if isinstance(elem, PhysicalBaseElement):
-                middle = np.array([elem.physical.middle.x, elem.physical.middle.y, elem.physical.middle.z])
-                end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
+                middle = np.array(
+                    [
+                        elem.physical.middle.x,
+                        elem.physical.middle.y,
+                        elem.physical.middle.z,
+                    ]
+                )
+                end = np.array(
+                    [elem.physical.end.x, elem.physical.end.y, elem.physical.end.z]
+                )
                 length = elem.physical.length
                 physical_angle = elem.physical.physical_angle
-    
+
                 # Calculate local offset from middle to end
                 if abs(physical_angle) > 1e-9:
                     # Bent element - correct arc geometry
-                    ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
+                    ex_local = (
+                        length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
+                    )
                     ey_local = 0
                     ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
                 else:
@@ -1078,15 +1135,15 @@ class Framework(BaseModel):
                     ex_local = 0
                     ey_local = 0
                     ez_local = length / 2.0
-    
+
                 local_offset = np.array([ex_local, ey_local, ez_local])
-    
+
                 # Apply the full 3D rotation matrix
                 rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-    
+
                 # Calculate expected end position
                 cend = middle + np.array(rotated_offset)
-    
+
                 # Check if calculated end matches actual end
                 diff = cend - end
                 if not np.allclose(diff, 0, atol=10 ** (-decimals)):
@@ -1098,16 +1155,17 @@ class Framework(BaseModel):
                     print(f"  Difference: {diff}")
                     print(f"  Physical angle: {physical_angle}")
                     print(
-                        f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]")
+                        f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]"
+                    )
 
         return noerror
 
     def change_Lattice_Code(
-            self,
-            latticename: str,
-            code: str,
-            exclude: str | list | tuple | None = None,
-            nowarn: bool = False,
+        self,
+        latticename: str,
+        code: str,
+        exclude: str | list | tuple | None = None,
+        nowarn: bool = False,
     ) -> None:
         """
         Changes the tracking code for a given lattice.
@@ -1137,8 +1195,10 @@ class Framework(BaseModel):
                 # print('Changing lattice ', name, ' to ', code.lower())
                 currentLattice = self.latticeObjects[latticename]
                 if currentLattice.remote_setup and not nowarn:
-                    warn(f"Resetting lattice {latticename} to local tracking;"
-                         f"call setup_remote_execution to run remotely")
+                    warn(
+                        f"Resetting lattice {latticename} to local tracking;"
+                        f"call setup_remote_execution to run remotely"
+                    )
                 self.latticeObjects[latticename] = getattr(
                     frameworkLattices, code.lower() + "Lattice"
                 )(
@@ -1181,7 +1241,9 @@ class Framework(BaseModel):
                 try:
                     return getattr(self.__getitem__(element), param)
                 except AttributeError:
-                    warn(f"WARNING: Element {element} does not have parameter {param}; returning full element")
+                    warn(
+                        f"WARNING: Element {element} does not have parameter {param}; returning full element"
+                    )
                     return self.__getitem__(element)
             else:
                 return self.__getitem__(element)
@@ -1222,7 +1284,8 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if isinstance(self.elementObjects[element], PhysicalBaseElement) and self.elementObjects[element].hardware_type.lower() == typ.lower()
+            if isinstance(self.elementObjects[element], PhysicalBaseElement)
+            and self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
@@ -1252,7 +1315,10 @@ class Framework(BaseModel):
         if len(elems) == len(values):
             for e, v in zip(elems, values):
                 setattr(self[e["name"]], setting, v)
-                if self[e["name"]].hardware_type.lower() == "dipole" and setting == "angle":
+                if (
+                    self[e["name"]].hardware_type.lower() == "dipole"
+                    and setting == "angle"
+                ):
                     self[e["name"]].magnetic.multipoles.K0L.normal = v
 
         else:
@@ -1424,7 +1490,9 @@ class Framework(BaseModel):
             elif kwargs["code"].lower() in ["generic", "framework", "simba"]:
                 code = frameworkGenerator
             else:
-                raise NotImplementedError(f"Generator {kwargs['code']} not supported; must be ASTRA or GPT")
+                raise NotImplementedError(
+                    f"Generator {kwargs['code']} not supported; must be ASTRA or GPT"
+                )
         else:
             warn("No generator code provided; defaulting to ASTRA")
             code = ASTRAGenerator
@@ -1555,15 +1623,15 @@ class Framework(BaseModel):
             )
 
     def setup_remote_execution(
-            self,
-            lattice: str,
-            code: str,
-            server: str,
-            ncpu: int = 1,
-            ngpu: int = 1,
-            exclude: str | list | tuple | None = None,
-            username: str = None,
-            password: str = None,
+        self,
+        lattice: str,
+        code: str,
+        server: str,
+        ncpu: int = 1,
+        ngpu: int = 1,
+        exclude: str | list | tuple | None = None,
+        username: str = None,
+        password: str = None,
     ) -> None:
         """
         Prepares the simulation of a given lattice line for remote execution on a server. This function
@@ -1615,9 +1683,15 @@ class Framework(BaseModel):
             else:
                 raise ValueError("Password must be provided for remote execution.")
         if lattice == "All":
-            [self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude) for lo in self.latticeObjects]
+            [
+                self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude)
+                for lo in self.latticeObjects
+            ]
         elif isinstance(lattice, (tuple, list)):
-            [self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude) for ln in lattice]
+            [
+                self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude)
+                for ln in lattice
+            ]
         else:
             if not lattice == "generator" and not (
                 lattice == exclude
@@ -1636,7 +1710,9 @@ class Framework(BaseModel):
                 setattr(self.latticeObjects[lattice], "remote_setup", remote_setup)
                 setattr(self.latticeObjects[lattice], "executables", executables)
                 if self.verbose:
-                    print(f"Setting up remote execution for {lattice} on {server} with {code}.")
+                    print(
+                        f"Setting up remote execution for {lattice} on {server} with {code}."
+                    )
 
     def __getitem__(self, key: str) -> Any:
         if key in list(self.elementObjects.keys()):
@@ -1967,7 +2043,9 @@ class Framework(BaseModel):
         """
         if twiss:
             t = rtf.load_directory(self.subdirectory)
-            t.save_HDF5_twiss_file(os.path.join(self.subdirectory, "Twiss_Summary.hdf5"))
+            t.save_HDF5_twiss_file(
+                os.path.join(self.subdirectory, "Twiss_Summary.hdf5")
+            )
         if beams:
             rbf.save_HDF5_summary_file(
                 self.subdirectory, os.path.join(self.subdirectory, "Beam_Summary.hdf5")
@@ -2234,7 +2312,9 @@ class frameworkDirectory(BaseModel):
         else:
             raise ValueError("Beam files have not been read in")
 
-    def element(self, element: str, field: str | None = None) -> Any | PhysicalBaseElement:
+    def element(
+        self, element: str, field: str | None = None
+    ) -> Any | PhysicalBaseElement:
         """
         Get an element definition from the framework object.
 

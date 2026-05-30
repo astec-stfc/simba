@@ -6,6 +6,7 @@ This module calculates the slice properties of a particle distribution.
 Classes:
     - :class:`~simba.Modules.Particles.slice.slice`: Slice calculations.
 """
+
 import numpy as np
 
 from ...units import UnitValue
@@ -223,7 +224,7 @@ class slice(BaseModel):
                 )
                 self.update_binned_parameters()
 
-    def bin_momentum(self, width: float=10**6) -> None:
+    def bin_momentum(self, width: float = 10**6) -> None:
         """
         Bin the momentum distribution depending on the `width` provided. The histogram is calculated
         and various internal parameters relating to the temporal and momentum slices in the bunch are set.
@@ -251,15 +252,15 @@ class slice(BaseModel):
         self._cp_binned = np.digitize(self.beam.cp, self._cp_Bins)
         self._tfbins = [np.array([self._cp_binned == i]) for i in range(1, len(binst))]
         self._cpbins = UnitValue(
-                    [np.array(self.beam.cp)[tuple(cpbin)] for cpbin in self._tfbins],
-                    units="s",
-                    dtype=np.ndarray,
-                )
+            [np.array(self.beam.cp)[tuple(cpbin)] for cpbin in self._tfbins],
+            units="s",
+            dtype=np.ndarray,
+        )
         self._tbins = UnitValue(
-                    [np.array(self.beam.t)[tuple(tbin)] for tbin in self._tfbins],
-                    units="s",
-                    dtype=np.ndarray,
-                )
+            [np.array(self.beam.t)[tuple(tbin)] for tbin in self._tfbins],
+            units="s",
+            dtype=np.ndarray,
+        )
 
     @computed_field
     @property
@@ -370,7 +371,9 @@ class slice(BaseModel):
             [data[tuple(tbin)] for tbin in self._tfbins], units=data.units, dtype=object
         )
 
-    def emitbins(self, x: UnitValue | np.ndarray, y: UnitValue | np.ndarray) -> np.ndarray:
+    def emitbins(
+        self, x: UnitValue | np.ndarray, y: UnitValue | np.ndarray
+    ) -> np.ndarray:
         """
         Calculate the slice data for two arrays and transpose these with the slice momenta
 
@@ -856,7 +859,7 @@ class slice(BaseModel):
             units="rad/m",
         )
 
-    def sliceAnalysis(self, density: bool=False) -> tuple:
+    def sliceAnalysis(self, density: bool = False) -> tuple:
         """
         Get various slice properties of the bunch.
 
@@ -915,7 +918,7 @@ class slice(BaseModel):
         for index in slice_current_centroid_indices:
             slice_momentum_centroid.append(slicemomentum[index])
         chirp = (slice_momentum_centroid[-1] - slice_momentum_centroid[0]) / (
-                len(slice_momentum_centroid) * self.slice_length
+            len(slice_momentum_centroid) * self.slice_length
         )
         return UnitValue(chirp, "eV/s")
 
@@ -944,7 +947,7 @@ class slice(BaseModel):
         for index in slice_current_centroid_indices:
             slice_momentum_centroid.append(slicemomentum[index])
         chirp = (slice_momentum_centroid[-1] - slice_momentum_centroid[0]) / (
-                len(slice_momentum_centroid) * self.slice_length
+            len(slice_momentum_centroid) * self.slice_length
         )
         return UnitValue(chirp, "1/m")
 

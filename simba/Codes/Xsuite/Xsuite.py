@@ -12,8 +12,10 @@ Classes:
     and for tracking through it.
 
 """
+
 try:
     import cupy as cp
+
     has_cupy = True
 except ImportError:
     has_cupy = False
@@ -79,7 +81,7 @@ class xsuiteLattice(frameworkLattice):
     grids: getGrids = None
     """Class for calculating the required number of space charge grids"""
 
-    pic_solver: Literal['FFTSolver2p5DAveraged'] = 'FFTSolver2p5DAveraged'
+    pic_solver: Literal["FFTSolver2p5DAveraged"] = "FFTSolver2p5DAveraged"
     """PIC solver to use for space charge calculations"""
 
     ref_s: float = None
@@ -91,6 +93,7 @@ class xsuiteLattice(frameworkLattice):
     def model_post_init(self, __context):
         super().model_post_init(__context)
         import xobjects as xo
+
         if (
             "input" in self.file_block
             and "particle_definition" in self.file_block["input"]
@@ -112,7 +115,6 @@ class xsuiteLattice(frameworkLattice):
             self.context = xo.ContextCpu()
         self.grids = getGrids()
 
-
     def writeElements(self) -> None:
         """
         Create Xsuite objects for all the elements in the lattice and set the
@@ -120,6 +122,7 @@ class xsuiteLattice(frameworkLattice):
         :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.names`.
         """
         import xtrack as xt
+
         self.env = xt.Environment()
         particle_ref = xt.Particles(
             p0c=[self.global_parameters["beam"].centroids.mean_cp.val],
@@ -128,20 +131,21 @@ class xsuiteLattice(frameworkLattice):
             zeta=0.0,
         )
         beam_length = len(self.global_parameters["beam"].x.val)
-        self.line = self.section.to_xsuite(beam_length, env=self.env, particle_ref=particle_ref, save=True)
+        self.line = self.section.to_xsuite(
+            beam_length, env=self.env, particle_ref=particle_ref, save=True
+        )
         self.names = self.line.element_names
 
     def setup_collective_effects(self) -> None:
         import xfields as xf
+
         if "charge" in list(self.file_block.keys()):
             if (
                 "space_charge_mode" in list(self.file_block["charge"].keys())
                 and self.file_block["charge"]["space_charge_mode"].lower() == "3d"
             ):
                 be = self.global_parameters["beam"]
-                gridsize = self.grids.getGridSizes(
-                    (len(be.x) / self.sample_interval)
-                )
+                gridsize = self.grids.getGridSizes((len(be.x) / self.sample_interval))
                 sigma_z = be.sigmas.sigma_z.val
                 lprofile = xf.LongitudinalProfileQGaussian(
                     number_of_particles=len(be.x),
@@ -153,7 +157,7 @@ class xsuiteLattice(frameworkLattice):
                     nemitt_x=be.emittance.normalized_horizontal_emittance.val,
                     nemitt_y=be.emittance.normalized_horizontal_emittance.val,
                     sigma_z=sigma_z,
-                    num_spacecharge_interactions=len(self.getNames())
+                    num_spacecharge_interactions=len(self.getNames()),
                 )
                 pic_collection, all_pics = xf.replace_spacecharge_with_PIC(
                     line=self.line,
@@ -165,7 +169,8 @@ class xsuiteLattice(frameworkLattice):
                     n_lims_x=7,
                     n_lims_y=3,
                     z_range=(-3 * sigma_z, 3 * sigma_z),
-                    solver=self.pic_solver)
+                    solver=self.pic_solver,
+                )
 
     def write(self) -> None:
         """
@@ -198,7 +203,12 @@ class xsuiteLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
+        xsuitebeamfilename = (
+            self.global_parameters["master_subdir"]
+            + "/"
+            + self.particle_definition
+            + ".xsuite.json"
+        )
         self.pin = rbf.beam.write_xsuite_beam_file(
             self.global_parameters["beam"],
             xsuitebeamfilename,
@@ -212,6 +222,7 @@ class xsuiteLattice(frameworkLattice):
         """
         import xtrack as xt
         from xtrack import Cavity
+
         self.line.build_tracker(_context=self.context)
         self.line.freeze_longitudinal(state=False)
         self.line.freeze_energy(state=False, force=True)
@@ -225,17 +236,17 @@ class xsuiteLattice(frameworkLattice):
             pin.zeta -= np.mean(pin.zeta)  # Center zeta
             el.track(pin, increment_at_element=True)  # Track in-place
             stats = {
-                'mean_x': np.mean(pin.x),
-                'mean_y': np.mean(pin.y),
-                'sigma_x': np.std(pin.x),
-                'sigma_px': np.std(pin.px),
-                'sigma_y': np.std(pin.y),
-                'sigma_py': np.std(pin.py),
-                'sigma_zeta': np.std(pin.zeta),
-                'sigma_delta': np.std(pin.delta) * np.mean(pin.energy),
-                'momentum': np.mean(pin.energy) - pin.mass0,
-                'emit_xn': np.mean(self.compute_norm_emit(pin.x, pin.px, pin)),
-                'emit_yn': np.mean(self.compute_norm_emit(pin.y, pin.py, pin)),
+                "mean_x": np.mean(pin.x),
+                "mean_y": np.mean(pin.y),
+                "sigma_x": np.std(pin.x),
+                "sigma_px": np.std(pin.px),
+                "sigma_y": np.std(pin.y),
+                "sigma_py": np.std(pin.py),
+                "sigma_zeta": np.std(pin.zeta),
+                "sigma_delta": np.std(pin.delta) * np.mean(pin.energy),
+                "momentum": np.mean(pin.energy) - pin.mass0,
+                "emit_xn": np.mean(self.compute_norm_emit(pin.x, pin.px, pin)),
+                "emit_yn": np.mean(self.compute_norm_emit(pin.y, pin.py, pin)),
             }
             self.beam_data.update({name: stats})
         self.beam_data.update({"_end_point": stats})
@@ -254,7 +265,11 @@ class xsuiteLattice(frameworkLattice):
         cov = np.cov(coord, mom)
         emit = np.sqrt(cov[0, 0] * cov[1, 1] - cov[0, 1] ** 2)
         gamma = particles.energy / particles.mass0
-        beta = particles.beta0 * (1 + particles.delta.mean()) / (1 + particles.delta.mean() * particles.beta0 ** 2)
+        beta = (
+            particles.beta0
+            * (1 + particles.delta.mean())
+            / (1 + particles.delta.mean() * particles.beta0**2)
+        )
         return gamma * beta * emit
 
     def postProcess(self) -> None:
@@ -262,9 +277,10 @@ class xsuiteLattice(frameworkLattice):
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
         import xobjects as xo
+
         super().postProcess()
         bfname = f'{self.global_parameters["master_subdir"]}/{self.end}.xsuite.json'
-        with open(bfname, 'w') as fid:
+        with open(bfname, "w") as fid:
             json.dump(self.pout.to_dict(), fid, cls=xo.JEncoder)
         beam = deepcopy(self.global_parameters["beam"])
         svals = self.getSValues(as_dict=True)
@@ -272,7 +288,7 @@ class xsuiteLattice(frameworkLattice):
             bfname,
             zstart=self.endObject.physical.middle.z,
             s=svals[self.end],
-            ref_index=self.ref_idx
+            ref_index=self.ref_idx,
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
@@ -280,7 +296,7 @@ class xsuiteLattice(frameworkLattice):
         )
         for elem in self.screens_and_bpms:
             fname = f'{self.global_parameters["master_subdir"]}/{elem.name}.xsuite.json'
-            with open(fname, 'w') as fid:
+            with open(fname, "w") as fid:
                 json.dump(self.line[elem.name].data.to_dict(), fid, cls=xo.JEncoder)
             beam = deepcopy(self.global_parameters["beam"])
             beam.read_xsuite_beam_file(
@@ -302,4 +318,6 @@ class xsuiteLattice(frameworkLattice):
         df["z"] = np.interp(df["s"], svals, zvals)
         for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
             df[k] = [x[k] for x in self.beam_data.values()]
-        df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')
+        df.to_csv(
+            f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv'
+        )

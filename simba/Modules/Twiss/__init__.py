@@ -724,7 +724,9 @@ class twiss(BaseModel):
             if z > max(getattr(self, index).val):
                 return 10**6
             else:
-                return float(np.interp(z, getattr(self, index).val, getattr(self, value).val))
+                return float(
+                    np.interp(z, getattr(self, index).val, getattr(self, value).val)
+                )
 
     def extract_values(self, name: str, start: float, end: float) -> np.ndarray:
         """
@@ -884,7 +886,10 @@ class twiss(BaseModel):
             else:
                 twissdict = {}
                 for param in [
-                    k for k in self.model_fields if isinstance(getattr(self, k), twissParameter) and getattr(self, k).dtype == "f"
+                    k
+                    for k in self.model_fields
+                    if isinstance(getattr(self, k), twissParameter)
+                    and getattr(self, k).dtype == "f"
                 ]:
                     twissdict[param] = self.interpolate(z=z, value=param, index="z")
                 return twissdict
@@ -986,7 +991,9 @@ class twiss(BaseModel):
         for code, string in types.items():
             twiss_files = glob.glob(directory + "/" + preglob + string)
             if verbose:
-                print(code, preglob + string, [os.path.basename(t) for t in twiss_files])
+                print(
+                    code, preglob + string, [os.path.basename(t) for t in twiss_files]
+                )
             if self._which_code(code) is not None and len(twiss_files) > 0:
                 self._which_code(code)(self, twiss_files, reset=False)
         self.sort(key=sortkey)

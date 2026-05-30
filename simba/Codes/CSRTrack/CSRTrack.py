@@ -65,10 +65,7 @@ class csrtrackLattice(frameworkLattice):
             self.particle_definition = self.start
             self.csrtrack_headers["particles"].particle_definition = self.start
             self.csrtrack_headers["particles"].array = (
-                "#file{name="
-                + self.start
-                + ".astra"
-                + "}"
+                "#file{name=" + self.start + ".astra" + "}"
             )
 
     @property
@@ -118,9 +115,7 @@ class csrtrackLattice(frameworkLattice):
         self.setCSRMode()
         self.csrtrack_headers["track_step"] = csrtrack_track_step()
         self.csrtrack_headers["tracker"] = csrtrack_tracker(
-            end_time_marker="screen"
-            + str(len(self.screens))
-            + "a"
+            end_time_marker="screen" + str(len(self.screens)) + "a"
         )
         self.csrtrack_headers["monitor"] = csrtrack_monitor(
             name=self.end + ".fmt2", global_parameters=self.global_parameters
@@ -146,7 +141,9 @@ class csrtrackLattice(frameworkLattice):
         prefix = self.get_prefix()
         self.read_input_file(
             prefix,
-            self.csrtrack_headers["particles"].particle_definition.replace(".astra", ""),
+            self.csrtrack_headers["particles"].particle_definition.replace(
+                ".astra", ""
+            ),
         )
         self.hdf5_to_astra()
         self.files.append(self.csrtrack_headers["particles"].particle_definition)
@@ -160,7 +157,9 @@ class csrtrackLattice(frameworkLattice):
         prefix: str
             Prefix for filename
         """
-        astrabeamfilename = self.csrtrack_headers["particles"].particle_definition + ".astra"
+        astrabeamfilename = (
+            self.csrtrack_headers["particles"].particle_definition + ".astra"
+        )
         rbf.astra.write_astra_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + astrabeamfilename,

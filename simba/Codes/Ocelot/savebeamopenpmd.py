@@ -1,9 +1,16 @@
 from ...Modules import Beams as rbf
 from ocelot.cpbd.physics_proc import PhysProc, SaveBeam, _logger
 
+
 class SaveBeamOpenPMD(SaveBeam):
 
-    def __init__(self, filename: str, global_parameters: dict = {}, zstart: float = 0, ref_idx: int = 0):
+    def __init__(
+        self,
+        filename: str,
+        global_parameters: dict = {},
+        zstart: float = 0,
+        ref_idx: int = 0,
+    ):
         PhysProc.__init__(self)
         self.energy = None
         self.global_parameters = global_parameters

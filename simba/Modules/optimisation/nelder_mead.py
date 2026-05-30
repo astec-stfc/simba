@@ -11,7 +11,6 @@ import copy
 from functools import partial
 
 
-
 def nelder_mead(
     func,
     x_start,

@@ -150,7 +150,7 @@ def read_gdf_field_file(
     field_type: str,
     cavity_type: str | None = None,
     frequency: float | None = None,
-    normalize_b: bool = True
+    normalize_b: bool = True,
 ):
     """
     Read a GDF field file and convert it into a :class:`simba.Modules.Fields.field` object
@@ -220,7 +220,11 @@ def read_gdf_field_file(
         # Normalise by the maximum *on-axis* Bz field
         if normalize_b:
             normBz = max(
-                [abs(Bz) for x, y, Bz in zip(xval, yval, bzval) if x == 0.0 and y == 0.0]
+                [
+                    abs(Bz)
+                    for x, y, Bz in zip(xval, yval, bzval)
+                    if x == 0.0 and y == 0.0
+                ]
             )
         else:
             normBz = 1

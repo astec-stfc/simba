@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 
+
 class TemporaryDirectory(object):
     """Context manager for tempfile.mkdtemp() so it's usable with "with" statement."""
 

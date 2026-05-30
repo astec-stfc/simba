@@ -20,7 +20,16 @@ yaml.add_constructor(_mapping_tag, dict_constructor)
 
 class FrameworkSettings(Munch):
 
-    isthistheissue = {"global", "generator", "files", "groups", "elements", "layout", "section", "element_list"}
+    isthistheissue = {
+        "global",
+        "generator",
+        "files",
+        "groups",
+        "elements",
+        "layout",
+        "section",
+        "element_list",
+    }
 
     def __init__(self, filename=None, new=False):
         super().__init__()

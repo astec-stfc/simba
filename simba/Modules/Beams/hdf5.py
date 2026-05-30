@@ -170,9 +170,7 @@ def read_HDF5_beam_file(self, filename, local=False):
     self.code = "SIMBA"
     with h5py.File(filename, "r") as h5file:
         if h5file.get("beam/reference_particle") is not None:
-            self.reference_particle = np.array(
-                h5file.get("beam/reference_particle")
-            )
+            self.reference_particle = np.array(h5file.get("beam/reference_particle"))
         if h5file.get("beam/longitudinal_reference") is not None:
             self.longitudinal_reference = np.array(
                 h5file.get("beam/longitudinal_reference")

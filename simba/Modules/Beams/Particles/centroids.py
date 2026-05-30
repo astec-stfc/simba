@@ -6,6 +6,7 @@ This module calculates the beam centroids of a particle distribution.
 Classes:
     - :class:`~simba.Modules.Particles.centroids.centroids`: Centroid calculations.
 """
+
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -15,6 +16,7 @@ from pydantic import (
 from ...units import UnitValue
 from ... import constants
 from typing import Dict
+
 
 class centroids(BaseModel):
     """
@@ -32,9 +34,7 @@ class centroids(BaseModel):
 
     def model_dump(self, *args, **kwargs) -> Dict:
         # Only include computed fields
-        computed_keys = {
-            f for f in self.__pydantic_decorators__.computed_fields.keys()
-        }
+        computed_keys = {f for f in self.__pydantic_decorators__.computed_fields.keys()}
         full_dump = super().model_dump(*args, **kwargs)
         return {k: v for k, v in full_dump.items() if k in computed_keys}
 
@@ -374,4 +374,6 @@ class centroids(BaseModel):
         :class:`~simba.Modules.units.UnitValue`
             Mean energy
         """
-        return UnitValue(np.mean(self.beam.cp + self.beam.particle_rest_energy_eV), "eV")
+        return UnitValue(
+            np.mean(self.beam.cp + self.beam.particle_rest_energy_eV), "eV"
+        )

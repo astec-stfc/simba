@@ -4,15 +4,18 @@ from sympy.liealgebras.type_e import TypeE
 
 try:
     import cupy as cp
+
     has_cupy = True
 except ImportError:
     has_cupy = False
 from .. import constants
 from ..units import UnitValue
 
+
 def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
     import xobjects as xo
     import xpart as xp
+
     if has_cupy:
         context = xo.ContextCupy()
     else:
@@ -20,27 +23,25 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
     if isinstance(filename, str):
         if ".json" in filename:
             import json
+
             try:
-                with open(filename, 'r') as fid:
+                with open(filename, "r") as fid:
                     particles = xp.Particles.from_dict(
                         json.load(fid),
                         _context=context,
                     )
             except ValueError:
-                with open(filename, 'r') as fid:
+                with open(filename, "r") as fid:
                     particles = xp.Particles.from_dict(
-                        json.load(fid),
-                        _context=context,
-                        mass0=float(self.E0_eV.val)
+                        json.load(fid), _context=context, mass0=float(self.E0_eV.val)
                     )
         elif ".pkl" in filename:
             import pickle
-            with open(filename, 'rb') as fid:
+
+            with open(filename, "rb") as fid:
                 try:
                     particles = xp.Particles.from_dict(
-                        pickle.load(fid),
-                        _context=context,
-                        mass0=self.E0_eV.val
+                        pickle.load(fid), _context=context, mass0=self.E0_eV.val
                     )
                 except TypeError:
                     particles = xp.Particles.from_dict(
@@ -48,7 +49,9 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
                         _context=context,
                     )
         else:
-            raise ValueError(f"File format not supported for xsuite beam file {filename}.")
+            raise ValueError(
+                f"File format not supported for xsuite beam file {filename}."
+            )
     elif isinstance(filename, xp.Particles):
         particles = filename
     else:
@@ -60,36 +63,44 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
         particles.mass * constants.e / (constants.speed_of_light**2),
         units="kg",
     )
-    self._beam.particle_charge = UnitValue(np.full(len(particles.mass), particles.q0), units="C")
+    self._beam.particle_charge = UnitValue(
+        np.full(len(particles.mass), particles.q0), units="C"
+    )
     self._beam.particle_rest_energy = UnitValue(
-        (
-                self._beam.particle_mass * constants.speed_of_light ** 2
-        ),
+        (self._beam.particle_mass * constants.speed_of_light**2),
         units="J",
     )
     # self._beam.gamma = UnitValue(parray.gamma, units="")
     self._beam.x = UnitValue(particles.x, units="m")
     self._beam.y = UnitValue(particles.y, units="m")
 
-    self._beam.t = UnitValue((particles.s - particles.zeta) / constants.speed_of_light, units="s")
+    self._beam.t = UnitValue(
+        (particles.s - particles.zeta) / constants.speed_of_light, units="s"
+    )
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
-    self._beam.px = UnitValue(particles.px * particles.p0c * self.q_over_c, units="kg*m/s")
-    self._beam.py = UnitValue(particles.py * particles.p0c * self.q_over_c, units="kg*m/s")
-    self._beam.pz = UnitValue(particles.p0c * (1 + particles.delta) * self.q_over_c, units="kg*m/s")
+    self._beam.px = UnitValue(
+        particles.px * particles.p0c * self.q_over_c, units="kg*m/s"
+    )
+    self._beam.py = UnitValue(
+        particles.py * particles.p0c * self.q_over_c, units="kg*m/s"
+    )
+    self._beam.pz = UnitValue(
+        particles.p0c * (1 + particles.delta) * self.q_over_c, units="kg*m/s"
+    )
     self._beam.set_total_charge(abs(np.sum(particles.q0)))
-    self._beam.z = UnitValue(zstart +
-        (-1 * self._beam.Bz * constants.speed_of_light) * (
-            self._beam.t - np.mean(self._beam.t)
-        ),
+    self._beam.z = UnitValue(
+        zstart
+        + (-1 * self._beam.Bz * constants.speed_of_light)
+        * (self._beam.t - np.mean(self._beam.t)),
         units="m",
     )
     if ref_index is not None:
         self.reference_particle_index = int(ref_index)
         """ If we have a reference particle, t=0 is relative to it """
-        self._beam.z = UnitValue(zstart +
-            (-1 * self._beam.Bz * constants.speed_of_light) * (
-                self._beam.t - self._beam.t[self.reference_particle_index]
-            ),
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - self._beam.t[self.reference_particle_index]),
             units="m",
         )
         self.reference_particle = [
@@ -97,11 +108,11 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
             for coord in self.reference_particle_coords
         ]
     else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
-        self._beam.z = UnitValue(zstart +
-            (-1 * self._beam.Bz * constants.speed_of_light) * (
-                self._beam.t - self._beam.t[self.reference_particle_index]
-            ),
+        """If we don't have a reference particle, t=0 is relative to mean(t)"""
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - self._beam.t[self.reference_particle_index]),
             units="m",
         )
         self.reference_particle = None
@@ -109,10 +120,13 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
     self._beam.s = UnitValue(s, units="m")
 
 
-def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: float=0):
+def write_xsuite_beam_file(
+    self, filename: str = None, write: bool = True, s_start: float = 0
+):
     """Save a json file for xsuite."""
     import xobjects as xo
     import xtrack as xt
+
     if has_cupy:
         context = xo.ContextCupy()
     else:
@@ -132,7 +146,6 @@ def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: 
     delta = self.deltap.val
     s = self.t.val * constants.speed_of_light
 
-
     particles = xt.Particles(
         _context=context,
         mass0=[mass0],
@@ -147,7 +160,8 @@ def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: 
         s=s_start,
     )
     import json
+
     if write:
-        with open(filename, 'w') as fid:
+        with open(filename, "w") as fid:
             json.dump(particles.to_dict(), fid, cls=xo.JEncoder)
     return particles

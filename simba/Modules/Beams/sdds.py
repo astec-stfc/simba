@@ -6,7 +6,13 @@ from ..SDDSFile import SDDSFile, SDDS_Types
 
 
 def read_SDDS_beam_file(
-    self, fileName, charge=None, ascii=False, page=-1, xyzoffset=[0, 0, 0], ref_index=None
+    self,
+    fileName,
+    charge=None,
+    ascii=False,
+    page=-1,
+    xyzoffset=[0, 0, 0],
+    ref_index=None,
 ):
     self.reset_dicts()
     self.sddsindex += 1
@@ -88,7 +94,7 @@ def read_SDDS_beam_file(
             for coord in self.reference_particle_coords
         ]
     else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
+        """If we don't have a reference particle, t=0 is relative to mean(t)"""
         self._beam.z = UnitValue(
             xyzoffset[2]
             + (-1 * self._beam.Bz * constants.speed_of_light)

@@ -9,7 +9,7 @@ def cumtrapz(x=[], y=[]):
 
 
 def save_ocelot_twiss_hdf(self, filename: str, twiss: dict = {}):
-    f = h5py.File(filename, 'w')
+    f = h5py.File(filename, "w")
     for grp_name in twiss:
         try:
             f.create_dataset(grp_name, data=twiss[grp_name])
@@ -29,7 +29,7 @@ def read_ocelot_twiss_files_hdf(self, filename, reset=True):
         lattice_name = os.path.basename(filename).split(".")[0]
         fdat = {}
         # print("loading ocelot twiss file", filename)
-        with h5py.File(filename, 'r') as data:
+        with h5py.File(filename, "r") as data:
             for key, value in data.items():
                 try:
                     value = np.array(data[key])
@@ -69,9 +69,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     gamma = E / self.E0_eV
     cp = np.sqrt(E**2 - self.E0_eV**2)
     # self.append('cp', cp)
-    ke = np.array(
-        (np.sqrt(self.E0**2 + cp**2) - self.E0**2)
-    )
+    ke = np.array((np.sqrt(self.E0**2 + cp**2) - self.E0**2))
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
     gamma = 1 + ke / self.E0_eV
     cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
@@ -97,8 +95,12 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(fdat["s"])))
     self.gamma_z.val = np.append(self.gamma_z.val, np.zeros(len(fdat["s"])))
     self.alpha_z.val = np.append(self.alpha_z.val, np.zeros(len(fdat["s"])))
-    self.sigma_x.val = np.append(self.sigma_x.val, np.sqrt(fdat["xx"] + fdat["Dx"]**2 * fdat["pp"]))
-    self.sigma_y.val = np.append(self.sigma_y.val, np.sqrt(fdat["yy"] + fdat["Dy"]**2 * fdat["pp"]))
+    self.sigma_x.val = np.append(
+        self.sigma_x.val, np.sqrt(fdat["xx"] + fdat["Dx"] ** 2 * fdat["pp"])
+    )
+    self.sigma_y.val = np.append(
+        self.sigma_y.val, np.sqrt(fdat["yy"] + fdat["Dy"] ** 2 * fdat["pp"])
+    )
     self.sigma_xp.val = np.append(self.sigma_xp.val, np.sqrt(fdat["pxpx"]))
     self.sigma_yp.val = np.append(self.sigma_yp.val, np.sqrt(fdat["pypy"]))
     self.sigma_t.val = np.append(

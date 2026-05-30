@@ -99,18 +99,20 @@ def generate_astra_field_data(self) -> np.ndarray:
         if self.cavity_type == "TravellingWave":
             spdata = ["" for _ in range(self.length)]
             if any(
-                    [
-                        getattr(self, param) is None for param in [
-                            "start_cell_z",
-                            "end_cell_z",
-                            "mode_numerator",
-                            "mode_denominator"
-                        ]
+                [
+                    getattr(self, param) is None
+                    for param in [
+                        "start_cell_z",
+                        "end_cell_z",
+                        "mode_numerator",
+                        "mode_denominator",
                     ]
+                ]
             ):
                 raise ValueError(
-                    "start_cell_z, end_cell_z", "mode_numerator", "mode_denominator"
-                    "must be defined for TravellingWave cavities"
+                    "start_cell_z, end_cell_z",
+                    "mode_numerator",
+                    "mode_denominator" "must be defined for TravellingWave cavities",
                 )
             preamble = np.array(
                 [

@@ -9,6 +9,7 @@ For slice emittance calculations, see :class:`~simba.Modules.Beams.Particles.sli
 Classes:
     - :class:`~simba.Modules.Particles.emittance.emittance`: Emittance calculations.
 """
+
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -37,9 +38,7 @@ class emittance(BaseModel):
 
     def model_dump(self, *args, **kwargs):
         # Only include computed fields
-        computed_keys = {
-            f for f in self.__pydantic_decorators__.computed_fields.keys()
-        }
+        computed_keys = {f for f in self.__pydantic_decorators__.computed_fields.keys()}
         full_dump = super().model_dump(*args, **kwargs)
         return {k: v for k, v in full_dump.items() if k in computed_keys}
 
@@ -148,11 +147,11 @@ class emittance(BaseModel):
         return self.normalised_vertical_emittance_corrected
 
     def emittance_calc(
-            self,
-            x: UnitValue | np.ndarray,
-            xp: UnitValue | np.ndarray,
-            p: UnitValue | np.ndarray=None,
-            units: str="m-rad"
+        self,
+        x: UnitValue | np.ndarray,
+        xp: UnitValue | np.ndarray,
+        p: UnitValue | np.ndarray = None,
+        units: str = "m-rad",
     ) -> UnitValue:
         """
         Calculate the emittance from two arrays using
@@ -189,9 +188,7 @@ class emittance(BaseModel):
         return emit
 
     def normalized_emittance(
-            self,
-            plane: str="x",
-            corrected: bool=False
+        self, plane: str = "x", corrected: bool = False
     ) -> UnitValue:
         """
         Calculate the normalised emittance for the plane provided;
@@ -214,8 +211,10 @@ class emittance(BaseModel):
         ValueError
             If the plane provided is not one of [x, y, z]
         """
-        if plane.lower() not in ['x', 'y', 'z']:
-            raise ValueError("plane must be in [x, y, z] for normalized_emittance calculation")
+        if plane.lower() not in ["x", "y", "z"]:
+            raise ValueError(
+                "plane must be in [x, y, z] for normalized_emittance calculation"
+            )
         if corrected:
             return self.emittance_calc(
                 getattr(self.beam, plane + "c"),
@@ -229,11 +228,7 @@ class emittance(BaseModel):
                 self.beam.cpz,
             )
 
-    def emittance(
-            self,
-            plane: str="x",
-            corrected: bool=False
-    ) -> UnitValue:
+    def emittance(self, plane: str = "x", corrected: bool = False) -> UnitValue:
         """
         Calculate the emittance for the plane provided;
         see :func:`~emittance_calc`.
@@ -255,8 +250,10 @@ class emittance(BaseModel):
         ValueError
             If the plane provided is not one of [x, y, z]
         """
-        if plane.lower() not in ['x', 'y', 'z']:
-            raise ValueError("plane must be in [x, y, z] for normalized_emittance calculation")
+        if plane.lower() not in ["x", "y", "z"]:
+            raise ValueError(
+                "plane must be in [x, y, z] for normalized_emittance calculation"
+            )
         if corrected:
             return self.emittance_calc(
                 getattr(self.beam, plane + "c"), getattr(self.beam, plane + "pc"), None

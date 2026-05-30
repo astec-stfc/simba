@@ -298,15 +298,17 @@ class frameworkObject(BaseModel):
 
     def model_post_init(self, __context):
         extra_fields = {
-            k: v for k, v in self.model_dump().items()
-            if k not in self.__annotations__
+            k: v for k, v in self.model_dump().items() if k not in self.__annotations__
         }
         for k, v in extra_fields.items():
             setattr(self, k, v)
         if self.objecttype in commandkeywords:
             self.allowedkeywords = commandkeywords[self.objecttype]
         elif self.objecttype in elementkeywords:
-            self.allowedkeywords = elementkeywords[self.objecttype]["keywords"] | elementkeywords["common"]["keywords"]
+            self.allowedkeywords = (
+                elementkeywords[self.objecttype]["keywords"]
+                | elementkeywords["common"]["keywords"]
+            )
             if "framework_keywords" in elementkeywords[self.objecttype]:
                 self.allowedkeywords = merge_two_dicts(
                     self.allowedkeywords,
@@ -425,7 +427,9 @@ class frameworkObject(BaseModel):
             The object itself, allowing for method chaining.
         """
         cls = self.__class__
-        return {key: getattr(self, key) for key in cls.model_fields} | {key: getattr(self, key) for key in cls.model_computed_fields}
+        return {key: getattr(self, key) for key in cls.model_fields} | {
+            key: getattr(self, key) for key in cls.model_computed_fields
+        }
 
     # def __getitem__(self, key):
     #     lkey = key.lower()
@@ -734,7 +738,9 @@ class frameworkLattice(BaseModel):
         if "input" not in self.file_block:
             self.file_block["input"] = {}
         if "prefix" not in self.file_block["input"]:
-            self.file_block["input"]["prefix"] = self.global_parameters["master_subdir"] + "/"
+            self.file_block["input"]["prefix"] = (
+                self.global_parameters["master_subdir"] + "/"
+            )
         return self.file_block["input"]["prefix"]
 
     def set_prefix(self, prefix: str) -> None:
@@ -765,13 +771,21 @@ class frameworkLattice(BaseModel):
         filepath = ""
         HDF5filename = prefix + particle_definition + ".openpmd.hdf5"
         if "$" in particle_definition:
-            if os.path.isfile(expand_substitution(self, particle_definition + ".openpmd.hdf5")):
-                filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
+            if os.path.isfile(
+                expand_substitution(self, particle_definition + ".openpmd.hdf5")
+            ):
+                filepath = expand_substitution(
+                    self, particle_definition + ".openpmd.hdf5"
+                )
             else:
-                filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
+                filepath = expand_substitution(
+                    self, particle_definition + ".openpmd.hdf5"
+                )
         elif os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
-        elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
+        elif os.path.isfile(
+            self.global_parameters["master_subdir"] + "/" + HDF5filename
+        ):
             filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
         if os.path.isfile(filepath):
             if read_file:
@@ -789,7 +803,9 @@ class frameworkLattice(BaseModel):
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
-        elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
+        elif os.path.isfile(
+            self.global_parameters["master_subdir"] + "/" + HDF5filename
+        ):
             filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
         if os.path.isfile(filepath):
             if read_file:
@@ -799,7 +815,8 @@ class frameworkLattice(BaseModel):
                 )
             return filepath
         raise Exception(
-            f'HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!')
+            f"HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!"
+        )
 
     def update_groups(self) -> None:
         """
@@ -869,7 +886,11 @@ class frameworkLattice(BaseModel):
         if isinstance(param, (list, tuple)):
             return zip(*[self.getElementType(typ, param=p) for p in param])
         return [
-            self.elements[element] if param is None else getattr(self.elements[element], param)
+            (
+                self.elements[element]
+                if param is None
+                else getattr(self.elements[element], param)
+            )
             for element in list(self.elements.keys())
             if self.elements[element].hardware_type.lower() == typ.lower()
         ]
@@ -1114,8 +1135,11 @@ class frameworkLattice(BaseModel):
             for name, elem in self.elementObjects.items():
                 if isinstance(elem, PhysicalBaseElement):
                     if (
-                        np.isclose(elem.physical.start.z,
-                        self.file_block["output"]["zstart"], atol=1e-2)
+                        np.isclose(
+                            elem.physical.start.z,
+                            self.file_block["output"]["zstart"],
+                            atol=1e-2,
+                        )
                     ) and not elem.subelement:
                         return name
             return list(self.elementObjects.keys())[0]
@@ -1158,13 +1182,15 @@ class frameworkLattice(BaseModel):
             for name, elem in self.elementObjects.keys():
                 if isinstance(elem, PhysicalBaseElement):
                     if (
-                        np.isclose(elem.physical.end.z,
-                        self.file_block["output"]["zstop"], atol=1e-2)
+                        np.isclose(
+                            elem.physical.end.z,
+                            self.file_block["output"]["zstop"],
+                            atol=1e-2,
+                        )
                     ) and not elem.subelement:
                         endelems.append(name)
                     elif (
-                        elem.physical.end.z
-                        > self.file_block["output"]["zstop"]
+                        elem.physical.end.z > self.file_block["output"]["zstop"]
                         and len(endelems) == 0
                     ) and not elem.subelement:
                         endelems.append(name)
@@ -1199,7 +1225,11 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
-            vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
+            vals = {
+                k: self.machine.get_element(k)
+                for k in keys
+                if isinstance(self.machine.get_element(k), PhysicalBaseElement)
+            }
             section = SectionLattice(
                 order=keys,
                 elements=ElementList(elements=vals),
@@ -1277,15 +1307,19 @@ class frameworkLattice(BaseModel):
         subdir = self.global_parameters["master_subdir"]
         cod = self.code.lower() if self.code.lower() != "elegant" else "sdds"
         for e in self.elements.values():
-            if hasattr(e.simulation, "field_definition") and isinstance(e.simulation.field_definition, str):
-                fn = e.simulation.field_definition.split('/')[-1].split('\\')[-1]
+            if hasattr(e.simulation, "field_definition") and isinstance(
+                e.simulation.field_definition, str
+            ):
+                fn = e.simulation.field_definition.split("/")[-1].split("\\")[-1]
                 filename = os.path.splitext(fn)[0]
                 if cod in ["opal", "gpt", "astra"]:
-                    self.files.append(f'{subdir}/{filename}.{cod.lower()}')
-            if hasattr(e.simulation, "wakefield_definition") and  isinstance(e.simulation.wakefield_definition, str):
-                fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
+                    self.files.append(f"{subdir}/{filename}.{cod.lower()}")
+            if hasattr(e.simulation, "wakefield_definition") and isinstance(
+                e.simulation.wakefield_definition, str
+            ):
+                fn = e.simulation.wakefield_definition.split("/")[-1].split("\\")[-1]
                 filename = os.path.splitext(fn)[0]
-                self.files.append(f'{subdir}/{filename}.{cod.lower()}')
+                self.files.append(f"{subdir}/{filename}.{cod.lower()}")
         starttime = time.time()
         subdir = self.global_parameters["master_subdir"]
         rel_subdir = f"/home/{self.remote_setup['username']}/{os.path.basename(subdir)}"
@@ -1306,7 +1340,7 @@ class frameworkLattice(BaseModel):
         if self.code.lower() == "elegant":
             full_command += f'export RPN_DEFNS={self.remote_setup["host"]["rpn"]} && '
         full_command += f"cd {rel_subdir} && "
-        full_command +=  f"{' '.join(self.executables[self.code])} {command}"
+        full_command += f"{' '.join(self.executables[self.code])} {command}"
         stdin, stdout, stderr = ssh.exec_command(full_command, get_pty=True)
         stdout.channel.recv_exit_status()
 
@@ -1320,7 +1354,9 @@ class frameworkLattice(BaseModel):
                 # Only download files modified since starttime
                 if attr.st_mtime >= starttime:
                     remote_path = os.path.join(rel_subdir, attr.filename)
-                    local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
+                    local_path = os.path.join(
+                        self.global_parameters["master_subdir"], attr.filename
+                    )
                     sftp.get(remote_path, local_path)
 
         sftp.close()
@@ -1348,9 +1384,14 @@ class frameworkLattice(BaseModel):
         TimeoutError
             If the SSH connection fails, for example if the server is unreachable.
         """
-        if not all(name in self.remote_setup for name in ["host", "username", "password"]):
-            raise KeyError("remote_setup must contain 'host', 'username' and 'password'")
+        if not all(
+            name in self.remote_setup for name in ["host", "username", "password"]
+        ):
+            raise KeyError(
+                "remote_setup must contain 'host', 'username' and 'password'"
+            )
         import paramiko
+
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
@@ -1365,11 +1406,14 @@ class frameworkLattice(BaseModel):
                 self.remote_setup["host"]["address"],
                 username=self.remote_setup["username"],
                 password=self.remote_setup["password"],
-                allow_agent=False, look_for_keys=False
+                allow_agent=False,
+                look_for_keys=False,
             )
             return ssh
         except TimeoutError as e:
-            raise TimeoutError(f"Connection to {self.remote_setup['host']} timed out") from e
+            raise TimeoutError(
+                f"Connection to {self.remote_setup['host']} timed out"
+            ) from e
 
     def getInitialTwiss(self) -> dict:
         """
@@ -1452,10 +1496,14 @@ class frameworkLattice(BaseModel):
             cavs = [c for c in self.cavities if c.name in settings["cavities"]]
             freq = list(set([c.cavity.frequency for c in cavs]))
             if len(freq) > 1:
-                raise ValueError("All accelerating cavities must have the same frequency")
+                raise ValueError(
+                    "All accelerating cavities must have the same frequency"
+                )
             freq = freq[0]
         else:
-            raise KeyError("settings must contain `cavities` key containing names of cavities")
+            raise KeyError(
+                "settings must contain `cavities` key containing names of cavities"
+            )
         if "harmonics" in settings:
             harmonics = [c for c in self.cavities if c.name in settings["harmonics"]]
             harm_freq = list(set([c.cavity.frequency for c in harmonics]))
@@ -1463,7 +1511,9 @@ class frameworkLattice(BaseModel):
                 raise ValueError("All harmonic cavities must have the same frequency")
             harm_freq = harm_freq[0]
             if not harm_freq % freq == 0:
-                raise ValueError("Harmonic cavity frequency is not a harmonic of the main frequency")
+                raise ValueError(
+                    "Harmonic cavity frequency is not a harmonic of the main frequency"
+                )
             harm_number = int(harm_freq / freq)
         if "chirp" in settings:
             chirp = settings["chirp"]
@@ -1477,18 +1527,22 @@ class frameworkLattice(BaseModel):
             [
                 [1, 0, 1, 0],
                 [0, -k, 0, -(harm_number * k)],
-                [-k ** 2, 0, -(harm_number * k) ** 2, 0],
-                [0, k ** 3, 0, (harm_number * k) ** 3]
+                [-(k**2), 0, -((harm_number * k) ** 2), 0],
+                [0, k**3, 0, (harm_number * k) ** 3],
             ]
         )
 
         initial_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         final_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         for cav in cavs:
-            final_energy += (cav.simulation.field_amplitude * np.cos(cav.cavity.phase)) * 1e-9
+            final_energy += (
+                cav.simulation.field_amplitude * np.cos(cav.cavity.phase)
+            ) * 1e-9
         if harmonics:
             for harm in harmonics:
-                final_energy += (harm.simulation.field_amplitude * np.cos(harm.cavity.phase)) * 1e-9
+                final_energy += (
+                    harm.simulation.field_amplitude * np.cos(harm.cavity.phase)
+                ) * 1e-9
 
         chirps = self.global_parameters["beam"].slice.get_chirp_coeffs()
 
@@ -1503,8 +1557,7 @@ class frameworkLattice(BaseModel):
         )
 
         if not harmonics:
-            M = np.array([[1, 0],
-                          [0, -k]])
+            M = np.array([[1, 0], [0, -k]])
             r = np.array(
                 [
                     energy_gain,
@@ -1515,21 +1568,27 @@ class frameworkLattice(BaseModel):
         X1 = rf[0]
         Y1 = rf[1]
         rad2deg = 180 / np.pi
-        v1 = np.sqrt(X1 ** 2 + Y1 ** 2) * 1e9
+        v1 = np.sqrt(X1**2 + Y1**2) * 1e9
         phi1 = (np.arctan(Y1 / X1) + np.pi / 2 * (1 - np.sign(X1))) * rad2deg
         for cav in cavs:
             cav.simulation.field_amplitude = v1
-            cav.cavity.phase = ((-phi1 + 180) % 360)# - 180
-        print(f"Longitudinal matching gave cavity phase of {phi1} and field amplitude of {v1}")
+            cav.cavity.phase = (-phi1 + 180) % 360  # - 180
+        print(
+            f"Longitudinal matching gave cavity phase of {phi1} and field amplitude of {v1}"
+        )
         if harmonics:
             X13 = rf[2]
             Y13 = rf[3]
-            vh = np.sqrt(X13 ** 2 + Y13 ** 2) * 1e9
-            phih = (np.arctan(Y13 / X13) + np.pi / 2 * (1 - np.sign(X13)) - 2 * np.pi) * rad2deg
+            vh = np.sqrt(X13**2 + Y13**2) * 1e9
+            phih = (
+                np.arctan(Y13 / X13) + np.pi / 2 * (1 - np.sign(X13)) - 2 * np.pi
+            ) * rad2deg
             for harm in harmonics:
                 harm.simulation.field_amplitude = vh
-                harm.cavity.phase = ((-phih + 180) % 360)# - 180
-                print(f"Longitudinal matching gave harmonic phase of {phi1} and field amplitude of {v1}")
+                harm.cavity.phase = (-phih + 180) % 360  # - 180
+                print(
+                    f"Longitudinal matching gave harmonic phase of {phi1} and field amplitude of {v1}"
+                )
 
     def preProcess(self) -> None:
         """
@@ -1656,7 +1715,9 @@ class frameworkLattice(BaseModel):
         else:
             elems = self.elements
         if as_dict:
-            return {e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()}
+            return {
+                e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()
+            }
         return [[e.physical.start.z, e.physical.end.z] for e in elems.values()]
 
     def getNames(self, drifts: bool = True) -> list:
@@ -1808,6 +1869,7 @@ class frameworkLattice(BaseModel):
         prefix = self.get_prefix()
         self.read_input_file(prefix, self.particle_definition)
         import xtrack as xt
+
         beam = self.global_parameters["beam"]
         particle_ref = xt.Particles(
             p0c=[beam.centroids.mean_cp.val],
@@ -1823,10 +1885,10 @@ class frameworkLattice(BaseModel):
         return line, beam, self.getNames()
 
     def r_matrix(
-            self,
-            start: str = None,
-            end: str = None,
-            element_by_element: bool = True,
+        self,
+        start: str = None,
+        end: str = None,
+        element_by_element: bool = True,
     ) -> np.ndarray:
         """
         Compute the one-turn transfer matrix for the lattice using Xsuite.
@@ -1853,7 +1915,7 @@ class frameworkLattice(BaseModel):
             start=start,
             end=end,
             particle_on_co=line.particle_ref,
-            element_by_element=True
+            element_by_element=True,
         )
         if element_by_element:
             return matrix["R_matrix_ebe"]
@@ -1916,6 +1978,7 @@ class frameworkLattice(BaseModel):
         from .Framework_lattices import ocelotLattice
         from ocelot.cpbd.beam import Twiss
         from ocelot.cpbd.match import match as match_oce
+
         latcopy = deepcopy(self)
         lat = ocelotLattice(
             name=f"{latcopy.name}_match",
@@ -1945,9 +2008,11 @@ class frameworkLattice(BaseModel):
             # Dy=beam.twiss.eta_y.val,
             # Dxp=beam.twiss.eta_xp.val,
             # Dyp=beam.twiss.eta_yp.val,
-            E=beam.centroids.mean_cp.val * 1e-9
+            E=beam.centroids.mean_cp.val * 1e-9,
         )
-        matchelems = [e for e in lat.lat_obj.sequence if e.id in params["targets"].keys()]
+        matchelems = [
+            e for e in lat.lat_obj.sequence if e.id in params["targets"].keys()
+        ]
         constr = {e: params["targets"][e.id] for e in matchelems}
         if "global" in params["targets"]:
             constr.update({"global": params["targets"]["global"]})
@@ -1961,14 +2026,35 @@ class frameworkLattice(BaseModel):
         except KeyError:
             max_iter = 10000
         if len(varelems) == 0:
-            raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
-        res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
+            raise ValueError(
+                "No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching"
+            )
+        res = match_oce(
+            lat=lat.lat_obj,
+            constr=constr,
+            vars=varelems,
+            tw=twsobj,
+            verbose=False,
+            max_iter=max_iter,
+        )
         print("Matching results:")
         for i, r in enumerate(res):
             magnetic_order = self.elementObjects[params["variables"][i]].magnetic.order
-            magnetic_length = self.elementObjects[params["variables"][i]].magnetic.length
-            setattr(self.elementObjects[params["variables"][i]], f"k{magnetic_order}l", r * magnetic_length)
-            print("\t", self.elementObjects[params["variables"][i]].name, f"k{magnetic_order}l =", r * magnetic_length)
+            magnetic_length = self.elementObjects[
+                params["variables"][i]
+            ].magnetic.length
+            setattr(
+                self.elementObjects[params["variables"][i]],
+                f"k{magnetic_order}l",
+                r * magnetic_length,
+            )
+            print(
+                "\t",
+                self.elementObjects[params["variables"][i]].name,
+                f"k{magnetic_order}l =",
+                r * magnetic_length,
+            )
+
 
 class global_error(frameworkObject):
     """
@@ -2011,6 +2097,7 @@ class global_error(frameworkObject):
         )
         return output
 
+
 class frameworkCommand(frameworkObject):
     """
     Class defining a framework command, which is used to generate commands used in setup files
@@ -2040,7 +2127,9 @@ class frameworkCommand(frameworkObject):
                 and hasattr(self, key)
             ):
                 if getattr(self, key.lower()) is not None:
-                    string += "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
+                    string += (
+                        "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
+                    )
         string += "&end\n"
         return string
 
@@ -2058,10 +2147,10 @@ class frameworkCommand(frameworkObject):
         # print(self.objecttype, self.objectproperties)
         for key in commandkeywords[self.objecttype]:
             if (
-                    key.lower() in self.objectproperties
-                    and not key == "name"
-                    and not key == "type"
-                    and not self.objectproperties[key.lower()] is None
+                key.lower() in self.objectproperties
+                and not key == "name"
+                and not key == "type"
+                and not self.objectproperties[key.lower()] is None
             ):
                 e = "," + key + "=" + str(self.objectproperties[key.lower()])
                 if len((string + e).splitlines()[-1]) > 79:
@@ -2362,7 +2451,9 @@ class chicane(frameworkGroup):
             if obj[i] in dipole_objs:
                 ref_pos = deepcopy(obj[i].physical.middle)
                 obj[i].magnetic.angle = a * self.ratios[dipole_number]
-                ref_angle = obj[i].physical.global_rotation.theta + obj[i].magnetic.angle
+                ref_angle = (
+                    obj[i].physical.global_rotation.theta + obj[i].magnetic.angle
+                )
                 obj[i].physical.physical_angle = obj[i].magnetic.angle
                 dipole_number += 1
 
@@ -2379,7 +2470,6 @@ class chicane(frameworkGroup):
                 for e in self.elements
             ]
         )
-
 
 
 class s_chicane(chicane):

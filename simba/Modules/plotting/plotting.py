@@ -76,7 +76,9 @@ def fieldmap_data(element, master_lattice):
         scale = scale / 1e6
 
     # file
-    element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
+    element = translate_elements(elements=[element], master_lattice=master_lattice)[
+        element.name
+    ]
     element.update_field_definition()
     field = element.simulation.field_definition
     data = field.get_field_data(code="astra")
@@ -383,9 +385,9 @@ def plot(
     # ------------------------------------------------------------
     # AXIS CREATION OR AXIS INJECTION
     # ------------------------------------------------------------
-    external_axes = (
-        ax_top is not None
-        and (include_layout is False or (ax_field_layout is not None and ax_magnet_layout is not None))
+    external_axes = ax_top is not None and (
+        include_layout is False
+        or (ax_field_layout is not None and ax_magnet_layout is not None)
     )
 
     if include_layout is not False:
@@ -511,9 +513,8 @@ def plot(
             color = f"C{line_index}"
             for symbol in ["beta", "alpha", "gamma", "sigma"]:
                 if symbol in label:
-                    label = "$" + label.replace(symbol, '\\' + symbol) + "$"
+                    label = "$" + label.replace(symbol, "\\" + symbol) + "$"
             legend_labels.append(label)
-
 
             ax.plot(
                 X.val,
@@ -525,19 +526,23 @@ def plot(
 
             # Particle plots
             if len(Pnames) > 0:
-                Yp = np.array([
-                    np.std(getattr(P[name], key))
-                    if key in P._parameters["data"]
-                    else getattr(P[name], key)
-                    for name in Pnames
-                ])
+                Yp = np.array(
+                    [
+                        (
+                            np.std(getattr(P[name], key))
+                            if key in P._parameters["data"]
+                            else getattr(P[name], key)
+                        )
+                        for name in Pnames
+                    ]
+                )
                 ax.scatter(X_particles / factor_x, Yp / factor, color=color)
 
         ylabel = []
         for l in labels:
             for symbol in ["beta", "alpha", "gamma", "sigma"]:
                 if symbol in l:
-                    l = "$" + l.replace(symbol, '\\' + symbol) + "$"
+                    l = "$" + l.replace(symbol, "\\" + symbol) + "$"
             ylabel.append(f"{l}")
         ylabel = ", ".join(ylabel)
         ax.set_ylabel(ylabel + f" ({unit})")
@@ -604,7 +609,6 @@ def plot(
         ax_top.set_xlabel(f"{xkey} ({units_x})")
 
     return ax_top, ax_field_layout, ax_magnet_layout
-
 
 
 def getattrsplit(self, attr):
@@ -735,7 +739,12 @@ def general_plot(
 
         # Make a line and point
         symbols = ["beta", "alpha", "gamma", "sigma"]
-        keys = ["$" + k.replace(symbol, "\\" + symbol) + "$" for symbol in symbols for k in keys if symbol in k]
+        keys = [
+            "$" + k.replace(symbol, "\\" + symbol) + "$"
+            for symbol in symbols
+            for k in keys
+            if symbol in k
+        ]
         for key, dat in zip(keys, data):
             ii += 1
             color = "C" + str(ii)

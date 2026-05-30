@@ -134,9 +134,7 @@ def read_SDDS_field_file(self, filename: str, field_type: str):
                 setattr(
                     self,
                     "t",
-                    FieldParameter(
-                        name="t", value=UnitValue(data, units="m")
-                    ),
+                    FieldParameter(name="t", value=UnitValue(data, units="m")),
                 )
             elif val.unit == "V/C":
                 setattr(

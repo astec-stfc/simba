@@ -19,9 +19,7 @@ def read_vsim_h5_beam_file(self, filename, charge=70e-12, interval=1):
     self._beam.py = UnitValue(cpy * self.particle_mass, units="kg*m/s")
     self._beam.pz = UnitValue(cpz * self.particle_mass, units="kg*m/s")
     self._beam.t = UnitValue(
-        [
-            (z / (-1 * Bz * constants.speed_of_light)) for z, Bz in zip(self.z, self.Bz)
-        ],
+        [(z / (-1 * Bz * constants.speed_of_light)) for z, Bz in zip(self.z, self.Bz)],
         units="s",
     )
     # self._beam['t'] = self.z / (1 * self.Bz * constants.speed_of_light)#[time if status is -1 else 0 for time, status in zip(clock, status)]#

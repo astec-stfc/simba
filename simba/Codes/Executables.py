@@ -23,13 +23,13 @@ def which(program):
 class executable:
 
     def __init__(
-            self,
-            name: str,
-            settings: dict={},
-            location: str | None = None,
-            ncpu: int = 1,
-            default: str | list = "",
-            override_location: str = None,
+        self,
+        name: str,
+        settings: dict = {},
+        location: str | None = None,
+        ncpu: int = 1,
+        default: str | list = "",
+        override_location: str = None,
     ):
         self.name = name
         self.settings = settings
@@ -131,9 +131,9 @@ class Executables(object):
         return getattr(self, item)
 
     def getNCPU(
-            self,
-            ncpu: int,
-            scaling: int,
+        self,
+        ncpu: int,
+        scaling: int,
     ) -> int:
         """
         Get the number of CPUs for tracking.
@@ -154,10 +154,7 @@ class Executables(object):
         else:
             return ncpu
 
-    def define_ASTRAgenerator_command(
-            self,
-            location: str | None = None
-    ) -> None:
+    def define_ASTRAgenerator_command(self, location: str | None = None) -> None:
         """
         Define the ASTRA generator :class:`~executable` object and sets :attr:`~ASTRAgenerator`
 
@@ -175,11 +172,11 @@ class Executables(object):
         self.ASTRAgenerator = ASTRAgeneratorExecutable.executable
 
     def define_astra_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the ASTRA :class:`~executable` object and sets :attr:`~astra`
@@ -208,11 +205,11 @@ class Executables(object):
         self.astra = astraExecutable.executable
 
     def define_elegant_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the ELEGANT :class:`~executable` object and sets :attr:`~elegant`
@@ -256,11 +253,11 @@ class Executables(object):
         self.elegant = elegantExecutable.executable
 
     def define_csrtrack_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the CSRTrack :class:`~executable` object and sets :attr:`~csrtrack`
@@ -289,11 +286,11 @@ class Executables(object):
         self.csrtrack = csrtrackExecutable.executable
 
     def define_gpt_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the GPT :class:`~executable` object and sets :attr:`~gpt`
@@ -322,11 +319,11 @@ class Executables(object):
         self.gpt = gptExecutable.executable
 
     def define_opal_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the OPAL :class:`~executable` object and sets :attr:`~opal`
@@ -355,11 +352,11 @@ class Executables(object):
         self.opal = self.opalExecutable.executable
 
     def define_genesis_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
     ) -> None:
         """
         Define the Genesis :class:`~executable` object and sets :attr:`~genesis`

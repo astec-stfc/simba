@@ -6,6 +6,7 @@ This module calculates the sigmas of a particle distribution.
 Classes:
     - :class:`~simba.Modules.Particles.sigmas.sigmas`: Sigma calculations.
 """
+
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -31,9 +32,7 @@ class sigmas(BaseModel):
 
     def model_dump(self, *args, **kwargs):
         # Only include computed fields
-        computed_keys = {
-            f for f in self.__pydantic_decorators__.computed_fields.keys()
-        }
+        computed_keys = {f for f in self.__pydantic_decorators__.computed_fields.keys()}
         full_dump = super().model_dump(*args, **kwargs)
         return {k: v for k, v in full_dump.items() if k in computed_keys}
 

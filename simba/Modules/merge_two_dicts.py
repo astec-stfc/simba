@@ -1,5 +1,6 @@
 from typing import Dict
 
+
 def merge_two_dicts(y: Dict, x: Dict) -> Dict:
     """
     Combine two dictionaries: first dictionary overwrites keys in the second dictionary

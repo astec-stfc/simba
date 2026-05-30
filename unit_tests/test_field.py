@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 import os
 
+
 @pytest.fixture
 def simple_field():
     field = rff.field()
@@ -85,6 +86,7 @@ def simple_field():
     field.cavity_type = "StandingWave"
     return field
 
+
 def test_astra_field_conversion(simple_field):
     astra_field_types = {
         "LongitudinalWake": ["z", "Wz"],
@@ -107,11 +109,14 @@ def test_astra_field_conversion(simple_field):
         for param in params:
             assert all(getattr(newf, param).value == getattr(simple_field, param).value)
         for mod in simple_field.model_fields_set:
-            if isinstance(
-                    getattr(simple_field, mod), FieldParameter
-            ) and mod not in params and getattr(newf, mod).value is not None:
+            if (
+                isinstance(getattr(simple_field, mod), FieldParameter)
+                and mod not in params
+                and getattr(newf, mod).value is not None
+            ):
                 raise AssertionError
         os.remove(astraname)
+
 
 def test_gdf_field_conversion(simple_field):
     gdf_field_types = {
@@ -132,16 +137,19 @@ def test_gdf_field_conversion(simple_field):
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,
             cavity_type=simple_field.cavity_type,
-            normalize_b=False
+            normalize_b=False,
         )
         for param in params:
             assert all(getattr(newf, param).value == getattr(simple_field, param).value)
         for mod in simple_field.model_fields_set:
-            if isinstance(
-                    getattr(simple_field, mod), FieldParameter
-            ) and mod not in params and getattr(newf, mod).value is not None:
+            if (
+                isinstance(getattr(simple_field, mod), FieldParameter)
+                and mod not in params
+                and getattr(newf, mod).value is not None
+            ):
                 raise AssertionError
         os.remove(gdfname)
+
 
 def test_hdf5_field_conversion(simple_field):
     field_types = rff.allowed_fields
@@ -163,6 +171,7 @@ def test_hdf5_field_conversion(simple_field):
                 assert getattr(newf, mod) == getattr(simple_field, mod)
         os.remove(hdf5name)
 
+
 def test_sdds_field_conversion(simple_field):
     sdds_field_types = {
         "LongitudinalWake": ["z", "Wz"],
@@ -183,11 +192,14 @@ def test_sdds_field_conversion(simple_field):
         for param in params:
             assert all(getattr(newf, param).value == getattr(simple_field, param).value)
         for mod in simple_field.model_fields_set:
-            if isinstance(
-                    getattr(simple_field, mod), FieldParameter
-            ) and mod not in params and getattr(newf, mod).value is not None:
+            if (
+                isinstance(getattr(simple_field, mod), FieldParameter)
+                and mod not in params
+                and getattr(newf, mod).value is not None
+            ):
                 raise AssertionError
         os.remove(sddsname)
+
 
 def test_opal_field_conversion(simple_field):
     opal_field_types = {
@@ -217,8 +229,10 @@ def test_opal_field_conversion(simple_field):
         for param in params:
             assert all(getattr(newf, param).value == getattr(simple_field, param).value)
         for mod in simple_field.model_fields_set:
-            if isinstance(
-                    getattr(simple_field, mod), FieldParameter
-            ) and mod not in params and getattr(newf, mod).value is not None:
+            if (
+                isinstance(getattr(simple_field, mod), FieldParameter)
+                and mod not in params
+                and getattr(newf, mod).value is not None
+            ):
                 raise AssertionError
         os.remove(opalname)

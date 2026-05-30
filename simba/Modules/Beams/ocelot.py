@@ -57,7 +57,7 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
             for coord in self.reference_particle_coords
         ]
     else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
+        """If we don't have a reference particle, t=0 is relative to mean(t)"""
         self._beam.z = UnitValue(
             zstart
             + (-1 * self._beam.Bz * constants.speed_of_light)
@@ -70,6 +70,7 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
 
 def read_ocelot_beam_file(self, filename):
     from ocelot.cpbd.io import load_particle_array
+
     self.filename = filename
     self.code = "OCELOT"
     self._beam.particle_rest_energy_eV = self.E0_eV
@@ -80,6 +81,7 @@ def read_ocelot_beam_file(self, filename):
 def write_ocelot_beam_file(self, filename, write=True):
     """Save an npz file for ocelot."""
     from ocelot.cpbd.io import save_particle_array
+
     parray = particle_group_to_parray(self)
     if write:
         save_particle_array(filename, parray)

@@ -125,9 +125,11 @@ class astraLattice(frameworkLattice):
         )
 
         # This calculated the starting rotation based on the input file and the number of dipoles
-        self.starting_rotation = (
-            [0.0, 0.0, float(-1 * self.startObject.physical.global_rotation.theta)]
-        )
+        self.starting_rotation = [
+            0.0,
+            0.0,
+            float(-1 * self.startObject.physical.global_rotation.theta),
+        ]
         self.starting_rotation = (
             eval(expand_substitution(self, str(self.file_block["starting_rotation"])))
             if "starting_rotation" in self.file_block
@@ -139,16 +141,20 @@ class astraLattice(frameworkLattice):
             self.file_block["input"] = {}
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
-        newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        newrun_settings = (
+            self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        )
         settings = deepcopy(newrun_settings)
         if "twiss" in settings:
             settings.pop("twiss")
-        starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
+        starting_offset = [
+            a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)
+        ]
         self.section.astra_headers["newrun"] = astra_newrun(
             starting_offset=starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
-            input_particle_definition = self.startObject.name,
+            input_particle_definition=self.startObject.name,
             **settings,
         )
         # If the initial distribution is derived from a generator file, we should use that
@@ -160,12 +166,16 @@ class astraLattice(frameworkLattice):
                 self.file_block["input"]["particle_definition"]
                 == "initial_distribution"
             ):
-                self.section.astra_headers["newrun"].input_particle_definition = "laser.astra"
-                self.section.astra_headers["newrun"].output_particle_definition = "laser.astra"
+                self.section.astra_headers["newrun"].input_particle_definition = (
+                    "laser.astra"
+                )
+                self.section.astra_headers["newrun"].output_particle_definition = (
+                    "laser.astra"
+                )
             else:
-                self.section.astra_headers["newrun"].input_particle_definition = self.file_block[
-                    "input"
-                ]["particle_definition"]
+                self.section.astra_headers["newrun"].input_particle_definition = (
+                    self.file_block["input"]["particle_definition"]
+                )
                 self.section.astra_headers["newrun"].output_particle_definition = (
                     self.objectname + ".astra"
                 )
@@ -179,10 +189,16 @@ class astraLattice(frameworkLattice):
         # Create an "output" block
         if "output" not in self.file_block:
             self.file_block["output"] = {}
-        output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
+        output_settings = (
+            self.file_block["output"] | self.globalSettings["ASTRAsettings"]
+        )
         zstart = self.startObject.physical.start.z
         self.zstop = self.endObject.physical.end.z
-        screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
+        screens = [
+            e
+            for e in self.section.elements.elements.values()
+            if e.hardware_class == "Diagnostic"
+        ]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = astra_output(
@@ -219,7 +235,9 @@ class astraLattice(frameworkLattice):
                 objecttype="global_error",
                 global_parameters=self.global_parameters,
             )
-            error_settings = self.file_block["global_errors"] | self.globalSettings["global_errors"]
+            error_settings = (
+                self.file_block["global_errors"] | self.globalSettings["global_errors"]
+            )
             self.section.astra_headers["global_errors"] = astra_errors(
                 element=globalerror,
                 global_parameters=self.global_parameters,
@@ -356,9 +374,15 @@ class astraLattice(frameworkLattice):
         prefix = self.get_prefix()
         astrabeamfilename = self.read_input_file(
             prefix,
-            self.astra_headers["newrun"].input_particle_definition.replace(".astra", "")
+            self.astra_headers["newrun"].input_particle_definition.replace(
+                ".astra", ""
+            ),
         )
-        self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
+        self.ref_s = (
+            self.global_parameters["beam"].s
+            if self.global_parameters["beam"].s is not None
+            else 0
+        )
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
@@ -419,7 +443,8 @@ class astraLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = (
-            self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
+            self.astra_headers["newrun"].input_particle_definition
+            == "initial_distribution"
         )
         mult = self.get_screen_scaling()
         svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
@@ -439,18 +464,20 @@ class astraLattice(frameworkLattice):
             hardware_class="",
             hardware_type="",
             machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.zstop])
+            physical=PhysicalElement(middle=[0, 0, self.zstop]),
         )
-        self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
+        self.astra_to_hdf5(
+            lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True
+        )
 
     def astra_to_hdf5(
-            self,
-            lattice: str,
-            scr: DiagnosticElement | PhysicalBaseElement,
-            cathode: bool = False,
-            mult: int = 100,
-            final: bool = False,
-            sval: float = 0.0,
+        self,
+        lattice: str,
+        scr: DiagnosticElement | PhysicalBaseElement,
+        cathode: bool = False,
+        mult: int = 100,
+        final: bool = False,
+        sval: float = 0.0,
     ) -> None:
         """
         Convert the ASTRA beam file name to HDF5 format and write the beam file.
@@ -475,7 +502,9 @@ class astraLattice(frameworkLattice):
         )
         astrabeamfilename = self.find_ASTRA_filename(lattice, scr, master_run_no, mult)
         if astrabeamfilename is None:
-            warn(f"Screen Error: {lattice}, {scr.physical.middle.z}, {astrabeamfilename}")
+            warn(
+                f"Screen Error: {lattice}, {scr.physical.middle.z}, {astrabeamfilename}"
+            )
         else:
             beam = rbf.beam()
             rbf.astra.read_astra_beam_file(
@@ -498,7 +527,7 @@ class astraLattice(frameworkLattice):
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
                 self.global_parameters["master_subdir"] + "/" + HDF5filename,
-                )
+            )
             if self.global_parameters["delete_tracking_files"]:
                 os.remove(
                     (
@@ -511,11 +540,11 @@ class astraLattice(frameworkLattice):
                 self.global_parameters["beam"] = beam
 
     def find_ASTRA_filename(
-            self,
-            lattice: str,
-            scr: DiagnosticElement | PhysicalBaseElement,
-            master_run_no: int,
-            mult: int
+        self,
+        lattice: str,
+        scr: DiagnosticElement | PhysicalBaseElement,
+        master_run_no: int,
+        mult: int,
     ) -> str | None:
         """
         Determine the ASTRA filename for the screen object.
@@ -540,38 +569,55 @@ class astraLattice(frameworkLattice):
         """
         for i in [0, -0.001, 0.001]:
             tempfilename = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
+                lattice
+                + "."
+                + str(
+                    int(
+                        round(
+                            (
+                                scr.physical.middle.z
+                                + i
+                                - self.startObject.physical.start.z
+                            )
+                            * mult
+                        )
+                    )
+                ).zfill(4)
+                + "."
+                + str(master_run_no).zfill(3)
             )
             tempfilenamenozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
+                lattice
+                + "."
+                + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
+                + "."
+                + str(master_run_no).zfill(3)
             )
             tempfilenameend = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i - self.startObject.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
+                lattice
+                + "."
+                + str(
+                    int(
+                        round(
+                            (self.zstop + i - self.startObject.physical.start.z) * mult
+                        )
+                    )
+                ).zfill(4)
+                + "."
+                + str(master_run_no).zfill(3)
             )
             tempfilenameendnozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
+                lattice
+                + "."
+                + str(int(round((self.zstop + i) * mult))).zfill(4)
+                + "."
+                + str(master_run_no).zfill(3)
             )
             for f in [
                 tempfilename,
                 tempfilenameendnozstart,
                 tempfilenameend,
-                tempfilenamenozstart
+                tempfilenamenozstart,
             ]:
                 if os.path.isfile(
                     os.path.join(self.global_parameters["master_subdir"], f)

@@ -449,7 +449,17 @@ class Particles(BaseModel):
 
     @fullbeam.setter
     def fullbeam(self, beam):
-        self.x, self.y, self.z, self.px, self.py, self.pz, self.t, self.nmacro, self.charge = np.array(beam).T
+        (
+            self.x,
+            self.y,
+            self.z,
+            self.px,
+            self.py,
+            self.pz,
+            self.t,
+            self.nmacro,
+            self.charge,
+        ) = np.array(beam).T
 
     @property
     def particle_index(self) -> list:
@@ -802,7 +812,9 @@ class Particles(BaseModel):
             Kinetic energy of particles
         """
         if self.particle_rest_energy is None:
-            self.particle_rest_energy = self.particle_rest_energy_eV / constants.elementary_charge
+            self.particle_rest_energy = (
+                self.particle_rest_energy_eV / constants.elementary_charge
+            )
         return UnitValue(
             np.array(
                 (
@@ -916,7 +928,14 @@ class Particles(BaseModel):
         nEmit: :class:`~simba.Modules.units.UnitValue` or float or bool
             The emittance to transform the arrays.
         """
-        if all([beta is not None and alpha is not None and beta is not False and alpha is not False]):
+        if all(
+            [
+                beta is not None
+                and alpha is not None
+                and beta is not False
+                and alpha is not False
+            ]
+        ):
             x, xp = self.performTransformation(self.x, self.xp, beta, alpha, nEmit)
             self.x = UnitValue(x, "m")
 
@@ -949,7 +968,14 @@ class Particles(BaseModel):
         nEmit: :class:`~simba.Modules.units.UnitValue` or float or bool
             The emittance to transform the arrays.
         """
-        if all([beta is not None and alpha is not None and beta is not False and alpha is not False]):
+        if all(
+            [
+                beta is not None
+                and alpha is not None
+                and beta is not False
+                and alpha is not False
+            ]
+        ):
             y, yp = self.performTransformation(self.y, self.yp, beta, alpha, nEmit)
             self.y = UnitValue(y, "m")
 

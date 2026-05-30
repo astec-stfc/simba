@@ -1,37 +1,28 @@
 """
-SIMBA Cheetah Module
+SIMBA BDSIM Module
 
-Various objects and functions to handle Cheetah lattices and commands. See `Cheetah github`_ for more details.
+Various objects and functions to handle BDSIM lattices and commands. See `BDSIM github`_ for more details.
 
-    .. _Cheetah github: https://github.com/desy-ml/cheetah
+    .. _Cheetah github: https://github.com/bdsim-collaboration/bdsim
 
 Classes:
-    - :class:`~simba.Codes.Cheetah.Cheetah.cheetahLattice`: The Cheetah lattice object, used for
+    - :class:`~simba.Codes.BDSIM.BDSIM.bdsimLattice`: The BDSIM lattice object, used for
     converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
+    :class:`~simba.Framework_objects.frameworkLattice` into a BDSIM lattice object,
     and for tracking through it.
 
 """
 
-from torch import Tensor
-
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
+import subprocess
 import os
-from yaml import safe_load
-from copy import deepcopy
-from typing import Dict, Any, ClassVar
+from typing import Any, ClassVar
 import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
-
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/cheetah_defaults.yaml",
-    "r",
-) as infile:
-    cheetahglobal = safe_load(infile)
 
 twiss_keys = (
     "beta_x",
@@ -73,11 +64,11 @@ class cheetahLattice(frameworkLattice):
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
-    segment: Any | None = None
+    machine: Any | None = None
     """
-    Lattice elements arranged into a Cheetah `Segment`_
-    
-    .. _Segment: https://github.com/desy-ml/cheetah/blob/master/cheetah/accelerator/segment.py
+    Lattice elements arranged into a BDSIM `Machine`_
+
+    .. _Machine: https://github.com/bdsim-collaboration/pybdsim/blob/develop/src/pybdsim/Builder.py
     """
 
     pin: Any | None = None
@@ -87,13 +78,6 @@ class cheetahLattice(frameworkLattice):
 
     pout: Any | None = None
     """Final particle distribution as a Cheetah `ParticleArray`_"""
-
-    tws: tuple[Tensor, ...] | Tensor | None = None
-    """Tensor or tuple of Tensors containing Twiss parameters"""
-
-    cheetahglobal: Dict = {}
-    """Global settings for Cheetah, read in from `cheetahLattice.settings["global"]["Cheetahsettings"]` and
-    `cheetah_defaults.yaml`"""
 
     particle_definition: str = None
     """Initial particle distribution as a string"""
@@ -106,14 +90,6 @@ class cheetahLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.cheetahglobal = deepcopy(cheetahglobal)
-        if "CHEETAHsettings" in list(self.settings["global"].keys()):
-            for k, v in self.settings["global"]["CHEETAHsettings"].items():
-                if isinstance(v, Dict):
-                    for k1, v1 in v.items():
-                        self.cheetahglobal[k].update({k1: v1})
-                else:
-                    self.cheetahglobal.update({k: v})
         if (
             "input" in self.file_block
             and "particle_definition" in self.file_block["input"]
@@ -130,29 +106,12 @@ class cheetahLattice(frameworkLattice):
         else:
             self.particle_definition = self.start
 
-    def writeElements(self) -> bool:
-        """
-        Create Cheetah objects for all the elements in the lattice and set the
-        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.segment`.
-
-        Returns
-        -------
-        bool
-            True if successful
-        """
-        self.segment = self.section.to_cheetah(save=True)
-        return True
-
     def write(self) -> None:
         """
         Create the lattice object via :func:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements`
         and save it as a JSON file to `master_subdir`.
         """
-        success = self.writeElements()
-        if success:
-            self.segment.to_lattice_json(
-                filepath=f'{self.global_parameters["master_subdir"]}/{self.objectname}.json'
-            )
+        self.machine = self.section.to_bdsim(save=True)
 
     def preProcess(self) -> None:
         """
@@ -164,11 +123,11 @@ class cheetahLattice(frameworkLattice):
         self.read_input_file(prefix, self.particle_definition)
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
-        self.hdf5_to_openpmd()
+        self.hdf5_to_bdsim()
 
-    def hdf5_to_openpmd(self, prefix="", write=True) -> None:
+    def hdf5_to_bdsim(self) -> None:
         """
-        Convert the initial HDF5 particle distribution to OpenPMD format and set
+        Convert the initial HDF5 particle distribution to BDSIM beam input format and set
         :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.pin` accordingly.
 
         Parameters
@@ -178,7 +137,7 @@ class cheetahLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        cheetahbeamfilename = self.particle_definition + ".openpmd.hdf5"
+        bdsimbeamfilename = self.particle_definition + ".bdsim"
         self.global_parameters["beam"].beam.rematchXPlane(
             **self.initial_twiss["horizontal"]
         )
@@ -186,22 +145,45 @@ class cheetahLattice(frameworkLattice):
             **self.initial_twiss["vertical"]
         )
 
-        self.pin = rbf.beam.write_cheetah_beam_file(
-            self.global_parameters["beam"], cheetahbeamfilename, write=write
+        rbf.bdsim.write_bdsim_beam_file(
+            beam=self.global_parameters["beam"],
+            filename=bdsimbeamfilename,
         )
 
     def run(self) -> None:
         """
-        Run the code, and set :attr:`~tws` and :attr:`~pout`
+        Run the code with input 'filename'
+        This method constructs the command to run the simulation using the specified executable
+        and the name of the lattice. It redirects the output to a log file in the master subdirectory.
+
+        If  :attr:`~remote_setup` is set, then :func:`~run_remote` will be called instead.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the executable for the specified code is not found in the executables dictionary.
         """
-        # navi = self.navi_setup()
-        pin = deepcopy(self.pin)
-        # if self.sample_interval > 1:
-        #     pin = pin.thin_out(nth=self.sample_interval)
-        self.pout = self.segment.track(pin)
-        if self.cheetahglobal["save_twiss"]:
-            self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
-            # print("Twiss parameters:", self.tws)
+        if self.remote_setup:
+            self.run_remote()
+        else:
+            command = (
+                self.executables[self.code]
+                + [f"--file={self.global_parameters['master_subdir']}/{self.name}.gmad"]
+                + ["--batch"]
+                + [
+                    f"--output={self.global_parameters['master_subdir']}/{self.name}.root"
+                ]
+            )
+            with open(
+                os.path.relpath(
+                    self.global_parameters["master_subdir"] + "/" + self.name + ".log",
+                    ".",
+                ),
+                "w",
+            ) as f:
+                subprocess.call(
+                    command, stdout=f, cwd=self.global_parameters["master_subdir"]
+                )
 
     @lox.thread(40)
     def screen_threaded_function(

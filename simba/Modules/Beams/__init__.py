@@ -18,6 +18,7 @@ Classes:
 
     - :class:`~simba.Modules.Beams.particlesGroup`: Container for a group of particle distributions.
 """
+
 import os
 from pydantic import (
     BaseModel,
@@ -42,6 +43,7 @@ from . import openpmd
 from . import xsuite
 from . import opal
 from . import genesis
+from . import bdsim
 
 try:
     from . import plot
@@ -68,7 +70,11 @@ except ImportError:
 
 # I can't think of a clever way of doing this, so...
 def get_properties(obj):
-    props = [f for f in dir(obj) if type(getattr(obj, f)) is property and f != "__fields_set__"]
+    props = [
+        f
+        for f in dir(obj)
+        if type(getattr(obj, f)) is property and f != "__fields_set__"
+    ]
     if hasattr(obj, "model_fields"):
         props += list(obj.model_fields.keys())
     return props
@@ -91,6 +97,7 @@ class particlesGroup(BaseModel):
     Class for grouping together properties of multiple particle distributions, such as
     the :class:`~simba.Modules.Beams.Particles.emittance.emittance` objects.
     """
+
     particles: List = None
     """List of :class:`~simba.Modules.Beams.Particles.Particles` or its 
     sub-classes"""
@@ -182,7 +189,9 @@ class beamGroup(BaseModel):
 
     @property
     def centroids(self):
-        return particlesGroup(particles=[b._beam.centroids for b in self.beams.values()])
+        return particlesGroup(
+            particles=[b._beam.centroids for b in self.beams.values()]
+        )
 
     @property
     def twiss(self):
@@ -194,7 +203,9 @@ class beamGroup(BaseModel):
 
     @property
     def emittance(self):
-        return particlesGroup(particles=[b._beam.emittance for b in self.beams.values()])
+        return particlesGroup(
+            particles=[b._beam.emittance for b in self.beams.values()]
+        )
 
     @property
     def kde(self):
@@ -211,7 +222,10 @@ class beamGroup(BaseModel):
             func = function
         self.beams = dict(
             sorted(
-                self.beams.items(), key=lambda item: func(getattr(item[1], key)), *args, **kwargs
+                self.beams.items(),
+                key=lambda item: func(getattr(item[1], key)),
+                *args,
+                **kwargs,
             )
         )
         return self
@@ -286,10 +300,13 @@ class beam(BaseModel):
     Functions are also provided for translating the particle distribution from and to HDF5 format
     (in-house developed or OpenPMD), ASTRA, GPT, OCELOT, or SDDS.
     """
+
     # particle_mass = UnitValue(constants.m_e, "kg")
     # E0 = UnitValue(particle_mass * constants.speed_of_light**2, "J")
     # E0_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
-    q_over_c: UnitValue = UnitValue(constants.elementary_charge / constants.speed_of_light, "C/c")
+    q_over_c: UnitValue = UnitValue(
+        constants.elementary_charge / constants.speed_of_light, "C/c"
+    )
     """Elementary charge divided by speed of light"""
 
     speed_of_light: UnitValue = UnitValue(constants.speed_of_light, "m/s")
@@ -304,10 +321,10 @@ class beam(BaseModel):
     code: str | None = None
     """Code from which the beam distribution was generated"""
 
-    reference_particle: np.ndarray | None  = None
+    reference_particle: np.ndarray | None = None
     """Reference particle for ASTRA-type distributions"""
 
-    reference_particle_index: int | None  = None
+    reference_particle_index: int | None = None
     """Reference particle index for ASTRA-type distributions"""
 
     longitudinal_reference: np.ndarray | str | None = None
@@ -367,35 +384,73 @@ class beam(BaseModel):
         return full_dump
 
     def set_species(self, value):
-        if value in ["electron", "electrons", "positron", "positrons", "proton", "protons", "antiproton", "antiprotons", "hydrogen"]:
+        if value in [
+            "electron",
+            "electrons",
+            "positron",
+            "positrons",
+            "proton",
+            "protons",
+            "antiproton",
+            "antiprotons",
+            "hydrogen",
+        ]:
             if value == "electron" or value == "electrons":
                 self.species = "electron"
                 self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
+                self._beam.particle_charge = UnitValue(
+                    np.full(len(self.x), -constants.elementary_charge), units="C"
+                )
                 self._beam.charge = -abs(self._beam.charge)
                 self._beam.total_charge = -abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+                self._beam.particle_rest_energy_eV = UnitValue(
+                    constants.m_e
+                    * constants.speed_of_light**2
+                    / constants.elementary_charge,
+                    units="eV/c",
+                )
             elif value == "positron" or value == "positrons":
                 self.species = "positron"
                 self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
+                self._beam.particle_charge = UnitValue(
+                    np.full(len(self.x), constants.elementary_charge), units="C"
+                )
                 self._beam.charge = abs(self._beam.charge)
                 self._beam.total_charge = abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+                self._beam.particle_rest_energy_eV = UnitValue(
+                    constants.m_e
+                    * constants.speed_of_light**2
+                    / constants.elementary_charge,
+                    units="eV/c",
+                )
             elif value == "proton" or value == "hydrogen" or value == "protons":
                 self.species = "proton"
                 self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
+                self._beam.particle_charge = UnitValue(
+                    np.full(len(self.x), constants.elementary_charge), units="C"
+                )
                 self._beam.charge = abs(self._beam.charge)
                 self._beam.total_charge = abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+                self._beam.particle_rest_energy_eV = UnitValue(
+                    constants.m_p
+                    * constants.speed_of_light**2
+                    / constants.elementary_charge,
+                    units="eV/c",
+                )
             elif value == "antiproton" or value == "antiprotons":
                 self.species = "antiproton"
                 self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
+                self._beam.particle_charge = UnitValue(
+                    np.full(len(self.x), -constants.elementary_charge), units="C"
+                )
                 self._beam.charge = -abs(self._beam.charge)
                 self._beam.total_charge = -abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+                self._beam.particle_rest_energy_eV = UnitValue(
+                    constants.m_p
+                    * constants.speed_of_light**2
+                    / constants.elementary_charge,
+                    units="eV/c",
+                )
         else:
             raise ValueError(
                 "Species must be one of: electron(s), positron(s), proton(s), antiproton(s), hydrogen"
@@ -416,10 +471,12 @@ class beam(BaseModel):
         if hasattr(self, "particle_rest_energy_eV"):
             return self.particle_rest_energy_eV
         elif self._beam.particle_rest_energy is not None:
-            return np.mean(self._beam.particle_rest_energy) / constants.elementary_charge
+            return (
+                np.mean(self._beam.particle_rest_energy) / constants.elementary_charge
+            )
         else:
             particle_mass = UnitValue(constants.m_e, "kg")
-            E0 = UnitValue(particle_mass * constants.speed_of_light ** 2, "J")
+            E0 = UnitValue(particle_mass * constants.speed_of_light**2, "J")
             E0_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
             return E0_eV
 
@@ -555,7 +612,7 @@ class beam(BaseModel):
         """
         return self._beam.mve
 
-    def rms(self, x, axis: int=None) -> float | np.ndarray   :
+    def rms(self, x, axis: int = None) -> float | np.ndarray:
         """
         Calculate the RMS of a distribution
 
@@ -622,7 +679,7 @@ class beam(BaseModel):
             }
         )
 
-    def set_particle_mass(self, mass: float=constants.m_e) -> None:
+    def set_particle_mass(self, mass: float = constants.m_e) -> None:
         """
         Set the mass of all particles in the distribution by updating
         :attr:`~simba.Modules.Beams.beam.particle_mass`.
@@ -635,7 +692,9 @@ class beam(BaseModel):
         self.particle_mass = UnitValue(np.full(len(self.x), mass), units="kg")
         self._beam.particle_mass = UnitValue(np.full(len(self.x), mass), units="kg")
 
-    def normalise_to_ref_particle(self, array, index=0, subtractmean=False) -> np.ndarray:
+    def normalise_to_ref_particle(
+        self, array, index=0, subtractmean=False
+    ) -> np.ndarray:
         """
         Normalise a distribution to the first element in the array (i.e. the ASTRA reference particle)
 
@@ -719,7 +778,15 @@ class beam(BaseModel):
 
     def read_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
+
         cheetah.read_cheetah_beam_file(self, *args, **kwargs)
+
+    def read_bdsim_beam_file(self, *args, **kwargs):
+        """
+        Load in a BDSIM-type beam distribution file and update the
+        :attr:`~simba.Modules.Beams.beam.Particles` object.
+        """
+        bdsim.read_bdsim_beam_file(self, *args, **kwargs)
 
     def write_openpmd_beam_file(self, *args, **kwargs):
         """
@@ -773,6 +840,7 @@ class beam(BaseModel):
 
     def write_cheetah_beam_file(self, *args, **kwargs):
         from . import cheetah
+
         return cheetah.write_cheetah_beam_file(self, *args, **kwargs)
 
     def write_mad8_beam_file(self, *args, **kwargs):
@@ -781,7 +849,13 @@ class beam(BaseModel):
         """
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
+    def write_bdsim_beam_file(self, *args, **kwargs):
+        """
+        Write out a BDSIM-type beam distribution file.
+        """
+        bdsim.write_bdsim_beam_file(self, *args, **kwargs)
+
+    def read_beam_file(self, filename, run_extension="001", beam_energy=None, step=0):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
@@ -803,6 +877,7 @@ class beam(BaseModel):
         if ext.lower()[:4] == ".hdf":
             if "cheetah" in pre:
                 from . import cheetah
+
                 cheetah.read_cheetah_beam_file(self, filename, beam_energy)
             else:
                 if "openpmd" in pre.lower():
@@ -819,6 +894,8 @@ class beam(BaseModel):
             ocelot.read_ocelot_beam_file(self, filename)
         elif ext.lower() == ".astra":
             astra.read_astra_beam_file(self, filename)
+        elif ext.lower() == ".bdsim":
+            bdsim.read_bdsim_beam_file(self, filename)
         elif (ext.lower() == ".h5") and ("opal" in pre):
             opal.read_opal_beam_file(self, filename, step=step)
         elif ext.lower() == ".json":
@@ -866,8 +943,10 @@ class beam(BaseModel):
         """
         postbeam = self.kde.resample(npart, **kwargs)
         newbeam = beam()
-        E0 = UnitValue(self.beam.particle_mass[0] * constants.speed_of_light ** 2, "J")
-        newbeam.Particles.particle_rest_energy_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
+        E0 = UnitValue(self.beam.particle_mass[0] * constants.speed_of_light**2, "J")
+        newbeam.Particles.particle_rest_energy_eV = UnitValue(
+            E0 / constants.elementary_charge, "eV/c"
+        )
         newbeam.Particles.x = UnitValue(postbeam[0], "m")
         newbeam.Particles.y = UnitValue(postbeam[1], "m")
         newbeam.Particles.z = UnitValue(postbeam[2], "m")
@@ -876,9 +955,15 @@ class beam(BaseModel):
         newbeam.Particles.pz = UnitValue(postbeam[5], "kg*m/s")
         newbeam.Particles.total_charge = self.total_charge
         single_charge = newbeam.Particles.total_charge / (len(newbeam.x))
-        newbeam.Particles.charge = UnitValue(np.full(len(newbeam.Particles.x), single_charge), "C")
+        newbeam.Particles.charge = UnitValue(
+            np.full(len(newbeam.Particles.x), single_charge), "C"
+        )
         newbeam.Particles.nmacro = UnitValue(np.full(len(newbeam.Particles.x), 1), "")
-        newbeam.t = UnitValue(newbeam.Particles.z / (-1 * newbeam.Particles.Bz * constants.speed_of_light), "s")
+        newbeam.t = UnitValue(
+            newbeam.Particles.z
+            / (-1 * newbeam.Particles.Bz * constants.speed_of_light),
+            "s",
+        )
         newbeam.code = "KDE"
         newbeam.longitudinal_reference = "z"
 
@@ -942,11 +1027,16 @@ def load_file(filename, *args, **kwargs) -> beam:
     return b
 
 
-def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary.hdf5", screens: list = None, files: list = None) -> None:
+def save_HDF5_summary_file(
+    directory: str = ".",
+    filename: str = "./Beam_Summary.hdf5",
+    screens: list = None,
+    files: list = None,
+) -> None:
     if screens is not None:
         files = []
         for scr in screens:
-            if os.path.isfile(bf := os.path.join(directory, scr + '.openpmd.hdf5')):
+            if os.path.isfile(bf := os.path.join(directory, scr + ".openpmd.hdf5")):
                 # print(f'[save_HDF5_summary_file] {scr} found as {bf}')
                 files.append(bf)
             else:

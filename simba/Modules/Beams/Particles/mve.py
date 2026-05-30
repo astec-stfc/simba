@@ -7,6 +7,7 @@ from functools import partial
 from scipy.spatial import ConvexHull
 from ...units import UnitValue
 
+
 class MVE:
 
     def __init__(self, beam):
@@ -77,7 +78,7 @@ class MVE:
             return ConvexHull(beam, qhull_options="QJ").volume
 
     def mve_emittance(self, x, xp, p=None):
-        (center, radii, rotation, hullP) = getMinVolEllipse(list(zip(x, xp)), 0.01)
+        center, radii, rotation, hullP = getMinVolEllipse(list(zip(x, xp)), 0.01)
         emittance = radii[0] * radii[1]
         if p is None:
             return UnitValue(emittance, "m-rad")
@@ -110,7 +111,9 @@ class MVE:
         zbins = self.beam.slice.slice_data(self.beam.z - np.mean(self.beam.z))
         pxbins = self.beam.slice.slice_data(self.beam.cpx / self.beam.cpz)
         pybins = self.beam.slice.slice_data(self.beam.cpy / self.beam.cpz)
-        pzbins = self.beam.slice.slice_data(((self.beam.cpz / np.mean(self.beam.cp)) - 1))
+        pzbins = self.beam.slice.slice_data(
+            ((self.beam.cpz / np.mean(self.beam.cp)) - 1)
+        )
         emitbins = list(zip(xbins, ybins, zbins, pxbins, pybins, pzbins))
         self.sliceProperties["6D_Volume"] = np.array(
             [self.volume6D(*a) for a in emitbins]

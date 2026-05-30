@@ -131,7 +131,7 @@ class latticeDraw:
         end0 = 0
         for name, elem in self.element_positions.items():
             type = elem["type"]
-            (start, end) = elem["position"]
+            start, end = elem["position"]
             if type in self.colorwidths:
                 self.elements.append(
                     rectangleElement(

@@ -57,7 +57,9 @@ def interpret_xsuite_data(self, lattice_name, fdat):
     self.sigma_y.val = np.append(self.sigma_y.val, fdat["sigma_y"])
     self.sigma_xp.val = np.append(self.sigma_xp.val, fdat["sigma_px"])
     self.sigma_yp.val = np.append(self.sigma_yp.val, fdat["sigma_py"])
-    self.sigma_t.val = np.append(self.sigma_t.val, fdat["sigma_zeta"] / constants.speed_of_light)
+    self.sigma_t.val = np.append(
+        self.sigma_t.val, fdat["sigma_zeta"] / constants.speed_of_light
+    )
     self.mean_x.val = np.append(self.mean_x.val, fdat["mean_x"])
     self.mean_y.val = np.append(self.mean_y.val, fdat["mean_y"])
     beta = np.sqrt(1 - (gamma**-2))

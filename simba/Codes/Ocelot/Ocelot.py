@@ -192,7 +192,7 @@ class ocelotLattice(frameworkLattice):
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_npz(prefix)
 
-    def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
+    def hdf5_to_npz(self, prefix: str = "", write: bool = True) -> None:
         """
         Convert the initial HDF5 particle distribution to Ocelot format and set
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.pin` accordingly.
@@ -205,17 +205,17 @@ class ocelotLattice(frameworkLattice):
             Flag to indicate whether to save the file
         """
         from ...Modules.Beams import ocelot as rbf_ocelot
-        self.pin = rbf_ocelot.particle_group_to_parray(
-            self.global_parameters["beam"],
-            s_start=self.ref_s
-        )
 
+        self.pin = rbf_ocelot.particle_group_to_parray(
+            self.global_parameters["beam"], s_start=self.ref_s
+        )
 
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
         from ocelot.cpbd.track import track
+
         navi = self.navi_setup()
         pin = deepcopy(self.pin)
         if self.sample_interval > 1:
@@ -233,6 +233,7 @@ class ocelotLattice(frameworkLattice):
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
         from ocelot.cpbd.io import save_particle_array
+
         super().postProcess()
         twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
         for t in self.tws:
@@ -243,7 +244,7 @@ class ocelotLattice(frameworkLattice):
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
-        twsdat['z'] = interp(twsdat["s"], svals, zvals)
+        twsdat["z"] = interp(twsdat["s"], svals, zvals)
         save_ocelot_twiss_hdf(
             self,
             filename=f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.oh5',
@@ -270,6 +271,7 @@ class ocelotLattice(frameworkLattice):
         from ocelot import Twiss
         from .savebeamopenpmd import SaveBeamOpenPMD
         from .mbi import MBI
+
         navi_processes = []
         navi_locations_start = []
         navi_locations_end = []
@@ -348,7 +350,7 @@ class ocelotLattice(frameworkLattice):
                     Dy=obj.simulation.eta_y,
                     Dxp=obj.simulation.eta_xp,
                     Dyp=obj.simulation.eta_yp,
-                    )
+                )
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
@@ -394,6 +396,7 @@ class ocelotLattice(frameworkLattice):
             The Ocelot LSC PhysProc
         """
         from ocelot.cpbd.sc import LSC
+
         lsc = LSC()
         lsc.smooth_param = self.smooth_param
         return lsc
@@ -415,6 +418,7 @@ class ocelotLattice(frameworkLattice):
             The Ocelot SpaceCharge PhysProc
         """
         from ocelot.cpbd.sc import SpaceCharge
+
         sc = SpaceCharge(step=1)
         sc.nmesh_xyz = grids
         sc.random_mesh = self.random_mesh
@@ -436,6 +440,7 @@ class ocelotLattice(frameworkLattice):
         stlist = []
         enlist = []
         from ocelot.cpbd.csr import CSR
+
         if ("start" in list(self.file_block["csr"].keys())) and (
             "end" in list(self.file_block["csr"].keys())
         ):
@@ -463,10 +468,10 @@ class ocelotLattice(frameworkLattice):
         return csrlist, stlist, enlist
 
     def physproc_wake(
-            self,
-            name: str,
-            loc: field | str,
-            ncell: int,
+        self,
+        name: str,
+        loc: field | str,
+        ncell: int,
     ) -> tuple:
         """
         Get an Ocelot `Wake`_ physics process based on the wakefield provided.
@@ -488,10 +493,11 @@ class ocelotLattice(frameworkLattice):
             A Wake PhysProc, and its index in the lattice
         """
         from ocelot.cpbd.wake3D import Wake, WakeTable
+
         if isinstance(loc, field):
             loc = loc.write_field_file(code="astra")
         subdir = self.global_parameters["master_subdir"]
-        fname = subdir + '/' + os.path.basename(loc).replace('.hdf5', '.astra')
+        fname = subdir + "/" + os.path.basename(loc).replace(".hdf5", ".astra")
         wake = Wake(
             step=100,
             w_sampling=self.wake_sampling,
@@ -503,8 +509,8 @@ class ocelotLattice(frameworkLattice):
         return wake, w_ind
 
     def physproc_beamtransform(
-            self,
-            tws: "Twiss",
+        self,
+        tws: "Twiss",
     ) -> "BeamTransform":
         """
         Get an Ocelot `BeamTransform`_ physics process based on the wakefield provided.
@@ -522,4 +528,5 @@ class ocelotLattice(frameworkLattice):
             A BeamTransform PhysProc
         """
         from ocelot.cpbd.physics_proc import BeamTransform
+
         return BeamTransform(tws=tws)
