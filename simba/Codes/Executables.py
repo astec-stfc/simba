@@ -118,6 +118,8 @@ class Executables(object):
         self.gpt = None
         self.csrtrack = None
         self.genesis = None
+        self.opal = None
+        self.bdsim = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command()
         self.define_astra_command()
@@ -126,6 +128,7 @@ class Executables(object):
         self.define_gpt_command()
         self.define_opal_command()
         self.define_genesis_command()
+        self.define_bdsim_command()
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -346,10 +349,43 @@ class Executables(object):
             settings=self.settings,
             location=location,
             ncpu=ncpu,
-            default=[self.sim_codes_location + "OPAL/bin/opal"],
+            default=[self.sim_codes_location + "bdsim/bin/bdsim"],
             override_location=override_location,
         )
         self.opal = self.opalExecutable.executable
+
+    def define_bdsim_command(
+        self,
+        location: str | None = None,
+        ncpu: int = 1,
+        scaling: int | None = None,
+        override_location: str | None = None,
+    ) -> None:
+        """
+        Define the BDSIM :class:`~executable` object and sets :attr:`~bdsim`
+
+        Parameters
+        ----------
+        location: str
+            Location of BDSIM executable; overrides `default`.
+        ncpu: int
+            Number of CPUs to run
+        scaling: int, optional
+            Scaling parameter for number of CPUs.
+        override_location: str, optional
+            Name of remote server on which to run the executable;
+            must be defined in `Executables.yaml`
+        """
+        ncpu = self.getNCPU(ncpu, scaling)
+        self.bdsimExecutable = executable(
+            "bdsim",
+            settings=self.settings,
+            location=location,
+            ncpu=ncpu,
+            default=[self.sim_codes_location + "BDSIM/bdsim-build/bin/bdsim"],
+            override_location=override_location,
+        )
+        self.bdsim = self.bdsimExecutable.executable
 
     def define_genesis_command(
         self,

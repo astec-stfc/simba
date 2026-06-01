@@ -24,31 +24,12 @@ import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
 
-twiss_keys = (
-    "beta_x",
-    "beta_y",
-    "alpha_x",
-    "alpha_y",
-    "s",
-    "energy",
-    "emittance_x",
-    "emittance_y",
-    "sigma_x",
-    "sigma_y",
-    "sigma_px",
-    "sigma_py",
-    "mu_x",
-    "mu_y",
-    "sigma_tau",
-    "sigma_p",
-)
 
-
-class cheetahLattice(frameworkLattice):
+class bdsimLattice(frameworkLattice):
     """
-    Class for defining the Cheetah lattice object, used for
+    Class for defining the BDSIM lattice object, used for
     converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
+    :class:`~simba.Framework_objects.frameworkLattice` into a BDSIM lattice object,
     and for tracking through it.
     """
 
@@ -58,13 +39,13 @@ class cheetahLattice(frameworkLattice):
     """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
     :class:`~simba.Modules.Beams.beam` object and writing files"""
 
-    code: str = "cheetah"
+    code: str = "bdsim"
     """String indicating the lattice object type"""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
-    machine: Any | None = None
+    lattice: Any | None = None
     """
     Lattice elements arranged into a BDSIM `Machine`_
 
@@ -108,10 +89,9 @@ class cheetahLattice(frameworkLattice):
 
     def write(self) -> None:
         """
-        Create the lattice object via :func:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements`
-        and save it as a JSON file to `master_subdir`.
+        Create the lattice object and save it as a JSON file to `master_subdir`.
         """
-        self.machine = self.section.to_bdsim(save=True)
+        self.lattice = self.section.to_bdsim(save=True)
 
     def preProcess(self) -> None:
         """
@@ -174,6 +154,7 @@ class cheetahLattice(frameworkLattice):
                     f"--output={self.global_parameters['master_subdir']}/{self.name}.root"
                 ]
             )
+            print(command)
             with open(
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",
@@ -182,7 +163,12 @@ class cheetahLattice(frameworkLattice):
                 "w",
             ) as f:
                 subprocess.call(
-                    command, stdout=f, cwd=self.global_parameters["master_subdir"]
+                    command,
+                    executable="/bin/bash",
+                    stdout=f,
+                    cwd=self.global_parameters["master_subdir"],
+                    env={**os.environ},
+                    shell=True,
                 )
 
     @lox.thread(40)
