@@ -23,6 +23,7 @@ import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
+from pybdsim.Run import Bdsim
 
 
 class bdsimLattice(frameworkLattice):
@@ -154,22 +155,10 @@ class bdsimLattice(frameworkLattice):
                     f"--output={self.global_parameters['master_subdir']}/{self.name}.root"
                 ]
             )
-            print(command)
-            with open(
-                os.path.relpath(
-                    self.global_parameters["master_subdir"] + "/" + self.name + ".log",
-                    ".",
-                ),
-                "w",
-            ) as f:
-                subprocess.call(
-                    command,
-                    executable="/bin/bash",
-                    stdout=f,
-                    cwd=self.global_parameters["master_subdir"],
-                    env={**os.environ},
-                    shell=True,
-                )
+            Bdsim(
+                f"{self.global_parameters['master_subdir']}/{self.name}.gmad",
+                f"{self.global_parameters['master_subdir']}/{self.name}.root",
+            )
 
     @lox.thread(40)
     def screen_threaded_function(
