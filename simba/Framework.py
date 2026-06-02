@@ -275,6 +275,9 @@ class Framework(BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA"""
 
+    use_docker: bool = False
+    """Use SimCodes docker container"""
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1

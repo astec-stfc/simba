@@ -471,10 +471,10 @@ class frameworkLattice(BaseModel):
     name: str
     """Name of the lattice, used as a prefix for output files and commands."""
 
-    objectname: str | None = ""
+    objectname: str = ""
     """Name of the lattice, used as a prefix for output files and commands."""
 
-    objecttype: str | None = ""
+    objecttype: str = ""
     """Type of the lattice, used as a prefix for output files and commands."""
 
     file_block: Dict
@@ -558,6 +558,9 @@ class frameworkLattice(BaseModel):
 
     files: List = []
     """List of all files needed to run the lattice."""
+
+    code: str = None
+    """Code to run the lattice."""
 
     def model_post_init(self, __context):
         # super().model_post_init(__context)
@@ -1247,6 +1250,8 @@ class frameworkLattice(BaseModel):
             self.run_remote()
         else:
             command = self.executables[self.code] + [self.name]
+            workdir = os.path.abspath(self.global_parameters["master_subdir"])
+            command = self.executables.build_command(command, workdir)
             with open(
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",

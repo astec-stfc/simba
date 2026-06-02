@@ -41,3 +41,11 @@ posix:
   gpt: [$simcodes$/GPT/bin/gpt, '-j',$ncpu$]
   opal: ["source", $simcodes$/OPAL/etc/profile.d/opal.sh, ';', $simcodes$/OPAL/bin/opal]
   genesis: [$simcodes$/Genesis/genesis4]
+docker:
+  image: ghcr.io/astec-stfc/simcodes:latest
+  astragenerator: ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','generator']
+  astra:          ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','astra']
+  elegant:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','elegant']
+  Pelegant:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','mpiexec','-np',$ncpu$,'Pelegant']
+  csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','csrtrack']
+  genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
