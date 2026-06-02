@@ -24,6 +24,7 @@ import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
 from pybdsim.Run import Bdsim, RebdsimOptics
+from pybdsim.Beam import Beam
 
 
 class bdsimLattice(frameworkLattice):
@@ -92,7 +93,12 @@ class bdsimLattice(frameworkLattice):
         """
         Create the lattice object and save it as a JSON file to `master_subdir`.
         """
-        self.lattice = self.section.to_bdsim(save=True)
+        beam = Beam()
+        beam.SetDistributionType("userfile")
+        beam.SetDistrFile(os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim"))
+        beam.SetDistrFileFormat("x[m]:xp[rad]:y[m]:yp[rad]:z[m]:E[eV]")
+        beam.SetEnergy(self.global_parameters["beam"].centroids.mean_energy.val, unitsstring="eV")
+        self.lattice = self.section.to_bdsim(save=True, beam=beam)
 
     def preProcess(self) -> None:
         """
@@ -118,7 +124,7 @@ class bdsimLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        bdsimbeamfilename = self.particle_definition + ".bdsim"
+        bdsimbeamfilename = os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim")
         self.global_parameters["beam"].beam.rematchXPlane(
             **self.initial_twiss["horizontal"]
         )
@@ -153,7 +159,7 @@ class bdsimLattice(frameworkLattice):
         else:
             Bdsim(
                 f"{self.global_parameters['master_subdir']}/{self.name}.gmad",
-                f"{self.global_parameters['master_subdir']}/{self.name}.root",
+                f"{self.global_parameters['master_subdir']}/{self.name}",
                 ngenerate=len(self.global_parameters["beam"].x)
             )
             RebdsimOptics(
