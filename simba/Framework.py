@@ -825,6 +825,7 @@ class Framework(BaseModel):
             global_parameters=self.global_parameters,
             machine=self.machine,
             globalSettings=self.globalSettings,
+            verbose=self.verbose,
         )
         if "remote" in lattice:
             self.setup_remote_execution(

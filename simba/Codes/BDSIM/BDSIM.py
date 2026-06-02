@@ -23,7 +23,7 @@ import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
-from pybdsim.Run import Bdsim
+from pybdsim.Run import Bdsim, RebdsimOptics
 
 
 class bdsimLattice(frameworkLattice):
@@ -131,6 +131,10 @@ class bdsimLattice(frameworkLattice):
             filename=bdsimbeamfilename,
         )
 
+    def _generate_optics_config(self):
+        with open(f"{self.global_parameters['master_subdir']}/optics_config.txt", "w") as f:
+            f.write("CalculateOpticalFunctions 1 \nMergeHistograms 0\n")
+
     def run(self) -> None:
         """
         Run the code with input 'filename'
@@ -147,18 +151,16 @@ class bdsimLattice(frameworkLattice):
         if self.remote_setup:
             self.run_remote()
         else:
-            command = (
-                self.executables[self.code]
-                + [f"--file={self.global_parameters['master_subdir']}/{self.name}.gmad"]
-                + ["--batch"]
-                + [
-                    f"--output={self.global_parameters['master_subdir']}/{self.name}.root"
-                ]
-            )
             Bdsim(
                 f"{self.global_parameters['master_subdir']}/{self.name}.gmad",
                 f"{self.global_parameters['master_subdir']}/{self.name}.root",
+                ngenerate=len(self.global_parameters["beam"].x)
             )
+            RebdsimOptics(
+                f"{self.global_parameters['master_subdir']}/{self.name}.root",
+                f"{self.global_parameters['master_subdir']}/{self.name}.optics.root",
+            )
+
 
     @lox.thread(40)
     def screen_threaded_function(

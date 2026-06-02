@@ -563,6 +563,9 @@ class frameworkLattice(BaseModel):
     files: List = []
     """List of all files needed to run the lattice."""
 
+    verbose: bool = True
+    """Flag to display verbose output (debug messages, warnings, etc.)."""
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
@@ -1241,6 +1244,7 @@ class frameworkLattice(BaseModel):
             slt.csr_enable = self.csr_enable
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
+            slt.verbose = self.verbose
             self._section = slt
             return slt
         return self._section
