@@ -3,8 +3,7 @@ import os
 import yaml
 import logging
 import subprocess
-
-SIMCODES_IMAGE = "ghcr.io/astec-stfc/simcodes:latest"
+from typing import Literal
 
 def which(program):
     def is_exe(filepath):
@@ -22,32 +21,61 @@ def which(program):
 
     return None
 
-def ensure_image(image: str = SIMCODES_IMAGE, build_context: str | None = None) -> None:
+def ensure_image(
+    runtime: Literal["docker", "apptainer"],
+    image: str,
+    build_context: str | None = None,
+    sif: str | None = None,
+) -> None:
     """
-    Check if the Docker image exists locally. If not, either pull it from
-    the registry or build it from a local Dockerfile, depending on whether
-    build_context is provided.
-    """
-    result = subprocess.run(
-        ['docker', 'image', 'inspect', image],
-        capture_output=True
-    )
-    if result.returncode == 0:
-        logging.info(f"Docker image '{image}' found locally.")
-        return
+    Ensure the container image is available locally for the given runtime.
 
-    if build_context is not None:
-        logging.info(f"Image '{image}' not found. Building from '{build_context}'...")
+    For Docker: checks the daemon registry; pulls or builds if missing.
+    For Apptainer: checks for a .sif file on disk; pulls from registry if missing.
+
+    Parameters
+    ----------
+    runtime : str
+        Container runtime to use: 'docker' or 'apptainer'.
+    image : str
+        Docker image name (used for Docker pull/build, and as Apptainer pull source).
+    build_context : str, optional
+        Path to a directory containing a Dockerfile. If provided and the image is
+        missing, the image will be built rather than pulled. Docker only.
+    sif : str, optional
+        Path to the Apptainer .sif file. Used for Apptainer only.
+    """
+    if runtime == "docker":
+        result = subprocess.run(
+            ['docker', 'image', 'inspect', image],
+            capture_output=True
+        )
+        if result.returncode == 0:
+            logging.info(f"Docker image '{image}' found locally.")
+            return
+        if build_context is not None:
+            logging.info(f"Image '{image}' not found. Building from '{build_context}'...")
+            subprocess.run(
+                ['docker', 'build', '-t', image, build_context],
+                check=True
+            )
+        else:
+            logging.info(f"Image '{image}' not found locally. Pulling from registry...")
+            subprocess.run(['docker', 'pull', image], check=True)
+
+    elif runtime == "apptainer":
+        if isinstance(sif, str) and os.path.isfile(sif):
+            logging.info(f"Apptainer image found at '{sif}'.")
+            return
+        log = f"Apptainer .sif not found at '{sif}'." if isinstance(sif, str) else "Apptainer .sif path not provided."
+        logging.info(f"{log} Pulling from '{image}'...")
         subprocess.run(
-            ['docker', 'build', '-t', image, build_context],
+            ['apptainer', 'pull', f'oras://{image}'],
             check=True
         )
+
     else:
-        logging.info(f"Image '{image}' not found locally. Pulling from registry...")
-        subprocess.run(
-            ['docker', 'pull', image],
-            check=True
-        )
+        raise ValueError(f"Unknown container runtime '{runtime}'. Use 'docker' or 'apptainer'.")
 
 class executable:
 
@@ -88,11 +116,25 @@ class executable:
         else:
             self.executable = self._substitute_variables(default)
 
+    def _substitute_sif(self, param):
+        if isinstance(param, list):
+            return [self._substitute_sif(s) for s in param]
+        else:
+            return param.replace("$sif$", self.settings.get("apptainer", {}).get("sif", ""))
+
     def _substitute_variables(self, param):
         if isinstance(param, list):
             return [self._substitute_variables(s) for s in param]
         else:
-            return self._substitute_ncpu(self._substitute_simcodes(param))
+            return (
+                self._substitute_ncpu(
+                    self._substitute_simcodes(
+                        self._substitute_sif(
+                            self._substitute_image(param)
+                        )
+                    )
+                )
+            )
 
     def _substitute_simcodes(self, param):
         if isinstance(param, list):
@@ -155,18 +197,28 @@ class Executables(object):
             self.settings = yaml.load(file, Loader=yaml.Loader)
         # except:
         #     self.settings = {}
-        self.use_docker = global_parameters.get("use_docker", False)
-        if self.use_docker:
-            self.settings["_active_location"] = "docker"
-            docker_image = global_parameters.get("docker_image", SIMCODES_IMAGE)
-            build_context = global_parameters.get("docker_build_context", None)
-            ensure_image(docker_image, build_context)
+        self.runtime = global_parameters.get("container_runtime", None)  # 'docker', 'apptainer', or None
+        if self.runtime == "docker":
+            docker_cfg = self.settings.get("docker", {})
+            ensure_image(
+                runtime="docker",
+                image=docker_cfg.get("image", ""),
+                build_context=global_parameters.get("docker_build_context", None),
+            )
+        elif self.runtime == "apptainer":
+            apptainer_cfg = self.settings.get("apptainer", {})
+            ensure_image(
+                runtime="apptainer",
+                image=apptainer_cfg.get("registry", ""),
+                sif=apptainer_cfg.get("sif", None),
+            )
         self.ASTRAgenerator = None
         self.astra = None
         self.elegant = None
         self.gpt = None
         self.csrtrack = None
         self.genesis = None
+        self.opal = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command()
         self.define_astra_command()
@@ -181,8 +233,9 @@ class Executables(object):
 
     def build_command(self, cmd: list, workdir: str) -> list:
         """
-        If using Docker, inject the volume mount for workdir into the command.
-        Otherwise return the command unchanged.
+         Inject workdir into the container command if using a container runtime.
+        For Docker, inserts the -v bind mount. For Apptainer, substitutes $workdir$.
+        Returns the command unchanged if no container runtime is set.
 
         Parameters
         ----------
@@ -196,10 +249,12 @@ class Executables(object):
         int:
             Number of CPUs to run
         """
-        if not self.use_docker:
+        if self.runtime is None:
             return cmd
-        idx = cmd.index('--rm') + 1
-        return cmd[:idx] + ['-v', f'{workdir}:/workdir'] + cmd[idx:]
+        return [
+            s.replace('$workdir$', workdir) if isinstance(s, str) else s
+            for s in cmd
+        ]
 
     def getNCPU(
             self,

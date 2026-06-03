@@ -42,10 +42,19 @@ posix:
   opal: ["source", $simcodes$/OPAL/etc/profile.d/opal.sh, ';', $simcodes$/OPAL/bin/opal]
   genesis: [$simcodes$/Genesis/genesis4]
 docker:
-  image: ghcr.io/astec-stfc/simcodes:latest
+  image: ghcr.io/astec-stfc/simcodes-docker:master
   astragenerator: ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','generator']
   astra:          ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','astra']
   elegant:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','elegant']
   Pelegant:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','mpiexec','-np',$ncpu$,'Pelegant']
   csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','csrtrack']
   genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
+apptainer:
+  sif: $simcodes$/Apptaier/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
+  registry: ghcr.io/astec-stfc/simcodes-docker:master  # pulled from here if sif missing
+  astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','generator']
+  astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','astra']
+  elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','elegant']
+  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'Pelegant']
+  csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','csrtrack']
+  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','genesis4']
