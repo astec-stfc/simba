@@ -3,6 +3,7 @@ nt:
   astra: [$simcodes$/ASTRA/astra.exe]
   Pelegant: ['mpiexec.exe','-np',$ncpu$, '$simcodes$/Elegant/Pelegant.exe']
   opal: [$simcodes$/OPAL/opal]
+  bdsim: [$simcodes$/BDSIM/bin/bdsim.exe]
   elegant: [$simcodes$/Elegant/elegant.exe]
   csrtrack: [$simcodes$/CSRTrack/csrtrack.exe]
   gpt: ['C:\Program Files\General Particle Tracer\bin\gpt.exe','-j',$ncpu$]
@@ -16,6 +17,7 @@ apclara1:
   csrtrack: ['/opt/OpenMPI-1.4.3/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_openmpi.sh']
   opal: ["source", "/opt/OPAL-2022.1/etc/profile.d/opal.sh", ';', "mpirun", '-np', $ncpu$, "/opt/OPAL-2022.1/bin/opal", ">", "out.txt"]
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -24,6 +26,7 @@ apclara2:
   csrtrack: ['/opt/OpenMPI-1.4.5/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_1.204_Linux_x86_64_OpenMPI_1.4.3']
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara3:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -32,6 +35,7 @@ apclara3:
   csrtrack: ['/opt/OpenMPI-1.4.5/bin/mpiexec','-n',$ncpu$,'/opt/CSRTrack/csrtrack_1.204_Linux_x86_64_OpenMPI_1.4.3']
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 posix:
   astragenerator: [$simcodes$/ASTRA/generator]
   astra: [$simcodes$/ASTRA/Astra]

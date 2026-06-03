@@ -349,7 +349,7 @@ class Executables(object):
             settings=self.settings,
             location=location,
             ncpu=ncpu,
-            default=[self.sim_codes_location + "bdsim/bin/bdsim"],
+            default=[self.sim_codes_location + "OPAL/bin/opal"],
             override_location=override_location,
         )
         self.opal = self.opalExecutable.executable
