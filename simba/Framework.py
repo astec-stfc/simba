@@ -22,7 +22,7 @@ Classes:
 import os
 import yaml
 import inspect
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
@@ -275,8 +275,7 @@ class Framework(BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA"""
 
-    use_docker: bool = False
-    """Use SimCodes docker container"""
+    container_runtime: Literal["docker", "apptainer"] | None = None
 
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
@@ -287,7 +286,11 @@ class Framework(BaseModel):
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
+            "container_runtime": self.container_runtime,
         }
+        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"]:
+            raise ValueError("Either `simcodes` location or `container_runtime` must be either "
+                             "'docker' or 'apptainer' to set up executables")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)

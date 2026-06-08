@@ -50,8 +50,8 @@ docker:
   csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','csrtrack']
   genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
 apptainer:
-  sif: $simcodes$/Apptaier/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
-  registry: ghcr.io/astec-stfc/simcodes-docker:master  # pulled from here if sif missing
+  sif: $simcodes$/Apptainer/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
+  registry: ghcr.io/astec-stfc/simcodes-apptainer:master  # pulled from here if sif missing
   astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','generator']
   astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','astra']
   elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','elegant']

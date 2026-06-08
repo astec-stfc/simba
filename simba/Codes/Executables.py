@@ -210,7 +210,7 @@ class Executables(object):
             ensure_image(
                 runtime="apptainer",
                 image=apptainer_cfg.get("registry", ""),
-                sif=apptainer_cfg.get("sif", None),
+                sif=apptainer_cfg.get("sif", "").replace("$simcodes$", self.sim_codes_location)
             )
         self.ASTRAgenerator = None
         self.astra = None
@@ -220,10 +220,10 @@ class Executables(object):
         self.genesis = None
         self.opal = None
         self.settings["sim_codes_location"] = self.sim_codes_location
-        self.define_ASTRAgenerator_command()
-        self.define_astra_command()
-        self.define_elegant_command()
-        self.define_csrtrack_command()
+        self.define_ASTRAgenerator_command(location=self.runtime)
+        self.define_astra_command(location=self.runtime)
+        self.define_elegant_command(location=self.runtime)
+        self.define_csrtrack_command(location=self.runtime)
         self.define_gpt_command()
         self.define_opal_command()
         self.define_genesis_command()
@@ -249,6 +249,8 @@ class Executables(object):
         int:
             Number of CPUs to run
         """
+        print(self.runtime)
+        print(cmd)
         if self.runtime is None:
             return cmd
         return [
