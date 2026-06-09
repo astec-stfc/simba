@@ -43,18 +43,18 @@ posix:
   genesis: [$simcodes$/Genesis/genesis4]
 docker:
   image: ghcr.io/astec-stfc/simcodes-docker:master
-  astragenerator: ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','generator']
-  astra:          ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','astra']
-  elegant:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','elegant']
-  Pelegant:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','mpiexec','-np',$ncpu$,'Pelegant']
-  csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','csrtrack']
-  genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
+  astragenerator: ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/Astra-serial/generator']
+  astra:          ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/Astra-serial/Astra']
+  elegant:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/elegant/bin/Linux-x86_64/elegant']
+  Pelegant:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$''/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
+#  genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
 apptainer:
   sif: $simcodes$/Apptainer/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
   registry: ghcr.io/astec-stfc/simcodes-apptainer:master  # pulled from here if sif missing
-  astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','generator']
-  astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','astra']
-  elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','elegant']
-  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'Pelegant']
-  csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','csrtrack']
-  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','genesis4']
+  astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/generator']
+  astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/Astra']
+  elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/elegant/bin/Linux-x86_64/elegant']
+  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
+#  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','genesis4']

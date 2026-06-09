@@ -1252,7 +1252,6 @@ class frameworkLattice(BaseModel):
             command = self.executables[self.code] + [self.name]
             workdir = os.path.abspath(self.global_parameters["master_subdir"])
             command = self.executables.build_command(command, workdir)
-            print(command)
             with open(
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",

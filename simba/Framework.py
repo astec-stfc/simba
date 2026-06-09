@@ -276,6 +276,13 @@ class Framework(BaseModel):
     """Bypass lazy loading for LAURA"""
 
     container_runtime: Literal["docker", "apptainer"] | None = None
+    """Container runtime to use for executing codes; if `None`, will attempt to find executables locally"""
+
+    executables: exes.Executables | None = None
+    """Object containing the commands for executing the various simulation codes"""
+
+    executables_ready: bool = False
+    """Flag to indicate whether the executables have been prepared and are ready for execution"""
 
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
@@ -288,15 +295,15 @@ class Framework(BaseModel):
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
         }
-        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"]:
-            raise ValueError("Either `simcodes` location or `container_runtime` must be either "
-                             "'docker' or 'apptainer' to set up executables")
+        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
+            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
+                 "Cannot run simulations without either of these - please set one or the other")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
         self.setupGeneratorDefaults(self.generator_defaults)
 
-        self.executables = self.prepare_executables()
+        self.executables = self.prepare_executables(location=self.container_runtime)
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
@@ -352,6 +359,7 @@ class Framework(BaseModel):
             ncpu=ncpu,
         )
         executables.define_ASTRAgenerator_command()
+        self.executables_ready = True
         return executables
 
     def clear(self) -> None:
@@ -1829,6 +1837,8 @@ class Framework(BaseModel):
         if check_lattice:
             if not self.check_lattice():
                 raise Exception("Lattice Error - check definitions")
+        if not self.executables_ready:
+            raise Exception("Executables not ready - check setup and paths")
         self.tracking = True
         self.progress = 0
         if files is None:

@@ -629,6 +629,8 @@ class elegantLattice(frameworkLattice):
             super().run_remote()
         elif not os.name == "nt":
             command = self.executables[self.code] + [self.objectname + ".ele"]
+            workdir = os.path.abspath(self.global_parameters["master_subdir"])
+            command = self.executables.build_command(command, workdir)
             if self.global_parameters["simcodes_location"] is None:
                 my_env = {**os.environ}
             else:

@@ -107,7 +107,7 @@ class executable:
             self.executable = self._substitute_variables(
                 self.settings[socket.gethostname().split(".")[0]][name]
             )
-        elif override_location in self.settings:
+        elif override_location in self.settings and name in self.settings[override_location]:
             self.executable = self._substitute_variables(
                 self.settings[override_location][name]
             )
@@ -249,8 +249,6 @@ class Executables(object):
         int:
             Number of CPUs to run
         """
-        print(self.runtime)
-        print(cmd)
         if self.runtime is None:
             return cmd
         return [
