@@ -4,6 +4,7 @@ import yaml
 import logging
 import subprocess
 from typing import Literal
+import platform
 
 def which(program):
     def is_exe(filepath):
@@ -21,11 +22,23 @@ def which(program):
 
     return None
 
+def default_sif_path(filename: str = "simcodes-apptainer_master.sif") -> str:
+    system = platform.system()
+    if system == "Linux":
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "apptainer", filename)
+    elif system == "Darwin":
+        return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "apptainer", filename)
+    else:
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "apptainer", filename)
+
+SIMCODES_SIF = default_sif_path()
+
 def ensure_image(
     runtime: Literal["docker", "apptainer"],
     image: str,
     build_context: str | None = None,
     sif: str | None = None,
+    simcodes_location: str | None = None,
 ) -> None:
     """
     Ensure the container image is available locally for the given runtime.
@@ -44,6 +57,9 @@ def ensure_image(
         missing, the image will be built rather than pulled. Docker only.
     sif : str, optional
         Path to the Apptainer .sif file. Used for Apptainer only.
+    simcodes_location: str, optional
+        Path to the SimCodes directory, used for substituting $simcodes$ in the sif path if pulling the image;
+        if `None`, this goes to a default location depending on the OS.
     """
     if runtime == "docker":
         result = subprocess.run(
@@ -51,26 +67,28 @@ def ensure_image(
             capture_output=True
         )
         if result.returncode == 0:
-            logging.info(f"Docker image '{image}' found locally.")
+            print(f"Docker image '{image}' found locally.")
             return
         if build_context is not None:
-            logging.info(f"Image '{image}' not found. Building from '{build_context}'...")
+            print(f"Image '{image}' not found. Building from '{build_context}'...")
             subprocess.run(
                 ['docker', 'build', '-t', image, build_context],
                 check=True
             )
         else:
-            logging.info(f"Image '{image}' not found locally. Pulling from registry...")
+            print(f"Image '{image}' not found locally. Pulling from registry...")
             subprocess.run(['docker', 'pull', image], check=True)
 
     elif runtime == "apptainer":
         if isinstance(sif, str) and os.path.isfile(sif):
-            logging.info(f"Apptainer image found at '{sif}'.")
+            print(f"Apptainer image found at '{sif}'.")
             return
         log = f"Apptainer .sif not found at '{sif}'." if isinstance(sif, str) else "Apptainer .sif path not provided."
-        logging.info(f"{log} Pulling from '{image}'...")
+        if simcodes_location is None:
+            simcodes_location = SIMCODES_SIF
+        print(f"{log} Pulling from '{image}' to {simcodes_location}...")
         subprocess.run(
-            ['apptainer', 'pull', f'oras://{image}'],
+            ['apptainer', 'pull', simcodes_location, f'oras://{image}'],
             check=True
         )
 
@@ -204,13 +222,15 @@ class Executables(object):
                 runtime="docker",
                 image=docker_cfg.get("image", ""),
                 build_context=global_parameters.get("docker_build_context", None),
+                simcodes_location=self.sim_codes_location,
             )
         elif self.runtime == "apptainer":
             apptainer_cfg = self.settings.get("apptainer", {})
             ensure_image(
                 runtime="apptainer",
                 image=apptainer_cfg.get("registry", ""),
-                sif=apptainer_cfg.get("sif", "").replace("$simcodes$", self.sim_codes_location)
+                sif=apptainer_cfg.get("sif", "").replace("$simcodes$", self.sim_codes_location),
+                simcodes_location=self.sim_codes_location,
             )
         self.ASTRAgenerator = None
         self.astra = None
