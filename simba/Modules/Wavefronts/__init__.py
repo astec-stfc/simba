@@ -23,7 +23,10 @@ import os
 import glob
 from pydantic import BaseModel
 from typing import Dict
-from pmd_beamphysics.wavefront.wavefront import Wavefront
+try:
+    from beamphysics.wavefront.wavefront import Wavefront
+except ImportError:
+    from pmd_beamphysics.wavefront.wavefront import Wavefront
 
 
 class wavefrontGroup(BaseModel):

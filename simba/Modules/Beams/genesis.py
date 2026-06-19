@@ -1,11 +1,19 @@
 import numpy as np
 import h5py
-from pmd_beamphysics import ParticleGroup
-from pmd_beamphysics.interfaces.genesis import (
-    genesis4_par_to_data,
-    write_genesis4_distribution,
-    write_genesis4_beam,
-)
+try:
+    from beamphysics import ParticleGroup
+    from beamphysics.interfaces.genesis import (
+        genesis4_par_to_data,
+        write_genesis4_distribution,
+        write_genesis4_beam,
+    )
+except ImportError:
+    from pmd_beamphysics import ParticleGroup
+    from pmd_beamphysics.interfaces.genesis import (
+        genesis4_par_to_data,
+        write_genesis4_distribution,
+        write_genesis4_beam,
+    )
 from .openpmd import read_openpmd_beam_file, write_openpmd_beam_file
 from ..units import UnitValue
 from .. import pmd_units
