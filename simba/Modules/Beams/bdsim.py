@@ -13,7 +13,7 @@ def write_bdsim_beam_file(beam, filename):
                 [
                     beam.x.val,
                     beam.y.val,
-                    beam.z.val,
+                    beam.z.val - np.mean(beam.z.val),
                     beam.xp.val,
                     beam.yp.val,
                     beam.energy.val,
