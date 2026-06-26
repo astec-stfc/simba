@@ -26,3 +26,4 @@ docs/source/examples/notebooks/getting_started/*
 docs/source/examples/notebooks/utility_functions/*
 docs/source/examples/notebooks/changes.yaml
 docs/source/examples/notebooks/params.yaml
+examples/testing/

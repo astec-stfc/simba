@@ -376,6 +376,7 @@ class Framework(BaseModel):
         direc: str
             Directory to which files will be written. If directory does not exist, create it.
         """
+
         self.subdirectory = os.path.abspath(direc)
         self.global_parameters["master_subdir"] = self.subdirectory
         if not os.path.exists(self.subdirectory):
@@ -622,6 +623,9 @@ class Framework(BaseModel):
                     elements = yaml.safe_load(stream)["elements"]
             for name, elem in list(elements.items()):
                 self.read_Element(name, elem)
+
+    def load_settings(self, *args, **kwargs):
+        self.loadSettings(*args, **kwargs)
 
     def loadSettings(
         self,
@@ -1134,7 +1138,7 @@ class Framework(BaseModel):
             ):
                 if code.lower() not in supported_codes:
                     raise NotImplementedError(f"code {code} is not supported")
-                # print('Changing lattice ', name, ' to ', code.lower())
+                # print('Changing lattice ', latticename, ' to ', code.lower())
                 currentLattice = self.latticeObjects[latticename]
                 if currentLattice.remote_setup and not nowarn:
                     warn(f"Resetting lattice {latticename} to local tracking;"

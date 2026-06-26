@@ -38,6 +38,9 @@ class FrameworkSettings(Munch):
             if k in self.isthistheissue:
                 self.update({k: v})
 
+    def load_settings(self, filename):
+        return self.loadSettings(filename)
+
     def copy(self):
         return unmunchify(self)
 

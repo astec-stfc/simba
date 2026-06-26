@@ -139,7 +139,7 @@ class astraLattice(frameworkLattice):
             self.file_block["input"] = {}
         if "ASTRAsettings" not in self.globalSettings:
             self.globalSettings["ASTRAsettings"] = {}
-        newrun_settings = self.file_block["input"] | self.globalSettings["ASTRAsettings"]
+        newrun_settings = self.file_block["input"] | dict(self.globalSettings.get("ASTRAsettings", {})).get("newrun", {})
         settings = deepcopy(newrun_settings)
         if "twiss" in settings:
             settings.pop("twiss")
@@ -389,7 +389,7 @@ class astraLattice(frameworkLattice):
         """
         return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
 
-    def get_screen_scaling(self) -> int:
+    def get_screen_scaling(self, additional_elements: list = []) -> int:
         """
         Determine the screen scaling factor for screens and BPMs
 
@@ -403,10 +403,11 @@ class astraLattice(frameworkLattice):
             if "run_no" in self.global_parameters
             else 1
         )
+        screens_and_bpms = self.screens_and_bpms + additional_elements
         for mult in [100, 1000, 10]:
             foundscreens = [
                 self.find_ASTRA_filename(self.objectname, e, master_run_no, mult)
-                for e in self.screens_and_bpms
+                for e in screens_and_bpms
             ]
             if all(foundscreens):
                 return mult
@@ -421,7 +422,14 @@ class astraLattice(frameworkLattice):
         cathode = (
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
-        mult = self.get_screen_scaling()
+        endelem = PhysicalBaseElement(
+            name=self.end,
+            hardware_class="Simulation",
+            hardware_type="",
+            machine_area="",
+            physical=PhysicalElement(middle=[0, 0, self.zstop])
+        )
+        mult = self.get_screen_scaling(additional_elements=[endelem])
         svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
         zvals = [a[-1] for a in self.getZValues()]
         for e in self.screens_and_bpms:
@@ -434,13 +442,6 @@ class astraLattice(frameworkLattice):
                 sval=sval,
             )
         self.screen_threaded_function.gather()
-        endelem = PhysicalBaseElement(
-            name=self.end,
-            hardware_class="",
-            hardware_type="",
-            machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.zstop])
-        )
         self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
 
     def astra_to_hdf5(
@@ -569,9 +570,9 @@ class astraLattice(frameworkLattice):
             )
             for f in [
                 tempfilename,
-                tempfilenameendnozstart,
+                tempfilenamenozstart,
                 tempfilenameend,
-                tempfilenamenozstart
+                tempfilenameendnozstart
             ]:
                 if os.path.isfile(
                     os.path.join(self.global_parameters["master_subdir"], f)
