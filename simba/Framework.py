@@ -680,6 +680,8 @@ class Framework(BaseModel):
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
@@ -689,6 +691,8 @@ class Framework(BaseModel):
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
