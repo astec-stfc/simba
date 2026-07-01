@@ -6,9 +6,9 @@ from .. import constants
 
 def cumtrapz(x=[], y=[]):
     try:
-        return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
-    except AttributeError:
         return [np.trapezoid(x=x[:n], y=y[:n]) for n in range(len(x))]
+    except AttributeError as e:
+        return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 def read_opal_twiss_files(self, filename, startS=0, reset=True):
     if reset:
