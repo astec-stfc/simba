@@ -412,7 +412,7 @@ astra_charge:
       "MIN_GIRD_TRANS",
       "NX0",
       "NY0",
-      "NZF",
+      "NZ0",
       "SMOOTH_X",
       "SMOOTH_Y",
       "SMOOTH_Z",
@@ -420,7 +420,10 @@ astra_charge:
       "MAX_COUNT",
       "EXP_CONTROL",
       "NRAD",
-      "NLONG_IN"
+      "NLONG_IN",
+      "NXF",
+      "NYF",
+      "NZF",
     }
   framework_keywords: { "cathode", "space_charge_mode" }
 csrtrack_particles:

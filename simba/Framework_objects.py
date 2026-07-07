@@ -550,6 +550,11 @@ class frameworkLattice(BaseModel):
     initial_twiss: Dict = {}
     """Initial Twiss parameters for the lattice, used for tracking and analysis."""
 
+    disabled_elements: set = set()
+    """Names of screens/markers/BPMs/apertures disabled via :func:`disable_screens`.
+    Excluded from :attr:`section` (and therefore from every per-code writer's
+    output, e.g. ASTRA/GPT/Ocelot), not just tracked as inert state."""
+
     _section: SectionLatticeTranslator = None
     """LAURA SectionLatticeTranslator object"""
 
@@ -1069,6 +1074,60 @@ class frameworkLattice(BaseModel):
             key=lambda x: x.physical.start.z,
         )
 
+    def disable_screens(
+        self,
+        screens: str | list | tuple = "all",
+        disable: bool = True,
+        excludes: str | list | tuple = (),
+    ) -> None:
+        """
+        Mark screens/markers/BPMs/apertures as disabled (or re-enable them).
+        Ported from SimFrame's `FrameworkLattice.disable_screens`.
+
+        Unlike SimFrame (which sets a `disable` attribute directly on each
+        element), LAURA's element models don't have a `disable` field and
+        reject unrecognised attributes, so the disabled state is tracked here
+        instead, in :attr:`disabled_elements`, and consulted by :attr:`section`
+        (see there) so disabled elements are excluded from every per-code
+        writer (ASTRA, GPT, Ocelot, ...) -- they never reach
+        ``self.section.to_<code>()`` at all.
+
+        Parameters
+        ----------
+        screens: str or list or tuple
+            Names of elements to disable/re-enable, or ``"all"`` for every
+            screen/marker/BPM/aperture in the lattice.
+        disable: bool
+            ``True`` to disable, ``False`` to re-enable.
+        excludes: str or list or tuple
+            Name(s) to exclude when ``screens == "all"``.
+        """
+        if isinstance(excludes, str):
+            excludes = [excludes]
+        # Candidate names are sourced from `elementObjects` (this lattice's
+        # original, un-filtered element dict) rather than `self.elements`/
+        # `screens_and_markers_and_bpms` -- those read through `self.section`,
+        # which itself excludes `disabled_elements`, so using them here would
+        # make previously-disabled elements invisible to a later re-enable call.
+        if isinstance(screens, str) and screens.lower() == "all":
+            names = [
+                name
+                for name, elem in self.elementObjects.items()
+                if elem.hardware_type.lower()
+                in ("screen", "marker", "beam_position_monitor", "aperture", "collimator")
+                and name not in excludes
+            ]
+        else:
+            if isinstance(screens, str):
+                screens = [screens]
+            names = [s for s in screens if s in self.elementObjects and s not in excludes]
+        if disable:
+            self.disabled_elements.update(names)
+        else:
+            self.disabled_elements.difference_update(names)
+        # Force `section` to rebuild against the new `disabled_elements`.
+        self._section = None
+
     @property
     def wigglers(self) -> list:
         """
@@ -1192,6 +1251,12 @@ class frameworkLattice(BaseModel):
         """
         Property to get the lattice elements as a `SectionLatticeTranslator`.
 
+        Elements named in :attr:`disabled_elements` (see :func:`disable_screens`)
+        are excluded here -- this is the single point every per-code writer
+        (ASTRA, GPT, Ocelot, ...) goes through via ``self.section.to_<code>()``,
+        so disabling an element removes it from every generated output, not
+        just one code.
+
         Returns
         -------
         SectionLatticeTranslator
@@ -1199,6 +1264,7 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
+            keys = [k for k in keys if k not in self.disabled_elements]
             vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
             section = SectionLattice(
                 order=keys,

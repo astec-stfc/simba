@@ -28,6 +28,7 @@ import numpy as np
 from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement, Dipole
+import laura.models.element as laura_elements
 from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -55,6 +56,7 @@ from .FrameworkHelperFunctions import (
 from pydantic import (
     BaseModel,
     ConfigDict,
+    ValidationError,
 )
 from warnings import warn
 
@@ -1348,6 +1350,92 @@ class Framework(BaseModel):
         elems = self.getElementType(elementType)
         for elementName in [e["name"] for e in elems]:
             self.modifyElement(elementName, parameter, value)
+
+    def replace_element(
+        self,
+        name: str | None = None,
+        type: str | None = None,
+        **kwargs,
+    ) -> PhysicalBaseElement:
+        """
+        Replace an element with a new element of a different type, carrying
+        over the original element's properties (overridden by any explicit
+        keyword arguments). Ported from SimFrame's `Framework.replace_element`.
+
+        Properties that don't apply to the new type are silently dropped
+        (LAURA elements ignore unrecognised constructor keywords); properties
+        that share a name but expect an incompatible value between the two
+        types (e.g. a differently-shaped nested sub-model) can still raise a
+        validation error — this mirrors the same risk in SimFrame's version,
+        it is not a hardened universal converter.
+
+        ``hardware_type``/``hardware_model`` are always dropped from the
+        carried-over properties so the new class's own identity default
+        applies (every concrete LAURA element class defines these); the same
+        is tried for ``hardware_class``, but a few classes (e.g. ``Drift``)
+        have no class-level default for it, so it's carried over from the
+        original element as a fallback if construction fails without it.
+
+        Parameters
+        ----------
+        name: str, optional
+            Name of the element to replace (falls back to `kwargs["name"]`).
+        type: str
+            Name of the new LAURA element class (e.g. ``"Quadrupole"``,
+            ``"Drift"``) — looked up via ``getattr(laura.models.element, type)``.
+        **kwargs:
+            Additional properties to set on the new element, overriding any
+            same-named property carried over from the original element.
+
+        Returns
+        -------
+        :class:`~laura.models.element.PhysicalBaseElement`
+            The newly constructed element. Also stored in :attr:`elementObjects`,
+            and propagated into any lattice's `elementObjects` that referenced
+            the original element under this name.
+
+        Raises
+        ------
+        NameError
+            If no name is given and none is found in `kwargs`.
+        """
+        if name is None:
+            if "name" not in kwargs:
+                raise NameError("Element does not have a name")
+            name = kwargs["name"]
+        original_element = self.getElement(name)
+        dumped = original_element.model_dump()
+        element_cls = getattr(laura_elements, type)
+        exclude = {"name", "hardware_type", "hardware_model"}
+        original_properties = {k: v for k, v in dumped.items() if k not in exclude}
+        new_properties = merge_two_dicts(kwargs, original_properties)
+        try:
+            element = element_cls(name=name, **new_properties)
+        except ValidationError:
+            # Some element classes (e.g. Drift) have no class-level default
+            # for hardware_class -- fall back to carrying over the original.
+            new_properties.setdefault("hardware_class", dumped.get("hardware_class"))
+            element = element_cls(name=name, **new_properties)
+        self.elementObjects[name] = element
+        for lattice in self.latticeObjects.values():
+            if hasattr(lattice, "elementObjects") and name in lattice.elementObjects:
+                lattice.elementObjects[name] = element
+        return element
+
+    def disable_screens(self, *args, **kwargs) -> None:
+        """
+        Disable (or re-enable) screens/markers/BPMs/apertures across all
+        lattices. Ported from SimFrame's `Framework.disable_screens`; delegates
+        to each lattice's own :func:`~simba.Framework_objects.frameworkLattice.disable_screens`.
+
+        See :func:`~simba.Framework_objects.frameworkLattice.disable_screens`
+        for the accepted arguments.
+        """
+        for latt in self.latticeObjects.values():
+            try:
+                latt.disable_screens(*args, **kwargs)
+            except AttributeError:
+                pass
 
     def modifyLattice(
         self,

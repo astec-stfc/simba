@@ -637,7 +637,7 @@ class elegantLattice(frameworkLattice):
                     "RPN_DEFNS": os.path.abspath(
                         self.global_parameters["simcodes_location"]
                     )
-                    + "/Elegant/defns_linux.rpn",
+                    + "/Elegant/linux/defns_linux.rpn",
                 }
             with open(
                 os.path.abspath(
@@ -665,7 +665,7 @@ class elegantLattice(frameworkLattice):
                         "RPN_DEFNS",
                         (
                             os.path.abspath(self.global_parameters["simcodes_location"])
-                            + "/Elegant/defns.rpn"
+                            + "/Elegant/nt/defns.rpn"
                         ).replace("/", "\\"),
                     ]
                     + command[1:]
@@ -703,7 +703,7 @@ class elegantLattice(frameworkLattice):
                                 os.path.abspath(
                                     self.global_parameters["simcodes_location"]
                                 )
-                                + "/Elegant/defns.rpn"
+                                + "/Elegant/nt/defns.rpn"
                             ).replace("/", "\\")
                         },
                     )

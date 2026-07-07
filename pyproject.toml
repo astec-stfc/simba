@@ -45,6 +45,11 @@ dependencies = [
     "xopt",
     "Wake-T>=0.8.0",
     "laura-accelerator",
+    # RF-Track (simba.Codes.RFTrack.RFTrack.rftrackLattice) is not distributed
+    # on PyPI, so it cannot be listed here like the other codes above; install
+    # the wheel manually from the RF-Track page (CERN, A. Latina) into this
+    # environment. simba imports it lazily (only inside rftrackLattice's
+    # methods), so simba itself remains importable without it.
 ]
 
 requires-python = ">= 3.10"

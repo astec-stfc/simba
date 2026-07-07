@@ -129,7 +129,9 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
     framework.track()
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
     os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/M1.openpmd.hdf5")
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/test.def")
+    # save_settings()'s `directory` defaults to "." (cwd), not the test file's
+    # own directory -- remove it from where it was actually written.
+    os.remove("test.def")
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):
@@ -204,7 +206,9 @@ def test_modifyElement(sample_framework):
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
-    assert all(e.alias == "mag" for e in fw_obj.elementObjects.values())
+    # LAURA's `alias` field coerces a plain string into a single-element list
+    # (it supports comma-separated multi-alias strings too).
+    assert all(e.alias == ["mag"] for e in fw_obj.elementObjects.values())
 
 def test_modifyElementType(sample_framework):
     fw_obj = sample_framework

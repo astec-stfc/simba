@@ -34,6 +34,7 @@ from . import cheetah
 from . import opal
 from . import xsuite
 from . import genesis
+from . import rftrack
 
 try:
     from . import plot
@@ -54,6 +55,7 @@ codes = {
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
     "genesis": genesis.read_genesis_twiss_files,
+    "rftrack": rftrack.read_rftrack_transport_table,
 }
 
 code_signatures = [
@@ -431,6 +433,7 @@ class twiss(BaseModel):
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
             "genesis": genesis.read_genesis_twiss_files,
+            "rftrack": rftrack.read_rftrack_transport_table,
         }
         self.code_signatures = code_signatures
 
@@ -510,6 +513,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return genesis.read_genesis_twiss_files(self, *args, **kwargs)
+
+    def read_rftrack_transport_table(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return rftrack.read_rftrack_transport_table(self, *args, **kwargs)
 
     def save_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
