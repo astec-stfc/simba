@@ -40,6 +40,7 @@ from .Codes.Generators import (
     ASTRAGenerator,
     GPTGenerator,
     OPALGenerator,
+    RFTrackGenerator,
     frameworkGenerator,
 )
 from .Framework_objects import runSetup
@@ -1511,6 +1512,8 @@ class Framework(BaseModel):
                 code = GPTGenerator
             # elif kwargs["code"].lower() == "opal":
             #     code = OPALGenerator
+            elif kwargs["code"].lower() in ["rftrack", "rf_track"]:
+                code = RFTrackGenerator
             elif kwargs["code"].lower() == "astra":
                 code = ASTRAGenerator
             elif kwargs["code"].lower() in ["generic", "framework", "simba"]:
@@ -1554,6 +1557,8 @@ class Framework(BaseModel):
             generator = GPTGenerator(**old_kwargs)
         # elif generator.lower() == "opal":
         #     generator = OPALGenerator(**old_kwargs)
+        elif generator.lower() in ["rftrack", "rf_track"]:
+            generator = RFTrackGenerator(**old_kwargs)
         elif generator.lower() in ["generic", "framework", "simba"]:
             generator = frameworkGenerator(**old_kwargs)
         else:

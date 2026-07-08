@@ -104,6 +104,55 @@ def beam_to_bunch6d(self, charge: float = -1.0):
     return rft.Bunch6d(mass_MeV, population, charge, matrix)
 
 
+def bunch6dt_to_beam(self, bunch, s: float = 0.0) -> None:
+    """
+    Update this SIMBA ``beam`` in place from an ``RF_Track.Bunch6dT``.
+
+    Used by :class:`~simba.Codes.Generators.rftrack.RFTrackGenerator` for the
+    photocathode/emission bunch produced by ``RF_Track.Bunch6dT_Generator``.
+    Unlike :func:`bunch6d_to_beam`, this reads a *time-based* bunch directly
+    (Bunch6dT -> Bunch6d conversion is not supported by RF-Track, see
+    ``RFTrack/RFTrack_API_notes.md`` §"Conversion"): Cartesian momenta ``Px/Py/Pz``
+    [MeV/c] and the per-particle creation time ``t0`` [mm/c] are taken straight
+    from the bunch rather than reconstructed from angles.
+
+    Parameters
+    ----------
+    bunch: RF_Track.Bunch6dT
+        Bunch emitted by the generator.
+    s: float
+        Arc-length position [m] stored on ``beam.s`` (0 at the cathode).
+    """
+    ps = bunch.get_phase_space("%X %Y %Z %Px %Py %Pz %t0 %m %Q %N")
+    x, y, z, px, py, pz, t0, m, q, n = ps.T
+
+    self._beam.x = UnitValue(x * 1e-3, units="m")
+    self._beam.y = UnitValue(y * 1e-3, units="m")
+    self._beam.z = UnitValue(z * 1e-3, units="m")
+    self._beam.px = UnitValue(_momentum_MeVc_to_si(px), units="kg*m/s")
+    self._beam.py = UnitValue(_momentum_MeVc_to_si(py), units="kg*m/s")
+    self._beam.pz = UnitValue(_momentum_MeVc_to_si(pz), units="kg*m/s")
+    # %t0 (creation time) is in mm/c; -> seconds. This is the emission-time
+    # spread of a cathode bunch, matching what ASTRA/GPT generators store as t.
+    self._beam.t = UnitValue(t0 * 1e-3 / constants.speed_of_light, units="s")
+    self._beam.particle_mass = UnitValue(
+        m * 1e6 * constants.elementary_charge / constants.speed_of_light**2,
+        units="kg",
+    )
+    self._beam.particle_rest_energy = UnitValue(
+        self._beam.particle_mass * constants.speed_of_light**2, units="J"
+    )
+    self._beam.particle_rest_energy_eV = UnitValue(
+        self._beam.particle_rest_energy / constants.elementary_charge, units="eV/c"
+    )
+    self._beam.particle_charge = UnitValue(q * constants.elementary_charge, units="C")
+    self._beam.nmacro = UnitValue(n)
+    self._beam.charge = UnitValue(q * n * constants.elementary_charge, units="C")
+    self._beam.total_charge = UnitValue(np.sum(self._beam.charge), units="C")
+    self._beam.status = UnitValue(np.full(len(x), 5))
+    self._beam.s = UnitValue(s, units="m")
+
+
 def bunch6d_to_beam(self, bunch, zstart: float = 0.0, s: float = None) -> None:
     """
     Update this SIMBA ``beam`` in place from a tracked ``RF_Track.Bunch6d``.

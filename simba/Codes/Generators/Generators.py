@@ -143,7 +143,7 @@ with open(
 
 allowed_species = ["electron", "proton", "positron", "hydrogen"]
 
-cathode_codes = ["ASTRA", "astra", "GPT", "gpt"]
+cathode_codes = ["ASTRA", "astra", "GPT", "gpt", "rftrack", "RFTrack", "RF_Track"]
 
 
 class frameworkGenerator(BaseModel):
@@ -224,7 +224,7 @@ class frameworkGenerator(BaseModel):
     name: str = "generator"
     """Name of this generator class"""
 
-    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
+    code: Literal["ASTRA", "astra", "GPT", "gpt", "rftrack", "RFTrack", "RF_Track", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
     """Simulation code to be used for generating distributions"""
 
     sigma_x: float = 0.0

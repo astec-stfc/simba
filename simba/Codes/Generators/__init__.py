@@ -4,3 +4,4 @@ from .Generators import (
 from .astra import ASTRAGenerator
 from .gpt import GPTGenerator
 from .opal import OPALGenerator
+from .rftrack import RFTrackGenerator
