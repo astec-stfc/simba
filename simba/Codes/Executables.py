@@ -84,11 +84,12 @@ def ensure_image(
             print(f"Apptainer image found at '{sif}'.")
             return
         log = f"Apptainer .sif not found at '{sif}'." if isinstance(sif, str) else "Apptainer .sif path not provided."
-        if simcodes_location is None:
-            simcodes_location = SIMCODES_SIF
-        print(f"{log} Pulling from '{image}' to {simcodes_location}...")
+        if not isinstance(sif, str):
+            sif = SIMCODES_SIF
+        os.makedirs(os.path.dirname(sif), exist_ok=True)
+        print(f"{log} Pulling from '{image}' to {sif}...")
         subprocess.run(
-            ['apptainer', 'pull', simcodes_location, f'oras://{image}'],
+            ['apptainer', 'pull', sif, f'oras://{image}'],
             check=True
         )
 
@@ -303,7 +304,8 @@ class Executables(object):
 
     def define_ASTRAgenerator_command(
             self,
-            location: str | None = None
+            location: str | None = None,
+            override_location: str | None = None,
     ) -> None:
         """
         Define the ASTRA generator :class:`~executable` object and sets :attr:`~ASTRAgenerator`
@@ -312,12 +314,16 @@ class Executables(object):
         ----------
         location: str, optional
             Location of ASTRA generator executable; overrides `default`.
+        override_location: str, optional
+            Name of remote server on which to run the executable;
+            must be defined in `Executables.yaml`
         """
         ASTRAgeneratorExecutable = executable(
             "astragenerator",
             settings=self.settings,
             location=location,
             default=[self.sim_codes_location + "ASTRA/generator"],
+            override_location=override_location,
         )
         self.ASTRAgenerator = ASTRAgeneratorExecutable.executable
 
