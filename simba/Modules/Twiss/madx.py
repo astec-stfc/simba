@@ -79,7 +79,15 @@ def read_madx_twiss_files(self, filename, startS=0, reset=True):
     ex = float(headers.get("EX", 0.0))
     ey = float(headers.get("EY", 0.0))
     sigma_dpp = float(headers.get("SIGE", 0.0))
-    sigt = float(headers.get("SIGT", 0.0))
+    # Bunch length: per-row SIGMA_T [s] if present (staged twiss propagates the
+    # longitudinal sigma matrix, so it captures chicane compression); else the
+    # constant injection SIGT header (a plain linear twiss can't compress).
+    if "SIGMA_T" in madxData.columns:
+        sigma_t_row = col("SIGMA_T")
+        sigt = sigma_t_row * constants.speed_of_light  # bunch length [m]
+    else:
+        sigt = float(headers.get("SIGT", 0.0))
+        sigma_t_row = np.full(n, sigt / constants.speed_of_light)
 
     sigma_x = np.sqrt(betx * ex + (eta_x * sigma_dpp) ** 2)
     sigma_y = np.sqrt(bety * ey + (eta_y * sigma_dpp) ** 2)
@@ -124,10 +132,8 @@ def read_madx_twiss_files(self, filename, startS=0, reset=True):
     self.sigma_y.val = np.append(self.sigma_y.val, sigma_y)
     self.sigma_xp.val = np.append(self.sigma_xp.val, sigma_xp)
     self.sigma_yp.val = np.append(self.sigma_yp.val, sigma_yp)
-    self.sigma_z.val = np.append(self.sigma_z.val, np.full(n, sigt))
-    self.sigma_t.val = np.append(
-        self.sigma_t.val, np.full(n, sigt / constants.speed_of_light)
-    )
+    self.sigma_z.val = np.append(self.sigma_z.val, np.broadcast_to(sigt, n))
+    self.sigma_t.val = np.append(self.sigma_t.val, sigma_t_row)
     self.sigma_cp.val = np.append(self.sigma_cp.val, sigma_dpp * cp)
     self.sigma_p.val = np.append(self.sigma_p.val, sigma_dpp * cp * self.q_over_c)
 
