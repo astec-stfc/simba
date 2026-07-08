@@ -203,7 +203,7 @@ class xsuiteLattice(frameworkLattice):
             self.global_parameters["beam"],
             xsuitebeamfilename,
             write=write,
-            s_start=self.startObject.physical.start.z,
+            s_start=self.startObject.physical.s,
         )
 
     def run(self) -> None:
@@ -295,7 +295,7 @@ class xsuiteLattice(frameworkLattice):
             )
         df = self.tws.to_pandas()
         if self.ref_s is None:
-            self.ref_s = self.startObject.physical.start.z
+            self.ref_s = self.startObject.physical.s
         df["s"] += self.ref_s
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.getZValues()]

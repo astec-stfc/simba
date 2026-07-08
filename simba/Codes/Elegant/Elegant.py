@@ -403,7 +403,7 @@ class elegantLattice(frameworkLattice):
                 p_central=np.mean(self.global_parameters["beam"].BetaGamma),
                 seed=seed,
                 # losses="%s.loss",
-                s_start=self.startObject.physical.start.z,
+                s_start=self.startObject.physical.s,
                 use_beamline=self.objectname,
             )
 

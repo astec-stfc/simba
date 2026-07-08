@@ -52,6 +52,13 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit) -> None:
     )
 
     self.z.val = np.append(self.z.val, z)
+    # ponytail: ASTRA's Xemit files report only Cartesian z per integration
+    # step (no native arc-length column, unlike elegant/ocelot/rftrack/xsuite/
+    # cheetah/opal), and this reader has no lattice/Trajectory reference to
+    # derive a true per-sample S from (load_directory() is a pure file scan).
+    # s duplicates z here as a documented limitation, not a fix. Upgrade path:
+    # thread a resolved S(z) table (see Codes/ASTRA/ASTRA.py postProcess's
+    # getSValues()/getZValues()/np.interp pattern) through load_directory().
     self.s.val = np.append(self.s.val, z)
     self.t.val = np.append(self.t.val, t)
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, e_kin)

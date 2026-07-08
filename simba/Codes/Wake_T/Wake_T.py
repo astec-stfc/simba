@@ -130,7 +130,7 @@ class waketLattice(frameworkLattice):
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
         self.pin = beam_to_particle_bunch(
             self.global_parameters["beam"],
-            zstart=mean(self.global_parameters["beam"].z.val),
+            zstart=mean(self.global_parameters["beam"].s.val),
         )
 
     def run(self) -> None:
@@ -155,6 +155,7 @@ class waketLattice(frameworkLattice):
             self.global_parameters["beam"],
             self.bunch_list[-1],
             zpos=self.endObject.physical.end.z,
+            s=self.endObject.physical.s,
         )
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],

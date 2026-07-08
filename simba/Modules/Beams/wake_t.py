@@ -4,7 +4,7 @@ from ..units import UnitValue
 import h5py
 from os.path import basename
 
-def particle_bunch_to_beam(self, bunch, zpos=0):
+def particle_bunch_to_beam(self, bunch, zpos=0, s=None):
     self._beam.particle_mass = UnitValue(
         np.full(len(bunch.x), constants.m_e),
         units="kg",
@@ -20,6 +20,7 @@ def particle_bunch_to_beam(self, bunch, zpos=0):
     self._beam.x = UnitValue(bunch.x, "m")
     self._beam.y = UnitValue(bunch.y, "m")
     self._beam.z = UnitValue(zpos + bunch.xi, "m")
+    self._beam.s = UnitValue(zpos if s is None else s, "m")
     self._beam.t = UnitValue(self._beam.z.val / (self.Bz * constants.speed_of_light), "s")
     self._beam.px = UnitValue(bunch.px * self.particle_rest_energy_eV * self.q_over_c, "kg*m/s")
     self._beam.py = UnitValue(bunch.py * self.particle_rest_energy_eV * self.q_over_c, "kg*m/s")

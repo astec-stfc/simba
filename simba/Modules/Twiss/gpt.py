@@ -45,6 +45,11 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
                 gdfbeamdata.avgz[order[i]] = z_sort[i] + offset
 
             # original code begins
+            # ponytail: GDF beam-emit files only report Cartesian avgz (no
+            # native arc-length), and this reader has no lattice/Trajectory
+            # reference to derive a true S from -- same limitation as
+            # astra.py's reader. s duplicates z here as a documented gap, not
+            # a fix.
             self.z.val = np.append(self.z.val, gdfbeamdata.avgz)
             self.s.val = np.append(self.s.val, gdfbeamdata.avgz)
 

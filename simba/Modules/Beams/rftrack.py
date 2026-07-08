@@ -43,7 +43,13 @@ def get_P_Q(self, charge: float = -1.0) -> float:
     charge: float
         Particle charge in units of e (default -1, electrons).
     """
-    return float(np.mean(_momentum_si_to_MeVc(self.cpz.val))) / charge
+    # NOTE: same double-conversion pitfall as `beam_to_bunch6d` -- `pz` (real
+    # SI kg*m/s), not `cpz` (already-computed eV/c), is `_momentum_si_to_MeVc`'s
+    # expected input. Also divide by `charge` [e] (the parameter this function
+    # takes for exactly that purpose), not `constants.elementary_charge` [C] --
+    # dividing by the latter turns a ~35 MV/c answer into ~1e28. Verified
+    # against a real end-to-end simba.Framework().track() run.
+    return float(np.mean(_momentum_si_to_MeVc(self.pz.val))) / charge
 
 
 def beam_to_bunch6d(self, charge: float = -1.0):
@@ -71,11 +77,24 @@ def beam_to_bunch6d(self, charge: float = -1.0):
     )
     population = float(abs(np.sum(self.Q.val)) / constants.elementary_charge)
 
-    x = self.x.in_units_of("mm")
-    y = self.y.in_units_of("mm")
-    cpx_MeVc = _momentum_si_to_MeVc(self.cpx.val)
-    cpy_MeVc = _momentum_si_to_MeVc(self.cpy.val)
-    cpz_MeVc = _momentum_si_to_MeVc(self.cpz.val)
+    # NOTE: `in_units_of` only recognises full-word prefixes ("milli", "kilo",
+    # ...) -- short forms like "mm" silently no-op (its dash-appending logic
+    # can't match SHORT_PREFIX_FACTOR's dash-less keys), so this used to feed
+    # RF-Track x/y still in metres while labelling them mm (1000x too small),
+    # corrupting the x-xp/y-yp correlation RF-Track's alpha/beta come from.
+    # Verified against a real end-to-end simba.Framework().track() run.
+    x = self.x.in_units_of("milli")
+    y = self.y.in_units_of("milli")
+    # NOTE: use `px`/`py`/`pz` (the real settable SI momentum fields, kg*m/s)
+    # here, not `cpx`/`cpy`/`cpz` -- those are already-computed eV/c properties
+    # (`px / q_over_c`, see Modules/Beams/Particles/__init__.py), so feeding
+    # them into `_momentum_si_to_MeVc` (which expects true SI input) silently
+    # double-converted every momentum by a further `1/q_over_c` (~1.87e27):
+    # verified against a real end-to-end simba.Framework().track() run, where
+    # RF-Track's output momenta came out ~27 orders of magnitude too large.
+    cpx_MeVc = _momentum_si_to_MeVc(self.px.val)
+    cpy_MeVc = _momentum_si_to_MeVc(self.py.val)
+    cpz_MeVc = _momentum_si_to_MeVc(self.pz.val)
     xp = (cpx_MeVc / cpz_MeVc) * 1e3  # rad -> mrad
     yp = (cpy_MeVc / cpz_MeVc) * 1e3
     p = np.sqrt(cpx_MeVc**2 + cpy_MeVc**2 + cpz_MeVc**2)
@@ -85,7 +104,7 @@ def beam_to_bunch6d(self, charge: float = -1.0):
     return rft.Bunch6d(mass_MeV, population, charge, matrix)
 
 
-def bunch6d_to_beam(self, bunch) -> None:
+def bunch6d_to_beam(self, bunch, zstart: float = 0.0, s: float = None) -> None:
     """
     Update this SIMBA ``beam`` in place from a tracked ``RF_Track.Bunch6d``.
 
@@ -93,6 +112,16 @@ def bunch6d_to_beam(self, bunch) -> None:
     ----------
     bunch: RF_Track.Bunch6d
         Bunch after tracking through an RF-Track ``Lattice``.
+    zstart: float
+        Absolute Cartesian z position [m] of this bunch snapshot (e.g. the
+        screen or lattice-end position it was taken at) -- matches the
+        ``zstart`` convention of ``Modules/Beams/ocelot.py``'s
+        ``particle_array_to_beam``. Used to offset the per-particle z.
+    s: float, optional
+        Arc-length position [m] of this bunch snapshot (e.g. the LAURA-
+        resolved ``physical.s`` of the screen/lattice-end element), stored on
+        ``beam.s``. Defaults to ``zstart`` when not given (matches ``s=0``
+        default fallback used before this parameter existed).
     """
     ps = bunch.get_phase_space("%x %xp %y %yp %t %P %m %Q %N")
     x, xp, y, yp, t, p, m, q, n = ps.T
@@ -118,6 +147,27 @@ def bunch6d_to_beam(self, bunch) -> None:
         m * 1e6 * constants.elementary_charge / constants.speed_of_light**2,
         units="kg",
     )
-    self._beam.particle_charge = UnitValue(
-        np.sign(q) * n * constants.elementary_charge, units="C"
+    self._beam.particle_rest_energy = UnitValue(
+        self._beam.particle_mass * constants.speed_of_light**2, units="J"
     )
+    self._beam.particle_rest_energy_eV = UnitValue(
+        self._beam.particle_rest_energy / constants.elementary_charge, units="eV/c"
+    )
+    # `particle_charge` is the charge of a single real particle [C] (e.g. -e
+    # for an electron); `nmacro`/`charge` carry the macro-particle population
+    # and its resulting weighted charge -- matching the distinction
+    # Modules/Beams/gdf.py's `particle_charge`/`set_total_charge(nmacro *
+    # particle_charge)` draws (RF-Track's `%Q` is charge state in units of e,
+    # `%N` the real-particle population represented by each macro-particle).
+    self._beam.particle_charge = UnitValue(q * constants.elementary_charge, units="C")
+    self._beam.nmacro = UnitValue(n)
+    self._beam.charge = UnitValue(q * n * constants.elementary_charge, units="C")
+    self._beam.total_charge = UnitValue(np.sum(self._beam.charge), units="C")
+    self._beam.status = UnitValue(np.full(len(x), 5))
+    self._beam.z = UnitValue(
+        zstart
+        + (-1 * self._beam.Bz * constants.speed_of_light)
+        * (self._beam.t - np.mean(self._beam.t)),
+        units="m",
+    )
+    self._beam.s = UnitValue(zstart if s is None else s, units="m")

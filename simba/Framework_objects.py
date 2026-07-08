@@ -1665,9 +1665,12 @@ class frameworkLattice(BaseModel):
     ) -> list | dict:
         """
         Get the S values for the elements in the lattice.
-        This method calculates the cumulative length of the elements in the lattice,
-        starting from the entrance or the first element, depending on the `at_entrance` parameter.
-        It returns a list or dict of S values, which represent the positions of the elements along the lattice.
+
+        Sources true arc-length S from LAURA's resolved
+        :class:`~laura.models.trajectory.Trajectory` (via each element's
+        already-resolved ``physical.s``, bend-aware and
+        ``reference_placement``-aware) rather than re-deriving it by summing
+        element lengths.
 
         Parameters
         ----------
@@ -1686,7 +1689,9 @@ class frameworkLattice(BaseModel):
             If `as_dict` is True, returns a dictionary with element names as keys and their S values as values.
             If `as_dict` is False, returns a list of S values.
         """
-        elems = self.createDrifts() if drifts else self.elements
+        if drifts:
+            return self.section.get_resolved_s_values(as_dict=as_dict, at_entrance=at_entrance)
+        elems = self.elements
         s = [0]
         for e in list(elems.values()):
             s.append(s[-1] + e.physical.length)
@@ -1697,10 +1702,7 @@ class frameworkLattice(BaseModel):
 
     def getZValues(self, drifts: bool = True, as_dict: bool = False) -> list | dict:
         """
-        Get the Z values for the elements in the lattice.
-        This method calculates the cumulative length of the elements in the lattice,
-        starting from the entrance or the first element, depending on the `at_entrance` parameter.
-        It returns a list or dict of S values, which represent the positions of the elements along the lattice.
+        Get the Z values (Cartesian start/end position) for the elements in the lattice.
 
         Parameters
         ----------

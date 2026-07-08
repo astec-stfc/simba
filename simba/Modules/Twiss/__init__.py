@@ -56,6 +56,7 @@ codes = {
     "xsuite": xsuite.read_xsuite_twiss_files,
     "genesis": genesis.read_genesis_twiss_files,
     "rftrack": rftrack.read_rftrack_transport_table,
+    "rftrack_h5": rftrack.read_rftrack_twiss_files,
 }
 
 code_signatures = [
@@ -70,6 +71,7 @@ code_signatures = [
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
+    ["rftrack_h5", "_twiss.rftrack.hdf5"],
 ]
 
 twiss_defaults = {
@@ -423,18 +425,7 @@ class twiss(BaseModel):
         )
         self.reset_dicts()
         self.sddsindex = 0
-        self.codes = {
-            "elegant": elegant.read_elegant_twiss_files,
-            "gpt": gpt.read_gdf_twiss_files,
-            "astra": astra.read_astra_twiss_files,
-            "ocelot": ocelot.read_ocelot_twiss_files,
-            "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
-            "opal": opal.read_opal_twiss_files,
-            "cheetah": cheetah.read_cheetah_twiss_files,
-            "xsuite": xsuite.read_xsuite_twiss_files,
-            "genesis": genesis.read_genesis_twiss_files,
-            "rftrack": rftrack.read_rftrack_transport_table,
-        }
+        self.codes = codes
         self.code_signatures = code_signatures
 
     @model_validator(mode="before")
@@ -518,6 +509,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return rftrack.read_rftrack_transport_table(self, *args, **kwargs)
+
+    def read_rftrack_twiss_files(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return rftrack.read_rftrack_twiss_files(self, *args, **kwargs)
 
     def save_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -708,23 +704,27 @@ class twiss(BaseModel):
                 return self.codes[k]
         return None
 
-    def interpolate(self, z=None, value="z", index="z") -> float:
+    def interpolate(self, z=None, value="z", index="s") -> float:
         """
-        Interpolate a value at a given z position based on the twiss parameters.
+        Interpolate a value at a given position along ``index`` (default
+        ``"s"``, the LAURA-derived arc-length) based on the twiss parameters.
+        Pass ``index="z"`` for the old Cartesian-position behaviour.
 
         Parameters
         ----------
         z: float or None, optional
+            Position along ``index`` to interpolate at (kept as ``z`` for
+            backwards compatibility with existing call sites).
         value: str, optional
         index: str, optional
 
         Returns
         -------
         float:
-            The interpolated value at the specified z position.
+            The interpolated value at the specified position.
             If z is None, it returns the interpolated value for the entire range.
             If z is greater than the maximum value in the index, it returns a large number (10^6).
-            Otherwise, it returns the interpolated value at the specified z position.
+            Otherwise, it returns the interpolated value at the specified position.
         """
         if z is None:
             return np.interp(z, getattr(self, index), getattr(self, value).val)
@@ -788,6 +788,38 @@ class twiss(BaseModel):
             else:
                 # print('interpolate!', z, self['z'])
                 return self.interpolate(z=z.val, value=param, index="z")
+
+    def get_parameter_at_s(self, param: str, s: UnitValue, tol: float = 1e-3) -> float:
+        """
+        Get the value of a twiss parameter at a specific s (arc-length)
+        position -- the S-based counterpart of :meth:`get_parameter_at_z`,
+        preferred now that ``s`` is a genuine LAURA-derived arc-length for
+        most codes (see :mod:`simba.Modules.Twiss`).
+
+        Parameters
+        ----------
+        param: str
+            The name of the Twiss parameter
+        s: float
+            The s position of interest
+        tol: float, optional
+            The s-position tolerance
+
+        Returns
+        -------
+        float:
+            The value of the specified twiss parameter at the given s position.
+        """
+        if s in self.s.val:
+            idx = list(self.s.val).index(s)
+            return getattr(self, param)[idx]
+        else:
+            nearest_s = self.find_nearest(self.s, s)
+            if abs(nearest_s - s) < tol:
+                idx = list(self.s.val).index(nearest_s)
+                return getattr(self, param).val[idx]
+            else:
+                return self.interpolate(z=s.val, value=param, index="s")
 
     def get_parameter_at_element(self, param: str, element_name: str) -> float | None:
         """
@@ -897,6 +929,40 @@ class twiss(BaseModel):
                     twissdict[param] = self.interpolate(z=z, value=param, index="z")
                 return twissdict
 
+    def get_twiss_at_s(self, s: float, tol: float = 1e-3) -> Dict[str, float]:
+        """
+        Get the twiss parameters at a specific s (arc-length) position -- the
+        S-based counterpart of :meth:`get_twiss_at_z`, preferred now that
+        ``s`` is a genuine LAURA-derived arc-length for most codes.
+
+        Parameters
+        ----------
+        s: float
+            The s-position of interest
+        tol: float, optional
+            Tolerance on the s-position
+
+        Returns
+        -------
+        Dict[str, float]:
+            A dictionary of twiss parameters at the specified s position.
+        """
+        if s in self.s.val:
+            idx = list(self.s.val).index(s)
+            return self.get_twiss_dict(idx)
+        else:
+            nearest_s = self.find_nearest(self.s.val, s)
+            if abs(nearest_s - s) < tol:
+                idx = list(self.s.val).index(nearest_s)
+                return self.get_twiss_dict(idx)
+            else:
+                twissdict = {}
+                for param in [
+                    k for k in self.model_fields if isinstance(getattr(self, k), twissParameter) and getattr(self, k).dtype == "f"
+                ]:
+                    twissdict[param] = self.interpolate(z=s, value=param, index="s")
+                return twissdict
+
     if use_matplotlib:
 
         def plot(self, *args, **kwargs):
@@ -960,10 +1026,11 @@ class twiss(BaseModel):
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
+            "rftrack_h5": "_twiss.rftrack.hdf5",
         },
         preglob: str = "*",
         verbose: bool = False,
-        sortkey: str = "z",
+        sortkey: str = "s",
     ) -> "twiss":
         """
         Load twiss files from a specified directory based on the provided types and preglob pattern.
@@ -1026,10 +1093,11 @@ def load_directory(
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",
+        "rftrack_h5": "_twiss.rftrack.hdf5",
     },
     preglob="*",
     verbose=False,
-    sortkey="z",
+    sortkey="s",
 ) -> twiss:
     """
     Load in all Twiss output files from a directory and create a

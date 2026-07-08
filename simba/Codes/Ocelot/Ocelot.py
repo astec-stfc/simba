@@ -360,6 +360,7 @@ class ocelotLattice(frameworkLattice):
                     filename=f"{subdir}/{w.name}.openpmd.hdf5",
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
+                    s_start=w.physical.s,
                     ref_idx=self.ref_idx,
                 )
             ]
@@ -372,6 +373,7 @@ class ocelotLattice(frameworkLattice):
                 filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
+                s_start=self.endObject.physical.s,
                 ref_idx=self.ref_idx,
             )
         ]

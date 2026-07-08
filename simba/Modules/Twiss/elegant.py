@@ -143,13 +143,20 @@ def read_elegant_twiss_files(self, filename, startS=0, reset=True):
         self.sigma_z.val = np.append(
             self.sigma_z.val, elegantData["St"] * (beta * constants.speed_of_light)
         )
-        # self.append('sigma_cp', elegantData['Sdelta'] * cp )
-        self.sigma_cp.val = np.append(
-            self.sigma_cp.val, elegantData["Sdelta"] * cp / constants.elementary_charge
-        )
-        self.mean_cp.val = np.append(
-            self.mean_cp.val, elegantData["Cdelta"] * cp / constants.elementary_charge
-        )
+        # `cp` [eV/c] is already the reference momentum computed above -- no
+        # further `/constants.elementary_charge` division belongs here (that
+        # turned an eV/c-scale number into something ~19 orders of magnitude
+        # off). `Sdelta`/`Cdelta` are dimensionless fractional momentum
+        # spread/centroid-offset (from the reference), so `sigma_cp` is
+        # `Sdelta * cp` directly (matches every other code's reader, e.g.
+        # Modules/Twiss/astra.py's `(rms_e / e_kin) * cp`), and `mean_cp` is
+        # just `cp` itself, not `Cdelta * cp` (that discarded the actual
+        # reference momentum and kept only the small, often-negative,
+        # centroid deviation -- verified against a real Twiss_Summary.hdf5,
+        # where mean_cp for Elegant came out negative and orders of magnitude
+        # too small).
+        self.sigma_cp.val = np.append(self.sigma_cp.val, elegantData["Sdelta"] * cp)
+        self.mean_cp.val = np.append(self.mean_cp.val, cp)
         # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
 
         self.mux.val = np.append(self.mux.val, elegantData["psix"] / (2 * constants.pi))

@@ -16,7 +16,7 @@ def plot(
     twiss_object,
     ykeys=["sigma_x", "sigma_y"],
     ykeys2=["sigma_z"],
-    xkey="z",
+    xkey="s",
     xlim=None,
     nice=True,
     include_labels=True,
