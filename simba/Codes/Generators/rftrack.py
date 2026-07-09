@@ -82,6 +82,9 @@ class RFTrackGenerator(frameworkGenerator):
         G.species = species
         G.cathode = bool(self.cathode)
 
+        # Extract extra fields (user-supplied or from YAML defaults).
+        extra = self.__pydantic_extra__ or {}
+
         for attr, (rft_attr, mult) in _ALIASES.items():
             val = getattr(self, attr, None)
             if val is not None:
@@ -101,16 +104,37 @@ class RFTrackGenerator(frameworkGenerator):
             if v:
                 setattr(G, rft_attr, _DIST.get(v.lower(), v))
 
+        # Plateau distributions require Lt (length) or rt (rise time). If not
+        # explicitly set (e.g. via load_defaults), use fallback defaults.
+        # ponytail: user should ideally call load_defaults("clara_400_*") after
+        # change_generator() to load the full preset; this fallback applies if
+        # they don't.
+        dist_z_str = str(getattr(self, "distribution_type_z", "")).lower()
+        if dist_z_str in ("p", "plateau", "u", "uniform", "flattop"):
+            if "Lt" not in extra or extra.get("Lt") is None:
+                G.Lt = 1.0  # ns — sensible default
+            else:
+                G.Lt = extra["Lt"]
+            if "rt" not in extra or extra.get("rt") is None:
+                G.rt = 0.2  # ns — reasonable rise time
+            else:
+                G.rt = extra["rt"]
+
         # Longitudinal cutoff: RF-Track keeps separate c_sig_z (3D) and c_sig_t
         # (emission time); feed both from the single generic cutoff.
         G.c_sig_z = self.gaussian_cutoff_z
         if self.cathode:
             G.c_sig_t = self.gaussian_cutoff_z
 
+        # Map CLARA-style plateau parameters to RF-Track names (s → ns).
+        if "plateau_bunch_length" in extra:
+            G.Lt = extra["plateau_bunch_length"] * 1e9  # s -> ns
+        if "plateau_rise_time" in extra:
+            G.rt = extra["plateau_rise_time"] * 1e9  # s -> ns
+
         # Forward any native RF-Track generator option the user set directly as
         # an extra field (model_config extra="allow"), e.g. e_photon, phi_eff,
         # rand_generator, shape_x/y/z, disp_x/y, cor_px/py, ref_ekin, ref_zpos.
-        extra = self.__pydantic_extra__ or {}
         for name in _NATIVE_OPTIONS:
             if name in extra:
                 setattr(G, name, extra[name])
@@ -140,4 +164,5 @@ _NATIVE_OPTIONS = (
     "shape_x", "shape_y", "shape_z", "disp_x", "disp_y",
     "cor_px", "cor_py", "cor_ekin", "emit_z", "emit_t",
     "lx", "ly", "lz", "rx", "ry", "rz",
+    "Lt", "rt",  # temporal plateau parameters (for dist_z = "plateau" in cathode mode)
 )
