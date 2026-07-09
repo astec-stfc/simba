@@ -629,8 +629,13 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally
-        if name in frameworkLattice.model_fields:
+        # Let Pydantic set known fields and private attributes normally; only
+        # bypass Pydantic for genuinely dynamic/extra attributes. Routing private
+        # attributes (e.g. `_lsc_enable`) through `object.__setattr__` would shadow
+        # Pydantic's own private-attribute storage, which then reappears with its
+        # stale default the next time any model field is assigned (triggering
+        # `validate_assignment`), silently undoing the private attribute's value.
+        if name in frameworkLattice.model_fields or name in frameworkLattice.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 

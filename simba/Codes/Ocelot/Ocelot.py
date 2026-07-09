@@ -92,9 +92,6 @@ class ocelotLattice(frameworkLattice):
     smooth_param: float = 0.01
     """Smoothing parameter"""
 
-    lsc: bool = True
-    """Flag to enable LSC calculations"""
-
     random_mesh: bool = True
     """Random meshing for space charge calculations"""
 
@@ -275,7 +272,7 @@ class ocelotLattice(frameworkLattice):
         navi_locations_end = []
         # settings = self.settings
         navi = Navigator(self.lat_obj, unit_step=self.unit_step)
-        if self.lsc:
+        if self.lsc_enable:
             lsc = self.physproc_lsc()
             navi_processes += [lsc]
             navi_locations_start += [self.lat_obj.sequence[0]]

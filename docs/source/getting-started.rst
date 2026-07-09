@@ -17,16 +17,13 @@ and that it includes a built-in translator module for exporting lattice files to
 it can be used within :mod:`SIMBA` for loading, modifying, writing and exporting input and lattice
 files for simulation codes.
 
-We would be remiss not to begin with a simple FODO:
+People always start with a FODO, so let's do that. This is the same lattice used in the
+:mod:`SIMBA` unit tests (see ``simple_machine`` in ``unit_tests/test_framework.py``):
 
 .. code-block:: python
 
-    from laura.models.element import Quadrupole, Marker  # noqa E402
-    from laura.models.elementList import MachineModel  # noqa E402
-    from laura.Exporters.YAML import export_machine
-    from laura import LAURA  # noqa E402
-
-    outdir = "/path/to/lattice/directory"
+    from laura.models.element import Quadrupole, Marker
+    from laura import LAURA
 
     m1 = Marker(
         name="M1",
@@ -89,7 +86,6 @@ We would be remiss not to begin with a simple FODO:
         }
     )
 
-
     sections = {
         "sections": {
             "FODO": ["M1", "QUAD1F", "QUAD1D", "M3"],
@@ -103,17 +99,27 @@ We would be remiss not to begin with a simple FODO:
     }
 
     machine = LAURA(element_list=[m1, q1f, q1d, m3], layout=layouts, section=sections)
+
+:mod:`SIMBA` needs the elements of a lattice to be available as files on disk (this is also what allows
+it to write a reproducible record of a tracking run once it's finished). Since we just built ``machine``
+directly in :mod:`python`, we export it once using LAURA's ``export_machine``:
+
+.. code-block:: python
+
+    from laura.Exporters.YAML import export_machine
+
+    outdir = "/path/to/lattice/directory"
     export_machine(path=f"{outdir}/Lattice", machine=machine, overwrite=True)
-    
+
 Generating an input beam
 ------------------------
 
-The simulation requires a macroparticle distribution to run. This can be generated using the 
+The simulation requires a macroparticle distribution to run. This can be generated using the
 :ref:`frameworkGenerator <generator-class>` as follows:
 
 .. code-block:: python
 
-    from simba.Codes.Generators imoutdirport frameworkGenerator
+    from simba.Codes.Generators import frameworkGenerator
     import simba.Modules.Beams as rbf
 
     gen = frameworkGenerator(
@@ -136,7 +142,7 @@ The simulation requires a macroparticle distribution to run. This can be generat
     )
     gen.write()
     beam = rbf.beam(filename=f"{outdir}/M1.openpmd.hdf5")
-    
+
 Defining the Lattice Simulation
 -------------------------------
 
@@ -149,8 +155,12 @@ This involves passing a group of settings to :mod:`SIMBA`, including:
 * Settings for beam generation;
 * Locations for :mod:`LAURA` files.
 
-These are all read in when :mod:`SIMBA` is instantiated. The example below shows how to create these settings in :mod:`python`;
-alternatively, one can create a settings file in YAML and pass that in; see :ref:`Loading a lattice <loading-a-lattice>`:
+There are two equivalent ways to provide these settings: directly in :mod:`python` using
+:class:`~simba.Framework_Settings.FrameworkSettings`, or from a settings file on disk. Both are shown below,
+and both produce an identical tracking result.
+
+Option A: setting up SIMBA in pure python
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -188,6 +198,72 @@ alternatively, one can create a settings file in YAML and pass that in; see :ref
     settings.section = {"sections": {name: e.names for name, e in machine.sections.items()}}
     settings.element_list = f"{outdir}/Lattice"
 
+.. code-block:: python
+
+    import simba.Framework as fw
+    from simba.Framework import load_directory
+
+    framework = fw.Framework(
+        directory=f"{outdir}/ocelot",
+        clean=True,
+        verbose=True,
+    )
+    framework.loadSettings(settings=settings)
+
+Option B: setting up SIMBA from an input file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Alternatively, the same settings can be written to a YAML settings (``.def``) file and loaded from disk,
+without ever needing to build a :class:`~laura.LAURA` object in the current session. This is the approach
+used for pre-existing lattices (see :ref:`Loading a lattice <loading-a-lattice>`), and is what you would use
+to load a full accelerator lattice such as `JFEL <https://github.com/astec-stfc/laura-lattices/tree/main/JFEL>`_:
+
+.. code-block:: yaml
+
+    # FODO.def
+    files:
+      FODO:
+        code: ocelot
+        charge:
+          space_charge_mode: 'False'
+        input:
+          twiss:
+            beta_x: 3.2844606
+            alpha_x: 2.48956886
+            nemit_x: 1.0e-06
+            beta_y: 3.2846606
+            alpha_y: -2.48956886
+            nemit_y: 1.0e-06
+        output:
+          start_element: M1
+          end_element: M3
+    layout:
+      default_layout: line1
+      layouts:
+        line1: [FODO]
+    section:
+      sections:
+        FODO: [M1, QUAD1F, QUAD1D, M3]
+    element_list: /path/to/lattice/directory/Lattice
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    from simba.Framework import load_directory
+
+    framework = fw.Framework(
+        directory=f"{outdir}/ocelot",
+        clean=True,
+        verbose=True,
+    )
+    framework.loadSettings(filename=f"{outdir}/FODO.def")
+
+.. note::
+    Passing a ``machine`` keyword argument to :class:`~simba.Framework.Framework` on its own does **not**
+    set up the lattice for tracking: :func:`~simba.Framework.Framework.loadSettings` always (re)builds the
+    machine from ``settings.element_list``/``layout``/``section``, whether or not ``machine=`` was given.
+    Use one of the two options above.
+
 This lattice definition would produce a lattice file (called ``FODO.py``) for running in the **Ocelot** beam tracking code.
 
 If the :mod:`MachineModel` defined above consisted of sequential sections rather than just a FODO, these would then
@@ -196,25 +272,16 @@ be added automatically to the tracking.
 Running SIMBA
 -------------
 
-With everything now prepared, :mod:`SIMBA` can be used to track through the simple FODO lattice.
+With everything now prepared, :mod:`SIMBA` can be used to track through the simple FODO lattice. This works
+with either of the two ``framework`` objects set up above.
 
-Note that, in order to run executables (i.e. **ASTRA**, **ELEGANT**) rather than simulation codes based only on 
+Note that, in order to run executables (i.e. **ASTRA**, **ELEGANT**) rather than simulation codes based only on
 python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must be set up; see
-:ref:`SimCodes <simcodes>`.
+:ref:`SimCodes <simcodes>`. The **Ocelot** tracking used here needs neither, so ``simcodes``/``container_runtime``
+can be left unset for this first example.
 
 .. code-block:: python
 
-    import simba.Framework as fw
-    from simba.Framework import load_directory
-
-    framework = fw.Framework(
-        machine=machine,
-        simcodes='/path/to/simcodes/',
-        directory=f"{outdir}/ocelot",
-        clean=True, 
-        verbose=True
-    )
-    framework.loadSettings(settings=settings)
     framework.global_parameters["beam"] = beam
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
@@ -225,17 +292,17 @@ python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must b
     fwdir = load_directory(f"{outdir}/ocelot")
 
     fwdir.plot(xkey="z", ykeys=['sigma_x', 'sigma_y'], ykeys2=["ecnx", "ecny"])
-    
+
 Which produces the plot in :numref:`fig-ocelot-fodo`:
 
 .. _fig-ocelot-fodo:
 .. figure:: assets/ocelot-fodo.png
 
    Output of simple FODO tracking in **Ocelot**
-    
+
 The same lattice can also be tracked using a different code as follows:
 
-.. code-block: python
+.. code-block:: python
 
     framework.global_parameters["beam"] = beam
     framework.change_Lattice_Code("FODO", "elegant")
@@ -243,10 +310,21 @@ The same lattice can also be tracked using a different code as follows:
     framework.track()
     fwdir = load_directory(f"{outdir}/elegant")
     fwdir.plot(xkey="z", ykeys=['sigma_x', 'sigma_y'], ykeys2=["ecnx", "ecny"])
-    
+
 Producing the output in :numref:`fig-elegant-fodo`:
 
 .. _fig-elegant-fodo:
 .. figure:: assets/elegant-fodo.png
 
    Output of simple FODO tracking in **ELEGANT**
+
+Tracking with ELEGANT requires the :mod:`SimCodes` directory to be set up (or a ``container_runtime``); see
+:ref:`SimCodes <simcodes>`.
+
+Next steps
+----------
+
+This page covered the basics using a lattice built from scratch. For an example of tracking a full,
+pre-existing accelerator lattice -- including field maps and collective effects (space charge, CSR, LSC) --
+see :ref:`Loading a lattice <loading-a-lattice>`, which uses the openly available
+`JFEL <https://github.com/astec-stfc/laura-lattices/tree/main/JFEL>`_ lattice.

@@ -2062,6 +2062,7 @@ class frameworkDirectory(BaseModel):
             directory = (
                 "." if self.directory is None else os.path.abspath(self.directory)
             )
+            kwargs.setdefault("verbose", self.verbose)
             self.framework = Framework(**kwargs)
             self.framework.loadSettings(os.path.join(directory, self.settings))
         else:

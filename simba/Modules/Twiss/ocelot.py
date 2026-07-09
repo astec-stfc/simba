@@ -78,9 +78,12 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
+    beta = np.sqrt(1 - (gamma**-2))
+    emit_xn = fdat["_emit_x"] * gamma * beta
+    emit_yn = fdat["_emit_y"] * gamma * beta
+    self.enx.val = np.append(self.enx.val, emit_xn)
     self.ex.val = np.append(self.ex.val, fdat["eigemit_1"])
-    self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
+    self.eny.val = np.append(self.eny.val, emit_yn)
     self.ey.val = np.append(self.ey.val, fdat["eigemit_2"])
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
@@ -106,7 +109,6 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     )
     self.mean_x.val = np.append(self.mean_x.val, fdat["x"])
     self.mean_y.val = np.append(self.mean_y.val, fdat["y"])
-    beta = np.sqrt(1 - (gamma**-2))
     self.t.val = np.append(self.t.val, fdat["s"] / (beta * constants.speed_of_light))
     self.sigma_z.val = np.append(self.sigma_z.val, np.sqrt(fdat["tautau"]) * beta)
     # self.append('sigma_cp', elegantData['Sdelta'] * cp )
@@ -127,8 +129,8 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )
     # ## BEAM parameters
-    self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_xn"])
-    self.ecny.val = np.append(self.ecny.val, fdat["_emit_yn"])
+    self.ecnx.val = np.append(self.ecnx.val, emit_xn)
+    self.ecny.val = np.append(self.ecny.val, emit_yn)
     self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["Dx"])
     self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["Dxp"])
     self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["Dy"])

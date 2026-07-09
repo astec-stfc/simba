@@ -949,6 +949,7 @@ class twiss(BaseModel):
             "ASTRA": "Xemit.001",
             "ocelot": "_twiss.npz",
             "opal": "opal_twiss.h5",
+            "ocelot_h5": "_twiss.oh5",
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
