@@ -50,6 +50,39 @@ class rftrackLattice(frameworkLattice):
     path a user/notebook can call separately, same as
     ``framework.twiss.read_astra_twiss_files(...)``)."""
 
+    def _space_charge_settings(self) -> dict:
+        """
+        Resolve this section's space-charge configuration from the **same**
+        ``charge`` settings block ASTRA reads (``space_charge_mode``,
+        ``cathode``, ``mirror_charge``, ``sample_interval``); see
+        ``simba/Codes/ASTRA/ASTRA.py`` and ``laura``'s ``astra_charge``.
+
+        RF-Track's PIC solver is intrinsically 3D, so the ASTRA ``2D``/``3D``
+        distinction only toggles space charge on/off here. ``sc_nsteps`` (kicks
+        per element, manual §5.1.2) and the emission options (§7.4) are extra
+        RF-Track-only keys read from the same block, with sensible defaults.
+        """
+        charge = (self.file_block.get("charge") or {}) | (
+            self.globalSettings.get("charge") or {}
+        )
+        mode = charge.get("space_charge_mode", False)
+        enabled = mode not in (False, None, 0, "False", "None", "false", "none")
+        cathode = bool(charge.get("cathode", False)) or (
+            (self.file_block.get("input") or {}).get("particle_definition")
+            == "initial_distribution"
+        )
+        return {
+            "enabled": enabled,
+            "cathode": cathode,
+            # Mirror charges default on for a cathode section (matches ASTRA,
+            # where cathode -> Lmirror), overridable via mirror_charge.
+            "mirror": bool(charge.get("mirror_charge", cathode)),
+            "sample_interval": int(charge.get("sample_interval", 1) or 1),
+            "sc_nsteps": int(charge.get("sc_nsteps", 10) or 10),
+            "emission_nsteps": int(charge.get("emission_nsteps", 10) or 10),
+            "emission_range": float(charge.get("emission_range", 2.0) or 2.0),
+        }
+
     def write(self) -> None:
         """
         Build :attr:`lat_obj` from the LAURA section via
@@ -61,11 +94,58 @@ class rftrackLattice(frameworkLattice):
         for correct dipole (``SBend``) bending; see
         ``Modules/Beams/rftrack.get_P_Q`` and
         ``laura.translator.conversion_rules.codes.rftrack_conversion.build_sbend``.
+
+        When space charge is enabled (see :func:`_space_charge_settings`), each
+        element is given ``sc_nsteps`` space-charge kicks (manual §5.1.2); the
+        engine/grid and cathode mirror charges are set up at track time by
+        :func:`_setup_space_charge`.
         """
         from ...Modules.Beams import rftrack as rbf_rftrack
 
+        sc = self._space_charge_settings()
         P_Q = rbf_rftrack.get_P_Q(self.global_parameters["beam"])
-        self.lat_obj = self.section.to_rftrack(P_Q=P_Q, save=True)
+        self.lat_obj = self.section.to_rftrack(
+            P_Q=P_Q, save=True, sc_nsteps=sc["sc_nsteps"] if sc["enabled"] else 0
+        )
+
+    def _setup_space_charge(self) -> None:
+        """
+        Configure RF-Track's global space-charge engine for this section
+        (manual §5.1.3), sizing the ``SpaceCharge_PIC_FreeSpace`` grid exactly
+        as ASTRA sizes its ``&CHARGE`` grid, and — for a cathode section —
+        activating mirror charges at the cathode plane (§7.5) and the
+        photo-emission tracking options (§7.4).
+
+        No-op when space charge is disabled: with ``sc_nsteps == 0`` on every
+        element (see :func:`write`) no space-charge kicks are applied, so a
+        stale global engine from a previous section is harmless.
+        """
+        from laura.translator.conversion_rules.codes import rftrack_conversion
+
+        sc = self._space_charge_settings()
+        if not sc["enabled"]:
+            return
+        rft = rftrack_conversion.get_rftrack()
+        npart = len(self.global_parameters["beam"].x)
+        mirror_z = (
+            self.startObject.physical.start.z
+            if (sc["cathode"] and sc["mirror"])
+            else None
+        )
+        engine = rftrack_conversion.space_charge_engine(
+            npart, sample_interval=sc["sample_interval"], mirror_z=mirror_z
+        )
+        rft.cvars.SC_engine = engine
+        if sc["cathode"]:
+            # Emission tracking options (§7.4) — settable on a Lattice element
+            # per RF-Track's TrackingOptions; guarded because they primarily
+            # apply to time-integrated (Bunch6dT/Volume) emission tracking.
+            for opt, val in (
+                ("emission_nsteps", sc["emission_nsteps"]),
+                ("emission_range", sc["emission_range"]),
+            ):
+                if hasattr(self.lat_obj, opt):
+                    setattr(self.lat_obj, opt, val)
 
     def preProcess(self) -> None:
         """
@@ -93,7 +173,12 @@ class rftrackLattice(frameworkLattice):
     def run(self) -> None:
         """
         Track :attr:`pin` through :attr:`lat_obj`, setting :attr:`pout`.
+
+        Sets up the global space-charge engine / cathode mirror charges first
+        (see :func:`_setup_space_charge`) so the per-element ``sc_nsteps`` kicks
+        applied in :func:`write` take effect.
         """
+        self._setup_space_charge()
         self.pout = self.lat_obj.track(self.pin)
 
     def postProcess(self) -> None:
