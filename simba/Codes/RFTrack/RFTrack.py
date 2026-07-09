@@ -42,6 +42,14 @@ class rftrackLattice(frameworkLattice):
     pout: Any = None
     """Final particle distribution as an ``RF_Track.Bunch6d``, after tracking."""
 
+    sc_engine: Any = None
+    """The global ``SpaceCharge_PIC_FreeSpace`` engine for this section (set by
+    :func:`_setup_space_charge`). Held here **on purpose**: ``RF_Track.cvar.SC_engine``
+    only stores a C pointer (SWIG keeps no Python reference), so without a live
+    Python reference the engine is garbage-collected after ``_setup_space_charge``
+    returns and ``track`` segfaults on the dangling pointer -- verified against
+    RF_Track 2.6.3."""
+
     tws: Any = None
     """Raw RF-Track transport table (set by :func:`postProcess`), mirrors
     ``ocelotLattice.tws`` — kept as the native RF-Track result, not auto-converted
@@ -49,6 +57,37 @@ class rftrackLattice(frameworkLattice):
     either; ``framework.twiss.read_rftrack_transport_table(...)`` is the opt-in
     path a user/notebook can call separately, same as
     ``framework.twiss.read_astra_twiss_files(...)``)."""
+
+    tracking_type: str = "auto"
+    """Which RF-Track tracking environment to use for this section:
+
+    - ``"lattice"`` (or ``"bunch6d"``): space-integration ``Lattice`` tracking a
+      ``Bunch6d`` -- the default for downstream, space-charge-light sections.
+    - ``"volume"`` (or ``"bunch6dt"``): time-integration ``Volume`` tracking a
+      ``Bunch6dT`` -- required for a photocathode section so mirror-charge space
+      charge is modelled correctly (manual §5.1.1/§7.5), analogous to ASTRA's
+      ``Lmirror``.
+    - ``"auto"`` (default): ``Volume`` for a cathode section, ``Lattice``
+      otherwise. Overridable per-section here or via the ``charge`` settings
+      block's ``tracking`` key. See :func:`_tracking_type`."""
+
+    def _tracking_type(self) -> str:
+        """
+        Resolve :attr:`tracking_type` to ``"volume"`` or ``"lattice"``, honouring
+        an explicit override (attribute or ``charge.tracking`` setting) and
+        otherwise defaulting to ``"volume"`` for a cathode section.
+        """
+        explicit = str(getattr(self, "tracking_type", "auto") or "auto").lower()
+        if explicit == "auto":
+            charge = (self.file_block.get("charge") or {}) | (
+                self.globalSettings.get("charge") or {}
+            )
+            explicit = str(charge.get("tracking", "auto") or "auto").lower()
+        if explicit in ("volume", "bunch6dt"):
+            return "volume"
+        if explicit in ("lattice", "bunch6d"):
+            return "lattice"
+        return "volume" if self._space_charge_settings()["cathode"] else "lattice"
 
     def _space_charge_settings(self) -> dict:
         """
@@ -81,6 +120,12 @@ class rftrackLattice(frameworkLattice):
             "sc_nsteps": int(charge.get("sc_nsteps", 10) or 10),
             "emission_nsteps": int(charge.get("emission_nsteps", 10) or 10),
             "emission_range": float(charge.get("emission_range", 2.0) or 2.0),
+            # Volume (time-integration) tracking options [mm/c] (§3.2, §5.1.1):
+            # dt_mm integration step, sc_dt_mm space-charge kick interval,
+            # tt_dt_mm transport-table sampling interval.
+            "dt_mm": float(charge.get("dt_mm", 0.1) or 0.1),
+            "sc_dt_mm": float(charge.get("sc_dt_mm", 1.0) or 1.0),
+            "tt_dt_mm": float(charge.get("tt_dt_mm", 10.0) or 10.0),
         }
 
     def write(self) -> None:
@@ -95,18 +140,25 @@ class rftrackLattice(frameworkLattice):
         ``Modules/Beams/rftrack.get_P_Q`` and
         ``laura.translator.conversion_rules.codes.rftrack_conversion.build_sbend``.
 
-        When space charge is enabled (see :func:`_space_charge_settings`), each
-        element is given ``sc_nsteps`` space-charge kicks (manual §5.1.2); the
-        engine/grid and cathode mirror charges are set up at track time by
-        :func:`_setup_space_charge`.
+        For ``Lattice`` tracking with space charge enabled, each element is given
+        ``sc_nsteps`` space-charge kicks (manual §5.1.2). For ``Volume`` tracking
+        (:func:`_tracking_type` ``== "volume"``, e.g. a cathode section) an
+        RF-Track ``Volume`` is built instead and its integration/transport-table
+        steps set; the engine/grid, kick interval and cathode mirror charges are
+        configured at track time by :func:`_setup_space_charge`.
         """
         from ...Modules.Beams import rftrack as rbf_rftrack
 
         sc = self._space_charge_settings()
         P_Q = rbf_rftrack.get_P_Q(self.global_parameters["beam"])
-        self.lat_obj = self.section.to_rftrack(
-            P_Q=P_Q, save=True, sc_nsteps=sc["sc_nsteps"] if sc["enabled"] else 0
-        )
+        if self._tracking_type() == "volume":
+            self.lat_obj = self.section.to_rftrack_volume(P_Q=P_Q, save=True)
+            self.lat_obj.dt_mm = sc["dt_mm"]
+            self.lat_obj.tt_dt_mm = sc["tt_dt_mm"]
+        else:
+            self.lat_obj = self.section.to_rftrack(
+                P_Q=P_Q, save=True, sc_nsteps=sc["sc_nsteps"] if sc["enabled"] else 0
+            )
 
     def _setup_space_charge(self) -> None:
         """
@@ -116,9 +168,13 @@ class rftrackLattice(frameworkLattice):
         activating mirror charges at the cathode plane (§7.5) and the
         photo-emission tracking options (§7.4).
 
-        No-op when space charge is disabled: with ``sc_nsteps == 0`` on every
-        element (see :func:`write`) no space-charge kicks are applied, so a
-        stale global engine from a previous section is harmless.
+        For ``Volume`` tracking the per-kick interval is set via ``sc_dt_mm``
+        (manual §5.1.1); for ``Lattice`` tracking the kicks are per-element
+        ``sc_nsteps`` applied in :func:`write`.
+
+        No-op when space charge is disabled: with ``sc_nsteps == 0`` /
+        ``sc_dt_mm`` unset no space-charge kicks are applied, so a stale global
+        engine from a previous section is harmless.
         """
         from laura.translator.conversion_rules.codes import rftrack_conversion
 
@@ -132,14 +188,26 @@ class rftrackLattice(frameworkLattice):
             if (sc["cathode"] and sc["mirror"])
             else None
         )
-        engine = rftrack_conversion.space_charge_engine(
+        # Keep the engine alive on the instance (see :attr:`sc_engine`) -- a
+        # bare local would be GC'd before track and segfault.
+        self.sc_engine = rftrack_conversion.space_charge_engine(
             npart, sample_interval=sc["sample_interval"], mirror_z=mirror_z
         )
-        rft.cvars.SC_engine = engine
-        if sc["cathode"]:
-            # Emission tracking options (§7.4) — settable on a Lattice element
-            # per RF-Track's TrackingOptions; guarded because they primarily
-            # apply to time-integrated (Bunch6dT/Volume) emission tracking.
+        # NOTE: real RF_Track exposes the settings singleton as ``cvar`` (SWIG),
+        # not ``cvars`` as the manual (§5.1.3) prints -- verified against
+        # RF_Track 2.6.3. Setting the wrong name silently no-ops space charge.
+        rft.cvar.SC_engine = self.sc_engine
+        if self._tracking_type() == "volume":
+            # Volume (time integration): enable SC via the kick interval, and
+            # (for a cathode) the photo-emission options (§5.1.1, §7.4). These
+            # are all TrackingOptions the Volume object exposes directly.
+            self.lat_obj.sc_dt_mm = sc["sc_dt_mm"]
+            if sc["cathode"]:
+                self.lat_obj.emission_nsteps = sc["emission_nsteps"]
+                self.lat_obj.emission_range = sc["emission_range"]
+        elif sc["cathode"]:
+            # Lattice (space integration): emission options are guarded because
+            # they primarily apply to time-integrated emission tracking.
             for opt, val in (
                 ("emission_nsteps", sc["emission_nsteps"]),
                 ("emission_range", sc["emission_range"]),
@@ -150,7 +218,9 @@ class rftrackLattice(frameworkLattice):
     def preProcess(self) -> None:
         """
         Read the initial particle distribution defined in
-        ``file_block['input']['prefix']`` and convert it to an ``RF_Track.Bunch6d``.
+        ``file_block['input']['prefix']`` and convert it to an ``RF_Track.Bunch6d``
+        (for ``Lattice`` tracking) or ``RF_Track.Bunch6dT`` (for ``Volume``
+        tracking; see :func:`_tracking_type`).
 
         Also (re-)writes that starting beam to ``<master_subdir>/<start>.openpmd.hdf5``,
         for consistency with the per-screen/end snapshots :func:`postProcess`
@@ -159,27 +229,94 @@ class rftrackLattice(frameworkLattice):
         diagnostic snapshots (start, screens, end) ends up in one place.
         """
         super().preProcess()
-        from ...Modules import Beams as rbf
         from ...Modules.Beams import rftrack as rbf_rftrack
 
         prefix = self.get_prefix()
-        self.read_input_file(prefix, self.start)
-        # rbf.openpmd.write_openpmd_beam_file(
-        #     self.global_parameters["beam"],
-        #     f'{self.global_parameters["master_subdir"]}/{self.start}.openpmd.hdf5',
-        # )
-        self.pin = rbf_rftrack.beam_to_bunch6d(self.global_parameters["beam"])
+        # For "initial_distribution", load from "laser.openpmd.hdf5" (like ASTRA
+        # does with "laser.astra"), not the element name. This matches ASTRA's
+        # convention for photocathode beams generated by a preceding generator.
+        particle_def = self.start
+        if (self.file_block.get("input") or {}).get("particle_definition") == "initial_distribution":
+            particle_def = "laser"
+        self.read_input_file(prefix, particle_def)
+        beam = self.global_parameters["beam"]
+        self.pin = (
+            rbf_rftrack.beam_to_bunch6dt(beam)
+            if self._tracking_type() == "volume"
+            else rbf_rftrack.beam_to_bunch6d(beam)
+        )
 
     def run(self) -> None:
         """
         Track :attr:`pin` through :attr:`lat_obj`, setting :attr:`pout`.
+        ``lat_obj`` is either an RF-Track ``Lattice`` (``Bunch6d``) or ``Volume``
+        (``Bunch6dT``); both expose ``track``.
 
         Sets up the global space-charge engine / cathode mirror charges first
-        (see :func:`_setup_space_charge`) so the per-element ``sc_nsteps`` kicks
-        applied in :func:`write` take effect.
+        (see :func:`_setup_space_charge`) so the space-charge kicks take effect.
         """
         self._setup_space_charge()
         self.pout = self.lat_obj.track(self.pin)
+
+    def _bunch_to_beam(self, beam, bunch, zstart: float, s: float) -> None:
+        """
+        Convert a tracked RF-Track bunch back into SIMBA's generic ``beam``,
+        dispatching on the bunch's **actual** type rather than the tracking
+        mode. This matters because a ``Volume`` that wraps a ``Lattice`` returns
+        its own end bunch as a ``Bunch6dT`` but the snapshots at the wrapped
+        Lattice's ``Screen`` elements come back as ``Bunch6d`` (verified against
+        RF_Track 2.6.3) -- so the end and the screens of one Volume section need
+        different converters.
+        """
+        from ...Modules.Beams import rftrack as rbf_rftrack
+
+        if type(bunch).__name__ == "Bunch6dT":
+            rbf_rftrack.bunch6dt_to_beam(beam, bunch, s=s)
+        else:
+            rbf_rftrack.bunch6d_to_beam(beam, bunch, zstart=zstart, s=s)
+
+    def _transport_table_dict(self) -> dict:
+        """
+        Read this section's RF-Track transport table into a canonical
+        ``{identifier: column}`` dict keyed the way
+        ``Modules/Twiss/rftrack.interpret_rftrack_data`` expects (``S``,
+        ``mean_x``, ``beta_x``, ``sigma_t`` ...), storing the raw table on
+        :attr:`tws`.
+
+        A ``Volume`` accepts a *different* identifier set from a ``Lattice``
+        (manual Table 4.2 vs 4.1: ``%mean_Z`` not ``%S``; capitalised
+        ``%mean_X``/``%sigma_X`` -- verified against RF_Track 2.6.3, which raises
+        ``unknown identifier '%S'`` for a Volume). The Volume columns are
+        requested and then relabelled to the shared keys so the downstream
+        twiss reader/writer is identical for both. ``%mean_Z``/``%sigma_Z`` are
+        [mm]; the longitudinal ``sigma_t`` slot is [mm/c], numerically equal to
+        ``sigma_Z`` [mm] for the bunch length, so the value carries over.
+        """
+        from ...Modules.Twiss import rftrack as rtf_rftrack
+
+        s0 = self.startObject.physical.s
+        keys = [
+            "S", "mean_x", "mean_y", "beta_x", "beta_y", "alpha_x", "alpha_y",
+            "emitt_x", "emitt_y", "sigma_x", "sigma_y", "sigma_t", "mean_P",
+        ]
+        if self._tracking_type() == "volume":
+            cols = (
+                "%mean_Z %mean_X %mean_Y %beta_x %beta_y %alpha_x %alpha_y "
+                "%emitt_x %emitt_y %sigma_X %sigma_Y %sigma_Z %mean_P"
+            )
+            self.tws = self.lat_obj.get_transport_table(cols)
+            arr = np.asarray(self.tws)
+            col = {k: arr[:, i] for i, k in enumerate(keys)}
+            col["S"] = col["S"] * 1e-3 + s0  # mean_Z [mm] -> S [m] (+ arc-length)
+            return col
+        cols = (
+            "%S %mean_x %mean_y %beta_x %beta_y %alpha_x %alpha_y "
+            "%emitt_x %emitt_y %sigma_x %sigma_y %sigma_t %mean_P"
+        )
+        self.tws = self.lat_obj.get_transport_table(cols)
+        return rtf_rftrack.transport_table_to_dict(
+            np.asarray(self.tws), cols.split(), zstart=s0
+        )
 
     def postProcess(self) -> None:
         """
@@ -217,12 +354,11 @@ class rftrackLattice(frameworkLattice):
         """
         super().postProcess()
         from ...Modules import Beams as rbf
-        from ...Modules.Beams import rftrack as rbf_rftrack
         from ...Modules.Twiss import rftrack as rtf_rftrack
 
         for screen, bunch in zip(self.screens, self.lat_obj.get_bunch_at_screens()):
             screen_beam = rbf.beam()
-            rbf_rftrack.bunch6d_to_beam(
+            self._bunch_to_beam(
                 screen_beam, bunch, zstart=screen.physical.end.z, s=screen.physical.s
             )
             rbf.openpmd.write_openpmd_beam_file(
@@ -230,22 +366,14 @@ class rftrackLattice(frameworkLattice):
                 f'{self.global_parameters["master_subdir"]}/{screen.name}.openpmd.hdf5',
             )
         beam = self.global_parameters["beam"]
-        rbf_rftrack.bunch6d_to_beam(
+        self._bunch_to_beam(
             beam, self.pout, zstart=self.endObject.physical.end.z, s=self.endObject.physical.s
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5',
         )
-        columns = (
-            "%S %mean_x %mean_y %beta_x %beta_y %alpha_x %alpha_y "
-            "%emitt_x %emitt_y %sigma_x %sigma_y %sigma_t %mean_P"
-        )
-        self.tws = self.lat_obj.get_transport_table(columns)
         rtf_rftrack.save_rftrack_twiss_hdf(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.rftrack.hdf5',
-            rtf_rftrack.transport_table_to_dict(
-                np.asarray(self.tws), columns.split(),
-                zstart=self.startObject.physical.s,
-            ),
+            self._transport_table_dict(),
         )
