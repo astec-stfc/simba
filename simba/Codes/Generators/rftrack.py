@@ -104,6 +104,21 @@ class RFTrackGenerator(frameworkGenerator):
             if v:
                 setattr(G, rft_attr, _DIST.get(v.lower(), v))
 
+        # Isotropic dist_pz ("i", the generic default) needs an energy-width
+        # scale or RF-Track emits every particle with exactly zero momentum
+        # (px/py/pz all 0, silently -- verified against RF_Track 2.6.3; the
+        # scale is `le` [keV], NOT `sig_ekin`, which for this distribution
+        # instead makes RF-Track return an empty bunch, also silently). Map
+        # from the same `thermal_emittance` the generic (non-RF-Track)
+        # generator already uses for its own isotropic-thermal cathode model
+        # (see `thermal_kinetic_energy` [eV] -> Dowell & Schmerge Eq. 39),
+        # unless the user supplied `le` directly as a native/extra option.
+        if str(getattr(self, "distribution_type_pz", "")).lower() == "i":
+            if "le" in extra and extra.get("le") is not None:
+                G.le = extra["le"]
+            else:
+                G.le = self.thermal_kinetic_energy / 1e3  # eV -> keV
+
         # Plateau distributions require Lt (length) or rt (rise time). If not
         # explicitly set (e.g. via load_defaults), use fallback defaults.
         # ponytail: user should ideally call load_defaults("clara_400_*") after
