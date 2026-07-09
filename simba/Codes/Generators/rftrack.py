@@ -85,7 +85,11 @@ class RFTrackGenerator(frameworkGenerator):
         for attr, (rft_attr, mult) in _ALIASES.items():
             val = getattr(self, attr, None)
             if val is not None:
-                setattr(G, rft_attr, val * mult)
+                # Don't multiply booleans (SWIG enforces strict types).
+                if isinstance(val, bool):
+                    setattr(G, rft_attr, val)
+                else:
+                    setattr(G, rft_attr, val * mult)
 
         for attr, rft_attr in (
             ("distribution_type_x", "dist_x"),
