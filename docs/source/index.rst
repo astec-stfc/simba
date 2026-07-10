@@ -42,6 +42,9 @@ Setup
    :caption: Examples
 
    examples/notebooks/getting_started
+   examples/notebooks/start_to_end_chain
+   examples/notebooks/optimisation
+   examples/notebooks/machine_types
    examples/notebooks/beams_example
    examples/notebooks/utility_functions
    
