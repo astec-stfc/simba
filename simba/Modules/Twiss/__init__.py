@@ -49,8 +49,8 @@ codes = {
     "elegant": elegant.read_elegant_twiss_files,
     "gpt": gpt.read_gdf_twiss_files,
     "astra": astra.read_astra_twiss_files,
-    "ocelot": ocelot.read_ocelot_twiss_files,
-    "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
+    "ocelot": ocelot.read_ocelot_twiss_files_hdf,
+    # "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
     "opal": opal.read_opal_twiss_files,
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
@@ -428,8 +428,8 @@ class twiss(BaseModel):
             "elegant": elegant.read_elegant_twiss_files,
             "gpt": gpt.read_gdf_twiss_files,
             "astra": astra.read_astra_twiss_files,
-            "ocelot": ocelot.read_ocelot_twiss_files,
-            "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
+            "ocelot": ocelot.read_ocelot_twiss_files_hdf,
+            # "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
             "opal": opal.read_opal_twiss_files,
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
@@ -493,7 +493,7 @@ class twiss(BaseModel):
     def read_ocelot_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return ocelot.read_ocelot_twiss_files(self, *args, **kwargs)
+            return ocelot.read_ocelot_twiss_files_hdf(self, *args, **kwargs)
 
     def read_ocelot_twiss_files_hdf(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -956,7 +956,7 @@ class twiss(BaseModel):
             "elegant": ".twi",
             "GPT": "emit.gdf",
             "ASTRA": "Xemit.001",
-            "ocelot": "_twiss.npz",
+            "ocelot": "_twiss.oh5",
             "opal": "opal_twiss.h5",
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
@@ -1022,9 +1022,9 @@ def load_directory(
         "elegant": ".twi",
         "GPT": "emit.gdf",
         "ASTRA": "Xemit.001",
-        "ocelot": "_twiss.npz",
+        # "ocelot": "_twiss.npz",
         "opal": "opal_twiss.h5",
-        "ocelot_h5": "_twiss.oh5",
+        "ocelot": "_twiss.oh5",
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",

@@ -34,8 +34,8 @@ def read_ocelot_twiss_files_hdf(self, filename, reset=True):
                 try:
                     value = np.array(data[key])
                     fdat.update({key: value})
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Failed to interpret {key} for {filename}, {e}")
         interpret_ocelot_data(self, lattice_name, fdat)
 
 
