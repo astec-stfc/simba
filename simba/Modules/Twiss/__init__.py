@@ -70,7 +70,7 @@ code_signatures = [
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
-    ["madx", "-twiss.tfs"],
+    ["madx", "_twiss.madx.hdf5"],
 ]
 
 twiss_defaults = {
@@ -961,7 +961,7 @@ class twiss(BaseModel):
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
-            "madx": "-twiss.tfs",
+            "madx": "_twiss.madx.hdf5",
         },
         preglob: str = "*",
         verbose: bool = False,
@@ -1028,7 +1028,7 @@ def load_directory(
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",
-        "madx": "-twiss.tfs",
+        "madx": "_twiss.madx.hdf5",
     },
     preglob="*",
     verbose=False,
