@@ -1,6 +1,12 @@
 import simba.Modules.Fields as rff  # noqa E402
-from simba.Modules.Fields.FieldParameter import FieldParameter
-from simba.Modules.units import UnitValue
+from simba.Modules.Fields import FieldParameter
+# `simba.Modules.Fields` now re-exports `laura.translator.utils.fields`
+# (see that package's __init__.py docstring), whose read/write code
+# constructs `laura`'s own `UnitValue` internally -- use the same class here
+# too, or a round-tripped field's `UnitValue`s won't compare equal against
+# `simba.Modules.units.UnitValue`-backed ones (two independently-defined
+# `np.ndarray` subclasses of the same name don't recognise each other).
+from laura.translator.utils.units import UnitValue
 import pytest
 import numpy as np
 import os

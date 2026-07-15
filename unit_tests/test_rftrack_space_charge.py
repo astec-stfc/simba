@@ -26,7 +26,7 @@ class _FakeSC:
 @pytest.fixture
 def fake_rft(monkeypatch):
     cvars = SimpleNamespace(SC_engine=None)
-    fake = SimpleNamespace(SpaceCharge_PIC_FreeSpace=_FakeSC, cvars=cvars)
+    fake = SimpleNamespace(SpaceCharge_PIC_FreeSpace=_FakeSC, cvar=cvars)
     monkeypatch.setattr(rftrack_conversion, "get_rftrack", lambda: fake)
     return fake
 
@@ -102,7 +102,7 @@ def test_settings_mode_false_string_disabled():
 def test_setup_noop_when_disabled(fake_rft):
     latt = _lattice()
     rftrackLattice._setup_space_charge(_bind(latt))
-    assert fake_rft.cvars.SC_engine is None
+    assert fake_rft.cvar.SC_engine is None
 
 
 def test_setup_installs_engine_and_mirror(fake_rft):
@@ -111,7 +111,7 @@ def test_setup_installs_engine_and_mirror(fake_rft):
     )
     latt.lat_obj = SimpleNamespace(emission_nsteps=0, emission_range=0.0)
     rftrackLattice._setup_space_charge(_bind(latt))
-    engine = fake_rft.cvars.SC_engine
+    engine = fake_rft.cvar.SC_engine
     assert isinstance(engine, _FakeSC)
     assert engine.mirror_z == 0.0                 # mirror at cathode (§7.5)
     assert latt.lat_obj.emission_nsteps == 10     # emission options (§7.4)
@@ -121,10 +121,11 @@ def test_setup_installs_engine_and_mirror(fake_rft):
 def test_setup_no_mirror_for_non_cathode(fake_rft):
     latt = _lattice(charge={"space_charge_mode": "3D"})
     rftrackLattice._setup_space_charge(_bind(latt))
-    assert fake_rft.cvars.SC_engine.mirror_z is None
+    assert fake_rft.cvar.SC_engine.mirror_z is None
 
 
 def _bind(latt):
-    """Attach the bound _space_charge_settings method used by _setup_space_charge."""
+    """Attach the bound methods used by _setup_space_charge."""
     latt._space_charge_settings = lambda: rftrackLattice._space_charge_settings(latt)
+    latt._tracking_type = lambda: rftrackLattice._tracking_type(latt)
     return latt

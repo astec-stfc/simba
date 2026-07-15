@@ -104,6 +104,64 @@ def beam_to_bunch6d(self, charge: float = -1.0):
     return rft.Bunch6d(mass_MeV, population, charge, matrix)
 
 
+def beam_to_bunch6dt(self, charge: float = -1.0):
+    """
+    Convert this SIMBA ``beam`` into a time-based ``RF_Track.Bunch6dT``, for
+    tracking through a ``Volume`` (time integration) -- the environment RF-Track
+    recommends for space-charge-dominated, cathode/emission regimes (manual
+    §5.1.1). The inverse of :func:`bunch6dt_to_beam`.
+
+    Uses the full ``[X Px Y Py Z Pz MASS Q N T0]`` constructor (manual §2.2.2)
+    rather than the 6-column form, so each particle's emission/creation time is
+    carried in ``T0`` -- essential for a photocathode bunch, where particles are
+    released over a finite emission time and space charge (with mirror charges)
+    acts throughout emission.
+
+    Parameters
+    ----------
+    charge: float
+        Single-particle charge state [e] (default -1, electrons); matches
+        :func:`beam_to_bunch6d`.
+
+    Returns
+    -------
+    RF_Track.Bunch6dT
+    """
+    from laura.translator.conversion_rules.codes.rftrack_conversion import get_rftrack
+
+    rft = get_rftrack()
+
+    n = len(self.x.val)
+    mass_MeV = (
+        float(np.mean(self.particle_mass))
+        * constants.speed_of_light**2
+        / constants.elementary_charge
+        / 1e6
+    )
+    population = float(abs(np.sum(self.Q.val)) / constants.elementary_charge)
+
+    # Positions [mm] and Cartesian momenta [MeV/c] -- same unit conventions
+    # (and the `in_units_of("milli")` / `px` (not `cpx`) pitfalls) as
+    # `beam_to_bunch6d`; see the NOTEs there.
+    X = self.x.in_units_of("milli")
+    Y = self.y.in_units_of("milli")
+    Z = self.z.in_units_of("milli")
+    Px = _momentum_si_to_MeVc(self.px.val)
+    Py = _momentum_si_to_MeVc(self.py.val)
+    Pz = _momentum_si_to_MeVc(self.pz.val)
+    # T0 (creation time) [mm/c] -- inverse of bunch6dt_to_beam's `t0*1e-3/c`.
+    T0 = self.t.val * constants.speed_of_light * 1e3
+
+    matrix = np.column_stack([
+        X, Px, Y, Py, Z, Pz,
+        np.full(n, mass_MeV),      # MASS [MeV/c^2]
+        np.full(n, charge),        # Q [e]
+        np.full(n, population / n),  # N (real particles per macro-particle)
+        T0,
+    ])
+    return rft.Bunch6dT(matrix)
+
+
 def bunch6dt_to_beam(self, bunch, s: float = 0.0) -> None:
     """
     Update this SIMBA ``beam`` in place from an ``RF_Track.Bunch6dT``.
@@ -124,6 +182,11 @@ def bunch6dt_to_beam(self, bunch, s: float = 0.0) -> None:
         Arc-length position [m] stored on ``beam.s`` (0 at the cathode).
     """
     ps = bunch.get_phase_space("%X %Y %Z %Px %Py %Pz %t0 %m %Q %N")
+    if ps is None or len(ps) == 0:
+        raise ValueError(
+            "Cannot convert empty Bunch6dT to beam. Check RF-Track generator "
+            "settings and space-charge configuration for particle losses."
+        )
     x, y, z, px, py, pz, t0, m, q, n = ps.T
 
     self._beam.x = UnitValue(x * 1e-3, units="m")
@@ -173,6 +236,12 @@ def bunch6d_to_beam(self, bunch, zstart: float = 0.0, s: float = None) -> None:
         default fallback used before this parameter existed).
     """
     ps = bunch.get_phase_space("%x %xp %y %yp %t %P %m %Q %N")
+    if ps is None or len(ps) == 0:
+        raise ValueError(
+            f"Cannot convert empty Bunch6d to beam at zstart={zstart}. "
+            "All particles were lost during tracking; check space-charge "
+            "settings, apertures, or lattice configuration."
+        )
     x, xp, y, yp, t, p, m, q, n = ps.T
 
     xp_rad = xp * 1e-3

@@ -250,12 +250,33 @@ class rftrackLattice(frameworkLattice):
         """
         Track :attr:`pin` through :attr:`lat_obj`, setting :attr:`pout`.
         ``lat_obj`` is either an RF-Track ``Lattice`` (``Bunch6d``) or ``Volume``
-        (``Bunch6dT``); both expose ``track``.
+        (``Bunch6dT``); both expose ``track``/``autophase``.
 
-        Sets up the global space-charge engine / cathode mirror charges first
-        (see :func:`_setup_space_charge`) so the space-charge kicks take effect.
+        Explicitly calls ``autophase(self.pin)`` first (manual §3.5.1, REMARK 1:
+        "should be considered an essential part of the initialization
+        process... must be called before any tracking is performed"; RF-Track
+        averages a full bunch down to a single reference particle for this).
+        Without it, RF-Track falls back to auto-invoking autophase() lazily
+        during the first ``track()`` call (REMARK 3) -- verified this gives
+        the identical tracked energy gain, but for a travelling-wave cavity's
+        multi-element (coupler+core+coupler, see
+        ``rf_fieldmap_1d_travelling_wave_args_list``) field map, the lazy path
+        was found to print a flood of duplicated "reference time 't0' is not
+        set" warnings (each element's field is evaluated many times in
+        parallel before its t0 gets cached). Calling autophase() up front,
+        single-threaded, sets every element's t0 before any parallel field
+        evaluation begins, eliminating the duplicate warnings.
+
+        Space charge / cathode mirror-charge / emission options are set up
+        first, same order as before this method called ``autophase()`` at
+        all (see :func:`_setup_space_charge`) -- for a cathode section,
+        ``autophase()`` needs the emission options already configured to
+        correctly simulate a bunch being emitted over time (verified: calling
+        ``autophase()`` *before* :func:`_setup_space_charge` segfaults RF-Track
+        2.6.3 for a cathode section).
         """
         self._setup_space_charge()
+        self.lat_obj.autophase(self.pin)
         self.pout = self.lat_obj.track(self.pin)
 
     def _bunch_to_beam(self, beam, bunch, zstart: float, s: float) -> None:
