@@ -579,143 +579,6 @@ class madxLattice(frameworkLattice):
         self.pin = deepcopy(self.global_parameters["beam"])
 
     # ------------------------------------------------------------------
-    # Coordinate conversions
-    # ------------------------------------------------------------------
-    def beam_to_madx_coords(self, bm: rbf.beam, p0c: float) -> Dict:
-        """
-        Convert a :class:`~simba.Modules.Beams.beam` object into MAD-X
-        canonical coordinates (X, PX, Y, PY, T, PT) for a given reference
-        momentum. The momenta are normalised to `p0c`, ``PT`` is the energy
-        deviation ``(E - E0)/(p0*c)``, and ``T = -c(t - <t>)`` (T > 0 = bunch
-        head), following the conventions in Chapter 1 of the MAD-X manual.
-
-        Parameters
-        ----------
-        bm: :class:`~simba.Modules.Beams.beam`
-            The beam to be converted
-        p0c: float
-            Reference momentum in eV/c
-
-        Returns
-        -------
-        Dict
-            Dictionary with the canonical coordinate arrays, the mean time
-            `tbar` and the reference beta/energy
-        """
-        m0 = self.particle_rest_energy_eV
-        E0ref = np.sqrt(p0c**2 + m0**2)
-        beta0 = p0c / E0ref
-        tarr = np.array(bm.t.val)
-        tbar = float(np.mean(tarr))
-        return {
-            "x": np.array(bm.x.val),
-            "px": np.array(bm.cpx.val) / p0c,
-            "y": np.array(bm.y.val),
-            "py": np.array(bm.cpy.val) / p0c,
-            "t": -speed_of_light * (tarr - tbar),
-            "pt": (np.array(bm.energy.val) - E0ref) / p0c,
-            "tbar": tbar,
-            "beta0": beta0,
-            "E0ref": E0ref,
-        }
-
-    def madx_coords_to_beam(
-        self,
-        coords: Dict,
-        p0c: float,
-        tbar0: float,
-        s_local: float,
-        zpos: float,
-        spos: float,
-        charge_total: float,
-        ref_index: int = None,
-    ) -> rbf.beam:
-        """
-        Convert MAD-X canonical coordinates at an observation point back into
-        a generic :class:`~simba.Modules.Beams.beam` object, so that the
-        distributions can be interpreted in the same way as those produced by
-        the other tracking codes.
-
-        Parameters
-        ----------
-        coords: Dict
-            Dictionary with (x, px, y, py, t, pt) arrays from the MAD-X track
-            table
-        p0c: float
-            Reference momentum in eV/c
-        tbar0: float
-            Mean arrival time of the bunch at the start of the segment [s]
-        s_local: float
-            Position of the observation point along the segment [m]
-        zpos: float
-            Global z position of the observation point [m]
-        spos: float
-            Global s position of the observation point [m]
-        charge_total: float
-            Total charge of the (surviving) bunch [C]
-        ref_index: int, optional
-            Index of the reference particle
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.beam`
-            The output beam object
-        """
-        m0 = self.particle_rest_energy_eV
-        E0ref = np.sqrt(p0c**2 + m0**2)
-        beta0 = p0c / E0ref
-        E = E0ref + np.array(coords["pt"]) * p0c
-        cp = np.sqrt(E**2 - m0**2)
-        cpx = np.array(coords["px"]) * p0c
-        cpy = np.array(coords["py"]) * p0c
-        cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
-        t = tbar0 + s_local / (beta0 * speed_of_light) - np.array(coords["t"]) / speed_of_light
-        npart = len(coords["x"])
-        newbeam = rbf.beam()
-        newbeam.code = "MADX"
-        newbeam.filename = ""
-        nb = newbeam._beam
-        mass = self.global_parameters["beam"].particle_mass
-        mass = np.mean(mass.val) if hasattr(mass, "val") else constants.m_e
-        chargesign = np.sign(np.mean(self.global_parameters["beam"].Q.val)) or -1
-        nb.particle_mass = UnitValue(np.full(npart, mass), units="kg")
-        nb.particle_rest_energy = UnitValue(
-            nb.particle_mass * speed_of_light**2, units="J"
-        )
-        nb.particle_rest_energy_eV = UnitValue(
-            nb.particle_rest_energy / elementary_charge, units="eV/c"
-        )
-        nb.particle_charge = UnitValue(
-            np.full(npart, chargesign * elementary_charge), units="C"
-        )
-        nb.x = UnitValue(np.array(coords["x"]), units="m")
-        nb.y = UnitValue(np.array(coords["y"]), units="m")
-        nb.t = UnitValue(t, units="s")
-        q_over_c = elementary_charge / speed_of_light
-        nb.px = UnitValue(cpx * q_over_c, units="kg*m/s")
-        nb.py = UnitValue(cpy * q_over_c, units="kg*m/s")
-        nb.pz = UnitValue(cpz * q_over_c, units="kg*m/s")
-        nb.set_total_charge(chargesign * abs(charge_total))
-        nb.nmacro = UnitValue(np.full(npart, 1))
-        nb.status = UnitValue(np.full(npart, 5))
-        if ref_index is not None:
-            newbeam.reference_particle_index = int(ref_index)
-            tref = nb.t[int(ref_index)]
-        else:
-            tref = np.mean(nb.t)
-        nb.z = UnitValue(
-            zpos + (-1 * nb.Bz * speed_of_light) * (nb.t - tref), units="m"
-        )
-        nb.s = UnitValue(spos, units="m")
-        if ref_index is not None:
-            newbeam.reference_particle = [
-                getattr(nb, coord)[int(ref_index)]
-                for coord in newbeam.reference_particle_coords
-            ]
-        newbeam.species = self.global_parameters["beam"].species
-        return newbeam
-
-    # ------------------------------------------------------------------
     # MAD-X interaction
     # ------------------------------------------------------------------
     def start_madx(self) -> Any:
@@ -1187,7 +1050,7 @@ class madxLattice(frameworkLattice):
             The beam at the end of the segment
         """
         npart = len(current_beam.x.val)
-        coords = self.beam_to_madx_coords(current_beam, p0c)
+        coords = current_beam.beam_to_madx_coords(p0c)
         tbar0 = coords["tbar"]
         observe = self.observation_points(segnames)
         trackdata = self.run_track(madx, coords, observe)
@@ -1199,7 +1062,7 @@ class madxLattice(frameworkLattice):
                 warn(f"MADX: no particles recorded at {name}")
                 continue
             elem = self._elements_with_drifts[name]
-            bm = self.madx_coords_to_beam(
+            bm = self.pin.madx_coords_to_beam(
                 data,
                 p0c,
                 tbar0,
@@ -1223,7 +1086,7 @@ class madxLattice(frameworkLattice):
             warn(f"MADX: {nlost} particles lost in segment")
         endelem = self._elements_with_drifts[segnames[-1]]
         newref = self.reference_index(data["number"], ref_idx)
-        bm = self.madx_coords_to_beam(
+        bm = self.pin.madx_coords_to_beam(
             data,
             p0c,
             tbar0,
@@ -1287,7 +1150,7 @@ class madxLattice(frameworkLattice):
             The (transformed) beam at the end of the segment
         """
         keys = ["x", "px", "y", "py", "t", "pt"]
-        coords = self.beam_to_madx_coords(current_beam, p0c)
+        coords = current_beam.beam_to_madx_coords(p0c)
         tbar0 = coords["tbar"]
         zin = np.array([coords[k] for k in keys])
         centroid = np.mean(zin, axis=1)
@@ -1325,7 +1188,7 @@ class madxLattice(frameworkLattice):
                 zin - centroid[:, np.newaxis]
             )
             newcoords = {k: transformed[i] for i, k in enumerate(keys)}
-            return self.madx_coords_to_beam(
+            return self.pin.madx_coords_to_beam(
                 newcoords, p0c, tbar0, s_local, zpos, zpos, charge_total,
                 ref_index=ref_index,
             )
