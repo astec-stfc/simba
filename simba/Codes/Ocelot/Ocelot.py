@@ -303,7 +303,7 @@ class ocelotLattice(frameworkLattice):
         navi_locations_end = []
         # settings = self.settings
         navi = Navigator(self.lat_obj, unit_step=self.unit_step)
-        if self.lsc:
+        if self.lsc and self.lsc_enable:
             lsc = self.physproc_lsc()
             navi_processes += [lsc]
             navi_locations_start += [self.lat_obj.sequence[0]]
@@ -325,7 +325,7 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_start += [self.lat_obj.sequence[0]]
                 navi_locations_end += [self.lat_obj.sequence[-1]]
                 space_charge_set = True
-        if "csr" in list(self.file_block.keys()):
+        if "csr" in list(self.file_block.keys()) and self.csr_enable:
             csr, start, end = self.physproc_csr()
             for i in range(len(csr)):
                 navi_processes += [csr[i]]
@@ -358,7 +358,7 @@ class ocelotLattice(frameworkLattice):
                 fieldstr = "wakefield_definition"
             elif "wake" in obj.hardware_type.lower():
                 fieldstr = "field_definition"
-            if fieldstr is not None:
+            if fieldstr is not None and self.wakefield_enable:
                 if getattr(obj.simulation, fieldstr) is not None:
                     wake, w_ind = self.physproc_wake(
                         name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
@@ -381,6 +381,8 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
         for w in self.screens_and_bpms + self.apertures:
+            if w.name == self.start:
+                continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]
             subdir = self.global_parameters["master_subdir"]
             navi_processes += [

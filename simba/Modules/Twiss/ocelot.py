@@ -58,6 +58,34 @@ def read_ocelot_twiss_files(self, filename, reset=True):
         interpret_ocelot_data(self, lattice_name, fdat)
 
 
+def _uncorrected_emittance(uu, pp_, up, disp, dispp, varp, betagamma):
+    """
+    Add the dispersive contribution back into Ocelot's dispersion-subtracted
+    second moments and form the uncorrected emittance.
+
+    Parameters
+    ----------
+    uu, pp_, up: np.ndarray
+        Dispersion-subtracted second moments <u^2>, <u'^2> and <u u'>
+    disp, dispp: np.ndarray
+        Dispersion and its derivative for this plane
+    varp: np.ndarray
+        Momentum-spread variance <dp^2>
+    betagamma: np.ndarray
+        Relativistic beta*gamma, for the normalisation
+
+    Returns
+    -------
+    tuple
+        (normalised, geometric) uncorrected emittance
+    """
+    uu = uu + disp**2 * varp
+    pp_ = pp_ + dispp**2 * varp
+    up = up + disp * dispp * varp
+    geometric = np.sqrt(np.clip(uu * pp_ - up**2, 0, None))
+    return geometric * betagamma, geometric
+
+
 def interpret_ocelot_data(self, lattice_name, fdat):
     if "z" in fdat:
         self.z.val = np.append(self.z.val, fdat["z"])
@@ -78,10 +106,19 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
-    self.ex.val = np.append(self.ex.val, fdat["eigemit_1"])
-    self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
-    self.ey.val = np.append(self.ey.val, fdat["eigemit_2"])
+    betagamma = np.sqrt(np.clip(gamma**2 - 1, 0, None))
+    enx, ex = _uncorrected_emittance(
+        fdat["xx"], fdat["pxpx"], fdat["xpx"],
+        fdat["Dx"], fdat["Dxp"], fdat["pp"], betagamma,
+    )
+    eny, ey = _uncorrected_emittance(
+        fdat["yy"], fdat["pypy"], fdat["ypy"],
+        fdat["Dy"], fdat["Dyp"], fdat["pp"], betagamma,
+    )
+    self.enx.val = np.append(self.enx.val, enx)
+    self.ex.val = np.append(self.ex.val, ex)
+    self.eny.val = np.append(self.eny.val, eny)
+    self.ey.val = np.append(self.ey.val, ey)
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
     self.beta_x.val = np.append(self.beta_x.val, fdat["_beta_x"])

@@ -210,6 +210,11 @@ class madxLattice(frameworkLattice):
     model_twiss: Dict = {}
     """MAD-X model Twiss parameters at each element, keyed by element name"""
 
+    segment_p0c: Dict = {}
+    """MAD-X reference momentum [eV/c] of the segment each element belongs to,
+    keyed by element name. Used to convert the canonical model Twiss functions
+    back to trace space (see :func:`~postProcess`)"""
+
     output_beams: Dict = {}
     """Beam distributions at each observation point, keyed by element name"""
 
@@ -254,6 +259,7 @@ class madxLattice(frameworkLattice):
         self.seqstrings = []
         self.beam_data = {}
         self.model_twiss = {}
+        self.segment_p0c = {}
         self.output_beams = {}
         self.tws = {}
 
@@ -574,6 +580,14 @@ class madxLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.read_input_file(prefix, self.particle_definition)
+        if self.initial_twiss["horizontal"]["beta"]:
+            self.global_parameters["beam"].beam.rematchXPlane(
+                **self.initial_twiss["horizontal"]
+            )
+        if self.initial_twiss["vertical"]["beta"]:
+            self.global_parameters["beam"].beam.rematchYPlane(
+                **self.initial_twiss["vertical"]
+            )
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.pin = deepcopy(self.global_parameters["beam"])
@@ -863,6 +877,31 @@ class madxLattice(frameworkLattice):
                 "muy": 0.0,
             }
 
+    @staticmethod
+    def rescale_twiss_init(init: Dict, ratio: float) -> Dict:
+        """
+        Re-reference a set of Twiss functions from one MAD-X reference
+        momentum to another (``ratio`` = p0c_new / p0c_old).
+
+        The MAD-X Twiss functions are defined in the canonical coordinates
+        (x, px = Px/P0) of the segment, so they depend on the segment
+        reference momentum. Since the beam is accelerated by the cavity at the
+        end of each segment, the reference momentum changes at every segment
+        boundary and the Twiss functions have to be transformed accordingly.
+
+        Under P0 -> P0' the transverse coordinate x is unchanged while
+        px -> px * P0/P0', so the canonical emittance scales as
+        eps -> eps * P0/P0'. Hence beta (= sigma_x^2/eps) and the dispersion
+        (per unit pt, which rescales the same way) are multiplied by `ratio`,
+        while alpha and dpx/dpy are invariant.
+        """
+        if not np.isfinite(ratio) or ratio <= 0:
+            return init
+        out = dict(init)
+        for key in ("betx", "bety", "dx", "dy"):
+            out[key] = init[key] * ratio
+        return out
+
     def store_beam_data(self, name: str, bm: rbf.beam, spos: float, zpos: float) -> None:
         """
         Store the beam statistics at an observation point into
@@ -890,12 +929,10 @@ class madxLattice(frameworkLattice):
             "sigma_cp": float(bm.sigmas.sigma_cp_eV),
             "mean_x": float(np.mean(bm.x.val)),
             "mean_y": float(np.mean(bm.y.val)),
-            # dispersion-corrected emittances (consistent with the values
-            # reported by the Ocelot beam-envelope Twiss)
-            "enx": float(bm.emittance.ecnx),
-            "eny": float(bm.emittance.ecny),
-            "ex": float(bm.emittance.horizontal_emittance_corrected),
-            "ey": float(bm.emittance.vertical_emittance_corrected),
+            "ex": float(bm.emittance.ex),
+            "ey": float(bm.emittance.ey),
+            "enx": float(bm.emittance.enx),
+            "eny": float(bm.emittance.eny),
             "ecnx": float(bm.emittance.ecnx),
             "ecny": float(bm.emittance.ecny),
             "beta_x_beam": float(bm.twiss.beta_x_corrected),
@@ -961,6 +998,7 @@ class madxLattice(frameworkLattice):
         twiss_init = self.initial_twiss_conditions(current_beam)
 
         # store the beam data at the entrance of the lattice
+        self.segment_p0c[self.start] = float(np.mean(current_beam.cp.val))
         self.store_beam_data(
             self.start,
             current_beam,
@@ -968,12 +1006,20 @@ class madxLattice(frameworkLattice):
             zstart_lattice,
         )
 
+        p0c_prev = None
         for iseg, segnames in enumerate(self.segments):
             seqname = self.segment_name(iseg)
             seg_s0 = self._sval_in[segnames[0]]
             seg_s1 = self._sval_out[segnames[-1]]
             seg_len = seg_s1 - seg_s0
             p0c = float(np.mean(current_beam.cp.val))
+            # the MAD-X Twiss functions are canonical w.r.t. the segment
+            # reference momentum, which changes at every segment boundary
+            if p0c_prev is not None and p0c_prev > 0:
+                twiss_init = self.rescale_twiss_init(twiss_init, p0c / p0c_prev)
+            p0c_prev = p0c
+            for nm in segnames:
+                self.segment_p0c[nm] = p0c
             if getattr(self, "verbose", False):
                 print(
                     f"MADX [{self.objectname}] segment {iseg + 1}/{len(self.segments)}: "
@@ -1019,6 +1065,7 @@ class madxLattice(frameworkLattice):
         # store/write the final beam at the end of the line
         endname = self.end
         endelem = self._elements_with_drifts[self.segments[-1][-1]]
+        self.segment_p0c.setdefault(endname, p0c_prev)
         self.store_beam_data(
             endname,
             current_beam,
@@ -1293,12 +1340,24 @@ class madxLattice(frameworkLattice):
             "mux": ("mux", None),
             "muy": ("muy", None),
         }
+        scale = np.array(
+            [
+                d["cp"] / self.segment_p0c[name]
+                if self.segment_p0c.get(name, 0) > 0
+                else 1.0
+                for name, d in rows
+            ]
+        )
+        canonical_scaling = {"beta_x", "beta_y", "eta_x", "eta_y"}
         for key, (mkey, fallback) in model_keys.items():
             vals = []
             for i, (name, d) in enumerate(rows):
                 mname = sanitize_string(name).lower()
                 if mname in self.model_twiss:
-                    vals.append(self.model_twiss[mname][mkey])
+                    val = self.model_twiss[mname][mkey]
+                    if key in canonical_scaling:
+                        val = val * scale[i]
+                    vals.append(val)
                 elif fallback is not None:
                     vals.append(d[fallback])
                 else:

@@ -514,6 +514,9 @@ class frameworkLattice(BaseModel):
     _csr_enable: bool = True
     """Flag to enable CSR drifts in the lattice."""
 
+    _wakefield_enable: bool = True
+    """Flag to enable structure wakefields in the lattice."""
+
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
@@ -626,8 +629,16 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally
-        if name in frameworkLattice.model_fields:
+        # Let Pydantic set known fields normally, and private attributes too --
+        # pydantic keeps those in __pydantic_private__, whereas
+        # object.__setattr__ would drop them into the instance __dict__ where
+        # they survive only until the next field assignment re-validates the
+        # model (`validate_assignment=True`) and rebuilds __dict__. That is how
+        # `csr_enable`/`lsc_enable` and the cached `_section` used to be
+        # silently reset partway through preProcess.
+        # Everything else (element names set in model_post_init) bypasses
+        # pydantic deliberately, to avoid validating them as extra fields.
+        if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 
@@ -698,6 +709,28 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
+            except ValueError:
+                pass
+            except AttributeError:
+                pass
+
+    @property
+    def wakefield_enable(self) -> bool:
+        """
+        Property to get or set the wakefield enable flag. When False, the
+        structure wakefields of accelerating cavities are not applied.
+        The wakefield definitions themselves are
+        left intact, so the flag can be toggled back on.
+        """
+        return self._wakefield_enable
+
+    @wakefield_enable.setter
+    def wakefield_enable(self, wake: bool) -> None:
+        self._wakefield_enable = wake
+        self.section.wakefield_enable = wake
+        for elem in self.elementObjects.values():
+            try:
+                elem.simulation.wakefield_enable = wake
             except ValueError:
                 pass
             except AttributeError:

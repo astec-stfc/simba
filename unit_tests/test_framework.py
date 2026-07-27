@@ -119,8 +119,12 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
         verbose=True
     )
     framework.loadSettings(settings=settings)
-    framework.save_settings("test.def")
-    framework.loadSettings(filename="test.def")
+    # save_settings resolves `filename` relative to `directory` (default "."),
+    # so write the round-trip file next to this test rather than into whatever
+    # the current working directory happens to be when pytest is invoked
+    testdir = os.path.dirname(os.path.abspath(__file__))
+    framework.save_settings("test.def", directory=testdir)
+    framework.loadSettings(filename=os.path.join(testdir, "test.def"))
     framework.global_parameters["beam"] = MagicMock()
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
