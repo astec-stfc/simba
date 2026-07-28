@@ -143,7 +143,10 @@ with open(
 
 allowed_species = ["electron", "proton", "positron", "hydrogen"]
 
-cathode_codes = ["ASTRA", "astra", "GPT", "gpt"]
+# OPAL emits from a photocathode natively (DISTRIBUTION, EMITTED = TRUE with an
+# EMISSIONMODEL), which is how an OPAL section starting at the cathode generates
+# and accelerates the bunch in a single run.
+cathode_codes = ["ASTRA", "astra", "GPT", "gpt", "OPAL", "opal"]
 
 
 class frameworkGenerator(BaseModel):
@@ -224,8 +227,14 @@ class frameworkGenerator(BaseModel):
     name: str = "generator"
     """Name of this generator class"""
 
-    code: Literal["ASTRA", "astra", "GPT", "gpt", "generic", "framework", "simba", "SIMBA"] = "ASTRA"
-    """Simulation code to be used for generating distributions"""
+    code: Literal[
+        "ASTRA", "astra", "GPT", "gpt", "OPAL", "opal",
+        "generic", "framework", "simba", "SIMBA",
+    ] = "ASTRA"
+    """Simulation code to be used for generating distributions. 
+    ``opal`` is supported only for beam generation and
+    acceleration in a single run with OPAL; see
+    :func:`~simba.Codes.OPAL.OPAL.opalLattice.all_in_one`."""
 
     sigma_x: float = 0.0
     """Horizontal beam sigma [m]"""

@@ -5,6 +5,7 @@ It includes methods to run the OPAL generator, write the input file, and post-pr
 """
 import os
 import subprocess
+import numpy as np
 from typing import Any, Dict
 
 from ...Modules import constants
@@ -102,9 +103,16 @@ class OPALGenerator(frameworkGenerator):
             dist_dict.update({"TYPE": "FLATTOP"})
             if not getattr(self, "plateau_bunch_length") > 0:
                 raise ValueError(f"plateau_bunch_length must be defined for flattop longitudinal distribution")
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: self.plateau_bunch_length})
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: self.plateau_rise_time})
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: self.plateau_fall_time})
+            rise_time = self.plateau_rise_time
+            fall_time = self.plateau_fall_time or rise_time
+            dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: rise_time})
+            dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: fall_time})
+            sigma_rise = rise_time / 1.6869
+            sigma_fall = fall_time / 1.6869
+            tpulsefwhm = self.plateau_bunch_length + np.sqrt(2 * np.log(2)) * (
+                sigma_rise + sigma_fall
+            )
+            dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: tpulsefwhm})
         else:
             if not getattr(self, "sigma_t") > 0:
                 raise ValueError(f"sigma_t must be defined for flattop longitudinal distribution")
@@ -123,7 +131,12 @@ class OPALGenerator(frameworkGenerator):
                     k = aliases["aliases"]["opal"][k]["alias"]
                 if (getattr(self, k) is not None) and dist and (k.lower() != "type"):
                     dist_dict.update({k: v})
+        allowed = {a.upper() for a in opal_generator_keywords.get("allowed", [])}
         for k, v in dist_dict.items():
+            if allowed and k.upper() not in allowed:
+                continue
+            if k.upper() == "EKIN" and self.emission_model == "ASTRA":
+                continue
             output += f",\n\t {k.upper()} = {v}"
         if self.emission_model == "ASTRA":
             output += f",\n\t EKIN = {self.thermal_kinetic_energy}"
