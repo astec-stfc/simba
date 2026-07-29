@@ -72,9 +72,12 @@ def fieldmap_data(element, master_lattice):
         scale = element.field_amplitude
     except AttributeError:
         scale = element.simulation.field_amplitude
+    # resolve a functional definition to a number, if present
+    scale = element.resolve(scale)
     if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
-
+        if element.structure_Type == "StandingWave" and element.n_cells > 2:
+            scale = scale / element.physical.length
     # file
     element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
     element.update_field_definition()
@@ -131,7 +134,7 @@ class magnet_plotting_data:
 
     def quadrupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k1l) * 0.5
+        strength = np.sign(e.magnetic.KnL(1)) * 0.5
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]
@@ -140,7 +143,7 @@ class magnet_plotting_data:
 
     def sextupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k2l) * 0.5
+        strength = np.sign(e.magnetic.KnL(2)) * 0.5
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]
@@ -148,7 +151,7 @@ class magnet_plotting_data:
         return self.half_rectangle(e, strength), "green"
 
     def dipole(self, e):
-        strength = np.sign(e.angle) * 0.4  # e.angle
+        strength = np.sign(e.magnetic.KnL(0)) * 0.4  # e.angle
         return self.half_rectangle(e, strength), "blue"
 
     def beam_position_monitor(self, e):
@@ -256,7 +259,7 @@ def add_fieldmaps_to_axes(
         for a in ax:
             a.set_yticks([])
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.getSValues()), 0]])
     ax[0].plot(*data.T, color="black")
 
 
@@ -314,7 +317,7 @@ def add_magnets_to_axes(
             for name, (data, c) in fmaps[section].items():
                 a.fill(*data.T, color=c)
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.getSValues()), 0]])
     ax[0].plot(*data.T, color="black")
     if bounds:
         ax1.set_xlim(bounds[0], bounds[1])
