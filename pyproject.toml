@@ -44,7 +44,10 @@ dependencies = [
     "openpmd-beamphysics>=0.10",
     "xopt",
     "Wake-T>=0.8.0",
-    "laura-accelerator",
+    # >=0.9 is required: simba.Modules.Fields re-exports laura's fields module
+    # and simba.Codes.RFTrack imports laura.translator.conversion_rules.codes.
+    # rftrack_conversion, neither of which exists in laura 0.8 or earlier.
+    "laura-accelerator>=0.9",
     # RF-Track (simba.Codes.RFTrack.RFTrack.rftrackLattice) is not distributed
     # on PyPI, so it cannot be listed here like the other codes above; install
     # the wheel manually from the RF-Track page (CERN, A. Latina) into this

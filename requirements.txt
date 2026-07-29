@@ -31,4 +31,4 @@ pyfftw
 paramiko
 numexpr
 Wake-T>=0.8.0
-laura-accelerator
+laura-accelerator>=0.9

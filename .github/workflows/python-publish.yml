@@ -3,7 +3,8 @@ name: Publish Python Package to PyPI
 on:
   push:
     tags:
-      - "v*"  # triggers on tags like v0.1.0 we need dis
+      - "v*"        # v0.1.0
+      - "[0-9]*"    # 0.2.0 -- bare numeric tags, which "v*" never matched
 
 jobs:
   build-and-publish:
@@ -11,10 +12,10 @@ jobs:
 
     steps:
       # 1️⃣ Checkout full git history including tags
+      # fetch-depth: 0 already brings tags; checkout has no "tags" input
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          tags: true
 
       # 2️⃣ Set up Python
       - uses: actions/setup-python@v5

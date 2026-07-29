@@ -1,0 +1,50 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # simba imports laura internals, so "does it work" has two different
+        # answers worth knowing:
+        #   pypi     -- what a user who pip-installs simba today actually gets.
+        #               Red until laura >= 0.9 is published; that failure is
+        #               the "simba is not releasable yet" signal, not a flake.
+        #   git-main -- laura's unreleased main. Catches upstream breakage
+        #               before it reaches PyPI.
+        laura-source: [pypi, git-main]
+
+    name: test (laura from ${{ matrix.laura-source }})
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # setuptools_scm needs history to derive a version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[test]"
+
+      - name: Override laura with astec-stfc/laura@main
+        if: matrix.laura-source == 'git-main'
+        run: pip install --force-reinstall "laura-accelerator @ git+https://github.com/astec-stfc/laura@main"
+
+      - name: Show which laura is actually in use
+        run: python -c "import laura; print(laura.__version__ if hasattr(laura, '__version__') else '?', laura.__file__)"
+
+      - name: Run tests
+        run: pytest unit_tests -v
