@@ -25,8 +25,70 @@ from laura.translator.converters.codes.opal import (
     opal_run,
 )
 
-from ...Modules.constants import speed_of_light
+from ...Modules.constants import speed_of_light, elementary_charge, m_e
 from ...Modules.units import UnitValue
+
+#: Magnetic rigidity of a particle with beta*gamma = 1 [T m], i.e. m_e*c/e.
+BRHO_BETAGAMMA_1 = m_e * speed_of_light / elementary_charge
+
+
+def _rms_emittance(u: np.ndarray, pu: np.ndarray) -> float:
+    """
+    RMS emittance of a single plane, with ``pu`` normalised to ``beta*gamma``.
+    """
+    u = u - u.mean()
+    pu = pu - pu.mean()
+    return np.sqrt(
+        max((u * u).mean() * (pu * pu).mean() - (u * pu).mean() ** 2, 0.0)
+    )
+
+
+def canonical_emittances(filename: str, b_threshold: float = 1e-6) -> Dict[float, tuple]:
+    """
+    Recompute the transverse emittances of an OPAL particle dump from canonical
+    momenta, keyed by longitudinal position.
+
+    OPAL reports emittances built from *mechanical* momenta. Inside a solenoid
+    those carry the vector potential, ``A_x = -B_z*y/2`` and ``A_y = B_z*x/2``,
+    so the reported emittance is inflated by ``~B_z*sigma_x*sigma_y/(2*Brho)``
+    wherever the field is on -- for a photoinjector solenoid that is a factor of
+    tens, and it disappears again at the exit. Every other code SIMBA drives
+    reports the canonical emittance, so this restores comparability.
+
+    Steps where the field is negligible are skipped: there the value OPAL
+    already reports is the canonical one.
+
+    Parameters
+    ----------
+    filename: str
+        Path to the OPAL particle dump (``<name>.h5``).
+    b_threshold: float
+        Field below which no correction is applied [T].
+
+    Returns
+    -------
+    Dict[float, tuple]
+        ``{s: (emit_x, emit_y)}`` for the steps that needed correcting.
+    """
+    import h5py
+
+    corrected = {}
+    with h5py.File(filename, "r") as f:
+        for key in f:
+            if not key.startswith("Step#"):
+                continue
+            step = f[key]
+            bz = float(np.atleast_1d(step.attrs["B-ref"])[-1])
+            if abs(bz) < b_threshold:
+                continue
+            k = bz / (2 * BRHO_BETAGAMMA_1)
+            x, y = step["x"][()], step["y"][()]
+            spos = float(np.atleast_1d(step.attrs["SPOS"])[0])
+            corrected[spos] = (
+                _rms_emittance(x, step["px"][()] + k * y),
+                _rms_emittance(y, step["py"][()] - k * x),
+            )
+    return corrected
 
 
 def update_globals(global_settings, beamlen=None, sample_interval=1):
@@ -67,8 +129,16 @@ class opalLattice(frameworkLattice):
     particle_definition: str = None
     """Name of initial particle distribution"""
 
-    time_step_size: float = 2e-12
-    """Step size for tracking"""
+    time_step_size: float | list | tuple = 2e-12
+    """Step size for tracking [s]. A sequence stages the step size along the
+    line, paired with :attr:`~time_step_boundaries`: the beam is slow and the
+    fields are strongest just off the cathode, so a fine step is only worth
+    paying for over the first few tens of centimetres."""
+
+    time_step_boundaries: list | tuple | None = None
+    """z-positions [m], relative to the start of the section, at which
+    :attr:`~time_step_size` moves on to its next value. Needs one fewer entry
+    than ``time_step_size``; the final stage runs to the end of the section."""
 
     breakstr: str = "//----------------------------------------------------------------------------"
     """String used for separating headers in the input file"""
@@ -87,6 +157,27 @@ class opalLattice(frameworkLattice):
 
     ref_idx: int = None
     """Reference particle index"""
+
+    space_charge_grid: int | tuple[int, int, int] | list | None = None
+    """Explicit space-charge mesh size. A single value is used for all three
+    dimensions; a ``(MX, MY, MT)`` triple sets them independently, which is
+    useful near a cathode where the bunch is a thin pancake and only the
+    longitudinal mesh needs refining. When None, the mesh is sized as the 
+    cube root of the particle count; note
+    that OPAL still requires ``npart >= MX*MY*MT``."""
+
+    bbox_increase: float | None = None
+    """Percentage by which the space-charge bounding box is enlarged beyond the
+    extent of the bunch (OPAL's ``BBOXINCR``). When None, OPAL's own default of
+    2% applies. Near a cathode the bunch is a thin pancake, so 2% is a very
+    small absolute padding longitudinally."""
+
+    force_all_in_one: bool | None = None
+    """Override the automatic choice in :func:`~all_in_one`.
+
+    None follows the automatic rule. True makes OPAL generate the bunch itself
+    from the generator settings; False makes it import a particle file instead
+    (``TYPE = FROMFILE``)."""
 
     generator: Any = None
     """The framework's beam generator, if any. Set by
@@ -176,21 +267,54 @@ class opalLattice(frameworkLattice):
         """
         return self.particle_definition == "laser"
 
+    def option_settings(self) -> dict:
+        """
+        Settings for the OPAL ``OPTION`` namelist, taken from the ``global``
+        block of `globals_Opal.yaml` and overridden by `settings["global"]`.
+
+        Returns
+        -------
+        dict
+            Keyword arguments for :class:`~laura.translator.converters.codes.opal.opal_option`
+        """
+        opalglobal = update_globals(self.globalSettings)
+        settings = dict(opalglobal.get("global", {}) or {})
+        allowed = opal_option.model_fields
+        dropped = [k for k in settings if k not in allowed]
+        for k in dropped:
+            warn(f"OPAL OPTION has no attribute {k}; ignoring")
+            settings.pop(k)
+        return settings
+
     @property
     def all_in_one(self) -> bool:
         """
         Whether this section should generate its own bunch inside OPAL rather
         than importing a distribution produced by another code.
 
-        True when the section starts at a cathode -- ``charge.cathode`` is set
-        and the input is the generator's ``initial_distribution``. OPAL models
-        generation and acceleration in a single run, and splitting the two loses
-        information that no particle file carries: the emission time structure
-        has to be reconstructed from the file, and OPAL's photocathode emission
-        model never sees the generator's own pulse shape.
+        Automatic when :attr:`~force_all_in_one` is None: true if the section
+        starts at a cathode -- ``charge.cathode`` is set and the input is the
+        generator's ``initial_distribution``. OPAL models generation and
+        acceleration in a single run, and splitting the two loses information
+        that no particle file carries: the emission time structure has to be
+        reconstructed from the file.
+
+        Set :attr:`~force_all_in_one` to override in either direction.
         """
-        charge = self.file_block.get("charge", {}) or {}
-        return bool(self.emitted and charge.get("cathode") and self.generator is not None)
+        auto = bool(
+            self.emitted
+            and (self.file_block.get("charge", {}) or {}).get("cathode")
+            and self.generator is not None
+        )
+        if self.force_all_in_one is None:
+            return auto
+        if self.force_all_in_one and self.generator is None:
+            warn(
+                "force_all_in_one=True but no generator is attached; falling "
+                "back to importing a distribution file."
+            )
+            return False
+        return self.force_all_in_one
 
     def native_distribution_block(self) -> str | None:
         """
@@ -284,7 +408,7 @@ class opalLattice(frameworkLattice):
             initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.start
         else:
             initobj = self.start
-        self.headers["option"] = opal_option()
+        self.headers["option"] = opal_option(**self.option_settings())
         native = self.native_distribution_block()
         self.headers["distribution"] = opal_distribution(
             input_particle_definition=f"\"{initobj}.opal\"",
@@ -295,6 +419,8 @@ class opalLattice(frameworkLattice):
             npart=beamlen,
             sample_interval=self.sample_interval,
             space_charge_mode=str(self.space_charge_mode),
+            grid_size_override=self.space_charge_grid,
+            BBOXINCR=self.bbox_increase,
         )
         self.headers["beam"] = opal_beam(
             PC=pc,
@@ -303,11 +429,20 @@ class opalLattice(frameworkLattice):
             PARTICLE=self.global_parameters["beam"].species.upper(),
             BCURRENT=bcurrent,
         )
+        bounds = None
+        if isinstance(self.time_step_size, (list, tuple)):
+            bounds = list(self.time_step_boundaries or [])
+            if len(bounds) != len(self.time_step_size) - 1:
+                raise ValueError(
+                    f"time_step_boundaries needs {len(self.time_step_size) - 1} "
+                    f"entries for {len(self.time_step_size)} time steps, got {len(bounds)}"
+                )
         self.headers["track"] = opal_track(
             DT=self.time_step_size,
             MAXSTEPS=self.maxsteps,
             LINE=self.objectname,
             ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
+            ZSTOP_STAGES=bounds,
         )
         self.headers["run"] = opal_run()
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
@@ -353,6 +488,16 @@ class opalLattice(frameworkLattice):
                 opalData[k] = opalData[k][0]
             else:
                 opalData[k] = np.array(opalData[k])
+        # OPAL's own emittances use mechanical momenta, so replace them with
+        # canonical ones wherever a solenoid is on -- see canonical_emittances.
+        corrected = canonical_emittances(opalbeamname)
+        if corrected:
+            svals_stat = np.asarray(opalData["s"], dtype=float)
+            for spos, (ex, ey) in corrected.items():
+                idx = int(np.argmin(np.abs(svals_stat - spos)))
+                if abs(svals_stat[idx] - spos) < 1e-6:
+                    opalData["emit_x"][idx] = ex
+                    opalData["emit_y"][idx] = ey
         if self.ref_s is not None:
             opalData["s"] += self.ref_s
         import h5py

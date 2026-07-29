@@ -7,6 +7,7 @@ import os
 import subprocess
 import numpy as np
 from typing import Any, Dict
+from warnings import warn
 
 from ...Modules import constants
 from ...FrameworkHelperFunctions import saveFile
@@ -36,6 +37,14 @@ class OPALGenerator(frameworkGenerator):
 
     breakstr: str = "//----------------------------------------------------------------------------"
     """String to indicate a new section of the generator txt file"""
+
+    MIN_PARTICLES_PER_EMISSION_STEP: int = 64
+    """Fewest particles an emission step may emit before
+    :func:`~capped_emission_steps` starts reducing the step count."""
+
+    MIN_EMISSION_STEPS: int = 50
+    """Floor on the emission step count, so a small bunch still resolves the
+    shape of the laser pulse."""
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
@@ -82,6 +91,43 @@ class OPALGenerator(frameworkGenerator):
             return self._get_bunch_length() * 1e6
         else:
             return (self.sigma_t * self.gaussian_cutoff_z) * 1e6
+
+    def capped_emission_steps(self, requested: int) -> int:
+        """
+        Limit the emission steps so each one emits a useful number of particles.
+
+        OPAL solves the space charge afresh at every emission step. If the step
+        count is large relative to the bunch, each step adds only a handful of
+        particles and the emitted slice is vanishingly thin next to the spot
+        size, so the solver works on an absurd aspect ratio and injects spurious
+        emittance at the cathode.
+
+        This only ever lowers the value -- an explicit setting is respected
+        wherever it is already sensible for the particle count.
+
+        Parameters
+        ----------
+        requested: int
+            The configured number of emission steps.
+
+        Returns
+        -------
+        int
+            The number of emission steps to actually use.
+        """
+        ceiling = max(
+            int(self.particles // self.MIN_PARTICLES_PER_EMISSION_STEP),
+            self.MIN_EMISSION_STEPS,
+        )
+        if requested <= ceiling:
+            return int(requested)
+        warn(
+            f"emission_steps={requested} would emit only "
+            f"{self.particles / requested:.1f} particles per step for "
+            f"{self.particles} particles; capping at {ceiling}. Raise the "
+            f"particle count to use finer emission stepping."
+        )
+        return ceiling
 
     def _write_distribution(self) -> str:
         """
@@ -131,6 +177,14 @@ class OPALGenerator(frameworkGenerator):
                     k = aliases["aliases"]["opal"][k]["alias"]
                 if (getattr(self, k) is not None) and dist and (k.lower() != "type"):
                     dist_dict.update({k: v})
+        if dist_dict.get("TYPE") == "FLATTOP":
+            for attr in ("sigma_x", "sigma_y"):
+                key = aliases["aliases"]["opal"][attr]["alias"]
+                if dist_dict.get(key):
+                    dist_dict[key] = 2 * dist_dict[key]
+        key = aliases["aliases"]["opal"]["emission_steps"]["alias"]
+        if dist_dict.get(key):
+            dist_dict[key] = self.capped_emission_steps(dist_dict[key])
         allowed = {a.upper() for a in opal_generator_keywords.get("allowed", [])}
         for k, v in dist_dict.items():
             if allowed and k.upper() not in allowed:
@@ -164,7 +218,7 @@ class OPALGenerator(frameworkGenerator):
         output += f"REAL beam_bunch_charge = {float(self.charge) * 1e6};\n"
         output += f"REAL GAMMA = {self.initial_gamma};\n"
         output += (
-            f"REAL MINSTEPFOREBIN = {self.opalglobal['global']['MINSTEPFOREBIN']};\n"
+            f"REAL MINSTEPFORREBIN = {self.opalglobal['global']['MINSTEPFORREBIN']};\n"
         )
         output += (
             f"REAL MINBINEMITTED = {self.opalglobal['global']['MINBINEMITTED']};\n"

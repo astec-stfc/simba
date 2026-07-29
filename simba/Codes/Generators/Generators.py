@@ -439,8 +439,12 @@ class frameworkGenerator(BaseModel):
     tstep: float = 1e-15
     """[OPAL only] Time step for tracking [s]"""
 
-    emission_steps: int = 10000
-    """[OPAL only] Number of emission steps"""
+    emission_steps: int = 500
+    """[OPAL only] Number of emission steps.
+
+    This has to stay small enough that each step emits a useful number of
+    particles.
+    """
 
     n_bin: int = 10
     """[OPAL only] Number of energy bins"""
