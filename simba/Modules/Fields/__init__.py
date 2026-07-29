@@ -28,7 +28,6 @@ from laura.translator.utils.fields import (  # noqa: F401
     field,
     FieldParameter,
     allowed_fields,
-    allowed_formats,
     fieldtype,
     cavitytype,
     astra,
