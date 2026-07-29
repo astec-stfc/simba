@@ -28,3 +28,7 @@ docs/source/examples/notebooks/changes.yaml
 docs/source/examples/notebooks/params.yaml
 examples/testing/
 Manuals/
+.vscode/
+.coverage
+.coverage.*
+__pycache__/
