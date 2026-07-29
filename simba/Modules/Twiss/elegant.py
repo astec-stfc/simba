@@ -145,10 +145,10 @@ def read_elegant_twiss_files(self, filename, startS=0, reset=True):
         )
         # self.append('sigma_cp', elegantData['Sdelta'] * cp )
         self.sigma_cp.val = np.append(
-            self.sigma_cp.val, elegantData["Sdelta"] * cp / constants.elementary_charge
+            self.sigma_cp.val, elegantData["Sdelta"] * cp
         )
         self.mean_cp.val = np.append(
-            self.mean_cp.val, elegantData["Cdelta"] * cp / constants.elementary_charge
+            self.mean_cp.val, cp * (1 + elegantData["Cdelta"])
         )
         # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
 
