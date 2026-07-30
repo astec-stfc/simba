@@ -41,10 +41,6 @@ twiss_keys = (
     "alpha_y",
     "s",
     "energy",
-    # Cheetah's `emittance_*` is the uncoupled betatron emittance, i.e. it is
-    # already dispersion-corrected (it divides out cov_xp*cov_pxp/sigma_p^2).
-    # `projected_emittance_*` is the uncorrected one, "determined from the beam
-    # sizes without dispersion correction".
     "emittance_x",
     "emittance_y",
     "projected_emittance_x",

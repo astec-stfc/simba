@@ -108,12 +108,7 @@ class gptLattice(frameworkLattice):
 
     time_step_size: float = 5e-10
     """Interval between ``tout`` beam dumps [s].
-
-    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`, and
-    1e-11 against 5e-10 changes the tracked result by less than 0.1%. It is not
-    free though: the dumps are whole-bunch snapshots, so at 32768 particles
-    1e-11 produced a 7.3 GB output file that exhausted the available memory
-    during post-processing, against 162 MB here."""
+    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`."""
 
     override_meanBz: float | int | None = None
     """Set the average particle longitudinal velocity manually"""
@@ -811,8 +806,6 @@ class gptLattice(frameworkLattice):
             position=screen.physical.middle.z,
             gdfbeam=gdf,
         )
-        # The beam just read is the local one; gptLattice has no `beam` attribute,
-        # and it is the local object that gets written out below.
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
         HDF5filename = screen.name + ".openpmd.hdf5"
