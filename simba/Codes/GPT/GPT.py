@@ -106,8 +106,14 @@ class gptLattice(frameworkLattice):
     screen_step_size: float = 0.1
     """Step size for screen output"""
 
-    time_step_size: float = 1e-11
-    """Step size for output data during tracking"""
+    time_step_size: float = 5e-10
+    """Interval between ``tout`` beam dumps [s].
+
+    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`, and
+    1e-11 against 5e-10 changes the tracked result by less than 0.1%. It is not
+    free though: the dumps are whole-bunch snapshots, so at 32768 particles
+    1e-11 produced a 7.3 GB output file that exhausted the available memory
+    during post-processing, against 162 MB here."""
 
     override_meanBz: float | int | None = None
     """Set the average particle longitudinal velocity manually"""
