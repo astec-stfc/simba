@@ -648,9 +648,11 @@ class frameworkLattice(BaseModel):
             The element to insert into the elements dictionary.
 
         """
-        for i, _ in enumerate(range(len(self.elements))):
-            k, v = self.elements.popitem(False)
-            self.elements[element.name if i == index else k] = element
+        items = list(self.elementObjects.items())
+        items.insert(index, (element.name, element))
+        self.elementObjects.clear()
+        self.elementObjects.update(items)
+        self.allElements = list(self.elementObjects.keys())
 
     @property
     def csr_enable(self) -> bool:
@@ -1214,7 +1216,7 @@ class frameworkLattice(BaseModel):
             return self.file_block["output"]["end_element"]
         elif "zstop" in self.file_block["output"]:
             endelems = []
-            for name, elem in self.elementObjects.keys():
+            for name, elem in self.elementObjects.items():
                 if isinstance(elem, PhysicalBaseElement):
                     if (
                         np.isclose(elem.physical.end.z,
@@ -2042,42 +2044,6 @@ class global_error(frameworkObject):
     """
     Class defining a global error element.
     """
-
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super(global_error, self).__init__(
-            *args,
-            **kwargs,
-        )
-
-    def add_Error(self, type, sigma):
-        if type in global_Error_Types:
-            self.add_property(type, sigma)
-
-    def _write_ASTRA(self):
-        return self._write_ASTRA_dictionary(
-            dict([[key, {"value": value}] for key, value in self._errordict])
-        )
-
-    def _write_GPT(self, Brho, ccs="wcs", *args, **kwargs):
-        relpos, relrot = ccs.relative_position(self.middle, [0, 0, 0])
-        coord = self.gpt_coordinates(relpos, relrot)
-        output = (
-            str(self.objecttype)
-            + "( "
-            + ccs.name
-            + ", "
-            + coord
-            + ", "
-            + str(self.length)
-            + ", "
-            + str(Brho * self.k1)
-            + ");\n"
-        )
-        return output
 
 class frameworkCommand(frameworkObject):
     """

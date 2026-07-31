@@ -62,7 +62,7 @@ class matrices(munch.Munch):
 
     def units(self, key):
         if key in self:
-            return self[key].units
+            return self[key][0].units
 
     def append(self, array, data):
         self[array].append(UnitValue(data, units=self[array][0].units))

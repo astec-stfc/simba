@@ -1,12 +1,13 @@
 import numpy as np
-from pmd_beamphysics import ParticleGroup
-from pmd_beamphysics.interfaces.genesis import (
+from beamphysics import ParticleGroup
+from beamphysics.interfaces.genesis import (
     genesis4_par_to_data,
     write_genesis4_distribution,
     write_genesis4_beam,
 )
 from .openpmd import read_openpmd_beam_file, write_openpmd_beam_file
 from ..units import UnitValue
+
 
 def read_genesis_beam_file(
         self,

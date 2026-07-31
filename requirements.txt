@@ -23,7 +23,7 @@ sphinx-rtd-theme
 myst-nb
 sphinx_autodoc_typehints>=3.0.0
 easygdf>=2.1.1
-xsuite>=0.39.0
+xsuite>=0.39.0; platform_system != 'Windows'
 deap
 pyqtgraph
 numba
@@ -31,4 +31,5 @@ pyfftw
 paramiko
 numexpr
 Wake-T>=0.8.0
-laura-accelerator>=0.9
+--extra-index-url http://apclara1.dl.ac.uk:8090/simple/
+laura-accelerator>0.8

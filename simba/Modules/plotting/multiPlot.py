@@ -1,14 +1,9 @@
-import sys, os, time, math, datetime, copy, re, h5py
-from collections import OrderedDict
-import glob
+import sys
 
-try:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-except:
-    from PyQt5.QtCore import *
-    from PyQt5.QtGui import *
-    from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                             QTabWidget, QAction)
 import pyqtgraph as pg
 from .latticeDraw import latticeDraw
 
@@ -167,9 +162,6 @@ class multiPlotWidget(QWidget):
     def addCurve(self, x, y, name, label, pen):
         """adds a curve to the main plot"""
         self.curves[name][label] = self.multiPlotWidgets[label].plot(x=x, y=y, pen=pen)
-        # self.curves[name][label].curve.setClickable(True)
-        # self.curves[name][label].sigClicked.connect(lambda: self.curveClicked(name))
-        # self.updateCurveHighlights()
 
     def updateCurve(self, x, y, name, label):
         """updates a curve to the main plot"""
@@ -188,16 +180,14 @@ class multiPlotWidget(QWidget):
                 for param in self.plotParams:
                     if not param == "next_row":
                         """Remove the plotItem from the relevant plotWidget"""
-                        # print('REMOVING curve: ', name)
                         try:
                             self.multiPlotWidgets[param["label"]].removeItem(
                                 self.curves[n][param["label"]]
                             )
-                        except:
+                        except Exception:
                             pass
                 del self.curves[n]
                 self.removeData(n)
-        # self.updateCurveHighlights()
 
     def removeData(self, name):
         pass
@@ -240,30 +230,13 @@ class multiPlotWidget(QWidget):
 
     def addShadowPen(self, name):
         """add/remove a shadow pen to a given plot curve"""
-        if not name in self.shadowCurves:
+        if name not in self.shadowCurves:
             self.shadowCurves.append(name)
-            # for param in self.plotParams:
-            #     if not param == 'next_row':
-            #         label = param['label']
-            #         # if name in self.curves and label in self.curves[name]:
-            #         curve = self.curves[name][label]
-            #         pen = curve.opts['pen']
-            #         shadowpencolor = pen.color()
-            #         shadowpencolor.setAlpha(100)
-            #         shadowpen = pg.mkPen(color=shadowpencolor, width=(pen.width()+3))
-            #         curve.setShadowPen(shadowpen)
 
     def removeShadowPen(self, name):
         """add/remove a shadow pen to a given plot curve"""
         if name in self.shadowCurves:
             self.shadowCurves.remove(name)
-            # for param in self.plotParams:
-            #     if not param == 'next_row':
-            #         label = param['label']
-            #         # if name in self.curves and label in self.curves[name]:
-            #         curve = self.curves[name][label]
-            #         curve.setShadowPen(None)
-            #         curve.opts['shadowPen'] = None
 
     def setPenAlpha(self, name, alpha=255, width=3):
         """change the alpha channel and width of a curves pen"""

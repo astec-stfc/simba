@@ -1,6 +1,7 @@
 from ...Modules import Beams as rbf
 from ocelot.cpbd.physics_proc import PhysProc, SaveBeam, _logger
 
+
 class SaveBeamOpenPMD(SaveBeam):
 
     def __init__(
@@ -36,4 +37,3 @@ class SaveBeamOpenPMD(SaveBeam):
             self.global_parameters["beam"],
             self.filename,
         )
-        # save_particle_array(filename=self.filename, p_array=p_array)

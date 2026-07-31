@@ -1,15 +1,10 @@
-import sys, os, time, math, datetime, copy, re, h5py
-from copy import copy
-from collections import OrderedDict
-import glob
+import sys
+import os
 
-try:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-except:
-    from PyQt5.QtCore import *
-    from PyQt5.QtGui import *
-    from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QTabWidget, QGridLayout, QCheckBox, QAction)
 import pyqtgraph as pg
 
 sys.path.append(os.path.abspath(os.path.realpath(__file__) + "/../../../"))
@@ -159,10 +154,10 @@ class multiAxisPlotWidget(QWidget):
             directory = [directory]
         for d in directory:
             d = d + "/" + filename if filename is not None else d
-            for n, param in enumerate(self.plotParams):
-                if c in self.curves[d]:
-                    self.multiaxisPlotWidgets[param["label"]].removeItem(
-                        c[param["label"]]
+            for _, param in enumerate(self.plotParams):
+                if self.curves[d][param["label"]] in self.curves[d]:
+                    self.multiaxisPlotWidget.removeItem(
+                        self.curves[d][param["label"]]
                     )
 
     def highlightPlot(self, name):

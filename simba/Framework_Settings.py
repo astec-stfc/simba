@@ -69,6 +69,6 @@ class FrameworkSettings(Munch):
         self["elements"][name].update(**kwargs)
 
     def add_element_file(self, filename):
-        if "filename" in self.elements:
-            self.elements.filename = []
-        self.elements.filename.append(filename)
+        if "filename" not in self.elements:
+            self.elements["filename"] = []
+        self.elements["filename"].append(filename)

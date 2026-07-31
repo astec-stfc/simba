@@ -22,9 +22,9 @@ dependencies = [
     "munch>=2.5",
     "numpy>=2",
     "tqdm>=4",
-    "PyQt5>=5.1",
+    # "PyQt5>=5.1",
     "PyYAML>=5.3",
-    "mpl-axes-aligner>=1.1",
+    # "mpl-axes-aligner>=1.1",
     "lox>=0.11",
     "fastKDE>=2.1.5",
     "pydantic>=2.5.3",
@@ -33,10 +33,10 @@ dependencies = [
     "scipy>=1.5",
     "soliday.sdds",
     "easygdf>=2.1.1",
-    "xsuite>=0.39.0",
+    "xsuite>=0.39.0; platform_system != 'Windows'",
     "paramiko",
     "deap",
-    "pyqtgraph",
+    # "pyqtgraph",
     "numba",
     "pyfftw",
     "numexpr",
@@ -47,7 +47,7 @@ dependencies = [
     # >=0.9 is required: simba.Modules.Fields re-exports laura's fields module
     # and simba.Codes.RFTrack imports laura.translator.conversion_rules.codes.
     # rftrack_conversion, neither of which exists in laura 0.8 or earlier.
-    "laura-accelerator>=0.9",
+    "laura-accelerator>0.8",
     # RF-Track (simba.Codes.RFTrack.RFTrack.rftrackLattice) is not distributed
     # on PyPI, so it cannot be listed here like the other codes above; install
     # the wheel manually from the RF-Track page (CERN, A. Latina) into this

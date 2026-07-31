@@ -78,9 +78,15 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
+    try:
+        self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
+    except KeyError:
+        self.enx.val = np.append(self.enx.val, fdat["_emit_x"] / gamma)
     self.ex.val = np.append(self.ex.val, fdat["eigemit_1"])
-    self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
+    try:
+        self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
+    except KeyError:
+        self.eny.val = np.append(self.eny.val, fdat["_emit_y"] / gamma)
     self.ey.val = np.append(self.ey.val, fdat["eigemit_2"])
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
@@ -127,8 +133,14 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )
     # ## BEAM parameters
-    self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_xn"])
-    self.ecny.val = np.append(self.ecny.val, fdat["_emit_yn"])
+    try:
+        self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_xn"])
+    except KeyError:
+        self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_x"] / gamma)
+    try:
+        self.ecny.val = np.append(self.ecny.val, fdat["_emit_yn"])
+    except KeyError:
+        self.ecny.val = np.append(self.ecny.val, fdat["_emit_y"] / gamma)
     self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["Dx"])
     self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["Dxp"])
     self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["Dy"])

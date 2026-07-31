@@ -14,11 +14,10 @@ Classes:
 """
 
 from ...Framework_objects import frameworkLattice, getGrids
-from ...Modules import Beams as rbf
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from copy import deepcopy
-from numpy import array, savez_compressed, linspace, save, interp
+from numpy import array, linspace, save, interp
 import os
 from yaml import safe_load
 
@@ -27,7 +26,6 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
 from laura.models.diagnostic import DiagnosticElement
@@ -210,7 +208,6 @@ class ocelotLattice(frameworkLattice):
             s_start=self.ref_s
         )
 
-
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
@@ -232,7 +229,6 @@ class ocelotLattice(frameworkLattice):
         """
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
-        from ocelot.cpbd.io import save_particle_array
         super().postProcess()
         twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
         for t in self.tws:
