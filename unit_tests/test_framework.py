@@ -204,7 +204,7 @@ def test_modifyElement(sample_framework):
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
-    assert all(e.alias == "mag" for e in fw_obj.elementObjects.values())
+    assert all(e.alias == ["mag"] for e in fw_obj.elementObjects.values())
 
 def test_modifyElementType(sample_framework):
     fw_obj = sample_framework
