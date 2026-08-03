@@ -147,9 +147,6 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.t.val = np.append(self.t.val, fdat["s"] / (beta * constants.speed_of_light))
     self.sigma_z.val = np.append(self.sigma_z.val, np.sqrt(fdat["tautau"]) * beta)
     # self.append('sigma_cp', elegantData['Sdelta'] * cp )
-    # sigma_cp is the absolute momentum spread: relative spread sqrt(pp) times
-    # the momentum cp, in the same units as mean_cp (eV). (The previous
-    # division by the elementary charge scaled this up by ~6e18.)
     self.sigma_cp.val = np.append(
         self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp
     )
@@ -162,9 +159,6 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.eta_xp.val = np.append(self.eta_xp.val, fdat["Dxp"])
     self.eta_y.val = np.append(self.eta_y.val, fdat["Dy"])
     self.eta_yp.val = np.append(self.eta_yp.val, fdat["Dyp"])
-    # element names come from the Ocelot Twiss `id` field (stored as bytes in
-    # the HDF5 file); populate them so get_parameter_at_element works, instead
-    # of the previous zero placeholder.
     if "id" in fdat:
         names = np.array(
             [
@@ -180,8 +174,8 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )
     # ## BEAM parameters
-    self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_xn"])
-    self.ecny.val = np.append(self.ecny.val, fdat["_emit_yn"])
+    self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_x"] / gamma)
+    self.ecny.val = np.append(self.ecny.val, fdat["_emit_y"] / gamma)
     self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["Dx"])
     self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["Dxp"])
     self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["Dy"])
