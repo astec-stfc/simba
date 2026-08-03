@@ -2,12 +2,12 @@ import os
 import pytest
 from unittest.mock import MagicMock
 import shutil
-from pydantic import ValidationError
 import simba.Framework as fw
 from simba.Codes.Generators import (
     frameworkGenerator,
     ASTRAGenerator,
     GPTGenerator,
+    RFTrackGenerator,
 )
 from simba.Framework_lattices import (
     elegantLattice,
@@ -292,9 +292,220 @@ def test_change_generator(framework_with_machine):
     assert isinstance(framework_with_machine.latticeObjects["generator"], GPTGenerator)
     framework_with_machine.change_generator("simba")
     assert isinstance(framework_with_machine.latticeObjects["generator"], frameworkGenerator)
-    with pytest.raises(ValidationError):
-        with pytest.warns(UserWarning):
-            framework_with_machine.change_generator("none")
+    # Unsupported codes warn and fall back to ASTRA rather than crash -- see the
+    # `change_generator` fix: it previously left `old_kwargs["code"]` set to the
+    # unsupported value, so building the fallback ASTRAGenerator always raised
+    # ValidationError instead of actually defaulting to ASTRA as the warning claimed.
+    with pytest.warns(UserWarning):
+        framework_with_machine.change_generator("none")
+    assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
     framework_with_machine.change_generator("ASTRA")
     assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
+
+
+def test_repr(sample_framework):
+    r = repr(sample_framework)
+    assert "master_lattice" in r
+    assert "subdirectory" in r
+    assert "settingsFilename" in r
+
+
+def test_load_settings_is_alias_for_loadSettings(sample_framework, tmp_path):
+    sample_framework.settings = fw.FrameworkSettings()
+    settings_file = tmp_path / "settings.def"
+    sample_framework.save_settings(str(settings_file), directory=str(tmp_path))
+    sample_framework.load_settings(filename=str(settings_file))
+    assert sample_framework.settingsFilename == str(settings_file)
+
+
+def test_save_settings_defaults_filename_to_settings_def(sample_framework, tmp_path):
+    sample_framework.settings = fw.FrameworkSettings()
+    sample_framework.save_settings(directory=str(tmp_path))
+    assert (tmp_path / "settings.def").exists()
+
+
+def test_read_lattice_requires_code(sample_framework):
+    with pytest.raises(KeyError):
+        sample_framework.read_Lattice("X", {})
+
+
+def test_read_lattice_rejects_unsupported_code(sample_framework):
+    with pytest.raises(NotImplementedError):
+        sample_framework.read_Lattice("X", {"code": "not_a_real_code"})
+
+
+def test_element_group_lattice_command_name_properties(sample_framework):
+    fw_obj = sample_framework
+    assert set(fw_obj.elements) == {"E1", "E2"}
+    assert fw_obj.groups == []
+    assert fw_obj.lattices == []
+    assert fw_obj.commands == []
+
+
+def test_add_lists():
+    assert fw.Framework(directory=".")._addLists([1, 2, 3], [10, 20, 30]) == [11, 22, 33]
+
+
+def test_offset_elements_moves_physical_middle(sample_framework):
+    sample_framework.offsetElements(x=1.0, y=2.0, z=3.0)
+    for elem in sample_framework.elementObjects.values():
+        assert (elem.physical.middle.x, elem.physical.middle.y, elem.physical.middle.z) == (1.0, 2.0, 3.0)
+
+
+def test_offset_elements_updates_zstart_in_file_block(sample_framework):
+    class MockLattice:
+        file_block = {"output": {"zstart": 10.0}}
+
+    sample_framework.latticeObjects["L1"] = MockLattice()
+    sample_framework.offsetElements(z=5.0)
+    assert sample_framework.latticeObjects["L1"].file_block["output"]["zstart"] == 15.0
+
+
+def test_get_element_missing_param_warns_and_returns_full_element(sample_framework):
+    with pytest.warns(UserWarning):
+        result = sample_framework.getElement("E1", "not_a_real_param")
+    assert result is sample_framework.elementObjects["E1"]
+
+
+def test_get_element_type_with_list_of_params_zips(sample_framework):
+    zipped = sample_framework.getElementType("quadrupole", param=["name", "hardware_type"])
+    assert list(zipped) == [("E2", "Quadrupole")]
+
+
+def test_modify_element_with_dict_of_parameters(sample_framework):
+    sample_framework.modifyElement("E1", {"virtual_name": "VE1", "hardware_model": "HM1"})
+    assert sample_framework.elementObjects["E1"].virtual_name == "VE1"
+    assert sample_framework.elementObjects["E1"].hardware_model == "HM1"
+
+
+def test_modify_element_with_matching_lists(sample_framework):
+    sample_framework.modifyElement("E2", ["virtual_name", "hardware_model"], ["VE2", "HM2"])
+    assert sample_framework.elementObjects["E2"].virtual_name == "VE2"
+    assert sample_framework.elementObjects["E2"].hardware_model == "HM2"
+
+
+def test_modify_element_with_mismatched_lists_warns(sample_framework):
+    with pytest.warns(UserWarning):
+        sample_framework.modifyElement("E2", ["virtual_name"], ["A", "B"])
+
+
+def test_modify_element_dot_path(sample_framework):
+    sample_framework.modifyElement("E1", "physical.middle.x", 5.0)
+    assert sample_framework.elementObjects["E1"].physical.middle.x == 5.0
+
+
+def test_modify_element_group_branch(sample_framework):
+    class MockGroup:
+        def __init__(self):
+            self.changed = None
+
+        def change_Parameter(self, p, v):
+            self.changed = (p, v)
+
+    sample_framework.groupObjects["G1"] = MockGroup()
+    sample_framework.modifyElement("G1", "angle", 0.5)
+    assert sample_framework.groupObjects["G1"].changed == ("angle", 0.5)
+
+
+def test_modify_element_generator_branch(sample_framework):
+    sample_framework.add_Generator(code="simba")
+    sample_framework.modifyElement("generator", "charge", 100e-12)
+    assert sample_framework.generator.charge == 100e-12
+
+
+def test_modify_element_unknown_name_warns(sample_framework):
+    with pytest.warns(UserWarning):
+        sample_framework.modifyElement("NOT_A_REAL_ELEMENT", "x", 1)
+
+
+def test_modify_elements_all(sample_framework):
+    sample_framework.modifyElements("all", "hardware_model", "ALLHM")
+    assert sample_framework.elementObjects["E1"].hardware_model == "ALLHM"
+    assert sample_framework.elementObjects["E2"].hardware_model == "ALLHM"
+
+
+def test_add_generator_no_code_defaults_to_astra(sample_framework):
+    with pytest.warns(UserWarning):
+        sample_framework.add_Generator()
+    assert isinstance(sample_framework.generator, ASTRAGenerator)
+
+
+def test_add_generator_unsupported_code_raises(sample_framework):
+    with pytest.raises(NotImplementedError):
+        sample_framework.add_Generator(code="bogus")
+
+
+def test_add_generator_rftrack(sample_framework):
+    sample_framework.add_Generator(code="rftrack")
+    assert isinstance(sample_framework.generator, RFTrackGenerator)
+
+
+def test_change_generator_rftrack(sample_framework):
+    sample_framework.add_Generator(code="simba")
+    sample_framework.change_generator("rftrack")
+    assert isinstance(sample_framework.generator, RFTrackGenerator)
+
+
+def test_change_generator_unsupported_code_warns_and_defaults_to_astra(sample_framework):
+    sample_framework.add_Generator(code="simba")
+    with pytest.warns(UserWarning):
+        sample_framework.change_generator("bogus")
+    assert isinstance(sample_framework.generator, ASTRAGenerator)
+
+
+def test_set_lattice_prefix_warns_when_lattice_missing(sample_framework):
+    with pytest.warns(UserWarning):
+        sample_framework.set_lattice_prefix("NOT_A_LATTICE", "prefix")
+
+
+def test_set_lattice_sample_interval_sets_value(sample_framework):
+    class MockLattice:
+        sample_interval = 1
+
+    sample_framework.latticeObjects["L1"] = MockLattice()
+    sample_framework.set_lattice_sample_interval("L1", 4)
+    assert sample_framework.latticeObjects["L1"].sample_interval == 4
+
+
+def test_set_lattice_sample_interval_warns_when_lattice_missing(sample_framework):
+    with pytest.warns(UserWarning):
+        sample_framework.set_lattice_sample_interval("NOT_A_LATTICE", 4)
+
+
+def test_get_s_values_cascades_across_lattices(sample_framework):
+    class MockLattice:
+        def getSValues(self):
+            return [0.0, 1.0, 2.0]
+
+    sample_framework.latticeObjects["L1"] = MockLattice()
+    sample_framework.latticeObjects["L2"] = MockLattice()
+    assert sample_framework.getSValues() == [0.0, 1.0, 2.0, 2.0, 3.0, 4.0]
+
+
+def test_get_s_values_elements_cascades_across_lattices(sample_framework):
+    class MockLattice:
+        def getSNamesElems(self):
+            return (["A", "B"], ["elemA", "elemB"], [0.0, 1.0])
+
+    sample_framework.latticeObjects["L1"] = MockLattice()
+    sample_framework.latticeObjects["L2"] = MockLattice()
+    result = sample_framework.getSValuesElements()
+    assert result == [
+        ("A", "elemA", 0.0),
+        ("B", "elemB", 1.0),
+        ("A", "elemA", 1.0),
+        ("B", "elemB", 2.0),
+    ]
+
+
+def test_get_z_values_elements_sorted_across_lattices(sample_framework):
+    class MockLattice:
+        def getZNamesElems(self):
+            return (["A", "B"], ["elemA", "elemB"], [[0.0], [1.0]])
+
+    sample_framework.latticeObjects["L1"] = MockLattice()
+    sample_framework.latticeObjects["L2"] = MockLattice()
+    result = sample_framework.getZValuesElements()
+    assert result == sorted(result, key=lambda x: x[2][0])
+    assert len(result) == 4

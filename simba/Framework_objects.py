@@ -412,7 +412,7 @@ class frameworkObject(BaseModel):
         list
             A list of keys representing the parameters of the object.
         """
-        return list(self.keys())
+        return list(self.objectproperties.keys())
 
     @property
     def objectproperties(self):
@@ -904,7 +904,7 @@ class frameworkLattice(BaseModel):
         elems = self.getElementType(typ)
         if len(elems) == len(values):
             for e, v in zip(elems, values):
-                e[setting] = v
+                setattr(e, setting, v)
         else:
             raise ValueError
 

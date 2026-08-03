@@ -309,15 +309,6 @@ class Framework(BaseModel):
             }
         )
 
-    def setupLAURA(self) -> None:
-        """
-        Sets up the `LAURA` machine
-        """
-        try:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
-        except Exception:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
-
     def prepare_executables(
             self,
             location: str=None,
@@ -1564,6 +1555,7 @@ class Framework(BaseModel):
         else:
             if generator.lower() != "astra":
                 warn(f"generator {generator} not supported; defaulting to ASTRA")
+                old_kwargs["code"] = "ASTRA"
             generator = ASTRAGenerator(**old_kwargs)
         self.latticeObjects["generator"] = generator
         self.generator = generator
@@ -2164,7 +2156,6 @@ class Framework(BaseModel):
         z: int | float
             z offset
         """
-        offset = [x, y, z]
         for latt in self.lines:
             if (
                 self.latticeObjects[latt].file_block is not None
@@ -2173,12 +2164,10 @@ class Framework(BaseModel):
             ):
                 self.latticeObjects[latt].file_block["output"]["zstart"] += z
         for elem in self.elements:
-            self.elementObjects[elem].centre = self._addLists(
-                self.elementObjects[elem].centre, offset
-            )
-            # self.elementObjects[elem].centre = self._addLists(
-            #     self.elementObjects[elem].centre, offset
-            # )
+            middle = self.elementObjects[elem].physical.middle
+            middle.x += x
+            middle.y += y
+            middle.z += z
 
 
 class frameworkDirectory(BaseModel):
