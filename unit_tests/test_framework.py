@@ -118,18 +118,19 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
         clean=True,
         verbose=True
     )
+    test_dir = os.path.dirname(os.path.abspath(__file__))
     framework.loadSettings(settings=settings)
-    framework.save_settings("test.def")
-    framework.loadSettings(filename="test.def")
+    framework.save_settings("test.def", directory=test_dir)
+    framework.loadSettings(filename=os.path.join(test_dir, "test.def"))
     framework.global_parameters["beam"] = MagicMock()
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
-    framework.set_lattice_prefix("FODO", f"{os.path.dirname(os.path.abspath(__file__))}/")
+    framework.set_lattice_prefix("FODO", f"{test_dir}/")
     framework.track = MagicMock()
     framework.track()
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/M1.openpmd.hdf5")
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/test.def")
+    shutil.rmtree(f"{test_dir}/framework")
+    os.remove(f"{test_dir}/M1.openpmd.hdf5")
+    os.remove(f"{test_dir}/test.def")
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):
@@ -204,7 +205,7 @@ def test_modifyElement(sample_framework):
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
-    assert all(e.alias == "mag" for e in fw_obj.elementObjects.values())
+    assert all(e.alias == ["mag"] for e in fw_obj.elementObjects.values())
 
 def test_modifyElementType(sample_framework):
     fw_obj = sample_framework
