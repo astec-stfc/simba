@@ -118,6 +118,7 @@ class Executables(object):
         self.gpt = None
         self.csrtrack = None
         self.genesis = None
+        self.madx = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command()
         self.define_astra_command()
@@ -126,6 +127,7 @@ class Executables(object):
         self.define_gpt_command()
         self.define_opal_command()
         self.define_genesis_command()
+        self.define_madx_command()
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -386,3 +388,36 @@ class Executables(object):
             override_location=override_location,
         )
         self.genesis = self.genesisExecutable.executable
+
+    def define_madx_command(
+            self,
+            location: str | None = None,
+            ncpu: int = 1,
+            scaling: int | None = None,
+            override_location: str | None = None,
+    ) -> None:
+        """
+        Define the MAD-X :class:`~executable` object and sets :attr:`~madx`
+
+        Parameters
+        ----------
+        location: str
+            Location of MAD-X executable; overrides `default`.
+        ncpu: int
+            Number of CPUs to run
+        scaling: int, optional
+            Scaling parameter for number of CPUs.
+        override_location: str, optional
+            Name of remote server on which to run the executable;
+            must be defined in `Executables.yaml`
+        """
+        ncpu = self.getNCPU(ncpu, scaling)
+        self.madxExecutable = executable(
+            "madx",
+            settings=self.settings,
+            location=location,
+            ncpu=ncpu,
+            default=[self.sim_codes_location + "MADX/madx"],
+            override_location=override_location,
+        )
+        self.madx = self.madxExecutable.executable

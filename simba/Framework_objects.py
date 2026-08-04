@@ -514,6 +514,9 @@ class frameworkLattice(BaseModel):
     _csr_enable: bool = True
     """Flag to enable CSR drifts in the lattice."""
 
+    _wakefield_enable: bool = True
+    """Flag to enable structure wakefields in the lattice."""
+
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
@@ -626,8 +629,16 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally
-        if name in frameworkLattice.model_fields:
+        # Let Pydantic set known fields normally, and private attributes too --
+        # pydantic keeps those in __pydantic_private__, whereas
+        # object.__setattr__ would drop them into the instance __dict__ where
+        # they survive only until the next field assignment re-validates the
+        # model (`validate_assignment=True`) and rebuilds __dict__. That is how
+        # `csr_enable`/`lsc_enable` and the cached `_section` used to be
+        # silently reset partway through preProcess.
+        # Everything else (element names set in model_post_init) bypasses
+        # pydantic deliberately, to avoid validating them as extra fields.
+        if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 
@@ -698,6 +709,28 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
+            except ValueError:
+                pass
+            except AttributeError:
+                pass
+
+    @property
+    def wakefield_enable(self) -> bool:
+        """
+        Property to get or set the wakefield enable flag. When False, the
+        structure wakefields of accelerating cavities are not applied.
+        The wakefield definitions themselves are
+        left intact, so the flag can be toggled back on.
+        """
+        return self._wakefield_enable
+
+    @wakefield_enable.setter
+    def wakefield_enable(self, wake: bool) -> None:
+        self._wakefield_enable = wake
+        self.section.wakefield_enable = wake
+        for elem in self.elementObjects.values():
+            try:
+                elem.simulation.wakefield_enable = wake
             except ValueError:
                 pass
             except AttributeError:
@@ -1082,6 +1115,18 @@ class frameworkLattice(BaseModel):
         return self.getElementType("wiggler")
 
     @property
+    def photon_monitors(self) -> list:
+        """
+        Property to get all photon monitor elements in the lattice.
+
+        Returns
+        -------
+        list
+            A list of photon monitor elements in the lattice.
+        """
+        return self.getElementType("photon_monitor")
+
+    @property
     def lines(self) -> list:
         """
         Property to get all lines in the lattice.
@@ -1205,6 +1250,8 @@ class frameworkLattice(BaseModel):
                 elements=ElementList(elements=vals),
                 name=self.objectname,
                 master_lattice=self.global_parameters["master_lattice"],
+                functional_definitions=self.settings["functional_definitions"],
+                resolve_functional=self.settings["resolve_functional"],
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
@@ -1282,7 +1329,7 @@ class frameworkLattice(BaseModel):
                 filename = os.path.splitext(fn)[0]
                 if cod in ["opal", "gpt", "astra"]:
                     self.files.append(f'{subdir}/{filename}.{cod.lower()}')
-            if hasattr(e.simulation, "wakefield_definition") and  isinstance(e.simulation.wakefield_definition, str):
+            if hasattr(e.simulation, "wakefield_definition") and isinstance(e.simulation.wakefield_definition, str):
                 fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
                 filename = os.path.splitext(fn)[0]
                 self.files.append(f'{subdir}/{filename}.{cod.lower()}')
@@ -1485,10 +1532,10 @@ class frameworkLattice(BaseModel):
         initial_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         final_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         for cav in cavs:
-            final_energy += (cav.simulation.field_amplitude * np.cos(cav.cavity.phase)) * 1e-9
+            final_energy += (cav.simulation.resolved("field_amplitude") * np.cos(cav.cavity.resolved("phase"))) * 1e-9
         if harmonics:
             for harm in harmonics:
-                final_energy += (harm.simulation.field_amplitude * np.cos(harm.cavity.phase)) * 1e-9
+                final_energy += (harm.simulation.resolved("field_amplitude") * np.cos(harm.cavity.resolved("phase"))) * 1e-9
 
         chirps = self.global_parameters["beam"].slice.get_chirp_coeffs()
 
@@ -2290,6 +2337,7 @@ class chicane(frameworkGroup):
     def __init__(self, name, elementObjects, type, elements, **kwargs):
         super(chicane, self).__init__(name, elementObjects, type, elements, **kwargs)
         self.ratios = (1, -1, -1, 1)
+        self.elementObjects = [self.allElementObjects[e] for e in self.elements]
 
     def update(self, **kwargs) -> None:
         """
@@ -2309,6 +2357,46 @@ class chicane(frameworkGroup):
         return None
 
     @property
+    def drift_d1_to_d2(self) -> float:
+        """
+        Drift length between dipole 1 and dipole 2
+
+        Returns
+        -------
+        float
+            The drift length between dipole 1 and dipole 2
+        """
+        e1 = self.elementObjects[0]
+        e2 = self.elementObjects[1]
+        return np.sqrt(np.sum([(getattr(e2.start, d) - getattr(e1.end, d)) ** 2 for d in ["x", "y", "z"]]))
+
+    @property
+    def r56(self) -> float:
+        """
+        R56 of the chicane
+
+        Returns
+        -------
+        float
+            R56 = 2 * angle^2 * (L1 + 2/3 * L2)
+        """
+        e1 = self.elementObjects[0]
+        ld = self.drift_d1_to_d2
+        return 2 * self.angle ** 2 * (ld * (2 * e1.magnetic.length) / 3)
+
+    @property
+    def delay(self) -> float:
+        """
+        Delay (longitudinal slippage) of the chicane
+
+        Returns
+        -------
+        float
+            Delay = 2 * R56
+        """
+        return 2 * self.r56
+
+    @property
     def angle(self) -> float:
         """
         Bending angle of the chicane
@@ -2319,7 +2407,8 @@ class chicane(frameworkGroup):
             The bending angle
         """
         obj = [self.allElementObjects[e] for e in self.elements]
-        return float(obj[0].angle)
+        # use the resolved bend angle (handles functional definitions)
+        return float(obj[0].magnetic.KnL(0))
 
     @angle.setter
     def angle(self, theta: float) -> None:

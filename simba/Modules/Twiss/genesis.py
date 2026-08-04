@@ -6,7 +6,7 @@ from .. import constants
 def get_mean(data, is_array: bool):
     if is_array:
         return np.mean(data, axis=1)
-    return data
+    return data[()].flatten()
 
 def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
     if reset:

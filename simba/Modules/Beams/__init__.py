@@ -38,6 +38,7 @@ from . import sdds
 from . import gdf
 from . import hdf5
 from . import mad8
+from . import madx
 from . import openpmd
 from . import xsuite
 from . import opal
@@ -780,6 +781,20 @@ class beam(BaseModel):
         Write out a MAD8-type beam distribution file.
         """
         mad8.write_mad8_beam_file(self, *args, **kwargs)
+
+    def beam_to_madx_coords(self, *args, **kwargs):
+        """
+        Convert this beam into MAD-X canonical coordinates (X, PX, Y, PY,
+        T, PT) for a given reference momentum.
+        """
+        return madx.beam_to_madx_coords(self, *args, **kwargs)
+
+    def madx_coords_to_beam(self, *args, **kwargs):
+        """
+        Build a new beam from MAD-X canonical coordinates, taking the
+        mass/charge/species from this (reference) beam.
+        """
+        return madx.madx_coords_to_beam(self, *args, **kwargs)
 
     def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
         """

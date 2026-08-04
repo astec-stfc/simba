@@ -18,6 +18,7 @@ from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
 import os
+import numpy as np
 from yaml import safe_load
 from copy import deepcopy
 from typing import Dict, Any, ClassVar
@@ -40,8 +41,14 @@ twiss_keys = (
     "alpha_y",
     "s",
     "energy",
+    # Cheetah's `emittance_*` is the uncoupled betatron emittance, i.e. it is
+    # already dispersion-corrected (it divides out cov_xp*cov_pxp/sigma_p^2).
+    # `projected_emittance_*` is the uncorrected one, "determined from the beam
+    # sizes without dispersion correction".
     "emittance_x",
     "emittance_y",
+    "projected_emittance_x",
+    "projected_emittance_y",
     "sigma_x",
     "sigma_y",
     "sigma_px",
@@ -247,6 +254,8 @@ class cheetahLattice(frameworkLattice):
             screens.update({self.end: self.pout})
         i = 0
         for name, scr in screens.items():
+            if name.replace("_", "-") == self.start:
+                continue
             outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
@@ -255,5 +264,15 @@ class cheetahLattice(frameworkLattice):
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:
                 twsgrp = f.create_group("Twiss")
+                svals = None
                 for key, val in zip(twiss_keys, self.tws):
-                    twsgrp.create_dataset(key, data=val.numpy())
+                    data = val.numpy()
+                    twsgrp.create_dataset(key, data=data)
+                    if key == "s":
+                        svals = data
+                if svals is not None:
+                    lat_s = np.array(self.getSValues(at_entrance=False))
+                    lat_z = [a[-1] for a in self.getZValues()]
+                    twsgrp.create_dataset(
+                        "z", data=np.interp(svals - svals[0], lat_s, lat_z)
+                    )
