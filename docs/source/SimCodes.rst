@@ -60,6 +60,55 @@ These executables are then accessible to the ``run()`` function of the ``framewo
 In ``simba/Executables.yaml`` the required structure is provided for this
 schema to work for different hardware architectures, either by the OS type or the computer name.
 
+Using a Container Runtime
+--------------------------
+
+.. note::
+   | Running **SIMBA** via Apptainer or Docker is only possible with an OS that supports it.
+   | For Windows, **SIMBA** with the container runtime option can only be run with WSL.
+
+Rather than installing the tracking codes locally, :mod:`SIMBA` can run them from a prebuilt container image,
+using either `Docker <https://www.docker.com/>`_ or `Apptainer <https://apptainer.org/>`_. This is enabled
+by passing the ``container_runtime`` argument to :mod:`SIMBA` on instantiation:
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    directory = "/path/to/working_directory"
+
+    fw = Framework(
+        directory=directory,
+        container_runtime="apptainer",  # or "docker"
+    )
+
+When ``container_runtime="apptainer"`` is used, :mod:`SIMBA` looks for a ``.sif`` image file at
+``<simcodes>/Apptainer/simcodes-apptainer_master.sif``, where ``<simcodes>`` is the directory
+passed via the ``simcodes`` argument (see :ref:`above <simcodes>`):
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    directory = "/path/to/working_directory"
+    simcodes_location = "/path/to/simcodes/folder"
+
+    fw = Framework(
+        directory=directory,
+        simcodes=simcodes_location,
+        container_runtime="apptainer",
+    )
+
+If ``simcodes`` is not provided, the ``.sif`` file defaults to a per-OS cache location (e.g.
+``~/.local/share/apptainer/`` on Linux and ``~/Library/Application Support/apptainer/`` on macOS).
+
+If the ``.sif`` file is not already present at that location, :mod:`SIMBA` creates the containing
+directory (if necessary) and pulls the image from the registry defined in ``simba/Executables.yaml``
+(``ghcr.io/astec-stfc/simcodes-apptainer:master`` by default) the first time :mod:`SIMBA` is
+instantiated with ``container_runtime="apptainer"``. This image is several GB, so the initial pull
+can take some time; subsequent instantiations detect the existing ``.sif`` file and skip the pull.
+
+``container_runtime="docker"`` works analogously, pulling the ``ghcr.io/astec-stfc/simcodes-docker:master``
+image via the local Docker daemon instead of writing a ``.sif`` file to the ``simcodes`` directory.
+
 Editing the Executables.yaml file
 ---------------------------------
 
