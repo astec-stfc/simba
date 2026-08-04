@@ -263,12 +263,15 @@ class cheetahLattice(frameworkLattice):
                 svals = None
                 for key, val in zip(twiss_keys, self.tws):
                     data = val.numpy()
-                    twsgrp.create_dataset(key, data=data)
                     if key == "s":
-                        svals = data
+                        # Cheetah's s is carried over from the incoming beam, so it
+                        # accumulates whatever the upstream sections tracked. Anchor it
+                        # to the lattice start instead, as Elegant/Ocelot/MAD-X do, so
+                        # every code reports the same s for the same element.
+                        svals = data - data[0]
+                        data = svals + self.startObject.physical.start.z
+                    twsgrp.create_dataset(key, data=data)
                 if svals is not None:
                     lat_s = np.array(self.getSValues(at_entrance=False))
                     lat_z = [a[-1] for a in self.getZValues()]
-                    twsgrp.create_dataset(
-                        "z", data=np.interp(svals - svals[0], lat_s, lat_z)
-                    )
+                    twsgrp.create_dataset("z", data=np.interp(svals, lat_s, lat_z))

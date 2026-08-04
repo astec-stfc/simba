@@ -2375,11 +2375,25 @@ class chicane(frameworkGroup):
         a: float
             The angle to be set
         """
-        indices = list(
-            sorted([list(self.allElementObjects).index(e) for e in self.elements])
-        )
-        dipole_objs = [self.allElementObjects[e] for e in self.elements]
-        obj = dipole_objs
+        def zpos(e):
+            # Not every element in the machine is on the beamline (lasers, etc.)
+            try:
+                return e.physical.middle.z
+            except AttributeError:
+                return None
+
+        dipole_names = list(self.elements)
+        zs = [self.allElementObjects[e].physical.middle.z for e in dipole_names]
+        # Everything between the first and last dipole rides on the chicane's
+        # displaced axis, so it has to be moved with the dipoles -- otherwise the
+        # mid-chicane elements keep their design-angle x and the drifts around them
+        # pick up a bogus transverse offset.
+        between = [
+            (z, e)
+            for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
+            if z is not None and min(zs) <= z <= max(zs)
+        ]
+        obj = [e for _, e in sorted(between, key=lambda ze: ze[0])]
         dipole_number = 0
         ref_pos = None
         ref_angle = None
@@ -2392,7 +2406,7 @@ class chicane(frameworkGroup):
                     z=obj[i].physical.middle.z,
                 )
                 obj[i].physical.global_rotation.theta = ref_angle
-            if obj[i] in dipole_objs:
+            if obj[i].name in dipole_names:
                 ref_pos = deepcopy(obj[i].physical.middle)
                 obj[i].magnetic.angle = a * self.ratios[dipole_number]
                 ref_angle = obj[i].physical.global_rotation.theta + obj[i].magnetic.angle

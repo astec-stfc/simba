@@ -364,9 +364,9 @@ class xsuiteLattice(frameworkLattice):
                 f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
             )
         df = self.tws.to_pandas()
-        if self.ref_s is None:
-            self.ref_s = self.startObject.physical.start.z
-        df["s"] += self.ref_s
+        # Anchor s to the lattice start (not the incoming beam's accumulated s) to
+        # match Elegant/Ocelot/MAD-X.
+        df["s"] += self.startObject.physical.start.z
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         df["z"] = np.interp(df["s"], svals, zvals)

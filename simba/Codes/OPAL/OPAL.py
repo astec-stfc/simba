@@ -498,8 +498,9 @@ class opalLattice(frameworkLattice):
                 if abs(svals_stat[idx] - spos) < 1e-6:
                     opalData["emit_x"][idx] = ex
                     opalData["emit_y"][idx] = ey
-        if self.ref_s is not None:
-            opalData["s"] += self.ref_s
+        # OPAL tracks from zero, so anchor s to the lattice start (not the incoming
+        # beam's accumulated s) to match Elegant/Ocelot/MAD-X.
+        opalData["s"] += self.startObject.physical.start.z
         import h5py
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
             for k, v in opalData.items():
