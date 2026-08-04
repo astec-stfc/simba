@@ -1,5 +1,8 @@
 import os
-from pmd_beamphysics import ParticleGroup, pmd_init, particle_paths
+try:
+    from beamphysics import ParticleGroup, pmd_init, particle_paths
+except ImportError:
+    from pmd_beamphysics import ParticleGroup, pmd_init, particle_paths
 from h5py import File
 from .. import constants
 from ..units import UnitValue
