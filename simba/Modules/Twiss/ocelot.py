@@ -106,19 +106,16 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    betagamma = np.sqrt(np.clip(gamma**2 - 1, 0, None))
-    enx, ex = _uncorrected_emittance(
-        fdat["xx"], fdat["pxpx"], fdat["xpx"],
-        fdat["Dx"], fdat["Dxp"], fdat["pp"], betagamma,
-    )
-    eny, ey = _uncorrected_emittance(
-        fdat["yy"], fdat["pypy"], fdat["ypy"],
-        fdat["Dy"], fdat["Dyp"], fdat["pp"], betagamma,
-    )
-    self.enx.val = np.append(self.enx.val, enx)
-    self.ex.val = np.append(self.ex.val, ex)
-    self.eny.val = np.append(self.eny.val, eny)
-    self.ey.val = np.append(self.ey.val, ey)
+    if "_emit_x" in fdat:
+        self.enx.val = np.append(self.enx.val, fdat["_emit_x"] / gamma)
+    else:
+        self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
+    if "_emit_y" in fdat:
+        self.eny.val = np.append(self.eny.val, fdat["_emit_y"] / gamma)
+    else:
+        self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
+    self.ex.val = np.append(self.ex.val, fdat["eigemit_1"])
+    self.ey.val = np.append(self.ey.val, fdat["eigemit_2"])
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
     self.beta_x.val = np.append(self.beta_x.val, fdat["_beta_x"])
@@ -174,8 +171,14 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )
     # ## BEAM parameters
-    self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_x"] / gamma)
-    self.ecny.val = np.append(self.ecny.val, fdat["_emit_y"] / gamma)
+    if "_emit_x" in fdat:
+        self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_x"] / gamma)
+    else:
+        self.ecnx.val = np.append(self.ecnx.val, fdat["_emit_xn"])
+    if "_emit_y" in fdat:
+        self.ecny.val = np.append(self.ecny.val, fdat["_emit_y"] / gamma)
+    else:
+        self.ecny.val = np.append(self.ecny.val, fdat["_emit_yn"])
     self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["Dx"])
     self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["Dxp"])
     self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["Dy"])
