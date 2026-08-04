@@ -269,7 +269,7 @@ class cheetahLattice(frameworkLattice):
                         # to the lattice start instead, as Elegant/Ocelot/MAD-X do, so
                         # every code reports the same s for the same element.
                         svals = data - data[0]
-                        data = svals + self.startObject.physical.start.z
+                        data = svals + self.start_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
                     lat_s = np.array(self.getSValues(at_entrance=False))

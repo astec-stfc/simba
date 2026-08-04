@@ -672,7 +672,7 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
+        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'

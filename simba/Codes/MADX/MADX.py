@@ -989,7 +989,7 @@ class madxLattice(frameworkLattice):
 
     def run_segments(self, madx: Any) -> None:
         """Track through each lattice segment in turn; see :func:`~run`."""
-        zstart_lattice = self.startObject.physical.start.z
+        sstart_lattice = self.start_s
         current_beam = deepcopy(self.pin)
         if not self.single_particle and self.sample_interval > 1:
             current_beam = self.sample_beam(current_beam, self.sample_interval)
@@ -1002,8 +1002,8 @@ class madxLattice(frameworkLattice):
         self.store_beam_data(
             self.start,
             current_beam,
-            self._sval_in[self.segments[0][0]] + zstart_lattice,
-            zstart_lattice,
+            self._sval_in[self.segments[0][0]] + sstart_lattice,
+            self.startObject.physical.start.z,
         )
 
         p0c_prev = None
@@ -1036,14 +1036,14 @@ class madxLattice(frameworkLattice):
             if self.single_particle:
                 current_beam = self.track_segment_single_particle(
                     madx, current_beam, p0c, seg_len, segnames,
-                    seg_s0, zstart_lattice,
+                    seg_s0, sstart_lattice,
                 )
                 if segnames[-1] not in self.beam_data:
                     endelem = self._elements_with_drifts[segnames[-1]]
                     self.store_beam_data(
                         segnames[-1],
                         current_beam,
-                        seg_s1 + zstart_lattice,
+                        seg_s1 + sstart_lattice,
                         endelem.physical.end.z,
                     )
             else:
@@ -1054,7 +1054,7 @@ class madxLattice(frameworkLattice):
                     segnames,
                     seg_s0,
                     seg_len,
-                    zstart_lattice,
+                    sstart_lattice,
                     charge_total,
                     ref_idx,
                 )
@@ -1069,7 +1069,7 @@ class madxLattice(frameworkLattice):
         self.store_beam_data(
             endname,
             current_beam,
-            self._sval_out[self.segments[-1][-1]] + zstart_lattice,
+            self._sval_out[self.segments[-1][-1]] + sstart_lattice,
             endelem.physical.end.z,
         )
         self.write_output_beam(endname, current_beam)
@@ -1082,7 +1082,7 @@ class madxLattice(frameworkLattice):
         segnames: List,
         seg_s0: float,
         seg_len: float,
-        zstart_lattice: float,
+        sstart_lattice: float,
         charge_total: float,
         ref_idx: int,
     ) -> rbf.beam:
@@ -1120,7 +1120,7 @@ class madxLattice(frameworkLattice):
                 ref_index=self.reference_index(data["number"], ref_idx),
             )
             self.store_beam_data(
-                name, bm, seg_s0 + s_local + zstart_lattice, elem.physical.middle.z
+                name, bm, seg_s0 + s_local + sstart_lattice, elem.physical.middle.z
             )
             if not name == self.end:
                 self.write_output_beam(name, bm)
@@ -1148,7 +1148,7 @@ class madxLattice(frameworkLattice):
         segend_s = self._sval_out[segnames[-1]]
         if segnames[-1] not in self.beam_data:
             self.store_beam_data(
-                segnames[-1], bm, segend_s + zstart_lattice, endelem.physical.end.z
+                segnames[-1], bm, segend_s + sstart_lattice, endelem.physical.end.z
             )
         return bm
 
@@ -1173,7 +1173,7 @@ class madxLattice(frameworkLattice):
         seg_len: float,
         segnames: List,
         seg_s0: float,
-        zstart_lattice: float,
+        sstart_lattice: float,
     ) -> rbf.beam:
         """
         Standard (single-particle) MAD-X tracking for one segment: the beam
@@ -1249,7 +1249,7 @@ class madxLattice(frameworkLattice):
                 warn(f"MADX single-particle: probe particles lost at {name}")
                 continue
             self.store_beam_data(
-                name, bm, seg_s0 + s_local + zstart_lattice, elem.physical.middle.z
+                name, bm, seg_s0 + s_local + sstart_lattice, elem.physical.middle.z
             )
 
         endelem = self._elements_with_drifts[segnames[-1]]

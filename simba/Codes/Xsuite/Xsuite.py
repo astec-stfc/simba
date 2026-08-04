@@ -211,7 +211,7 @@ class xsuiteLattice(frameworkLattice):
             self.global_parameters["beam"],
             xsuitebeamfilename,
             write=write,
-            s_start=self.startObject.physical.start.z,
+            s_start=self.start_s,
         )
 
     def insert_reference_energy_increases(self) -> None:
@@ -366,7 +366,7 @@ class xsuiteLattice(frameworkLattice):
         df = self.tws.to_pandas()
         # Anchor s to the lattice start (not the incoming beam's accumulated s) to
         # match Elegant/Ocelot/MAD-X.
-        df["s"] += self.startObject.physical.start.z
+        df["s"] += self.start_s
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         df["z"] = np.interp(df["s"], svals, zvals)

@@ -556,6 +556,9 @@ class frameworkLattice(BaseModel):
     _section: SectionLatticeTranslator = None
     """LAURA SectionLatticeTranslator object"""
 
+    _start_s: float = None
+    """Cached s position of the start of the lattice; see :func:`start_s`."""
+
     remote_setup: Dict = {}
     """Dictionary containing parameters for running executables remotely."""
 
@@ -1218,6 +1221,26 @@ class frameworkLattice(BaseModel):
             The final element of the lattice.
         """
         return self.elementObjects[self.end]
+
+    @property
+    def start_s(self) -> float:
+        """
+        Property to get the s position of the start of the lattice, measured along
+        the reference trajectory from the start of the machine.
+
+        This is what every tracking code should anchor its reported s to. It is not
+        the same as ``startObject.physical.start.z`` -- anything that bends (a
+        chicane, a dogleg) makes the path longer than its projection onto z, and
+        that difference has to carry forward into every downstream lattice.
+
+        Returns
+        -------
+        float
+            S position of the first element of the lattice.
+        """
+        if self._start_s is None:
+            self._start_s = self.machine.get_elements_s_pos(end=self.start)[self.start]
+        return self._start_s
 
     @computed_field
     @property

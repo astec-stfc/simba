@@ -250,7 +250,7 @@ class ocelotLattice(frameworkLattice):
             for k, v in t.__dict__.items():
                 # Offset the s values to the start of the lattice
                 if k == "s":
-                    v += self.startObject.physical.start.z
+                    v += self.start_s
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]

@@ -500,7 +500,7 @@ class opalLattice(frameworkLattice):
                     opalData["emit_y"][idx] = ey
         # OPAL tracks from zero, so anchor s to the lattice start (not the incoming
         # beam's accumulated s) to match Elegant/Ocelot/MAD-X.
-        opalData["s"] += self.startObject.physical.start.z
+        opalData["s"] += self.start_s
         import h5py
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
             for k, v in opalData.items():

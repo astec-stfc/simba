@@ -422,7 +422,7 @@ class astraLattice(frameworkLattice):
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
         mult = self.get_screen_scaling()
-        svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
+        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
         zvals = [a[-1] for a in self.getZValues()]
         for e in self.screens_and_bpms:
             sval = np.interp(e.middle.z, zvals, svals)
