@@ -250,7 +250,7 @@ class ocelotLattice(frameworkLattice):
             for k, v in t.__dict__.items():
                 # Offset the s values to the start of the lattice
                 if k == "s":
-                    v += self.start_s
+                    v += self.entrance_s
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
@@ -380,6 +380,10 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
+        # s along the reference trajectory, measured from the lattice entrance. Not the
+        # same as the lab z the beams are positioned by, once anything upstream bends.
+        sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
+        sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
         for w in self.screens_and_bpms + self.apertures:
             if w.name == self.start:
                 continue
@@ -390,6 +394,7 @@ class ocelotLattice(frameworkLattice):
                     filename=f"{subdir}/{w.name}.openpmd.hdf5",
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
+                    sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
                 )
             ]
@@ -402,6 +407,7 @@ class ocelotLattice(frameworkLattice):
                 filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
+                sstart=self.entrance_s + sval_out[self.end],
                 ref_idx=self.ref_idx,
             )
         ]

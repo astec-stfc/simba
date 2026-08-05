@@ -1242,6 +1242,25 @@ class frameworkLattice(BaseModel):
             self._start_s = self.machine.get_elements_s_pos(end=self.start)[self.start]
         return self._start_s
 
+    @property
+    def entrance_s(self) -> float:
+        """
+        Property to get the s position of the lattice entrance.
+
+        :attr:`start_s` is the s at the *exit* of the first element, so its length has to
+        come back off. The two are equal for the usual case of a lattice starting on a
+        zero-length marker, and differ for one starting on a real element.
+
+        This is the anchor for per-element s positions, which are measured from the
+        lattice entrance.
+
+        Returns
+        -------
+        float
+            S position of the entrance of the lattice.
+        """
+        return float(self.start_s - self.startObject.physical.length)
+
     @computed_field
     @property
     def section(self) -> SectionLatticeTranslator:

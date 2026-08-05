@@ -362,7 +362,10 @@ class astraLattice(frameworkLattice):
         sval: float
             S-position of beam
         """
-        return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
+        # keywords, not positional - astra_to_hdf5 takes `final` before `sval`
+        return self.astra_to_hdf5(
+            lattice=objectname, scr=scr, cathode=cathode, mult=mult, sval=sval
+        )
 
     def get_screen_scaling(self) -> int:
         """
@@ -397,16 +400,15 @@ class astraLattice(frameworkLattice):
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
         mult = self.get_screen_scaling()
-        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
-        zvals = [a[-1] for a in self.getZValues()]
+        offset = self.s_offset
+        self.write_s_offset()
         for e in self.screens_and_bpms:
-            sval = np.interp(e.middle.z, zvals, svals)
             self.screen_threaded_function.scatter(
                 scr=e,
                 objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
-                sval=sval,
+                sval=offset + e.middle.z,
             )
         self.screen_threaded_function.gather()
         endelem = PhysicalBaseElement(
@@ -416,7 +418,49 @@ class astraLattice(frameworkLattice):
             machine_area="",
             physical=PhysicalElement(middle=[0, 0, self.zstop])
         )
-        self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
+        self.astra_to_hdf5(
+            lattice=self.objectname,
+            scr=endelem,
+            cathode=cathode,
+            mult=mult,
+            final=True,
+            sval=offset + self.zstop,
+        )
+
+    @property
+    def s_offset(self) -> float:
+        """
+        Distance between this lattice's s and z origins, i.e. the extra path length
+        everything upstream has accumulated by bending. 
+
+        Returns
+        -------
+        float
+            s minus z at the start of this lattice.
+        """
+        return float(self.entrance_s - self.startObject.physical.start.z)
+
+    def write_s_offset(self) -> str:
+        """
+        Write :attr:`s_offset` next to the ASTRA output files.
+
+        ASTRA's Xemit/Yemit/Zemit files record lab z only, and the Twiss reader that
+        parses them has no lattice context, so it cannot know how far along the machine
+        this section starts. Every other code applies :attr:`start_s` itself when it
+        writes its Twiss output; ASTRA cannot, so persist the offset for the reader.
+        See :func:`~simba.Modules.Twiss.astra.read_s_offset`.
+
+        Returns
+        -------
+        str
+            Path of the offset file.
+        """
+        path = os.path.join(
+            self.global_parameters["master_subdir"], self.objectname + ".s_offset"
+        )
+        with open(path, "w") as f:
+            f.write(repr(self.s_offset))
+        return path
 
     def astra_to_hdf5(
             self,
@@ -468,7 +512,8 @@ class astraLattice(frameworkLattice):
                 preOffset=[0, 0, 0],
                 postOffset=-1 * np.array(self.starting_offset),
             )
-            beam.s = UnitValue(sval, units="m")
+
+            beam.Particles.s = UnitValue(sval, units="m")
             HDF5filename = scr.name + ".openpmd.hdf5"
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
@@ -546,11 +591,14 @@ class astraLattice(frameworkLattice):
                         + "."
                         + str(master_run_no).zfill(3)
                 )
+                # the screen's own position first (relative, then absolute); the
+                # end-of-lattice names are a last resort, otherwise every screen that
+                # misses on the relative name silently picks up the final distribution
                 for f in [
                     tempfilename,
+                    tempfilenamenozstart,
                     tempfilenameendnozstart,
                     tempfilenameend,
-                    tempfilenamenozstart
                 ]:
                     if os.path.isfile(
                         os.path.join(self.global_parameters["master_subdir"], f)

@@ -2,12 +2,16 @@ import importlib
 import inspect
 import pkgutil
 import re
+import types
 
 import pytest
 import simba.Framework as sfw
 import simba.Codes
-from simba.Codes.ASTRA.ASTRA import astra_newrun
+import simba.Modules.Beams as rbf
+from simba.Codes.ASTRA.ASTRA import astra_newrun, astraLattice
 from simba.Framework_objects import frameworkLattice
+from simba.Modules.Twiss.astra import read_s_offset
+from simba.Modules.units import UnitValue
 from laura.models.element import Quadrupole, Marker, Element
 
 @pytest.fixture
@@ -98,6 +102,81 @@ def test_no_property_setter_shadowed_by_inherited_field():
         if lost:
             broken[cls.__name__] = lost
     assert not broken, f"property setters dropped by pydantic: {broken}"
+
+def _astra_lattice_stub(tmp_path, zstart, zstop):
+    """Enough of an astraLattice for find_ASTRA_filename, which only touches these three."""
+    return types.SimpleNamespace(
+        startObject=types.SimpleNamespace(physical=types.SimpleNamespace(start=types.SimpleNamespace(z=zstart))),
+        zstop=zstop,
+        global_parameters={"master_subdir": str(tmp_path)},
+    )
+
+def test_find_astra_filename_prefers_screen_position_over_lattice_end(tmp_path):
+    """A screen must pick up its own ASTRA output. The end-of-lattice names are a last
+    resort - when they were tried first every screen silently got the final distribution."""
+    for name in ["S07.3837.001", "S07.4830.001"]:
+        (tmp_path / name).write_text("")
+    latt = _astra_lattice_stub(tmp_path, 38.2678, 48.2978)
+    screen = types.SimpleNamespace(physical=types.SimpleNamespace(middle=types.SimpleNamespace(z=38.37299)))
+    assert astraLattice.find_ASTRA_filename(latt, "S07", screen, 1, 100) == "S07.3837.001"
+
+def test_find_astra_filename_falls_back_to_relative_mm_naming(tmp_path):
+    """ASTRA switches from cm to mm-relative-to-zstart for sections under 1m (e.g. L4H),
+    and `mult` comes from the screens, which a screenless lattice does not have."""
+    (tmp_path / "L4H.0965.001").write_text("")
+    latt = _astra_lattice_stub(tmp_path, 23.4572, 24.4222)
+    end = types.SimpleNamespace(physical=types.SimpleNamespace(middle=types.SimpleNamespace(z=24.4222)))
+    assert astraLattice.find_ASTRA_filename(latt, "L4H", end, 1, 100) == "L4H.0965.001"
+
+@pytest.mark.parametrize(
+    "entrance_s, start_z, expected",
+    [
+        (0.0, 0.0, 0.0),                    # injector400: nothing upstream
+        (3.296930, 3.296930, 0.0),          # S02: nothing bending upstream yet
+        (31.299244, 31.267800, 0.031444),   # S06: downstream of the VBC chicane
+    ],
+)
+def test_astra_s_offset(entrance_s, start_z, expected):
+    """s - z at the lattice entrance: the extra path length accumulated by upstream
+    bends. ASTRA tracks in lab z, so its output needs this added back on."""
+    latt = types.SimpleNamespace(
+        entrance_s=entrance_s,
+        startObject=types.SimpleNamespace(
+            physical=types.SimpleNamespace(start=types.SimpleNamespace(z=start_z))
+        ),
+    )
+    assert astraLattice.s_offset.fget(latt) == pytest.approx(expected)
+
+@pytest.mark.parametrize(
+    "start_s, start_length, expected",
+    [(0.32, 0.32, 0.0), (3.296930, 0.0, 3.296930), (31.299244, 0.0, 31.299244)],
+)
+def test_entrance_s_backs_off_the_first_element(start_s, start_length, expected):
+    """Per-element s values are measured from the lattice entrance, but start_s is the s
+    at the *exit* of the first element. Equal for a zero-length marker; different for a
+    lattice starting on a real element (injector400 starts on the 0.32m gun cavity)."""
+    latt = types.SimpleNamespace(
+        start_s=start_s,
+        startObject=types.SimpleNamespace(
+            physical=types.SimpleNamespace(length=start_length)
+        ),
+    )
+    assert frameworkLattice.entrance_s.fget(latt) == pytest.approx(expected)
+
+def test_read_s_offset_round_trip(tmp_path):
+    (tmp_path / "S06.s_offset").write_text(repr(0.031444))
+    assert read_s_offset(str(tmp_path / "S06.Xemit.001"), "S06") == pytest.approx(0.031444)
+
+def test_read_s_offset_defaults_to_zero_when_absent(tmp_path):
+    """Directories written before the offset existed, or by something else, read as s == z."""
+    assert read_s_offset(str(tmp_path / "S06.Xemit.001"), "S06") == 0.0
+
+def test_beam_s_must_be_written_to_the_particles_object():
+    """astra_to_hdf5 assigns beam.Particles.s: the beam wrapper forwards attribute *reads*
+    to the Particles object but not writes, so `beam.s = ...` is a silent no-op."""
+    b = rbf.beam()
+    b.Particles.s = UnitValue(12.34, units="m")
+    assert float(b.s) == pytest.approx(12.34)
 
 @pytest.mark.parametrize("interval", [1, 8, 64])
 def test_astra_sample_interval_written_as_n_red(interval):

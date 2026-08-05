@@ -989,7 +989,8 @@ class madxLattice(frameworkLattice):
 
     def run_segments(self, madx: Any) -> None:
         """Track through each lattice segment in turn; see :func:`~run`."""
-        sstart_lattice = self.start_s
+        # _sval_in/_sval_out are measured from the lattice entrance, so anchor there
+        sstart_lattice = self.entrance_s
         current_beam = deepcopy(self.pin)
         if not self.single_particle and self.sample_interval > 1:
             current_beam = self.sample_beam(current_beam, self.sample_interval)
@@ -1109,19 +1110,18 @@ class madxLattice(frameworkLattice):
                 warn(f"MADX: no particles recorded at {name}")
                 continue
             elem = self._elements_with_drifts[name]
+            spos = seg_s0 + s_local + sstart_lattice
             bm = self.pin.madx_coords_to_beam(
                 data,
                 p0c,
                 tbar0,
                 s_local,
                 elem.physical.middle.z,
-                elem.physical.middle.z,
+                spos,
                 charge_per_particle * len(data["x"]),
                 ref_index=self.reference_index(data["number"], ref_idx),
             )
-            self.store_beam_data(
-                name, bm, seg_s0 + s_local + sstart_lattice, elem.physical.middle.z
-            )
+            self.store_beam_data(name, bm, spos, elem.physical.middle.z)
             if not name == self.end:
                 self.write_output_beam(name, bm)
 
@@ -1133,22 +1133,22 @@ class madxLattice(frameworkLattice):
             warn(f"MADX: {nlost} particles lost in segment")
         endelem = self._elements_with_drifts[segnames[-1]]
         newref = self.reference_index(data["number"], ref_idx)
+        segend_s = self._sval_out[segnames[-1]] + sstart_lattice
         bm = self.pin.madx_coords_to_beam(
             data,
             p0c,
             tbar0,
             seg_len,
             endelem.physical.end.z,
-            endelem.physical.end.z,
+            segend_s,
             charge_per_particle * len(data["x"]),
             ref_index=newref,
         )
         # record beam data at the exit of the segment (i.e. after the
         # accelerating cavity)
-        segend_s = self._sval_out[segnames[-1]]
         if segnames[-1] not in self.beam_data:
             self.store_beam_data(
-                segnames[-1], bm, segend_s + sstart_lattice, endelem.physical.end.z
+                segnames[-1], bm, segend_s, endelem.physical.end.z
             )
         return bm
 
@@ -1218,7 +1218,7 @@ class madxLattice(frameworkLattice):
         observe = self.observation_points(segnames)
         trackdata = self.run_track(madx, probecoords, observe)
 
-        def transformed_beam_at(s_local: float, zpos: float):
+        def transformed_beam_at(s_local: float, zpos: float, spos: float):
             """Beam obtained by applying the segment map (start -> ``s_local``,
             built from the 13 probes) to the full input distribution, or
             ``None`` if any probe was lost before ``s_local``."""
@@ -1236,7 +1236,7 @@ class madxLattice(frameworkLattice):
             )
             newcoords = {k: transformed[i] for i, k in enumerate(keys)}
             return self.pin.madx_coords_to_beam(
-                newcoords, p0c, tbar0, s_local, zpos, zpos, charge_total,
+                newcoords, p0c, tbar0, s_local, zpos, spos, charge_total,
                 ref_index=ref_index,
             )
 
@@ -1244,16 +1244,19 @@ class madxLattice(frameworkLattice):
         # beam file is written here -- only the end-of-line beam is, in run)
         for name, s_local in observe:
             elem = self._elements_with_drifts[name]
-            bm = transformed_beam_at(s_local, elem.physical.middle.z)
+            spos = seg_s0 + s_local + sstart_lattice
+            bm = transformed_beam_at(s_local, elem.physical.middle.z, spos)
             if bm is None:
                 warn(f"MADX single-particle: probe particles lost at {name}")
                 continue
-            self.store_beam_data(
-                name, bm, seg_s0 + s_local + sstart_lattice, elem.physical.middle.z
-            )
+            self.store_beam_data(name, bm, spos, elem.physical.middle.z)
 
         endelem = self._elements_with_drifts[segnames[-1]]
-        bm_end = transformed_beam_at(seg_len, endelem.physical.end.z)
+        bm_end = transformed_beam_at(
+            seg_len,
+            endelem.physical.end.z,
+            self._sval_out[segnames[-1]] + sstart_lattice,
+        )
         if bm_end is None:
             raise RuntimeError(
                 "MADX single-particle tracking lost probe particles at the "
