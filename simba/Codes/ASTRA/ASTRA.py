@@ -253,36 +253,6 @@ class astraLattice(frameworkLattice):
         self.astra_headers["charge"].space_charge_mode = str(mode)
 
     @property
-    def sample_interval(self) -> int:
-        """
-        Factor by which to reduce the number of particles in the simulation, i.e. every 10th particle.
-
-        Returns
-        -------
-        int
-            The sampling interval `n_red` in ASTRA
-        """
-        return self._sample_interval
-
-    @sample_interval.setter
-    def sample_interval(self, interval: int) -> None:
-        """
-        Sets the factor by which to reduce the number of particles in the simulation in the &NEWRUN header,
-        and scales the number of space charge bins in the &CHARGE header accordingly;
-        see :func:`~simba.Codes.ASTRA.ASTRA.astra_newrun.framework_dict`,
-        :func:`~simba.Codes.ASTRA.ASTRA.astra_charge.grid_size`.
-
-        Parameters
-        ----------
-        interval:
-            Sampling interval
-        """
-        # print('Setting new ASTRA sample_interval = ', interval)
-        self._sample_interval = interval
-        self.astra_headers["newrun"].sample_interval = interval
-        self.astra_headers["charge"].sample_interval = interval
-
-    @property
     def bunch_charge(self) -> float:
         """
         Bunch charge in coulombs
@@ -361,6 +331,11 @@ class astraLattice(frameworkLattice):
         self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
+        # `sample_interval` is an inherited pydantic field, so it cannot be a property here
+        # (pydantic drops the setter) - push it into the headers instead. &NEWRUN uses it as
+        # n_red, &CHARGE scales the space charge grid by it.
+        self.astra_headers["newrun"].sample_interval = self.sample_interval
+        self.astra_headers["charge"].sample_interval = self.sample_interval
 
     @lox.thread
     def screen_threaded_function(
