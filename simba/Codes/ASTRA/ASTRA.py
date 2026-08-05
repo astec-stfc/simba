@@ -436,7 +436,7 @@ class astraLattice(frameworkLattice):
         self.screen_threaded_function.gather()
         endelem = PhysicalBaseElement(
             name=self.end,
-            hardware_class="",
+            hardware_class="Diagnostic",
             hardware_type="",
             machine_area="",
             physical=PhysicalElement(middle=[0, 0, self.zstop])
