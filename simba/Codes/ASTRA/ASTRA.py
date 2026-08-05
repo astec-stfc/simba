@@ -538,45 +538,49 @@ class astraLattice(frameworkLattice):
         str or None
             The ASTRA filename for the screen object, or None if the file does not exist.
         """
-        for i in [0, -0.001, 0.001]:
-            tempfilename = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenamenozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenameend = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i - self.startObject.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenameendnozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            for f in [
-                tempfilename,
-                tempfilenameendnozstart,
-                tempfilenameend,
-                tempfilenamenozstart
-            ]:
-                if os.path.isfile(
-                    os.path.join(self.global_parameters["master_subdir"], f)
-                ):
-                    return f
+        # ASTRA names outputs in cm, but switches to mm for sections shorter than 1m.
+        # `mult` comes from the screens, which is useless for a lattice that has none
+        # (e.g. L4H), so fall back to the other conventions before giving up.
+        for m in dict.fromkeys([mult, 1000, 100, 10]):
+            for i in [0, -0.001, 0.001]:
+                tempfilename = (
+                        lattice
+                        + "."
+                        + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenamenozstart = (
+                        lattice
+                        + "."
+                        + str(int(round((scr.physical.middle.z + i) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenameend = (
+                        lattice
+                        + "."
+                        + str(int(round((self.zstop + i - self.startObject.physical.start.z) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenameendnozstart = (
+                        lattice
+                        + "."
+                        + str(int(round((self.zstop + i) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                for f in [
+                    tempfilename,
+                    tempfilenameendnozstart,
+                    tempfilenameend,
+                    tempfilenamenozstart
+                ]:
+                    if os.path.isfile(
+                        os.path.join(self.global_parameters["master_subdir"], f)
+                    ):
+                        return f
         return None
 
     def hdf5_to_astra(self) -> str:
