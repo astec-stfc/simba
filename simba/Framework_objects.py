@@ -1146,17 +1146,28 @@ class frameworkLattice(BaseModel):
         """
         if "start_element" in self.file_block["output"]:
             return self.file_block["output"]["start_element"]
-        elif "zstart" in self.file_block["output"]:
-            for name, elem in self.elementObjects.items():
-                if isinstance(elem, PhysicalBaseElement):
-                    if (
-                        np.isclose(elem.physical.start.z,
-                        self.file_block["output"]["zstart"], atol=1e-2)
-                    ) and not elem.subelement:
-                        return name
-            return list(self.elementObjects.keys())[0]
-        else:
-            return list(self.elementObjects.keys())[0]
+        # elementObjects is the whole machine, not just this lattice, and it contains
+        # off-beamline hardware -- the virtual cathode camera CLA-VCA-DIA-CAM-01 sits at
+        # z=0 with no beam through it. Only elements on the beam path can start a lattice.
+        beam_path = self.machine.elements_between(end=self.end)
+        if "zstart" in self.file_block["output"]:
+            zstart = self.file_block["output"]["zstart"]
+            candidates = [
+                name
+                for name in beam_path
+                if isinstance(self.elementObjects.get(name), PhysicalBaseElement)
+                and not self.elementObjects[name].subelement
+                and np.isclose(self.elementObjects[name].physical.start.z, zstart, atol=1e-2)
+            ]
+            # several elements can share a z: at the cathode the HRG1 section lists three
+            # laser shutters and an aperture, all zero-length, ahead of the gun cavity.
+            # Prefer something with real extent, so the answer does not depend on ordering.
+            for name in candidates:
+                if self.elementObjects[name].physical.length > 0:
+                    return name
+            if candidates:
+                return candidates[0]
+        return beam_path[0]
 
     @property
     def startObject(self) -> "PhysicalBaseElement":

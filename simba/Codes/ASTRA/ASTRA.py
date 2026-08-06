@@ -143,10 +143,10 @@ class astraLattice(frameworkLattice):
         settings = deepcopy(newrun_settings)
         if "twiss" in settings:
             settings.pop("twiss")
-        starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
+        # starting_offset/starting_rotation are not passed to the namelists: both are in
+        # astra_newrun/astra_output's `exclude`, so ASTRA is never told about them. They
+        # are applied to the output beam instead, in astra_to_hdf5.
         self.section.astra_headers["newrun"] = astra_newrun(
-            starting_offset=starting_offset,
-            starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             input_particle_definition = self.startObject.name,
             **settings,
@@ -186,8 +186,6 @@ class astraLattice(frameworkLattice):
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = astra_output(
-            starting_offset=self.starting_offset,
-            starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             zstart=zstart,
             zstop=self.zstop,

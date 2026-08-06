@@ -12,7 +12,8 @@ from simba.Codes.ASTRA.ASTRA import astra_newrun, astraLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Twiss.astra import read_s_offset
 from simba.Modules.units import UnitValue
-from laura.models.element import Quadrupole, Marker, Element
+from laura.models.element import Quadrupole, Marker, Element, PhysicalBaseElement
+from laura.models.physical import PhysicalElement
 
 @pytest.fixture
 def framework_with_elements(tmp_path):
@@ -187,3 +188,45 @@ def test_astra_sample_interval_written_as_n_red(interval):
         sample_interval=interval,
     )
     assert f"n_red = {interval}," in header.write_ASTRA()
+
+def _lattice_stub(path, elements, output):
+    """Enough of a frameworkLattice for the `start` property."""
+    return types.SimpleNamespace(
+        file_block={"output": output},
+        elementObjects=elements,
+        end=path[-1],
+        machine=types.SimpleNamespace(elements_between=lambda end: path),
+    )
+
+def _element(z, length):
+    return PhysicalBaseElement(
+        name="E", hardware_class="RF", hardware_type="RFCavity", machine_area="HRG1",
+        physical=PhysicalElement(middle=[0, 0, z + length / 2.0], length=length),
+    )
+
+def test_start_uses_explicit_start_element():
+    latt = _lattice_stub(["A", "B"], {}, {"start_element": "B"})
+    assert frameworkLattice.start.fget(latt) == "B"
+
+def test_start_from_zstart_skips_zero_length_hardware_at_the_same_z():
+    """The HRG1 section lists three laser shutters and an aperture -- all zero-length and
+    all at z=0 -- ahead of the gun cavity. Picking by z alone made the answer depend on
+    element ordering, which differs between the summary file and the YAML loader."""
+    path = ["SHUT-01", "SHUT-02", "APER-01", "GUN-CAV-01", "SOL-01"]
+    elements = {
+        "SHUT-01": _element(0.0, 0.0),
+        "SHUT-02": _element(0.0, 0.0),
+        "APER-01": _element(0.0, 0.0),
+        "GUN-CAV-01": _element(0.0, 0.32),
+        "SOL-01": _element(0.00241, 0.32),
+    }
+    latt = _lattice_stub(path, elements, {"zstart": 0, "end_element": "SOL-01"})
+    assert frameworkLattice.start.fget(latt) == "GUN-CAV-01"
+
+def test_start_falls_back_to_first_element_on_the_beam_path():
+    """Not the first key of elementObjects: that is the whole machine, and it contains
+    off-beamline hardware such as the virtual cathode camera."""
+    path = ["APER-01", "QUAD-01"]
+    elements = {"CAMERA": _element(0.0, 0.0), "APER-01": _element(5.0, 0.0)}
+    latt = _lattice_stub(path, elements, {})
+    assert frameworkLattice.start.fget(latt) == "APER-01"
