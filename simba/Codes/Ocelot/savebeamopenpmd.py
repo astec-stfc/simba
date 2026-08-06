@@ -3,13 +3,16 @@ from ocelot.cpbd.physics_proc import PhysProc, SaveBeam, _logger
 
 class SaveBeamOpenPMD(SaveBeam):
 
-    def __init__(self, filename: str, global_parameters: dict = {}, zstart: float = 0, ref_idx: int = 0):
+    def __init__(self, filename: str, global_parameters: dict = {}, zstart: float = 0,
+                 sstart: float = None, ref_idx: int = 0):
         PhysProc.__init__(self)
         self.energy = None
         self.global_parameters = global_parameters
         self.filename = filename
         self.zstart = zstart
-        self.s = zstart
+        # zstart is a lab z (used for the particle z/t); s is measured along the
+        # reference trajectory, which is longer wherever anything upstream bends
+        self.s = zstart if sstart is None else sstart
         self.ref_idx = ref_idx
 
     def apply(self, p_array, dz):
