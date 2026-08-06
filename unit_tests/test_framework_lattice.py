@@ -134,7 +134,7 @@ def test_find_astra_filename_falls_back_to_relative_mm_naming(tmp_path):
     [
         (0.0, 0.0, 0.0),                    # injector400: nothing upstream
         (3.296930, 3.296930, 0.0),          # S02: nothing bending upstream yet
-        (31.299244, 31.267800, 0.031444),   # S06: downstream of the VBC chicane
+        (31.290855, 31.267800, 0.023055),   # S06: downstream of the VBC chicane
     ],
 )
 def test_astra_s_offset(entrance_s, start_z, expected):
@@ -150,7 +150,7 @@ def test_astra_s_offset(entrance_s, start_z, expected):
 
 @pytest.mark.parametrize(
     "start_s, start_length, expected",
-    [(0.32, 0.32, 0.0), (3.296930, 0.0, 3.296930), (31.299244, 0.0, 31.299244)],
+    [(0.32, 0.32, 0.0), (3.296930, 0.0, 3.296930), (31.290855, 0.0, 31.290855)],
 )
 def test_entrance_s_backs_off_the_first_element(start_s, start_length, expected):
     """Per-element s values are measured from the lattice entrance, but start_s is the s
@@ -230,3 +230,44 @@ def test_start_falls_back_to_first_element_on_the_beam_path():
     elements = {"CAMERA": _element(0.0, 0.0), "APER-01": _element(5.0, 0.0)}
     latt = _lattice_stub(path, elements, {})
     assert frameworkLattice.start.fget(latt) == "APER-01"
+
+
+@pytest.fixture(scope="module")
+def clara():
+    import os
+    ml = os.environ.get("CLARA_MASTER_LATTICE",
+                        r"C:\Users\jkj62.CLRC\Documents\GitHub\laura-lattices\CLARA")
+    if not os.path.isdir(ml):
+        pytest.skip("CLARA master lattice not available")
+    import tempfile
+    f = sfw.Framework(directory=tempfile.mkdtemp(), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="clara.yaml")
+    f.loadSettings("Lattices/clara400_v13.def")
+    return f
+
+@pytest.mark.parametrize("angle, arc, path", [(0.0, 0.200981, 5.442500),
+                                              (0.1185, 0.201452, 5.465552)])
+def test_variable_chicane_geometry(clara, angle, arc, path):
+    """The VBC translates its middle two dipoles without ever rotating a magnet: the
+    faces stay perpendicular to the 0mm axis, so each magnet spans a fixed z while the
+    arc through it lengthens with the angle, and the edge angles carry the bend."""
+    clara.groupObjects["bunch_compressor"].set_angle(angle)
+    dips = [clara.elementObjects[f"CLA-VBC-MAG-DIP-0{i}"].physical for i in range(1, 5)]
+
+    for p in dips:
+        assert p.global_rotation.theta == pytest.approx(0.0, abs=1e-12)   # never rotated
+        assert p.length == pytest.approx(arc, abs=1e-6)                   # arc grows
+        assert p.end.z - p.start.z == pytest.approx(0.200981, abs=1e-6)   # z extent fixed
+
+    # the offset leg is a straight line: no sideways step between dipoles 2 and 3
+    assert dips[2].start.x - dips[1].end.x == pytest.approx(0.0, abs=1e-9)
+    # and the chicane closes back onto the axis
+    assert dips[3].end.x == pytest.approx(0.0, abs=1e-9)
+    assert clara.latticeObjects["VBC"].getSValues(at_entrance=False)[-1] == pytest.approx(path, abs=1e-6)
+
+def test_variable_chicane_set_angle_is_idempotent(clara):
+    clara.groupObjects["bunch_compressor"].set_angle(0.1185)
+    first = [clara.elementObjects[f"CLA-VBC-MAG-DIP-0{i}"].physical.length for i in range(1, 5)]
+    clara.groupObjects["bunch_compressor"].set_angle(0.1185)
+    again = [clara.elementObjects[f"CLA-VBC-MAG-DIP-0{i}"].physical.length for i in range(1, 5)]
+    assert first == pytest.approx(again)

@@ -2436,7 +2436,8 @@ class chicane(frameworkGroup):
                 return None
 
         dipole_names = list(self.elements)
-        zs = [self.allElementObjects[e].physical.middle.z for e in dipole_names]
+        dipoles = [self.allElementObjects[e] for e in dipole_names]
+        zs = [d.physical.middle.z for d in dipoles]
         # Everything between the first and last dipole rides on the chicane's
         # displaced axis, so it has to be moved with the dipoles -- otherwise the
         # mid-chicane elements keep their design-angle x and the drifts around them
@@ -2447,24 +2448,64 @@ class chicane(frameworkGroup):
             if z is not None and min(zs) <= z <= max(zs)
         ]
         obj = [e for _, e in sorted(between, key=lambda ze: ze[0])]
+
+        z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
+
+        # Walk the reference trajectory. Each magnet keeps its z position, and its faces
+        # stay perpendicular to the 0mm axis, so it spans a *fixed* z; the beam crosses
+        # it on an arc that lengthens as the angle opens up, and the edge angles (which
+        # the lattice defines as tracking `angle`) carry the resulting edge focusing.
+        x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
         dipole_number = 0
-        ref_pos = None
-        ref_angle = None
-        for i in range(len(obj)):
-            if dipole_number > 0:
-                adj = obj[i].physical.middle.z - ref_pos.z
-                obj[i].physical.middle = Position(
-                    x=ref_pos.x + np.tan(-1.0 * ref_angle) * adj,
-                    y=0,
-                    z=obj[i].physical.middle.z,
-                )
-                obj[i].physical.global_rotation.theta = ref_angle
-            if obj[i].name in dipole_names:
-                ref_pos = deepcopy(obj[i].physical.middle)
-                obj[i].magnetic.angle = a * self.ratios[dipole_number]
-                ref_angle = obj[i].physical.global_rotation.theta + obj[i].magnetic.angle
-                obj[i].physical.physical_angle = obj[i].magnetic.angle
+        for e in obj:
+            z_here = e.physical.middle.z
+            if e.name in dipole_names:
+                lz = z_extents[dipole_number]
+                ang = a * self.ratios[dipole_number]
+                x += (z_here - lz / 2.0 - z_cursor) * np.tan(phi)
+                p0, p1 = phi, phi + ang
+                if abs(ang) > 1e-12:
+                    # radius fixed by having to cross `lz` in z while turning p0 -> p1
+                    r = lz / (np.sin(p1) - np.sin(p0))
+                    dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
+                else:
+                    dx, arc = 0.0, lz
+                # LAURA anchors start/end symmetrically about `middle`, so `middle` is
+                # the arc's centre. With `arc` set below that reproduces a fixed z extent
+                # and exactly the right entrance/exit x -- but only while the element is
+                # unrotated, otherwise the +-half vector is tilted along with it.
+                e.physical.middle = Position(x=x + dx / 2.0, y=0, z=z_here)
+                e.physical.global_rotation.theta = 0.0
+                e.magnetic.angle = ang
+                # `physical_angle` drives the start/end offsets, whose sign LAURA takes
+                # from it; the *displacement* through a chicane's second dipole runs the
+                # same way as through the first even though it bends back, so this is the
+                # sense of the displacement, not of the magnetic bend.
+                e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
+                e.magnetic.length = arc
+                e.physical.length = arc
+                x, phi, z_cursor = x + dx, p1, z_here + lz / 2.0
                 dipole_number += 1
+            elif dipole_number > 0:
+                x_here = x + (z_here - z_cursor) * np.tan(phi)
+                e.physical.middle = Position(x=x_here, y=0, z=z_here)
+                e.physical.global_rotation.theta = phi
+
+    def _z_extent(self, dipole, index: int) -> float:
+        """
+        The z that the magnet spans, which a variable chicane holds fixed while the angle
+        changes -- the magnets translate but never rotate, so their faces stay
+        perpendicular to the 0mm axis.
+
+        This is the length in the lattice, which is the zero-angle case where the arc and
+        the z extent coincide. Cached on first use because :func:`set_angle` overwrites
+        the element's length with the (longer) arc.
+        """
+        if not hasattr(self, "_design_z_extents"):
+            self._design_z_extents = {}
+        if dipole.name not in self._design_z_extents:
+            self._design_z_extents[dipole.name] = float(dipole.magnetic.length)
+        return self._design_z_extents[dipole.name]
 
     def __str__(self):
         return str(
