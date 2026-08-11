@@ -1,4 +1,4 @@
-# SIMBA: Simulation Interface for Machine and Beam Applications or
+# SIMBA: Simulations for Integrated Modeling of Beams in Accelerators
 *Improving accelerators through consistent, complete, and easy to use simulations.*
 
 ## Mission
