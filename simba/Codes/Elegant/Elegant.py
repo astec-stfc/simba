@@ -58,7 +58,6 @@ Classes:
 """
 
 import os
-import time
 from copy import copy
 import subprocess
 import numpy as np

@@ -33,8 +33,8 @@ from warnings import warn
 import numpy as np
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Dict, List, Any, Tuple
-from pydantic import Field, field_validator, ConfigDict
+from typing import ClassVar, Dict, Any
+from pydantic import Field, ConfigDict
 
 from ...Framework_objects import frameworkLattice, global_error
 from ...FrameworkHelperFunctions import expand_substitution, saveFile
@@ -43,10 +43,10 @@ from laura.models.diagnostic import DiagnosticElement
 from laura.models.element import PhysicalBaseElement
 from laura.models.physical import PhysicalElement
 from laura.translator.converters.codes.astra import (
-    astra_newrun,
-    astra_charge,
-    astra_output,
-    astra_errors,
+    AstraNewRun,
+    AstraCharge,
+    AstraOutput,
+    AstraErrors,
 )
 
 from ...Modules.units import UnitValue
@@ -144,7 +144,7 @@ class astraLattice(frameworkLattice):
         if "twiss" in settings:
             settings.pop("twiss")
         starting_offset = [a + b for a, b in zip(self.startObject.physical.start, self.starting_offset)]
-        self.section.astra_headers["newrun"] = astra_newrun(
+        self.section.astra_headers["newrun"] = AstraNewRun(
             starting_offset=starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
@@ -185,7 +185,7 @@ class astraLattice(frameworkLattice):
         screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
-        self.section.astra_headers["output"] = astra_output(
+        self.section.astra_headers["output"] = AstraOutput(
             starting_offset=self.starting_offset,
             starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
@@ -203,7 +203,7 @@ class astraLattice(frameworkLattice):
             self.globalSettings["charge"] = {}
         space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
         charge_settings = space_charge_dict | self.globalSettings["ASTRAsettings"]
-        self.section.astra_headers["charge"] = astra_charge(
+        self.section.astra_headers["charge"] = AstraCharge(
             global_parameters=self.global_parameters,
             **charge_settings,
         )
@@ -220,7 +220,7 @@ class astraLattice(frameworkLattice):
                 global_parameters=self.global_parameters,
             )
             error_settings = self.file_block["global_errors"] | self.globalSettings["global_errors"]
-            self.section.astra_headers["global_errors"] = astra_errors(
+            self.section.astra_headers["global_errors"] = AstraErrors(
                 element=globalerror,
                 global_parameters=self.global_parameters,
                 **error_settings,

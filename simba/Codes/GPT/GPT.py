@@ -62,18 +62,18 @@ from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
-    gpt_setfile,
-    gpt_charge,
-    gpt_setreduce,
-    gpt_accuracy,
-    gpt_spacecharge,
-    gpt_tout,
-    gpt_csr1d,
-    gpt_writefloorplan,
-    gpt_Zminmax,
-    gpt_forwardscatter,
-    gpt_scatterplate,
-    gpt_dtmaxt,
+    GptSetFile,
+    GptCharge,
+    GptSetReduce,
+    GptAccuracy,
+    GptSpaceCharge,
+    GptTout,
+    GptCsr1D,
+    GptWriteFloorPlan,
+    GptZMinMax,
+    GptForwardScatter,
+    GptScatterPlate,
+    GptDtMaxT,
 )
 
 gpt_defaults = {}
@@ -146,10 +146,10 @@ class gptLattice(frameworkLattice):
                 ]
         else:
             self.particle_definition = self.start
-        self.headers["setfile"] = gpt_setfile(
+        self.headers["setfile"] = GptSetFile(
             set='"beam"', filename='"' + self.name + '.gdf"'
         )
-        self.headers["floorplan"] = gpt_writefloorplan(
+        self.headers["floorplan"] = GptWriteFloorPlan(
             filename='"' + self.objectname + '_floor.gdf"'
         )
 
@@ -206,14 +206,14 @@ class gptLattice(frameworkLattice):
         str
             The lattice represented as a string compatible with GPT
         """
-        self.headers["accuracy"] = gpt_accuracy(accuracy=self.accuracy)
+        self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
         if "charge" not in self.globalSettings:
             self.globalSettings["charge"] = {}
         space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
         space_charge = self.global_parameters | space_charge_dict
-        self.headers["spacecharge"] = gpt_spacecharge(**space_charge)
+        self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
         if self.particle_definition == "laser" and self.space_charge_mode is not None:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
             self.headers["spacecharge"].sample_interval = self.sample_interval
@@ -223,10 +223,10 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.angle) for d in self.dipoles]) > 0
         ):  # and not os.name == 'nt':
-            self.headers["csr1d"] = gpt_csr1d()
+            self.headers["csr1d"] = GptCsr1D()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
-        # self.headers['forwardscatter'] = gpt_forwardscatter(ECS='"wcs", "I"', name='cathode', probability=0)
-        # self.headers['scatterplate'] = gpt_scatterplate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
+        # self.headers['forwardscatter'] = GptForwardScatter(ECS='"wcs", "I"', name='cathode', probability=0)
+        # self.headers['scatterplate'] = GptScatterPlate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
         fulltext = self.section.to_gpt(
@@ -457,7 +457,7 @@ class gptLattice(frameworkLattice):
             self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].t, units="m")
         self.headers["setfile"].time = np.mean(self.global_parameters["beam"].t)
         if self.sample_interval > 1:
-            self.headers["setreduce"] = gpt_setreduce(
+            self.headers["setreduce"] = GptSetReduce(
                 set='"beam"',
                 setreduce=int(
                     len(self.global_parameters["beam"].x) / self.sample_interval
@@ -475,7 +475,7 @@ class gptLattice(frameworkLattice):
         if self.override_tout is not None and isinstance(
             self.override_tout, (int, float)
         ):
-            self.headers["tout"] = gpt_tout(
+            self.headers["tout"] = GptTout(
                 starttime=0, endpos=self.override_tout, step=str(self.time_step_size)
             )
         else:
@@ -483,7 +483,7 @@ class gptLattice(frameworkLattice):
                     self.findS(self.endObject.name)[0][1]
                     - self.findS(self.startObject.name)[0][1]
             )
-            self.headers["tout"] = gpt_tout(
+            self.headers["tout"] = GptTout(
                 starttime=0,
                 endpos=endpos / meanBz / speed_of_light,
                 step=str(self.time_step_size),

@@ -15,7 +15,6 @@ Classes:
 
 from ...Framework_objects import (
     frameworkLattice,
-    elementkeywords,
 )
 from ...Modules import Beams as rbf
 from ...Modules.Beams.wake_t import (

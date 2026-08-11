@@ -27,10 +27,8 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
-from laura.models.diagnostic import DiagnosticElement
 
 
 class ocelotLattice(frameworkLattice):

@@ -17,11 +17,11 @@ from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Any
 from laura.translator.converters.codes.csrtrack import (
-    csrtrack_particles,
-    csrtrack_forces,
-    csrtrack_track_step,
-    csrtrack_tracker,
-    csrtrack_monitor,
+    CsrTrackParticles,
+    CsrTrackForces,
+    CsrTrackTrackStep,
+    CsrTrackTracker,
+    CsrTrackMonitor,
 )
 
 
@@ -53,7 +53,7 @@ class csrtrackLattice(frameworkLattice):
         Set up the `CSRTrackelementObjects namelist for the initial particle distribution,
         based on the `particle_definition` and the `global_parameters` of the lattice.
         """
-        self.csrtrack_headers["particles"] = csrtrack_particles(
+        self.csrtrack_headers["particles"] = CsrTrackParticles(
             particle_definition=self.particle_definition,
             global_parameters=self.global_parameters,
             format="astra",
@@ -95,11 +95,11 @@ class csrtrackLattice(frameworkLattice):
         """
         if "csr" in self.file_block and "csr_mode" in self.file_block["csr"]:
             if self.file_block["csr"]["csr_mode"] == "3D":
-                self.csrtrack_headers["forces"] = csrtrack_forces(type="csr_g_to_p")
+                self.csrtrack_headers["forces"] = CsrTrackForces(type="csr_g_to_p")
             elif self.file_block["csr"]["csr_mode"] == "1D":
-                self.csrtrack_headers["forces"] = csrtrack_forces(type="projected")
+                self.csrtrack_headers["forces"] = CsrTrackForces(type="projected")
         else:
-            self.CSRTrackelementObjects["forces"] = csrtrack_forces()
+            self.CSRTrackelementObjects["forces"] = CsrTrackForces()
 
     def writeElements(self) -> str:
         """
@@ -116,13 +116,13 @@ class csrtrackLattice(frameworkLattice):
         """
         self.set_particles_filename()
         self.setCSRMode()
-        self.csrtrack_headers["track_step"] = csrtrack_track_step()
-        self.csrtrack_headers["tracker"] = csrtrack_tracker(
+        self.csrtrack_headers["track_step"] = CsrTrackTrackStep()
+        self.csrtrack_headers["tracker"] = CsrTrackTracker(
             end_time_marker="screen"
             + str(len(self.screens))
             + "a"
         )
-        self.csrtrack_headers["monitor"] = csrtrack_monitor(
+        self.csrtrack_headers["monitor"] = CsrTrackMonitor(
             name=self.end + ".fmt2", global_parameters=self.global_parameters
         )
         self.section.csrtrack_headers = self.csrtrack_headers

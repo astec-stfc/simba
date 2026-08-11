@@ -34,7 +34,7 @@ from copy import deepcopy
 import time
 
 from laura import LAURA
-from laura.models.elementList import SectionLattice, ElementList
+from laura.models.element_list import SectionLattice, ElementList
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator

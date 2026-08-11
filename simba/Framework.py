@@ -27,8 +27,8 @@ from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement, Dipole
-from laura.Exporters.YAML import export_machine, export_elements
+from laura.models.element import PhysicalBaseElement
+from laura.exporters.yaml_exporter import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
