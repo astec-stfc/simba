@@ -40,7 +40,7 @@ from ...framework_objects import FrameworkLattice, GlobalError
 from ...framework_helper_functions import expand_substitution, save_file
 from ...modules import beams as rbf
 from laura.models.diagnostic import DiagnosticElement
-from laura.models.element import PhysicalBaseElement
+from laura.models.element import Screen
 from laura.models.physical import PhysicalElement
 from laura.translator.converters.codes.astra import (
     AstraNewRun,
@@ -440,9 +440,9 @@ class AstraLattice(FrameworkLattice):
                 sval=sval,
             )
         self.screen_threaded_function.gather()
-        endelem = PhysicalBaseElement(
+        endelem = Screen(
             name=self.end,
-            hardware_class="",
+            hardware_class="Diagnostic",
             hardware_type="",
             machine_area="",
             physical=PhysicalElement(middle=[0, 0, self.zstop])
@@ -452,7 +452,7 @@ class AstraLattice(FrameworkLattice):
     def astra_to_hdf5(
             self,
             lattice: str,
-            scr: DiagnosticElement | PhysicalBaseElement,
+            scr: DiagnosticElement | Screen,
             cathode: bool = False,
             mult: int = 100,
             final: bool = False,
@@ -519,7 +519,7 @@ class AstraLattice(FrameworkLattice):
     def find_astra_filename(
             self,
             lattice: str,
-            scr: DiagnosticElement | PhysicalBaseElement,
+            scr: DiagnosticElement | Screen,
             master_run_no: int,
             mult: int
     ) -> str | None:

@@ -22,11 +22,6 @@ import pytest
 from simba._compat import SIMBA_RENAMES
 from simba._legacy import LEGACY_MODULES
 
-# Modules whose compat aliases we can actually exercise: the seven excluded
-# here are standalone scripts under simba/support_files/ that already fail to
-# import on their own (missing `SimulationFramework`, a `pyyaml` typo, a
-# hardcoded Windows path, ...) -- pre-existing breakage unrelated to this
-# migration, so there's nothing reachable to assert on.
 ALIAS_REGISTERING_MODULES = [
     "simba.codes.astra.astra",
     "simba.codes.cheetah.cheetah",
@@ -114,15 +109,11 @@ class TestModuleLevelAliases:
 
 class TestLegacyModulePaths:
     """
-    Module and package paths moved to lower_snake_case
-    (``simba.Codes.ASTRA`` -> ``simba.codes.astra``, ...), served by a
-    meta-path finder rather than shim files -- see simba/_legacy.py.
+    Module and package paths to lower_snake_case
+    (``simba.Codes.ASTRA`` -> ``simba.codes.astra``, ...), using a
+    metapath finder instead of shim files -- see simba/_legacy.py.
     """
 
-    # Pre-existing, naming-unrelated breakage: symmlinks is Windows-only
-    # (ctypes.windll), and the support_files scripts already fail to import
-    # standalone (missing `SimulationFramework`, a `pyyaml` typo, a
-    # hardcoded Windows path, ...) -- nothing reachable to assert on.
     _UNIMPORTABLE = {
         "simba.modules.symmlinks",
         "simba.support_files.check_yaml_with_center_datums",

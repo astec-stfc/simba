@@ -145,8 +145,6 @@ class GenesisLattice(FrameworkLattice):
     the lattice suitable for a Genesis input file.
     """
 
-    # Legacy names, served with a FutureWarning by the mixin, which
-    # also warns if a subclass overrides one under its old name.
     _DEPRECATED_METHOD_ALIASES = {
         "commandFiles": "command_files",
         "commandFilesOrder": "command_files_order",

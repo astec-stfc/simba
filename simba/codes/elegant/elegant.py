@@ -904,7 +904,7 @@ class ElegantTwissOutputCommand(ElegantCommandFile):
     .. _Elegant twiss output: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu82.html#x90-890007.73
     """
 
-    Beam: rbf.Beam
+    beam: rbf.Beam
     """Particle distribution"""
 
     beta_x: float | None = None
