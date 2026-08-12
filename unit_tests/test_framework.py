@@ -3,16 +3,16 @@ import pytest
 from unittest.mock import MagicMock
 import shutil
 from pydantic import ValidationError
-import simba.Framework as fw
-from simba.Codes.Generators import (
-    frameworkGenerator,
+import simba.framework as fw
+from simba.codes.generators import (
+    FrameworkGenerator,
     ASTRAGenerator,
     GPTGenerator,
 )
-from simba.Framework_lattices import (
-    elegantLattice,
-    astraLattice,
-    cheetahLattice,
+from simba.framework_lattices import (
+    ElegantLattice,
+    AstraLattice,
+    CheetahLattice,
 )
 from laura.models.element import Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
@@ -53,7 +53,7 @@ def simple_machine():
 
 @pytest.fixture
 def simple_generator():
-    gen = frameworkGenerator(
+    gen = FrameworkGenerator(
         global_parameters={"master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
@@ -119,9 +119,9 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
         verbose=True
     )
     test_dir = os.path.dirname(os.path.abspath(__file__))
-    framework.loadSettings(settings=settings)
+    framework.load_settings(settings=settings)
     framework.save_settings("test.def", directory=test_dir)
-    framework.loadSettings(filename=os.path.join(test_dir, "test.def"))
+    framework.load_settings(filename=os.path.join(test_dir, "test.def"))
     framework.global_parameters["beam"] = MagicMock()
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
@@ -132,17 +132,17 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
     os.remove(f"{test_dir}/M1.openpmd.hdf5")
     os.remove(f"{test_dir}/test.def")
     with pytest.raises(FileNotFoundError):
-        framework.loadSettings(filename="non_existent.def")
+        framework.load_settings(filename="non_existent.def")
     with pytest.raises(ValueError):
-        framework.loadSettings()
+        framework.load_settings()
 
 @pytest.fixture
 def sample_framework(tmp_path):
     fw_obj = fw.Framework(directory=str(tmp_path))
     e1 = PhysicalBaseElement(name="E1", hardware_class="Magnet", hardware_type="Dipole", machine_area="A1")
     e2 = PhysicalBaseElement(name="E2", hardware_class="Magnet", hardware_type="Quadrupole", machine_area="A1")
-    fw_obj.elementObjects = {"E1": e1, "E2": e2}
-    fw_obj.original_elementObjects = {"E1": e1.model_copy(deep=True), "E2": e2.model_copy(deep=True)}
+    fw_obj.element_objects = {"E1": e1, "E2": e2}
+    fw_obj.original_element_objects = {"E1": e1.model_copy(deep=True), "E2": e2.model_copy(deep=True)}
     return fw_obj
 
 @pytest.fixture
@@ -179,63 +179,63 @@ def framework_with_machine(simple_machine):
         clean=True,
         verbose=True
     )
-    framework.loadSettings(settings=settings)
+    framework.load_settings(settings=settings)
     return framework
 
 def test_getElement(sample_framework):
     fw_obj = sample_framework
-    assert fw_obj.getElement("E1").name == "E1"
-    assert fw_obj.getElement("E1", "hardware_type") == "Dipole"
+    assert fw_obj.get_element("E1").name == "E1"
+    assert fw_obj.get_element("E1", "hardware_type") == "Dipole"
     with pytest.warns(UserWarning):
-        assert fw_obj.getElement("NonExistent") == {}
+        assert fw_obj.get_element("NonExistent") == {}
 
 def test_getElementType(framework_with_machine):
     fw_obj = framework_with_machine
-    quads = fw_obj.getElementType("Quadrupole")
+    quads = fw_obj.get_element_type("Quadrupole")
     assert any(e["name"] == "QUAD1F" for e in quads)
-    elements = fw_obj.getElementType(["Quadrupole", "Marker"])
+    elements = fw_obj.get_element_type(["Quadrupole", "Marker"])
     assert any(e["name"] == "QUAD1F" for e in elements[0])
     assert any(e["name"] == "M1" for e in elements[1])
 
 def test_modifyElement(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "name", "NewE1")
-    assert fw_obj.elementObjects["E1"].name == "NewE1"
+    fw_obj.modify_element("E1", "name", "NewE1")
+    assert fw_obj.element_objects["E1"].name == "NewE1"
 
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
-    assert all(e.alias == ["mag"] for e in fw_obj.elementObjects.values())
+    fw_obj.modify_elements(["E1", "E2"], "alias", "mag")
+    assert all(e.alias == ["mag"] for e in fw_obj.element_objects.values())
 
 def test_modifyElementType(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElementType("Dipole", "machine_area", "new_area")
-    assert fw_obj.elementObjects["E1"].machine_area == "new_area"
+    fw_obj.modify_element_type("Dipole", "machine_area", "new_area")
+    assert fw_obj.element_objects["E1"].machine_area == "new_area"
 
 def test_detect_changes(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
+    fw_obj.modify_element("E1", "machine_area", "new_area")
     changes = fw_obj.detect_changes()
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 
 def test_detect_changes_single(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
+    fw_obj.modify_element("E1", "machine_area", "new_area")
     changes = fw_obj.detect_changes(elements=["E1"])
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 
 def test_detect_changes_by_type(sample_framework):
     fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
+    fw_obj.modify_element("E1", "machine_area", "new_area")
     changes = fw_obj.detect_changes(elementtype="Dipole")
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 
 def test_save_and_load_changes_file(sample_framework, tmp_path):
     fw_obj = sample_framework
-    fw_obj.modifyElement("E2", "virtual_name", "VE2")
+    fw_obj.modify_element("E2", "virtual_name", "VE2")
     changes_file = tmp_path / "changes.yaml"
     fw_obj.save_changes_file(filename=str(changes_file))
     assert changes_file.exists()
@@ -250,10 +250,10 @@ def test_save_and_load_changes_file(sample_framework, tmp_path):
 def test_clear(sample_framework):
     fw_obj = sample_framework
     fw_obj.clear()
-    assert fw_obj.elementObjects == {}
-    assert fw_obj.latticeObjects == {}
-    assert fw_obj.commandObjects == {}
-    assert fw_obj.groupObjects == {}
+    assert fw_obj.element_objects == {}
+    assert fw_obj.lattice_objects == {}
+    assert fw_obj.command_objects == {}
+    assert fw_obj.group_objects == {}
 
 def test_change_subdirectory(sample_framework):
     fw_obj = sample_framework
@@ -263,35 +263,35 @@ def test_change_subdirectory(sample_framework):
     shutil.rmtree("./new_subdir")
 
 def test_change_lattice_code(framework_with_machine):
-    framework_with_machine.change_Lattice_Code("FODO", "elegant")
-    assert isinstance(framework_with_machine.latticeObjects["FODO"], elegantLattice)
-    framework_with_machine.change_Lattice_Code("All", "cheetah")
-    assert isinstance(framework_with_machine.latticeObjects["FODO"], cheetahLattice)
-    framework_with_machine.change_Lattice_Code(["FODO"], "astra")
-    assert isinstance(framework_with_machine.latticeObjects["FODO"], astraLattice)
+    framework_with_machine.change_lattice_code("FODO", "elegant")
+    assert isinstance(framework_with_machine.lattice_objects["FODO"], ElegantLattice)
+    framework_with_machine.change_lattice_code("All", "cheetah")
+    assert isinstance(framework_with_machine.lattice_objects["FODO"], CheetahLattice)
+    framework_with_machine.change_lattice_code(["FODO"], "astra")
+    assert isinstance(framework_with_machine.lattice_objects["FODO"], AstraLattice)
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_modify_lattices(framework_with_machine):
-    framework_with_machine.modifyLattices("FODO", "lsc_enable", False)
-    assert not framework_with_machine.latticeObjects["FODO"].lsc_enable
-    framework_with_machine.modifyLattices(["FODO"], "csr_enable", False)
-    assert not framework_with_machine.latticeObjects["FODO"].csr_enable
+    framework_with_machine.modify_lattices("FODO", "lsc_enable", False)
+    assert not framework_with_machine.lattice_objects["FODO"].lsc_enable
+    framework_with_machine.modify_lattices(["FODO"], "csr_enable", False)
+    assert not framework_with_machine.lattice_objects["FODO"].csr_enable
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_change_generator(framework_with_machine):
-    framework_with_machine.add_Generator(code="astra")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
-    framework_with_machine.add_Generator(code="gpt")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], GPTGenerator)
-    framework_with_machine.add_Generator(code="simba")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], frameworkGenerator)
+    framework_with_machine.add_generator(code="astra")
+    assert isinstance(framework_with_machine.lattice_objects["generator"], ASTRAGenerator)
+    framework_with_machine.add_generator(code="gpt")
+    assert isinstance(framework_with_machine.lattice_objects["generator"], GPTGenerator)
+    framework_with_machine.add_generator(code="simba")
+    assert isinstance(framework_with_machine.lattice_objects["generator"], FrameworkGenerator)
     framework_with_machine.change_generator("gpt")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], GPTGenerator)
+    assert isinstance(framework_with_machine.lattice_objects["generator"], GPTGenerator)
     framework_with_machine.change_generator("simba")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], frameworkGenerator)
+    assert isinstance(framework_with_machine.lattice_objects["generator"], FrameworkGenerator)
     with pytest.raises(ValidationError):
         with pytest.warns(UserWarning):
             framework_with_machine.change_generator("none")
     framework_with_machine.change_generator("ASTRA")
-    assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
+    assert isinstance(framework_with_machine.lattice_objects["generator"], ASTRAGenerator)
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")

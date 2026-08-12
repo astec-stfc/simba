@@ -1,0 +1,25 @@
+[classes]
+convertGDFToHDF5 = "ConvertGdfToHdf5"
+convertGDFToSDDS = "ConvertGdfToSdds"
+convertSDDS = "ConvertSdds"
+convertSDDSToGDF = "ConvertSddsToGdf"
+elegant2YAML = "Elegant2Yaml"
+elegantInterpret = "ElegantInterpret"
+flow_list = "FlowList"
+noflow_list = "NoflowList"
+
+[functions]
+FSlist = "f_slist"
+add_Element = "add_element"
+closeMatches = "close_matches"
+loadSettings = "load_settings"
+load_Elements_File = "load_elements_file"
+readElegantFile = "read_elegant_file"
+readLine = "read_line"
+read_Element = "read_element"
+read_Lattice = "read_lattice"
+
+[globals]
+dataFormat = "data_format"
+type_conversion_rules_Elegant = "type_conversion_rules_elegant"
+type_conversion_rules_Names = "type_conversion_rules_names"

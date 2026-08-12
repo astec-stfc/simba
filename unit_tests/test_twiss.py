@@ -1,5 +1,5 @@
 # import SimulationFramework.Modules.Beams as rbf  # noqa E402
-# import SimulationFramework.Modules.Twiss as rtf
+# import SimulationFramework.Modules.twiss as rtf
 # from SimulationFramework.Framework_lattices import (
 #     elegantLattice,
 #     astraLattice,

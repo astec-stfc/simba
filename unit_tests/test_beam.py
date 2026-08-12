@@ -1,5 +1,5 @@
-import simba.Modules.Beams as rbf  # noqa E402
-from simba.Modules.units import UnitValue
+import simba.modules.beams as rbf  # noqa E402
+from simba.modules.units import UnitValue
 import pytest
 import numpy as np
 from scipy.constants import m_e, c, e, m_p
@@ -8,24 +8,24 @@ import os
 
 @pytest.fixture
 def simple_beam():
-    beam = rbf.beam()
+    beam = rbf.Beam()
     particle_mass = UnitValue(m_e, "kg")
     E0 = UnitValue(particle_mass * c ** 2, "J")
-    beam.Particles.particle_rest_energy_eV = UnitValue(E0 / e, "eV/c")
+    beam.particles.particle_rest_energy_eV = UnitValue(E0 / e, "eV/c")
     q_over_c = UnitValue(e / c, "C/(m/s)")
 
     beam_length = 1000
     bunch_charge = 100e-12
-    beam.Particles.x = UnitValue(np.random.normal(0, 1e-2, beam_length), "m")
-    beam.Particles.y = UnitValue(np.random.normal(0, 1e-2, beam_length), "m")
-    beam.Particles.z = UnitValue(np.random.normal(0, 1e-3, beam_length), "m")
-    beam.Particles.t = UnitValue(np.random.normal(0, 1e-3 / c, beam_length), "s")
-    beam.Particles.px = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
-    beam.Particles.py = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
-    beam.Particles.pz = UnitValue(np.random.normal(1e9 * q_over_c, 1e3 * q_over_c, beam_length), "kg*m/s")
-    beam.Particles.particle_mass = UnitValue(np.full(shape=beam_length, fill_value=m_e, dtype=np.float64), "kg")
-    beam.Particles.set_total_charge(bunch_charge)
-    beam.Particles.nmacro = UnitValue(np.full(shape=beam_length, fill_value=1, dtype=np.int64), "")
+    beam.particles.x = UnitValue(np.random.normal(0, 1e-2, beam_length), "m")
+    beam.particles.y = UnitValue(np.random.normal(0, 1e-2, beam_length), "m")
+    beam.particles.z = UnitValue(np.random.normal(0, 1e-3, beam_length), "m")
+    beam.particles.t = UnitValue(np.random.normal(0, 1e-3 / c, beam_length), "s")
+    beam.particles.px = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
+    beam.particles.py = UnitValue(np.random.normal(0, 1e3 * q_over_c, beam_length), "kg*m/s")
+    beam.particles.pz = UnitValue(np.random.normal(1e9 * q_over_c, 1e3 * q_over_c, beam_length), "kg*m/s")
+    beam.particles.particle_mass = UnitValue(np.full(shape=beam_length, fill_value=m_e, dtype=np.float64), "kg")
+    beam.particles.set_total_charge(bunch_charge)
+    beam.particles.nmacro = UnitValue(np.full(shape=beam_length, fill_value=1, dtype=np.int64), "")
     beam.code = "simframe"
     beam.filename = "test.hdf5"
     beam.set_species("positron")
@@ -33,8 +33,8 @@ def simple_beam():
 
 def test_beam_matching(simple_beam):
 
-    simple_beam.Particles.rematchXPlane(beta=10, alpha=-10, nEmit=1e-6)
-    simple_beam.Particles.rematchYPlane(beta=5, alpha=10, nEmit=1e-6)
+    simple_beam.particles.rematch_x_plane(beta=10, alpha=-10, nEmit=1e-6)
+    simple_beam.particles.rematch_y_plane(beta=5, alpha=10, nEmit=1e-6)
 
     assert all(
         np.isclose(
@@ -62,11 +62,11 @@ def test_beam_matching(simple_beam):
     )
 
     with pytest.warns(UserWarning, match="Both beta and alpha must be provided to rematch"):
-        simple_beam.Particles.rematchXPlane(beta=1)
-        simple_beam.Particles.rematchYPlane(beta=1)
+        simple_beam.particles.rematch_x_plane(beta=1)
+        simple_beam.particles.rematch_y_plane(beta=1)
 
-    simple_beam.Particles.rematchXPlanePeakISlice(beta=10, alpha=-10, nEmit=1e-6)
-    simple_beam.Particles.rematchYPlanePeakISlice(beta=5, alpha=10, nEmit=1e-6)
+    simple_beam.particles.rematch_x_plane_peak_i_slice(beta=10, alpha=-10, nEmit=1e-6)
+    simple_beam.particles.rematch_y_plane_peak_i_slice(beta=5, alpha=10, nEmit=1e-6)
     assert all(
         np.isclose(
             [
@@ -90,7 +90,7 @@ def test_beam_matching(simple_beam):
         )
     )
     # initial_beam.write_HDF5_beam_file('./fodo/BEGIN.hdf5')
-    assert isinstance(simple_beam.mve.slice_6D_Volume, np.ndarray)
+    assert isinstance(simple_beam.mve.slice_6d_volume, np.ndarray)
     assert isinstance(simple_beam.mve.slice_density, np.ndarray)
     assert isinstance(simple_beam.mve.normalized_mve_horizontal_emittance, UnitValue)
     assert isinstance(simple_beam.mve.normalized_mve_vertical_emittance, UnitValue)
@@ -100,8 +100,8 @@ def test_beam_matching(simple_beam):
 
 def test_beam_species(simple_beam):
 
-    assert list(set(simple_beam.Particles.particle_index)) == [2]
-    simple_beam.Particles.charge = UnitValue(
+    assert list(set(simple_beam.particles.particle_index)) == [2]
+    simple_beam.particles.charge = UnitValue(
         np.full(
             shape=len(simple_beam.x),
             fill_value=-simple_beam.total_charge / len(simple_beam.x),
@@ -109,8 +109,8 @@ def test_beam_species(simple_beam):
         ),
         "C"
     )
-    assert list(set(simple_beam.Particles.particle_index)) == [1]
-    simple_beam.Particles.particle_mass = UnitValue(
+    assert list(set(simple_beam.particles.particle_index)) == [1]
+    simple_beam.particles.particle_mass = UnitValue(
         np.full(
             shape=len(simple_beam.x),
             fill_value=m_p,
@@ -118,8 +118,8 @@ def test_beam_species(simple_beam):
         ),
         "kg"
     )
-    assert list(set(simple_beam.Particles.particle_index)) == [4]
-    simple_beam.Particles.charge = UnitValue(
+    assert list(set(simple_beam.particles.particle_index)) == [4]
+    simple_beam.particles.charge = UnitValue(
         np.full(
             shape=len(simple_beam.x),
             fill_value=simple_beam.total_charge / len(simple_beam.x),
@@ -127,9 +127,9 @@ def test_beam_species(simple_beam):
         ),
         "C"
     )
-    assert list(set(simple_beam.Particles.particle_index)) == [3]
+    assert list(set(simple_beam.particles.particle_index)) == [3]
     with pytest.raises(ValueError):
-        simple_beam.Particles.get_particle_index(1, -1)
+        simple_beam.particles.get_particle_index(1, -1)
 
 def test_model_dump(simple_beam):
     assert isinstance(simple_beam.model_dump(), Dict)
@@ -142,14 +142,14 @@ def test_other_derived_properties(simple_beam):
         "ypc",
         "deltap",
         "p",
-        "Brho",
+        "brho",
         "E0_eV",
-        "BetaGamma",
-        "Ex",
-        "Ey",
-        "Ez",
-        "Bx",
-        "By",
+        "beta_gamma",
+        "ex",
+        "ey",
+        "ez",
+        "bx",
+        "by",
         "kinetic_energy",
         "mean_energy",
     ]:
@@ -170,13 +170,13 @@ def test_rotate(simple_beam):
     initial_check_vals = [getattr(simple_beam, v) for v in vals_to_check]
     simple_beam.write_astra_beam_file('test.astra')
     simple_beam.read_astra_beam_file('test.astra')
-    simple_beam.rotate_beamXZ(1)
+    simple_beam.rotate_beam_xz(1)
     rotate_change_vals = [getattr(simple_beam, v) for v in vals_to_change]
     rotate_check_vals = [getattr(simple_beam, v) for v in vals_to_check]
     assert initial_change_vals != rotate_change_vals
     assert initial_check_vals != rotate_check_vals
     assert simple_beam.theta == 1
-    simple_beam.unrotate_beamXZ()
+    simple_beam.unrotate_beam_xz()
     unrotate_change_vals = [getattr(simple_beam, v) for v in vals_to_change]
     unrotate_check_vals = [getattr(simple_beam, v) for v in vals_to_check]
     assert all(np.isclose(initial_change_vals, unrotate_change_vals))
@@ -186,13 +186,13 @@ def test_rotate(simple_beam):
 
 def test_centroids(simple_beam):
     q_over_c = UnitValue(e / c, "C/(m/s)")
-    simple_beam.Particles.x += 1
-    simple_beam.Particles.y += 2
-    simple_beam.Particles.z += 3
-    simple_beam.Particles.t += 4
-    simple_beam.Particles.px += 1e6 * q_over_c
-    simple_beam.Particles.py += 2e6 * q_over_c
-    simple_beam.Particles.pz += 3e6 * q_over_c
+    simple_beam.particles.x += 1
+    simple_beam.particles.y += 2
+    simple_beam.particles.z += 3
+    simple_beam.particles.t += 4
+    simple_beam.particles.px += 1e6 * q_over_c
+    simple_beam.particles.py += 2e6 * q_over_c
+    simple_beam.particles.pz += 3e6 * q_over_c
 
     assert all(
         np.isclose(
@@ -231,7 +231,7 @@ def test_centroids(simple_beam):
 
 def test_astra_beam(simple_beam):
     simple_beam.write_astra_beam_file("test.astra")
-    astra_beam = rbf.beam("test.astra")
+    astra_beam = rbf.Beam("test.astra")
     assert all(
         np.isclose(
             [
@@ -288,7 +288,7 @@ def test_astra_beam(simple_beam):
 
 def test_gdf_beam(simple_beam):
     simple_beam.write_gdf_beam_file("test.gdf")
-    gdf_beam = rbf.beam("test.gdf")
+    gdf_beam = rbf.Beam("test.gdf")
     assert all(
         np.isclose(
             [
@@ -344,8 +344,8 @@ def test_gdf_beam(simple_beam):
     os.remove("test.gdf")
 
 def test_sdds_beam(simple_beam):
-    simple_beam.write_SDDS_beam_file("test.sdds")
-    sdds_beam = rbf.beam("test.sdds")
+    simple_beam.write_sdds_beam_file("test.sdds")
+    sdds_beam = rbf.Beam("test.sdds")
     assert all(
         np.isclose(
             [
@@ -402,7 +402,7 @@ def test_sdds_beam(simple_beam):
 
 def test_ocelot_beam(simple_beam):
     simple_beam.write_ocelot_beam_file("test.ocelot.npz")
-    ocelot_beam = rbf.beam("test.ocelot.npz")
+    ocelot_beam = rbf.Beam("test.ocelot.npz")
     assert all(
         np.isclose(
             [
@@ -458,8 +458,8 @@ def test_ocelot_beam(simple_beam):
     os.remove("test.ocelot.npz")
 
 def test_sfhdf_beam(simple_beam):
-    simple_beam.write_HDF5_beam_file("test.hdf5")
-    sdhdf_beam = rbf.beam("test.hdf5")
+    simple_beam.write_hdf5_beam_file("test.hdf5")
+    sdhdf_beam = rbf.Beam("test.hdf5")
     assert all(
         np.isclose(
             [
@@ -518,4 +518,4 @@ def test_resample(simple_beam):
     newlen = 10000
     newbeam = simple_beam.resample(newlen)
     for param in ["x", "y", "z", "px", "py", "pz"]:
-        assert len(getattr(newbeam.Particles, param)) == newlen
+        assert len(getattr(newbeam.particles, param)) == newlen

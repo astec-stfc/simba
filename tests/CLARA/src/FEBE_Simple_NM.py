@@ -4,8 +4,8 @@ import numpy as np
 from SimulationFramework.ClassFiles.Optimise_longitudinal_Elegant import (
     Optimise_Elegant,
 )
-from SimulationFramework.Modules.merge_two_dicts import merge_two_dicts
-from SimulationFramework.Modules.Beams.Particles.mve import MVE as MVE
+from SimulationFramework.modules.merge_two_dicts import merge_two_dicts
+from SimulationFramework.modules.beams.particles.mve import MVE as MVE
 import argparse
 
 parser = argparse.ArgumentParser(description="Perform an optimisation.")
@@ -73,7 +73,7 @@ class FEBE(Optimise_Elegant):
         # print('csrbins =', csrbins, 2**(3*self.scaling), self.sample_interval)
         # print('lscbins =', lscbins, 2**(3*self.scaling), self.sample_interval)
         # exit()
-        elements = self.framework.elementObjects.values()
+        elements = self.framework.element_objects.values()
         for e in elements:
             e.lsc_enable = True
             e.lsc_bins = lscbins
@@ -85,7 +85,7 @@ class FEBE(Optimise_Elegant):
             e.lsc_high_frequency_cutoff_start = 0.2
             e.lsc_high_frequency_cutoff_end = 0.25
             e.smoothing = 1
-        lattices = self.framework.latticeObjects.values()
+        lattices = self.framework.lattice_objects.values()
         for latt in lattices:
             latt.lscDrifts = True
             latt.lsc_bins = lscbins
@@ -106,15 +106,15 @@ class FEBE(Optimise_Elegant):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
         self.beam.mve.slice_length = 0.01e-12
 
         t = 1e12 * (self.beam.t - np.mean(self.beam.t))
         t_grid = np.linspace(min(t), max(t), 2**8)
         bw = self.beam.rms(t) / (2**4)
-        peakIPDF = self.beam.mve.PDF(t, t_grid, bandwidth=bw)
-        peakICDF = self.beam.mve.CDF(t, t_grid, bandwidth=bw)
-        peakIFWHM, indexes = self.beam.mve.FWHM(t_grid, peakIPDF, frac=2)
+        peakIPDF = self.beam.mve.pdf(t, t_grid, bandwidth=bw)
+        peakICDF = self.beam.mve.cdf(t, t_grid, bandwidth=bw)
+        peakIFWHM, indexes = self.beam.mve.fwhm(t_grid, peakIPDF, frac=2)
 
         self.beam.slice.bin_time()
         sigmap = np.std(self.beam.p)
@@ -128,7 +128,7 @@ class FEBE(Optimise_Elegant):
             peakIEmittanceY,
             peakIMomentum,
             peakIDensity,
-        ) = self.beam.slice.sliceAnalysis()
+        ) = self.beam.slice.slice_analysis()
 
         x = 1e6 * (self.beam.x - np.mean(self.beam.x))
         sigmax = np.std(x)
@@ -136,7 +136,7 @@ class FEBE(Optimise_Elegant):
         sigmay = np.std(y)
 
         self.twiss.read_elegant_twiss_files(self.dirname + "/FEBE.twi")
-        ipindex = list(self.twiss.elegantData["ElementName"]).index(
+        ipindex = list(self.twiss.elegant_data["ElementName"]).index(
             "CLA-FEC1-SIM-FOCUS-01"
         )
         constraintsListFEBE = {
@@ -228,7 +228,7 @@ class FEBE(Optimise_Elegant):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -301,7 +301,7 @@ class FEBE_Mode_1(FEBE):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
 
         # slice_length = 1e-15
         # self.beam.slice.slice_length = slice_length
@@ -379,7 +379,7 @@ class FEBE_Mode_1(FEBE):
 
         if True or self.verbose:
             print(constraintsList)
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
 
         return constraintsList
 
@@ -431,7 +431,7 @@ class FEBE_Mode_2(FEBE_Mode_1):
         csrbins = 8 if csrbins < 8 else csrbins
         lscbins = int(round(2 ** (3 * self.scaling) / self.sample_interval / 64, 3))
         lscbins = 8 if lscbins < 8 else lscbins
-        elements = self.framework.elementObjects.values()
+        elements = self.framework.element_objects.values()
         for e in elements:
             e.lsc_enable = True
             e.lsc_bins = lscbins
@@ -441,7 +441,7 @@ class FEBE_Mode_2(FEBE_Mode_1):
             e.transverse_wakefield_enable = True
             e.smoothing_half_width = 1
             e.smoothing = 1
-        lattices = self.framework.latticeObjects.values()
+        lattices = self.framework.lattice_objects.values()
         for latt in lattices:
             latt.lscDrifts = True
             latt.lsc_bins = lscbins
@@ -461,15 +461,15 @@ class FEBE_Mode_2(FEBE_Mode_1):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-FOCUS.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-FOCUS.sdds")
         self.beam.mve.slice_length = 0.01e-12
 
         t = 1e12 * (self.beam.t - np.mean(self.beam.t))
         t_grid = np.linspace(min(t), max(t), 2**8)
         bw = self.beam.rms(t) / (2**4)
-        peakIPDF = self.beam.mve.PDF(t, t_grid, bandwidth=bw)
-        peakICDF = self.beam.mve.CDF(t, t_grid, bandwidth=bw)
-        peakIFWHM, indexes = self.beam.mve.FWHM(t_grid, peakIPDF, frac=2)
+        peakIPDF = self.beam.mve.pdf(t, t_grid, bandwidth=bw)
+        peakICDF = self.beam.mve.cdf(t, t_grid, bandwidth=bw)
+        peakIFWHM, indexes = self.beam.mve.fwhm(t_grid, peakIPDF, frac=2)
 
         self.beam.slice.bin_time()
         sigmap = np.std(self.beam.p)
@@ -483,7 +483,7 @@ class FEBE_Mode_2(FEBE_Mode_1):
             _,
             _,
             _,
-        ) = self.beam.slice.sliceAnalysis()
+        ) = self.beam.slice.slice_analysis()
 
         x = 1e6 * (self.beam.x - np.mean(self.beam.x))
         sigmax = np.std(x)
@@ -491,7 +491,7 @@ class FEBE_Mode_2(FEBE_Mode_1):
         sigmay = np.std(y)
 
         self.twiss.read_elegant_twiss_files(self.dirname + "/FEBE.twi")
-        ipindex = list(self.twiss.elegantData["ElementName"]).index("CLA-FEC1-FOCUS")
+        ipindex = list(self.twiss.elegant_data["ElementName"]).index("CLA-FEC1-FOCUS")
 
         constraintsListFEBE = {
             "field_max": {
@@ -570,7 +570,7 @@ class FEBE_Mode_2(FEBE_Mode_1):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -658,7 +658,7 @@ class FEBE_Mode_3(FEBE):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
 
         self.beam.mve.slice_length = 0.01e-12
 
@@ -674,7 +674,7 @@ class FEBE_Mode_3(FEBE):
             _,
             _,
             _,
-        ) = self.beam.slice.sliceAnalysis()
+        ) = self.beam.slice.slice_analysis()
 
         constraintsListFEBE = {
             "field_max": {
@@ -724,7 +724,7 @@ class FEBE_Mode_3(FEBE):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -883,7 +883,7 @@ class FEBE_Mode_5(FEBE):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_HDF5_beam_file(self.dirname + "/CLA-FEC1-FOCUS.hdf5")
+        self.beam.read_hdf5_beam_file(self.dirname + "/CLA-FEC1-FOCUS.hdf5")
         t = 1e12 * (self.beam.t - np.mean(self.beam.t))
         meanp = np.mean(self.beam.cp)
         sigmat = np.std(t)
@@ -944,7 +944,7 @@ class FEBE_Mode_5(FEBE):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -966,7 +966,7 @@ class FEBE_Mode_11(FEBE_Mode_3):
             [1e-6 * self.linac_fields[i] for i in fhc_indexes]
         )  # 2 = 4HC
 
-        self.beam.read_HDF5_beam_file(self.dirname + "/CLA-FEC1-FOCUS.hdf5")
+        self.beam.read_hdf5_beam_file(self.dirname + "/CLA-FEC1-FOCUS.hdf5")
         meanp = np.mean(self.beam.cp)
         sigmap = np.std(self.beam.p)
         sigmapp = sigmap / np.mean(self.beam.p)
@@ -1025,7 +1025,7 @@ class FEBE_Mode_11(FEBE_Mode_3):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -1071,13 +1071,13 @@ class FEBE_Mode_THz(FEBE_Mode_1):
         )  # 0=Linac2, 1=Linac3, (2=4HC), 3=Linac4
         fhc_field = np.array([1e-6 * self.linac_fields[i] for i in [2]])  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-S07-SIM-START-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-S07-SIM-START-01.sdds")
 
         cp = 1e-6 * self.beam.cp
         cp_range = float(max(cp) - min(cp))
         meanp = float(np.mean(cp))
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
 
         slice_length = (max(self.beam.t) - min(self.beam.t)) / 64
         self.beam.slice.slice_length = slice_length
@@ -1090,7 +1090,7 @@ class FEBE_Mode_THz(FEBE_Mode_1):
             peakIEmittanceY,
             peakIMomentum,
             peakIDensity,
-        ) = self.beam.slice.sliceAnalysis()
+        ) = self.beam.slice.slice_analysis()
 
         constraintsListFEBE = {
             "field_max": {
@@ -1141,7 +1141,7 @@ class FEBE_Mode_THz(FEBE_Mode_1):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 
@@ -1172,7 +1172,7 @@ class FEBE_Mode_VHEE(FEBE_Mode_THz):
         )  # 0=Linac2, 1=Linac3, (2=4HC), 3=Linac4
         fhc_field = np.array([1e-6 * self.linac_fields[i] for i in [2]])  # 2 = 4HC
 
-        self.beam.read_SDDS_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
+        self.beam.read_sdds_beam_file(self.dirname + "/CLA-FEC1-SIM-FOCUS-01.sdds")
 
         slice_length = (max(self.beam.t) - min(self.beam.t)) / 64
         self.beam.slice.slice_length = slice_length
@@ -1185,7 +1185,7 @@ class FEBE_Mode_VHEE(FEBE_Mode_THz):
             peakIEmittanceY,
             peakIMomentum,
             peakIDensity,
-        ) = self.beam.slice.sliceAnalysis()
+        ) = self.beam.slice.slice_analysis()
 
         t = 1e12 * (self.beam.t - np.mean(self.beam.t))
         t_range = float(max(t) - min(t))
@@ -1253,7 +1253,7 @@ class FEBE_Mode_VHEE(FEBE_Mode_THz):
         constraintsList = merge_two_dicts(constraintsList, constraintsListFEBE)
 
         if self.verbose:
-            print(self.cons.constraintsList(constraintsList))
+            print(self.cons.constraints_list(constraintsList))
         return constraintsList
 
 

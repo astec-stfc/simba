@@ -1,7 +1,7 @@
 Framework
 ---------
 
-.. automodule:: simba.Framework
+.. automodule:: simba.framework
     :members:
     :undoc-members:
     :show-inheritance:

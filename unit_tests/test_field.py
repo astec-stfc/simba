@@ -1,13 +1,13 @@
-import simba.Modules.Fields as rff  # noqa E402
-from simba.Modules.Fields.FieldParameter import FieldParameter
-from simba.Modules.units import UnitValue
+import simba.modules.fields as rff  # noqa E402
+from simba.modules.fields.field_parameter import FieldParameter
+from simba.modules.units import UnitValue
 import pytest
 import numpy as np
 import os
 
 @pytest.fixture
 def simple_field():
-    field = rff.field()
+    field = rff.FieldMap()
 
     field_length = 1000
     field.length = field_length
@@ -98,7 +98,7 @@ def test_astra_field_conversion(simple_field):
         simple_field.filename = f"test_{name}.hdf5"
         simple_field.field_type = name
         astraname = simple_field.write_field_file(code="astra")
-        newf = rff.field(
+        newf = rff.FieldMap(
             astraname,
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,
@@ -127,7 +127,7 @@ def test_gdf_field_conversion(simple_field):
         simple_field.filename = f"test_{name}.hdf5"
         simple_field.field_type = name
         gdfname = simple_field.write_field_file(code="gdf")
-        newf = rff.field(
+        newf = rff.FieldMap(
             gdfname,
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,
@@ -150,7 +150,7 @@ def test_hdf5_field_conversion(simple_field):
         simple_field.filename = f"test_{name}.hdf5"
         simple_field.field_type = name
         hdf5name = simple_field.write_field_file(code="hdf5")
-        newf = rff.field(
+        newf = rff.FieldMap(
             hdf5name,
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,
@@ -174,7 +174,7 @@ def test_sdds_field_conversion(simple_field):
         simple_field.filename = f"test_{name}.sdds"
         simple_field.field_type = name
         sddsname = simple_field.write_field_file(code="sdds")
-        newf = rff.field(
+        newf = rff.FieldMap(
             sddsname,
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,
@@ -208,7 +208,7 @@ def test_opal_field_conversion(simple_field):
                 opalname = simple_field.write_field_file(code="opal")
         else:
             opalname = simple_field.write_field_file(code="opal")
-        newf = rff.field(
+        newf = rff.FieldMap(
             opalname,
             field_type=simple_field.field_type,
             frequency=simple_field.frequency,

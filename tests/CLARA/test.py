@@ -2,9 +2,9 @@ import sys
 from argparse import Namespace
 
 sys.path.append("../../")
-from SimulationFramework.Framework import load_directory  # noqa E402
+from SimulationFramework.framework import load_directory  # noqa E402
 from src.FEBE_Simple_NM import FEBE_Mode_1
-from SimulationFramework.Modules import constants  # noqa E402
+from SimulationFramework.modules import constants  # noqa E402
 
 
 if __name__ == "__main__":

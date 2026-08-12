@@ -84,7 +84,7 @@ been prepared.
 
 .. code-block:: python
 
-    import simba.Framework as fw
+    import simba.framework as fw
 
 
     # Define a new framework instance, in directory 'example'.
@@ -100,11 +100,11 @@ been prepared.
         verbose=True,
         )
     # Load a lattice definition file. These can be found in Masterlattice/Lattices by default.
-    framework.loadSettings("Lattices/CLARA.def")
+    framework.load_settings("Lattices/CLARA.def")
     # Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector cannot be done in Elegant)
-    framework.change_Lattice_Code("All", "ASTRA", exclude=["Linac"])
+    framework.change_lattice_code("All", "ASTRA", exclude=["Linac"])
     # Again, but put the VBC in Elegant for CSR
-    framework.change_Lattice_Code("FEBE", "Elegant")
+    framework.change_lattice_code("FEBE", "Elegant")
     # This is the code that generates the laser distribution (ASTRA or GPT)
     framework.change_generator("ASTRA")
     # Load a starting laser distribution setting

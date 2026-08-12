@@ -8,7 +8,7 @@
 # import SimulationFramework.Framework as fw  # noqa E402
 # from SimulationFramework.Framework import load_directory  # noqa E402
 # import SimulationFramework.Modules.Beams as rbf  # noqa E402
-# import SimulationFramework.Modules.Twiss as rtf  # noqa E402
+# import SimulationFramework.Modules.twiss as rtf  # noqa E402
 #
 #
 # def sub_element_test(startfile="generator", endfile="S02", scaling=3, sampling=1):
