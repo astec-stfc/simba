@@ -16,8 +16,13 @@ package. The user can install the following codes from the links below:
 * `GPT <https://www.pulsar.nl/gpt/>`_ :cite:`GPT`
 * `Elegant <https://www.aps.anl.gov/Accelerator-Operations-Physics/Software#elegant>`_ :cite:`Elegant`
 * `CSRTrack <https://www.desy.de/xfel-beam/csrtrack/>`_ :cite:`CSRTrack`
+* `OPAL <https://amas.web.psi.ch/opal/Documentation/master/OPAL_Manual.html>`_
+* `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
 
-Note that the following python-based simulation packages are included in the dependencies of ``SIMBA``:
+Note that the following python-based simulation packages are **optional** dependencies of ``SIMBA``,
+installable via the ``simcodes`` extra (``pip install simba-accelerator[simcodes]``). They run in-process
+and are unaffected by ``container_runtime`` (see below), so they must be installed locally regardless of
+whether a container runtime is used for the other codes:
 
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
@@ -108,6 +113,13 @@ can take some time; subsequent instantiations detect the existing ``.sif`` file 
 
 ``container_runtime="docker"`` works analogously, pulling the ``ghcr.io/astec-stfc/simcodes-docker:master``
 image via the local Docker daemon instead of writing a ``.sif`` file to the ``simcodes`` directory.
+
+.. note::
+   | ``container_runtime`` covers ASTRA, Elegant, CSRTrack, OPAL, and Genesis. **GPT is not included**,
+     as it is proprietary and requires a license; it must be installed locally (see
+     :func:`~simba.Codes.Executables.Executables.define_gpt_command`) and run with ``GPTLICENSE`` set.
+   | The python-based codes (Ocelot, Xsuite, Cheetah, Wake-T) run in-process and are unaffected by
+     ``container_runtime`` - install them locally via the ``simcodes`` extra regardless.
 
 Editing the Executables.yaml file
 ---------------------------------
