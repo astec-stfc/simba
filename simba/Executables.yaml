@@ -43,12 +43,13 @@ posix:
   genesis: [$simcodes$/Genesis/genesis4]
 docker:
   image: ghcr.io/astec-stfc/simcodes-docker:master
-  astragenerator: ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/Astra-serial/generator']
-  astra:          ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/Astra-serial/Astra']
-  elegant:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/elegant/bin/Linux-x86_64/elegant']
-  Pelegant:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
-  csrtrack:       ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
-#  genesis:        ['docker','run','--rm','-v','$workdir$:/workdir','-w','/workdir','$image$','genesis4']
+  astragenerator: ['docker','run','--rm','--entrypoint','/simcodes/Astra-serial/generator','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  astra:          ['docker','run','--rm','--entrypoint','/simcodes/Astra-serial/Astra','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  elegant:        ['docker','run','--rm','--entrypoint','/simcodes/elegant/bin/Linux-x86_64/elegant','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  Pelegant:       ['docker','run','--rm','--entrypoint','mpiexec','-v','$workdir$:/workdir','-w','/workdir','$image$','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  csrtrack:       ['docker','run','--rm','--entrypoint','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  opal:           ['docker','run','--rm','--entrypoint','/simcodes/OPAL-install/bin/opal','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  genesis:        ['docker','run','--rm','--entrypoint','/simcodes/Genesis/genesis4','-v','$workdir$:/workdir','-w','/workdir','$image$']
 apptainer:
   sif: $simcodes$/Apptainer/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
   registry: ghcr.io/astec-stfc/simcodes-apptainer:master  # pulled from here if sif missing
@@ -57,4 +58,5 @@ apptainer:
   elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/elegant/bin/Linux-x86_64/elegant']
   Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
   csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
-#  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','genesis4']
+  opal:           ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/OPAL-install/bin/opal']
+  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Genesis/genesis4']

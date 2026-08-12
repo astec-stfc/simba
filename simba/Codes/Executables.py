@@ -115,7 +115,12 @@ class executable:
         self.workdir = workdir
         if location is not None:
             if isinstance(location, str):
-                self.executable = self._substitute_variables([location])
+                if location in self.settings and name in self.settings[location]:
+                    self.executable = self._substitute_variables(
+                        self.settings[location][name]
+                    )
+                else:
+                    self.executable = self._substitute_variables([location])
             elif isinstance(location, list):
                 self.executable = self._substitute_variables(location)
         elif socket.gethostname() in self.settings:
@@ -246,8 +251,8 @@ class Executables(object):
         self.define_elegant_command(location=self.runtime)
         self.define_csrtrack_command(location=self.runtime)
         self.define_gpt_command()
-        self.define_opal_command()
-        self.define_genesis_command()
+        self.define_opal_command(location=self.runtime)
+        self.define_genesis_command(location=self.runtime)
 
     def __getitem__(self, item):
         return getattr(self, item)

@@ -29,21 +29,17 @@ dependencies = [
     "fastKDE>=2.1.5",
     "pydantic>=2.5.3",
     "attrs>=23.2.0",
-    "ocelot-desy==25.06.0",
     "scipy>=1.5",
     "soliday.sdds",
     "easygdf>=2.1.1",
-    "xsuite>=0.39.0",
     "paramiko",
     "deap",
     "pyqtgraph",
     "numba",
     "pyfftw",
     "numexpr",
-    "cheetah-accelerator>=0.7.5",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "Wake-T>=0.8.0",
     "laura-accelerator",
 ]
 
@@ -54,6 +50,13 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+
+simcodes = [
+    "ocelot-desy==25.06.0",
+    "xsuite>=0.39.0",
+    "cheetah-accelerator>=0.7.5",
+    "Wake-T>=0.8.0",
+]
 
 test = [
     "pytest",

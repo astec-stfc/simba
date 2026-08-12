@@ -85,11 +85,11 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     yp = self.cpy.val / self.cpz.val
     p = (self.energy.val - E) / E
     tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
-    s = self.s
+    s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     num_particles = len(x)
-    particles = ones((num_particles, 7))
+    particles = ones((num_particles, 7), dtype=float64)
     particles[:, :6] = tensor(rparticles.transpose(), dtype=float64)
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
     particle_charges = tensor(q_array, dtype=float64)

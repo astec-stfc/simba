@@ -262,7 +262,11 @@ class opalLattice(frameworkLattice):
             self.run_remote()
         else:
             if not os.name == "nt":
-                command = "bash -c '" + " ".join(self.executables[self.code] + [self.objectname + ".in"]) + "'"
+                workdir = os.path.abspath(self.global_parameters["master_subdir"])
+                command_list = self.executables.build_command(
+                    self.executables[self.code] + [self.objectname + ".in"], workdir
+                )
+                command = "bash -c '" + " ".join(command_list) + "'"
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
