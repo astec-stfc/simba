@@ -1257,9 +1257,8 @@ class frameworkLattice(BaseModel):
             slt.lsc_enable = self.lsc_enable
             slt.csr_enable = self.csr_enable
             slt.lsc_bins = self.lsc_bins
-            slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
-            return slt
+        self._section.directory = self.global_parameters["master_subdir"]
         return self._section
 
     @property

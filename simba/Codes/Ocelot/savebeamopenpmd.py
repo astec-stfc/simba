@@ -21,6 +21,7 @@ class SaveBeamOpenPMD(SaveBeam):
             zstart=self.zstart,
             s=self.s,
             ref_index=self.ref_idx,
+            s_ref=self.zstart,
         )
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
