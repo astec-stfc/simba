@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import Bbox
+from matplotlib import colors
+from . import constants
 
 # plt.rcParams["axes.axisbelow"] = False
 from copy import copy
@@ -600,3 +602,188 @@ def getScreenImage(
     xmin, xmax = [min(v1.flatten()), max(v1.flatten())]
     ymin, ymax = [min(v2.flatten()), max(v2.flatten())]
     return v1, v2, myPDF, colormap, labelx, labely
+
+def get_wigner_data(
+    wig_or_out,
+    z=np.inf,
+    x_units="um",
+    y_units="ev",
+    x_lim=(None, None),
+    y_lim=(None, None),
+    v_lim=(None, None),
+    downsample=1,
+    autoscale=None,
+    log_scale=0,
+):
+    W = wig_or_out
+
+    # --- Raw data ---
+    wigner = W.wig
+    power  = W.proj_s()
+    spec   = W.proj_k()
+
+    # --- Scales & labels ---
+    if x_units == "fs":
+        power_scale = -W.s / constants.speed_of_light * 1e15
+        p_label = "t [fs]"
+    else:
+        power_scale = W.s * 1e6
+        p_label = r"s [$\mu$m]"
+
+    if y_units.lower() == "ev":
+        spec_scale = W.phen
+        f_label = r"$E_{photon}$ [eV]"
+    else:
+        spec_scale = W.freq_lamd
+        f_label = r"$\lambda$ [nm]"
+
+    # --- Wigner limits (legacy behavior) ---
+    wlim = np.max(np.abs(wigner))
+
+    vmin = -wlim if v_lim[0] is None else v_lim[0]
+    vmax =  wlim if v_lim[1] is None else v_lim[1]
+    vabs = max(abs(vmin), abs(vmax))
+
+    # --- Normalization ---
+    if log_scale:
+        if log_scale == 1:
+            log_scale = 0.01
+        norm = colors.SymLogNorm(
+            linthresh=vabs * log_scale,
+            linscale=2,
+            vmin=vmin,
+            vmax=vmax,
+        )
+    else:
+        norm = None
+
+    # --- Autoscale limits ---
+    if autoscale not in (None, 0):
+        if autoscale == 1:
+            autoscale = 1e-2
+
+        idx_p = np.where(power > np.max(power) * autoscale)[0]
+        idx_s = np.where(spec  > np.max(spec)  * autoscale)[0]
+
+        xlim = [power_scale[idx_p[0]], power_scale[idx_p[-1]]] if idx_p.size else power_scale[[0, -1]]
+        ylim = [spec_scale[idx_s[0]],  spec_scale[idx_s[-1]]]  if idx_s.size else spec_scale[[0, -1]]
+    else:
+        xlim = [power_scale.min(), power_scale.max()]
+        ylim = [spec_scale.min(),  spec_scale.max()]
+
+    # --- Manual overrides ---
+    if x_lim[0] is not None: xlim[0] = x_lim[0]
+    if x_lim[1] is not None: xlim[1] = x_lim[1]
+    if y_lim[0] is not None: ylim[0] = y_lim[0]
+    if y_lim[1] is not None: ylim[1] = y_lim[1]
+
+    # --- Downsample ---
+    sl = slice(None, None, downsample)
+
+    return dict(
+        W=W,
+        wigner=wigner[sl, sl],
+        power=power,
+        spec=spec,
+        power_scale=power_scale[sl],
+        spec_scale=spec_scale[sl],
+        xlim=xlim,
+        ylim=ylim,
+        vmin=vmin,
+        vmax=vmax,
+        norm=norm,
+        labels=dict(x=p_label, y=f_label),
+    )
+
+
+def plot_wigner_axes(
+    data,
+    ax_scatter,
+    ax_histx=None,
+    ax_histy=None,
+    ax_cbar=None,
+    cmap="seismic",
+    plot_text=True,
+):
+    if data["norm"] is None:
+        im = ax_scatter.pcolormesh(
+            data["power_scale"],
+            data["spec_scale"],
+            data["wigner"],
+            cmap=cmap,
+            shading="auto",
+            vmin=data["vmin"],
+            vmax=data["vmax"],
+        )
+    else:
+        im = ax_scatter.pcolormesh(
+            data["power_scale"],
+            data["spec_scale"],
+            data["wigner"],
+            cmap=cmap,
+            shading="auto",
+            norm=data["norm"],
+        )
+
+    ax_scatter.set_xlim(data["xlim"])
+    ax_scatter.set_ylim(data["ylim"])
+    ax_scatter.set_xlabel(data["labels"]["x"])
+    ax_scatter.set_ylabel(data["labels"]["y"])
+    ax_scatter.xaxis.set_major_locator(plt.MaxNLocator(6))
+    ax_scatter.yaxis.set_major_locator(plt.MaxNLocator(6))
+
+    # --- Projections ---
+    if ax_histx is not None:
+        ax_histx.plot(data["power_scale"], data["power"])
+        ax_histx.set_xlim(data["xlim"])
+        ax_histx.set_ylim(bottom=0)
+        ax_histx.tick_params(labelbottom=False)
+        ax_histx.yaxis.set_major_locator(plt.MaxNLocator(4))
+        ax_histx.set_ylabel("Power\n[arb. units]")
+
+    if ax_histy is not None:
+        s = data["spec"]
+        ax_histy.plot(s / s.max() if s.max() > 0 else s, data["spec_scale"])
+        ax_histy.set_ylim(data["ylim"])
+        ax_histy.set_xlim(left=0)
+        ax_histy.tick_params(labelleft=False)
+        ax_histy.xaxis.set_major_locator(plt.MaxNLocator(2))
+        ax_histy.set_xlabel("Spectrum\n[arb. units]")
+
+    # --- Colorbar ---
+    if ax_cbar is not None:
+        # plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
+        ax_cbar.tick_params(labelleft=False, labelbottom=False)
+        ax_cbar.spines['top'].set_visible(False)
+        ax_cbar.spines['right'].set_visible(False)
+        ax_cbar.spines['bottom'].set_visible(False)
+        ax_cbar.spines['left'].set_visible(False)
+
+    # --- Text ---
+    if plot_text:
+        ax_scatter.text(
+            0.02,
+            0.98,
+            rf"$W_{{max}}$ = {np.max(np.abs(data['wigner'])):.2e}",
+            transform=ax_scatter.transAxes,
+            va="top",
+            ha="left",
+        )
+
+    return im
+
+
+def make_wigner_axes(fig, gs_cell):
+    gs = gs_cell.subgridspec(
+        2, 2,
+        height_ratios=[1, 4],
+        width_ratios=[4, 1],
+        hspace=0.05,
+        wspace=0.05,
+    )
+    return dict(
+        ax_histx=fig.add_subplot(gs[0, 0]),
+        ax_scatter=fig.add_subplot(gs[1, 0]),
+        ax_histy=fig.add_subplot(gs[1, 1]),
+        ax_cbar=fig.add_subplot(gs[0, 1]),
+    )

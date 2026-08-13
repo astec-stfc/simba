@@ -18,7 +18,7 @@ numba>=0.61.2
 pyFFTW==0.15.0
 sphinx>=8.1.0
 cheetah-accelerator>=0.7.5
-openpmd-beamphysics>=0.10
+openpmd-beamphysics>=0.15
 sphinx-rtd-theme
 myst-nb
 sphinx_autodoc_typehints>=3.0.0

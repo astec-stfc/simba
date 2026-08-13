@@ -80,9 +80,9 @@ def read_opal_beam_file(self, filename, step=0):
     gammaz = beamdata["pz"][()]
     pfac = 0 if "MONI" in filename else constants.m_e * constants.speed_of_light
     # pfac = 0 if "generator" in filename else pfac
-    self._beam.px = UnitValue(gammax * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(gammay * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s")
-    self._beam.pz = UnitValue(gammaz * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s")
+    self._beam.px = UnitValue(gammax * 1e6 * self.q_over_c, "kg*m/s")
+    self._beam.py = UnitValue(gammay * 1e6 * self.q_over_c, "kg*m/s")
+    self._beam.pz = UnitValue(gammaz * 1e6 * self.q_over_c, "kg*m/s")
     self._beam.z = UnitValue((-1 * self._beam.Bz * constants.speed_of_light)
          * (self._beam.t - np.mean(self._beam.t)),
          units="m",
