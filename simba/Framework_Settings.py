@@ -20,13 +20,16 @@ yaml.add_constructor(_mapping_tag, dict_constructor)
 
 class FrameworkSettings(Munch):
 
-    isthistheissue = {"global", "generator", "files", "groups", "elements", "layout", "section", "element_list"}
+    isthistheissue = {"global", "generator", "files", "groups", "elements", "layout", "section", "element_list", "functional_definitions", "resolve_functional"}
 
     def __init__(self, filename=None, new=False):
         super().__init__()
         self.settingsFilename = filename
         for k in self.isthistheissue:
             self[k] = dict()
+        # resolve_functional is a boolean flag (present functional attributes as
+        # resolved numbers), not a mapping; default it to False.
+        self["resolve_functional"] = False
         if filename and os.path.exists(filename) and not new:
             self.loadSettings(filename)
 
