@@ -89,7 +89,7 @@ def write_cheetah_beam_file(self, filename=None, write=True):
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     num_particles = len(x)
-    particles = ones((num_particles, 7))
+    particles = ones((num_particles, 7), dtype=float64)
     particles[:, :6] = tensor(rparticles.transpose(), dtype=float64)
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
     particle_charges = tensor(q_array, dtype=float64)

@@ -4,7 +4,7 @@ from ..units import UnitValue
 from ocelot.cpbd.beam import ParticleArray
 
 
-def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
+def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, s_ref=None):
     self._beam.particle_mass = UnitValue(
         np.full(len(parray.x()), constants.m_e),
         units="kg",
@@ -24,8 +24,10 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
     # self._beam.gamma = UnitValue(parray.gamma)
     self._beam.x = UnitValue(parray.x(), units="m")
     self._beam.y = UnitValue(parray.y(), units="m")
+    if s_ref is None:
+        s_ref = zstart + parray.s
     self._beam.t = UnitValue(
-        (zstart + parray.s + parray.tau()) / constants.speed_of_light, units="s"
+        (s_ref + parray.tau()) / constants.speed_of_light, units="s"
     )
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
     self._beam.px = UnitValue(

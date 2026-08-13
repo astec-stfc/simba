@@ -58,6 +58,34 @@ def read_ocelot_twiss_files(self, filename, reset=True):
         interpret_ocelot_data(self, lattice_name, fdat)
 
 
+def _uncorrected_emittance(uu, pp_, up, disp, dispp, varp, betagamma):
+    """
+    Add the dispersive contribution back into Ocelot's dispersion-subtracted
+    second moments and form the uncorrected emittance.
+
+    Parameters
+    ----------
+    uu, pp_, up: np.ndarray
+        Dispersion-subtracted second moments <u^2>, <u'^2> and <u u'>
+    disp, dispp: np.ndarray
+        Dispersion and its derivative for this plane
+    varp: np.ndarray
+        Momentum-spread variance <dp^2>
+    betagamma: np.ndarray
+        Relativistic beta*gamma, for the normalisation
+
+    Returns
+    -------
+    tuple
+        (normalised, geometric) uncorrected emittance
+    """
+    uu = uu + disp**2 * varp
+    pp_ = pp_ + dispp**2 * varp
+    up = up + disp * dispp * varp
+    geometric = np.sqrt(np.clip(uu * pp_ - up**2, 0, None))
+    return geometric * betagamma, geometric
+
+
 def interpret_ocelot_data(self, lattice_name, fdat):
     if "z" in fdat:
         self.z.val = np.append(self.z.val, fdat["z"])
@@ -117,7 +145,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.sigma_z.val = np.append(self.sigma_z.val, np.sqrt(fdat["tautau"]) * beta)
     # self.append('sigma_cp', elegantData['Sdelta'] * cp )
     self.sigma_cp.val = np.append(
-        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp / constants.elementary_charge
+        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp
     )
     self.mean_cp.val = np.append(self.mean_cp.val, cp)
     # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
@@ -128,7 +156,17 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.eta_xp.val = np.append(self.eta_xp.val, fdat["Dxp"])
     self.eta_y.val = np.append(self.eta_y.val, fdat["Dy"])
     self.eta_yp.val = np.append(self.eta_yp.val, fdat["Dyp"])
-    self.element_name.val = np.append(self.element_name.val, np.zeros(len(fdat["s"])))
+    if "id" in fdat:
+        names = np.array(
+            [
+                v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
+                for v in np.asarray(fdat["id"]).ravel()
+            ],
+            dtype="U",
+        )
+    else:
+        names = np.full(len(fdat["s"]), "", dtype="U")
+    self.element_name.val = np.append(self.element_name.val, names)
     self.lattice_name.val = np.append(
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )

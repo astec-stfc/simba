@@ -72,6 +72,8 @@ def fieldmap_data(element, master_lattice):
         scale = element.field_amplitude
     except AttributeError:
         scale = element.simulation.field_amplitude
+    # resolve a functional definition to a number, if present
+    scale = element.resolve(scale)
     if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
         if element.structure_Type == "StandingWave" and element.n_cells > 2:
@@ -132,7 +134,7 @@ class magnet_plotting_data:
 
     def quadrupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k1l) * 0.5
+        strength = np.sign(e.magnetic.KnL(1)) * 0.5
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]
@@ -141,7 +143,7 @@ class magnet_plotting_data:
 
     def sextupole(self, e):
         # if e.gradient is None:
-        strength = np.sign(e.k2l) * 0.5
+        strength = np.sign(e.magnetic.KnL(2)) * 0.5
         # else:
         #     idx = find_nearest(self.z, e.middle[2])
         #     ke = self.kinetic_energy[idx]
@@ -149,7 +151,7 @@ class magnet_plotting_data:
         return self.half_rectangle(e, strength), "green"
 
     def dipole(self, e):
-        strength = np.sign(e.angle) * 0.4  # e.angle
+        strength = np.sign(e.magnetic.KnL(0)) * 0.4  # e.angle
         return self.half_rectangle(e, strength), "blue"
 
     def beam_position_monitor(self, e):
@@ -454,8 +456,27 @@ def plot(
     Pnames = []
     X_particles = []
     if include_particles:
+        # Each beam file is named after the diagnostic element it was recorded at, so
+        # for a longitudinal x-axis anchor the marker to that element's physical
+        # position. This keeps the dots aligned with the lattice layout, which is drawn
+        # from physical.z -- a tracking code's arc length (e.g. MAD-X's) can drift from
+        # the SIMBA geometry. Falls back to the beam's own mean position when unmatched.
+        elements = getattr(
+            getattr(framework_object, "framework", None), "elementObjects", None
+        ) or {}
+        keys = list(P.beams.keys()) if hasattr(P, "beams") else []
         for pname in range(len(P)):
-            xp = np.mean(getattr(P[pname], xkey))
+            xp = None
+            if xkey in ("z", "s") and pname < len(keys):
+                name = keys[pname].replace("\\", "/").split("/")[-1].split(".")[0]
+                elem = elements[name] if name in elements else None
+                if elem is not None:
+                    try:
+                        xp = float(elem.physical.middle.z)
+                    except AttributeError:
+                        xp = None
+            if xp is None:
+                xp = np.mean(getattr(P[pname], xkey))
             if limits[0] <= xp <= limits[1]:
                 Pnames.append(pname)
                 X_particles.append(xp)
