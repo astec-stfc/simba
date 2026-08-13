@@ -2374,7 +2374,6 @@ class chicane(frameworkGroup):
             The bending angle
         """
         obj = [self.allElementObjects[e] for e in self.elements]
-        # use the resolved bend angle (handles functional definitions)
         return float(obj[0].magnetic.KnL(0))
 
     @angle.setter
