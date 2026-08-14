@@ -33,6 +33,22 @@ def default_sif_path(filename: str = "simcodes-apptainer_master.sif") -> str:
 
 SIMCODES_SIF = default_sif_path()
 
+def container_user() -> str:
+    """
+    Get the `uid:gid` string for runing via container so files written into a
+    mounted directory are owned by the invoking user rather than root.
+
+    Returns an empty string for Windows / POSIX.
+
+    Returns
+    -------
+    str:
+        `uid:gid` on POSIX, otherwise an empty string
+    """
+    if hasattr(os, "getuid"):
+        return f"{os.getuid()}:{os.getgid()}"
+    return ""
+
 def ensure_image(
     runtime: Literal["docker", "apptainer"],
     image: str,
@@ -146,9 +162,23 @@ class executable:
         else:
             return param.replace("$sif$", self.settings.get("apptainer", {}).get("sif", ""))
 
+    def _substitute_user(self, param):
+        """
+        Substitute `$user$` with the invoking user's `uid:gid`. For POSIX user IDs
+        `--user $user$` is dropped.
+        """
+        user = container_user()
+        if user:
+            return [s.replace("$user$", user) if isinstance(s, str) else s for s in param]
+        return [
+            s
+            for i, s in enumerate(param)
+            if s != "$user$" and not (s == "--user" and param[i + 1: i + 2] == ["$user$"])
+        ]
+
     def _substitute_variables(self, param):
         if isinstance(param, list):
-            return [self._substitute_variables(s) for s in param]
+            return [self._substitute_variables(s) for s in self._substitute_user(param)]
         else:
             return (
                 self._substitute_ncpu(
