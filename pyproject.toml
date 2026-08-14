@@ -40,7 +40,7 @@ dependencies = [
     "numexpr",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "laura-accelerator",
+    "laura-accelerator>=1.0.2",
 ]
 
 requires-python = ">= 3.11"
