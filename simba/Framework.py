@@ -22,7 +22,7 @@ Classes:
 import os
 import yaml
 import inspect
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
@@ -276,6 +276,15 @@ class Framework(BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA"""
 
+    container_runtime: Literal["docker", "apptainer"] | None = None
+    """Container runtime to use for executing codes; if `None`, will attempt to find executables locally"""
+
+    executables: exes.Executables | None = None
+    """Object containing the commands for executing the various simulation codes"""
+
+    executables_ready: bool = False
+    """Flag to indicate whether the executables have been prepared and are ready for execution"""
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
@@ -285,13 +294,17 @@ class Framework(BaseModel):
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
+            "container_runtime": self.container_runtime,
         }
+        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
+            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
+                 "Cannot run simulations without either of these - please set one or the other")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
         self.setupGeneratorDefaults(self.generator_defaults)
 
-        self.executables = self.prepare_executables()
+        self.executables = self.prepare_executables(location=self.container_runtime)
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
@@ -346,7 +359,8 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
-        executables.define_ASTRAgenerator_command()
+        executables.define_ASTRAgenerator_command(override_location=location)
+        self.executables_ready = True
         return executables
 
     def clear(self) -> None:
@@ -394,6 +408,58 @@ class Framework(BaseModel):
                 obj.global_parameters = self.global_parameters
                 obj.globalSettings = self.globalSettings
 
+    def _resolve_package_location(
+            self,
+            explicit: str | None,
+            cached: str | None,
+            candidates: list[str],
+            label: str,
+            kwarg_name: str,
+    ) -> str | None:
+        """
+        Resolve a package directory, trying in order: an explicit path, a
+        previously cached location (shared across `Framework` instances), or
+        the first of `candidates` (relative to this file) that exists on disk.
+
+        Parameters
+        ----------
+        explicit: str, optional
+            Path passed directly by the caller; used as-is if given.
+        cached: str, optional
+            Previously resolved location, e.g. from an earlier `Framework` instance
+            or an installed package location.
+        candidates: list[str]
+            Paths relative to this file to search, in priority order.
+        label: str
+            Human-readable name of the package, used in verbose messages.
+        kwarg_name: str
+            Name of the keyword argument to suggest if nothing is found.
+
+        Returns
+        -------
+        str or None:
+            The resolved, absolute, trailing-slash-terminated location, or `None`
+            if it could not be found and no `explicit` value was given.
+        """
+        if explicit is not None:
+            return os.path.join(os.path.abspath(explicit), "./")
+        if cached is not None:
+            resolved = cached.replace("\\", "/")
+            if self.verbose:
+                print(f"Found {label} Package =", resolved)
+            return resolved
+        here = os.path.dirname(os.path.abspath(__file__))
+        for candidate in candidates:
+            path = os.path.abspath(os.path.join(here, candidate)) + "/"
+            if os.path.isdir(path):
+                resolved = path.replace("\\", "/")
+                if self.verbose:
+                    print(f"Found {label} Directory at '{candidate}' =", resolved)
+                return resolved
+        if self.verbose:
+            print(f"{label} not available - specify using {kwarg_name}=<location>")
+        return None
+
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
         Set the location of the ``LAURA`` package.
@@ -406,81 +472,14 @@ class Framework(BaseModel):
             The full path to the ``LAURA`` master lattice folder
         """
         global MasterLatticeLocation
-        if master_lattice is None:
-            if MasterLatticeLocation is not None:
-                self.global_parameters["master_lattice"] = (
-                    MasterLatticeLocation.replace("\\", "/")
-                )
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Package =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 2-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            else:
-                if self.verbose:
-                    print(
-                        "Master Lattice not available - specify using master_lattice=<location>"
-                    )
-                    self.global_parameters["master_lattice"] = "."
-        else:
-            self.global_parameters["master_lattice"] = os.path.join(
-                os.path.abspath(master_lattice), "./"
-            )
+        location = self._resolve_package_location(
+            master_lattice,
+            MasterLatticeLocation,
+            ["../../MasterLattice/MasterLattice", "../MasterLattice/MasterLattice", "../MasterLattice"],
+            "MasterLattice",
+            "master_lattice",
+        )
+        self.global_parameters["master_lattice"] = "." if location is None else location
         MasterLatticeLocation = self.global_parameters["master_lattice"]
         self.updateGlobalParameters()
 
@@ -496,78 +495,13 @@ class Framework(BaseModel):
             The full path to the SimCodes folder
         """
         global SimCodesLocation
-        if simcodes is None:
-            if SimCodesLocation is not None:
-                self.global_parameters["simcodes_location"] = SimCodesLocation.replace(
-                    "\\", "/"
-                )
-                if self.verbose:
-                    print(
-                        "Found SimCodes Package =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 2-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            else:
-                if self.verbose:
-                    print("SimCodes not available - specify using simcodes=<location>")
-                self.global_parameters["simcodes_location"] = None
-        else:
-            self.global_parameters["simcodes_location"] = os.path.join(
-                os.path.abspath(simcodes), "./"
-            )
+        self.global_parameters["simcodes_location"] = self._resolve_package_location(
+            simcodes,
+            SimCodesLocation,
+            ["../../SimCodes/SimCodes", "../SimCodes/SimCodes", "../SimCodes"],
+            "SimCodes",
+            "simcodes",
+        )
         SimCodesLocation = self.global_parameters["simcodes_location"]
         self.updateGlobalParameters()
 
@@ -1827,6 +1761,8 @@ class Framework(BaseModel):
         if check_lattice:
             if not self.check_lattice():
                 raise Exception("Lattice Error - check definitions")
+        if not self.executables_ready:
+            raise Exception("Executables not ready - check setup and paths")
         self.tracking = True
         self.progress = 0
         if files is None:

@@ -41,3 +41,22 @@ posix:
   gpt: [$simcodes$/GPT/bin/gpt, '-j',$ncpu$]
   opal: ["source", $simcodes$/OPAL/etc/profile.d/opal.sh, ';', $simcodes$/OPAL/bin/opal]
   genesis: [$simcodes$/Genesis/genesis4]
+docker:
+  image: ghcr.io/astec-stfc/simcodes-docker:master
+  astragenerator: ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/Astra-serial/generator','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  astra:          ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/Astra-serial/Astra','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  elegant:        ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/elegant/bin/Linux-x86_64/elegant','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  Pelegant:       ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','mpiexec','-v','$workdir$:/workdir','-w','/workdir','$image$','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  csrtrack:       ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  opal:           ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/OPAL-install/bin/opal','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  genesis:        ['docker','run','--rm','--user','$uid$:$gid$','--entrypoint','/simcodes/Genesis/genesis4','-v','$workdir$:/workdir','-w','/workdir','$image$']
+apptainer:
+  sif: $simcodes$/Apptainer/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
+  registry: ghcr.io/astec-stfc/simcodes-apptainer:master  # pulled from here if sif missing
+  astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/generator']
+  astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/Astra']
+  elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/elegant/bin/Linux-x86_64/elegant']
+  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
+  opal:           ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/OPAL-install/bin/opal']
+  genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Genesis/genesis4']

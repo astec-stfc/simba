@@ -5,7 +5,10 @@ from .. import constants
 
 
 def cumtrapz(x=[], y=[]):
-    return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
+    try:
+        return [np.trapezoid(x=x[:n], y=y[:n]) for n in range(len(x))]
+    except AttributeError as e:
+        return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 
 def save_ocelot_twiss_hdf(self, filename: str, twiss: dict = {}):

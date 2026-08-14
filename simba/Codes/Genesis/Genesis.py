@@ -602,6 +602,8 @@ class genesisLattice(frameworkLattice):
             self.run_remote()
         else:
             command = self.executables[self.code] + [self.name + ".in"]
+            workdir = os.path.abspath(self.global_parameters["master_subdir"])
+            command = self.executables.build_command(command, workdir)
             with open(
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",
