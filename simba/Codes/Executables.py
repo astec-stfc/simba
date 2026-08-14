@@ -154,11 +154,19 @@ class executable:
                 self._substitute_ncpu(
                     self._substitute_simcodes(
                         self._substitute_sif(
-                            self._substitute_image(param)
+                            self._substitute_image(
+                                self._substitute_uidgid(param)
+                            )
                         )
                     )
                 )
             )
+
+    def _substitute_uidgid(self, param):
+        if isinstance(param, list):
+            return [self._substitute_uidgid(s) for s in param]
+        else:
+            return param.replace("$uid$", str(os.getuid())).replace("$gid$", str(os.getgid()))
 
     def _substitute_simcodes(self, param):
         if isinstance(param, list):

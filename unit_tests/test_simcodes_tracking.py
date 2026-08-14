@@ -19,10 +19,7 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
-    pytest.param(
-        "opal", "docker", id="opal",
-        marks=pytest.mark.skip(reason="blocked on the simcodes-docker image being built without AMR support"),
-    ),
+    pytest.param("opal", "docker", id="opal"),
     pytest.param(
         "gpt", None, id="gpt",
         marks=pytest.mark.skipif("GPTLICENSE" not in os.environ, reason="requires a local GPT install and GPTLICENSE env var"),

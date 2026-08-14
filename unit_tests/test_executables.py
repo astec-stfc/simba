@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 from simba.Codes.Executables import Executables
 
@@ -12,6 +13,10 @@ def test_docker_runtime_resolves_full_command(tmp_path):
     assert "/simcodes/OPAL-install/bin/opal" in ex.opalExecutable.executable
     assert "/simcodes/Genesis/genesis4" in ex.genesisExecutable.executable
     assert ex.astra[-1] == ex.settings["docker"]["image"]
+    # runs as the host user, not root, so output files stay writable on the host
+    expected_user = f"{os.getuid()}:{os.getgid()}"
+    assert expected_user in ex.astra
+    assert expected_user in ex.genesisExecutable.executable
 
 
 @patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
