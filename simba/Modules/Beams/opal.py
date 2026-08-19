@@ -16,7 +16,7 @@ def find_nearest(array, value):
 
 
 def find_opal_s_positions(filename, spos, tolerance=0.1):
-    file = h5py.File(filename, "r")
+    file = h5py.File(filename, 'r')
     file_s_pos = [file[f"Step#{i}"].attrs["SPOS"][0] for i in range(len(file.keys()))]
     elem_indices = {}
     for name, s in spos.items():
@@ -32,7 +32,7 @@ def find_opal_s_positions(filename, spos, tolerance=0.1):
 def read_opal_beam_file(self, filename, step=0):
     self.filename = filename
     self["code"] = "OPAL"
-    file = h5py.File(filename, "r")
+    file = h5py.File(filename, 'r')
     if step == -1:
         beamdata = file[f"Step#{len(file.keys())-1}"]
     else:
@@ -92,20 +92,13 @@ def read_opal_beam_file(self, filename, step=0):
     gammaz = beamdata["pz"][()]
     pfac = 0 if "MONI" in filename else constants.m_e * constants.speed_of_light
     # pfac = 0 if "generator" in filename else pfac
-    self._beam.px = UnitValue(
-        gammax * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s"
-    )
-    self._beam.py = UnitValue(
-        gammay * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s"
-    )
-    self._beam.pz = UnitValue(
-        gammaz * self._beam.particle_rest_energy_eV * self.q_over_c, "kg*m/s"
-    )
-    self._beam.z = UnitValue(
-        (-1 * self._beam.Bz * constants.speed_of_light)
-        * (self._beam.t - np.mean(self._beam.t)),
-        units="m",
-    )  # np.full(len(self.t), 0)
+    self._beam.px = UnitValue(gammax * 1e6 * self.q_over_c, "kg*m/s")
+    self._beam.py = UnitValue(gammay * 1e6 * self.q_over_c, "kg*m/s")
+    self._beam.pz = UnitValue(gammaz * 1e6 * self.q_over_c, "kg*m/s")
+    self._beam.z = UnitValue((-1 * self._beam.Bz * constants.speed_of_light)
+         * (self._beam.t - np.mean(self._beam.t)),
+         units="m",
+     )  # np.full(len(self.t), 0)
     # for b in ["px", "py", "pz"]:
     #     self._beam[b] += constants.m_e * constants.speed_of_light
 

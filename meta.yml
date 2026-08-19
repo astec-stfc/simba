@@ -1,0 +1,62 @@
+package:
+  name: simba-accelerator
+  version: "0.2.0"
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: |
+    {{ PYTHON }} -m pip install . -vv
+    {{ PYTHON }} -m pip install \
+      cheetah-accelerator \
+      soliday.sdds \
+      Wake-T \
+      laura-accelerator
+
+requirements:
+  host:
+    - python >=3.10
+    - pip
+    - setuptools
+    - wheel
+
+  run:
+    - python >=3.10
+    - numpy
+    - scipy
+    - h5py
+    - numba
+    - numexpr
+    - tqdm
+    - pyyaml
+    - attrs
+    - pydantic
+    - deepdiff
+    - munch
+    - fastkde
+    - mpl-axes-aligner
+    - lox
+    - pyqt
+    - pyqtgraph
+    - ocelot-desy
+    - openpmd-beamphysics
+    - xsuite
+    - pyfftw
+    - deap
+    - paramiko
+
+test:
+  imports:
+    - simba
+
+about:
+  home: https://github.com/astec-stfc/simba
+  summary: Simulations for Integrated Modeling of Beams in Accelerators
+  license: Apache-2.0
+
+extra:
+  recipe-maintainers:
+    - adb-xkc85723
+    - titchjones

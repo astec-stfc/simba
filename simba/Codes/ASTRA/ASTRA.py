@@ -40,7 +40,7 @@ from ...Framework_objects import frameworkLattice, global_error
 from ...FrameworkHelperFunctions import expand_substitution, saveFile
 from ...Modules import Beams as rbf
 from laura.models.diagnostic import DiagnosticElement
-from laura.models.element import PhysicalBaseElement
+from laura.models.element import Screen
 from laura.models.physical import PhysicalElement
 from laura.translator.converters.codes.astra import (
     astra_newrun,
@@ -459,25 +459,25 @@ class astraLattice(frameworkLattice):
                 sval=sval,
             )
         self.screen_threaded_function.gather()
-        endelem = PhysicalBaseElement(
+        endelem = Screen(
             name=self.end,
-            hardware_class="",
-            hardware_type="",
-            machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.zstop]),
+            hardware_class="Diagnostic",
+            hardware_type="Screen",
+            machine_area=self.name,
+            physical=PhysicalElement(middle=[0, 0, self.zstop])
         )
         self.astra_to_hdf5(
             lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True
         )
 
     def astra_to_hdf5(
-        self,
-        lattice: str,
-        scr: DiagnosticElement | PhysicalBaseElement,
-        cathode: bool = False,
-        mult: int = 100,
-        final: bool = False,
-        sval: float = 0.0,
+            self,
+            lattice: str,
+            scr: DiagnosticElement | Screen,
+            cathode: bool = False,
+            mult: int = 100,
+            final: bool = False,
+            sval: float = 0.0,
     ) -> None:
         """
         Convert the ASTRA beam file name to HDF5 format and write the beam file.
@@ -540,11 +540,11 @@ class astraLattice(frameworkLattice):
                 self.global_parameters["beam"] = beam
 
     def find_ASTRA_filename(
-        self,
-        lattice: str,
-        scr: DiagnosticElement | PhysicalBaseElement,
-        master_run_no: int,
-        mult: int,
+            self,
+            lattice: str,
+            scr: DiagnosticElement | Screen,
+            master_run_no: int,
+            mult: int
     ) -> str | None:
         """
         Determine the ASTRA filename for the screen object.

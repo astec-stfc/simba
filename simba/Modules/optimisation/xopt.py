@@ -20,6 +20,9 @@ beam_evaluate = (
     "mean_cp",
 )
 
+photon_evaluate = (
+    "energy",
+)
 
 def xopt_optimisation(
     settings: dict,
@@ -28,7 +31,8 @@ def xopt_optimisation(
     start_lattice: str | None = None,
     end_lattice: str | None = None,
     prefix: list | None = None,
-    params: list = beam_evaluate,
+    params: list=beam_evaluate,
+    photon_params: list=photon_evaluate,
     sample_interval: int = 1,
     **kwargs,
 ):
@@ -110,7 +114,7 @@ def xopt_optimisation(
         elif (name in framework.elements) or (name in framework.groups):
             framework.modifyElement(name, param, val)
     framework.track(startfile=startfile, endfile=endfile)
-    fwdir = fw.load_directory(directory, beams=True)
+    fwdir = fw.load_directory(directory, beams=True, wavefronts=True)
     data = {}
     for index in range(len(fwdir.beams)):
         beam = fwdir.beams[index]
@@ -123,6 +127,16 @@ def xopt_optimisation(
             except ZeroDivisionError:
                 pp = float("inf")
             except RecursionError:
-                pp = float("inf")
-            data.update({f"{scr}:{param}": pp})
+                pp = float('inf')
+            data.update({f'{scr}:{param}': pp})
+    for key, val in fwdir.wavefronts.getWavefronts().items():
+        wvf = fwdir.wavefronts.getWavefront(key)
+        for param in photon_params:
+            try:
+                pp = float(getattr(wvf, param))
+            except ZeroDivisionError:
+                pp = float('inf')
+            except RecursionError:
+                pp = float('inf')
+            data.update({f'{key}:{param}': pp})
     return data

@@ -105,39 +105,39 @@ from easygdf import load
 import warnings
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/astra.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/astra.yaml",
+        "r",
 ) as infile:
     astra_generator_keywords = yaml.safe_load(infile)
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/gpt.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/gpt.yaml",
+        "r",
 ) as infile:
     gpt_generator_keywords = yaml.safe_load(infile)
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/elegant.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/elegant.yaml",
+        "r",
 ) as infile:
     elegant_generator_keywords = {"defaults": {}}
     elegant_generator_keywords.update(yaml.safe_load(infile))
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/opal.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/opal.yaml",
+        "r",
 ) as infile:
     opal_generator_keywords = yaml.safe_load(infile)
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/aliases.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/aliases.yaml",
+        "r",
 ) as infile:
     aliases = yaml.safe_load(infile)
 
 with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/species.yaml",
-    "r",
+        os.path.dirname(os.path.abspath(__file__)) + "/species.yaml",
+        "r",
 ) as infile:
     code_species = yaml.safe_load(infile)
 
@@ -615,10 +615,10 @@ class frameworkGenerator(BaseModel):
         """
         return float(
             (
-                3
-                * self.thermal_emittance**2
-                * self.speed_of_light**2
-                * self.particle_mass
+                    3
+                    * self.thermal_emittance ** 2
+                    * self.speed_of_light ** 2
+                    * self.particle_mass
             )
             / 2
             / self.elementary_charge
@@ -631,7 +631,7 @@ class frameworkGenerator(BaseModel):
         """
         return self.name
 
-    def write(self):
+    def generate(self):
         if self.initial_momentum <= 0:
             raise ValueError("initial_momentum must be set to a non-zero value")
         q_over_c = UnitValue(
@@ -659,6 +659,11 @@ class frameworkGenerator(BaseModel):
         beam.Particles.t = UnitValue(abs(-z / constants.speed_of_light), units="s")
         beam.Particles.set_total_charge(self.charge)
         beam.set_species(self.species)
+        return beam
+
+    def write(self, beam=None):
+        if beam is None:
+            beam = self.generate()
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + self.filename,
@@ -810,7 +815,7 @@ class frameworkGenerator(BaseModel):
 
 
 def poly_curve(x, coeffs):
-    return sum(c * x**i for i, c in enumerate(coeffs, start=1))
+    return sum(c * x ** i for i, c in enumerate(coeffs, start=1))
 
 
 def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
