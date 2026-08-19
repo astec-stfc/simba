@@ -198,6 +198,30 @@ class opalLattice(frameworkLattice):
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 
+    def opal_to_hdf5(self, name: str, step: int, offset: bool = True) -> None:
+        """
+        Read the OPAL beam file at the given step and write it to HDF5 format.
+
+        Parameters
+        ----------
+        name: str
+            Name of the element, used as the output file name prefix
+        step: int
+            Step in the OPAL output file corresponding to this element
+        offset: bool
+            If True, offset the z- and t-coordinates by the start of the lattice
+        """
+        opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
+        beam = rbf.beam()
+        beam.read_opal_beam_file(filename=opalbeamname, step=step)
+        if offset:
+            beam._beam.z = UnitValue(beam._beam.z.val + self.startObject.physical.middle.z, "m")
+            beam._beam.t = UnitValue(beam._beam.t.val + (self.startObject.physical.middle.z / speed_of_light), "s")
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            f'{self.global_parameters["master_subdir"]}/{name}.openpmd.hdf5',
+        )
+
     def postProcess(self):
         elems = self.getSValues(as_dict=True)
         svals = {}
@@ -208,24 +232,13 @@ class opalLattice(frameworkLattice):
             svals,
             tolerance=1.0,
         )
-        for elem in self.screens_and_bpms:
-            if elem.name in spositions:
-                opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
-                beam = rbf.beam()
-                beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
-                beam._beam.z = UnitValue(beam._beam.z.val + self.startObject.physical.middle.z, "m")
-                beam._beam.t = UnitValue(beam._beam.t.val + (self.startObject.physical.middle.z / speed_of_light), "s")
-                rbf.openpmd.write_openpmd_beam_file(
-                    beam,
-                    f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
-                )
-        opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
-        beam = rbf.beam()
-        beam.read_opal_beam_file(filename=opalbeamname, step=-1)
-        rbf.openpmd.write_openpmd_beam_file(
-            beam,
-            f'{self.global_parameters["master_subdir"]}/{self.endObject.name}.openpmd.hdf5',
-        )
+        jobs = [
+            {"name": elem.name, "step": spositions[elem.name]}
+            for elem in self.screens_and_bpms
+            if elem.name in spositions
+        ]
+        jobs.append({"name": self.endObject.name, "step": -1, "offset": False})
+        self.parallel_map(self.opal_to_hdf5, jobs)
         self.commandFiles = {}
         opalObject = SDDSFile()
         opalObject.read_file(f"{self.global_parameters['master_subdir']}/{self.objectname}.stat")

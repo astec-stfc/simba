@@ -81,6 +81,14 @@ simba.Modules.merge\_two\_dicts module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.parallel module
+-----------------------------
+
+.. automodule:: simba.Modules.parallel
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.pmd\_units module
 -------------------------------
 

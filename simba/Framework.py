@@ -276,6 +276,13 @@ class Framework(BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA"""
 
+    max_workers: int | None = None
+    """Maximum number of threads used for post-processing simulation output, see
+    :func:`~simba.Modules.parallel.thread_map`. 
+    
+    If `None`, the ``SIMBA_MAX_WORKERS`` environment variable is used,
+    otherwise a value based on the number of CPUs."""
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
@@ -285,6 +292,7 @@ class Framework(BaseModel):
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
+            "max_workers": self.max_workers,
         }
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)

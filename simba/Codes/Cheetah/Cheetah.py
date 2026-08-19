@@ -20,10 +20,8 @@ from ...Modules import Beams as rbf
 import os
 from yaml import safe_load
 from copy import deepcopy
-from typing import Dict, Any, ClassVar
+from typing import Dict, Any
 import h5py
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
 
 
@@ -59,12 +57,6 @@ class cheetahLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
     and for tracking through it.
     """
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "cheetah"
     """String indicating the lattice object type"""
@@ -201,8 +193,7 @@ class cheetahLattice(frameworkLattice):
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
             # print("Twiss parameters:", self.tws)
 
-    @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
+    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> "rbf.beam":
         """
         Convert output from Cheetah ParticleBeam to HDF5 format
 
@@ -214,6 +205,11 @@ class cheetahLattice(frameworkLattice):
             Name of Cheetah beam file
         name: str
             Name of element
+
+        Returns
+        -------
+        :class:`~simba.Modules.Beams.beam`
+            The converted beam object
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
@@ -231,8 +227,7 @@ class cheetahLattice(frameworkLattice):
             ref_index=self.ref_idx,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
-        if name == self.end:
-            self.global_parameters["beam"] = beam
+        return beam
 
     def postProcess(self) -> None:
         """
@@ -245,12 +240,21 @@ class cheetahLattice(frameworkLattice):
                 screens.update({element.name: element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
-        i = 0
-        for name, scr in screens.items():
-            outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
-            self.screen_threaded_function.scatter(scr, outname, name)
-            i += 1
-        self.screen_threaded_function.gather()
+        names = list(screens.keys())
+        beams = self.parallel_map(
+            self.screen_threaded_function,
+            [
+                {
+                    "scr": scr,
+                    "outname": f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5',
+                    "name": name,
+                }
+                for name, scr in screens.items()
+            ],
+        )
+        for name, beam in zip(names, beams):
+            if name == self.end:
+                self.global_parameters["beam"] = beam
         if self.cheetahglobal["save_twiss"] and self.tws is not None:
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:

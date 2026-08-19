@@ -257,42 +257,63 @@ class xsuiteLattice(frameworkLattice):
         beta = particles.beta0 * (1 + particles.delta.mean()) / (1 + particles.delta.mean() * particles.beta0 ** 2)
         return gamma * beta * emit
 
+    def xsuite_to_hdf5(self, name: str, particles: Any, zstart: float, sval: float) -> None:
+        """
+        Write the Xsuite particle data to a JSON file, and convert it into
+        the SIMBA generic :class:`~simba.Modules.Beams.beam` object,
+        which is written to HDF5 format.
+
+        Parameters
+        ----------
+        name: str
+            Name of the element, used as the file name prefix
+        particles: xpart.Particles
+            Xsuite particle data for this element
+        zstart: float
+            Z-position of the element
+        sval: float
+            S-position of the element
+        """
+        import xobjects as xo
+        fname = f'{self.global_parameters["master_subdir"]}/{name}.xsuite.json'
+        with open(fname, 'w') as fid:
+            json.dump(particles.to_dict(), fid, cls=xo.JEncoder)
+        beam = deepcopy(self.global_parameters["beam"])
+        beam.read_xsuite_beam_file(
+            fname,
+            zstart=zstart,
+            s=sval,
+            ref_index=self.ref_idx,
+        )
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            f'{self.global_parameters["master_subdir"]}/{name}.openpmd.hdf5',
+        )
+
     def postProcess(self) -> None:
         """
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
-        import xobjects as xo
         super().postProcess()
-        bfname = f'{self.global_parameters["master_subdir"]}/{self.end}.xsuite.json'
-        with open(bfname, 'w') as fid:
-            json.dump(self.pout.to_dict(), fid, cls=xo.JEncoder)
-        beam = deepcopy(self.global_parameters["beam"])
         svals = self.getSValues(as_dict=True)
-        beam.read_xsuite_beam_file(
-            bfname,
-            zstart=self.endObject.physical.middle.z,
-            s=svals[self.end],
-            ref_index=self.ref_idx
-        )
-        rbf.openpmd.write_openpmd_beam_file(
-            beam,
-            f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5',
-        )
-        for elem in self.screens_and_bpms:
-            fname = f'{self.global_parameters["master_subdir"]}/{elem.name}.xsuite.json'
-            with open(fname, 'w') as fid:
-                json.dump(self.line[elem.name].data.to_dict(), fid, cls=xo.JEncoder)
-            beam = deepcopy(self.global_parameters["beam"])
-            beam.read_xsuite_beam_file(
-                fname,
-                zstart=elem.physical.middle.z,
-                s=svals[elem.name],
-                ref_index=self.ref_idx,
-            )
-            rbf.openpmd.write_openpmd_beam_file(
-                beam,
-                f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
-            )
+        jobs = [
+            {
+                "name": self.end,
+                "particles": self.pout,
+                "zstart": self.endObject.physical.middle.z,
+                "sval": svals[self.end],
+            }
+        ]
+        jobs += [
+            {
+                "name": elem.name,
+                "particles": self.line[elem.name].data,
+                "zstart": elem.physical.middle.z,
+                "sval": svals[elem.name],
+            }
+            for elem in self.screens_and_bpms
+        ]
+        self.parallel_map(self.xsuite_to_hdf5, jobs)
         df = self.tws.to_pandas()
         if self.ref_s is None:
             self.ref_s = self.startObject.physical.start.z

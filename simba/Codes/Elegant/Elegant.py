@@ -61,15 +61,13 @@ import os
 import time
 from copy import copy
 import subprocess
+from queue import SimpleQueue
 import numpy as np
 from warnings import warn
 try:
     import sdds
 except Exception:
     print("No SDDS available!")
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar
 from ...Framework_objects import (
     frameworkLattice,
     frameworkCommand,
@@ -81,6 +79,8 @@ from ...Modules import Beams as rbf
 from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
 
+MAX_SDDS_INDICES = 19
+
 
 class elegantLattice(frameworkLattice):
     """
@@ -89,12 +89,6 @@ class elegantLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
     the lattice suitable for an ELEGANT input file.
     """
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "elegant"
     """String indicating the lattice object type"""
@@ -516,29 +510,6 @@ class elegantLattice(frameworkLattice):
             self.hdf5_to_sdds()
         self.createCommandFiles()
 
-    @lox.thread(60)
-    def screen_threaded_function(self, scr: DiagnosticElement, sddsindex: int, **kwargs) -> None:
-        """
-        Convert output from ELEGANT screen to HDF5 format
-
-        Parameters
-        ----------
-        scr: PAdantic DiagnosticElement
-            Screen object
-        sddsindex: int
-            SDDS object index
-        """
-        # try:
-        return self.sdds_to_hdf5(
-            scr,
-            sddsindex,
-            toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-            **kwargs,
-        )
-        # except Exception as e:
-        #     print(f"Screen error {scr.name}, {e}")
-        #     return None
-
     def postProcess(self) -> None:
         """
         PostProcess the simulation results, i.e. gather the screens and markers
@@ -548,13 +519,7 @@ class elegantLattice(frameworkLattice):
         """
         super().postProcess()
         if self.trackBeam:
-            for i, s in enumerate(self.screens_and_markers_and_bpms):
-                self.sdds_to_hdf5(
-                    s,
-                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                    ref_index=self.ref_idx,
-                )
-                # self.screen_threaded_function.scatter(s, i, ref_index=self.ref_idx)
+            screens = list(self.screens_and_markers_and_bpms)
             if (
                 self.final_screen is not None
                 and not self.final_screen.output_filename.lower()
@@ -562,17 +527,31 @@ class elegantLattice(frameworkLattice):
                     s.output_filename.lower() for s in self.screens_and_markers_and_bpms
                 ]
             ):
-                self.sdds_to_hdf5(
-                    self.final_screen,
-                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                    ref_index=self.ref_idx,
-                )
-        #         self.screen_threaded_function.scatter(
-        #             self.final_screen,
-        #             len(self.screens_and_markers_and_bpms),
-        #             ref_index=self.ref_idx
-        #         )
-        # self.screen_threaded_function.gather()
+                screens.append(self.final_screen)
+            toffset = -1 * np.mean(self.global_parameters["beam"].Particles.t)
+            nworkers = self.max_workers(njobs=len(screens), limit=MAX_SDDS_INDICES)
+            free_indices = SimpleQueue()
+            for index in range(nworkers):
+                free_indices.put(index)
+
+            def screen_to_hdf5(screen: DiagnosticElement) -> None:
+                sddsindex = free_indices.get()
+                try:
+                    return self.sdds_to_hdf5(
+                        screen,
+                        toffset=toffset,
+                        ref_index=self.ref_idx,
+                        sddsindex=sddsindex,
+                    )
+                finally:
+                    free_indices.put(sddsindex)
+
+            self.parallel_map(
+                screen_to_hdf5,
+                screens,
+                label=f"{self.objectname}: sdds_to_hdf5",
+                max_workers=nworkers,
+            )
         self.commandFiles = {}
 
     def hdf5_to_sdds(self, write: bool = True) -> None:
@@ -593,7 +572,8 @@ class elegantLattice(frameworkLattice):
             self,
             screen: DiagnosticElement,
             toffset: float = 0.0,
-            ref_index: int = None
+            ref_index: int = None,
+            sddsindex: int = 0,
     ) -> None:
         """
         Convert the SDDS beam file name to HDF5 format and write the beam file.
@@ -602,14 +582,16 @@ class elegantLattice(frameworkLattice):
         ----------
         screen: PAdantic.models.diagnostic.DiagnosticElement
             PAdantic DiagnosticElement
-        sddsindex: int
-            Index for SDDS file
         toffset: float, optional
             Temporal offset
         ref_index: int, optional
             Reference particle index
+        sddsindex: int, optional
+            Index for SDDS file; screens converted at the same time must use
+            different indices, see
+            :func:`~simba.Codes.Elegant.Elegant.elegantLattice.postProcess`
         """
-        beam = rbf.beam()
+        beam = rbf.beam(sddsindex=sddsindex)
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
         rbf.sdds.read_SDDS_beam_file(

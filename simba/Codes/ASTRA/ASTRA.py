@@ -31,9 +31,7 @@ import os
 from copy import deepcopy
 from warnings import warn
 import numpy as np
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple
 from pydantic import Field, field_validator, ConfigDict
 
 from ...Framework_objects import frameworkLattice, global_error
@@ -74,12 +72,6 @@ class astraLattice(frameworkLattice):
     """
 
     model_config = ConfigDict(validate_assignment=True)
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Function for converting all screen outputs from ASTRA into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "astra"
     """String indicating the lattice object type"""
@@ -362,7 +354,6 @@ class astraLattice(frameworkLattice):
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
-    @lox.thread
     def screen_threaded_function(
         self,
         objectname: str,
@@ -387,7 +378,13 @@ class astraLattice(frameworkLattice):
         sval: float
             S-position of beam
         """
-        return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
+        return self.astra_to_hdf5(
+            lattice=objectname,
+            scr=scr,
+            cathode=cathode,
+            mult=mult,
+            sval=sval,
+        )
 
     def get_screen_scaling(self) -> int:
         """
@@ -424,16 +421,19 @@ class astraLattice(frameworkLattice):
         mult = self.get_screen_scaling()
         svals = np.array(self.getSValues(at_entrance=False)) + self.ref_s
         zvals = [a[-1] for a in self.getZValues()]
-        for e in self.screens_and_bpms:
-            sval = np.interp(e.middle.z, zvals, svals)
-            self.screen_threaded_function.scatter(
-                scr=e,
-                objectname=self.objectname,
-                cathode=cathode,
-                mult=mult,
-                sval=sval,
-            )
-        self.screen_threaded_function.gather()
+        self.parallel_map(
+            self.screen_threaded_function,
+            [
+                {
+                    "scr": e,
+                    "objectname": self.objectname,
+                    "cathode": cathode,
+                    "mult": mult,
+                    "sval": np.interp(e.middle.z, zvals, svals),
+                }
+                for e in self.screens_and_bpms
+            ],
+        )
         endelem = Screen(
             name=self.end,
             hardware_class="Diagnostic",

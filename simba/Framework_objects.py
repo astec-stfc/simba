@@ -41,6 +41,7 @@ from laura.translator.converters.section import SectionLatticeTranslator
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules.MathParser import MathParser
+from .Modules.parallel import get_max_workers, thread_map
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution
 from .Modules.Fields import field
@@ -61,7 +62,9 @@ from pydantic import (
     Field,
 )
 from typing import (
+    Callable,
     Dict,
+    Iterable,
     List,
     Any,
 )
@@ -1566,6 +1569,76 @@ class frameworkLattice(BaseModel):
         if "longitudinal_match" in self.file_block:
             self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
+
+    def max_workers(self, njobs: int | None = None, limit: int | None = None) -> int:
+        """
+        The number of threads used by
+        :func:`~simba.Framework_objects.frameworkLattice.parallel_map`, see
+        :func:`~simba.Modules.parallel.get_max_workers`.
+
+        Parameters
+        ----------
+        njobs: int or None
+            Number of jobs to be run.
+        limit: int or None
+            Upper limit on the number of threads.
+
+        Returns
+        -------
+        int
+            The number of threads to use
+        """
+        nworkers = get_max_workers(self.global_parameters.get("max_workers"), njobs)
+        if limit is not None:
+            nworkers = max(1, min(nworkers, limit))
+        return nworkers
+
+    def parallel_map(
+        self,
+        func: Callable,
+        jobs: Iterable,
+        label: str | None = None,
+        raise_errors: bool = True,
+        max_workers: int | None = None,
+    ) -> list:
+        """
+        Run `func` once for every entry in `jobs` on a thread pool, see
+        :func:`~simba.Modules.parallel.thread_map`.
+
+        Used for file conversions performed in
+        :func:`~simba.Framework_objects.frameworkLattice.postProcess`.
+        The number of threads is taken from ``global_parameters["max_workers"]``
+
+        Parameters
+        ----------
+        func: callable
+            The function to be called for each job.
+        jobs: iterable
+            The arguments for each call.
+        label: str or None
+            Name used in warnings, to indicate which step failed.
+        raise_errors: bool
+            If True, re-raise the first exception raised by any of the jobs.
+        max_workers: int or None
+            Number of threads to use; if `None`, see
+            :func:`~simba.Framework_objects.frameworkLattice.max_workers`.
+
+        Returns
+        -------
+        list
+            The return value of `func` for each job, in the order given by `jobs`.
+        """
+        if label is None:
+            label = f"{self.objectname}: {getattr(func, '__name__', func)}"
+        if max_workers is None:
+            max_workers = self.global_parameters.get("max_workers")
+        return thread_map(
+            func,
+            jobs,
+            max_workers=max_workers,
+            label=label,
+            raise_errors=raise_errors,
+        )
 
     def postProcess(self):
         pass

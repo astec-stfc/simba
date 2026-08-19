@@ -410,31 +410,32 @@ class gptLattice(frameworkLattice):
         cathode = self.particle_definition == "laser"
         svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
         zvals = [a[-1] for a in self.getZValues()]
+        gptbeamfilename = self.objectname + "_out.gdf"
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
-            f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
+            f'{self.global_parameters["master_subdir"]}/{gptbeamfilename}'
         )
-        for e in self.screens_and_markers_and_bpms:
-            if not e.name == self.start:
-                sval = np.interp(e.physical.middle.z, zvals, svals)
-                self.gdf_to_hdf5(
-                    gptbeamfilename=self.objectname + "_out.gdf",
-                    screen=e,
-                    cathode=cathode,
-                    gdf=gdfbeam,
-                    t0=self.headers["setfile"].time,
-                    sval=sval,
-                )
-            # else:
-            # print('Ignoring', self.ignore_start_screen.objectname)
-        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
-        self.gdf_to_hdf5(
-            gptbeamfilename=self.objectname + "_out.gdf",
-            screen=self.endObject,
-            cathode=cathode,
-            gdf=gdfbeam,
-            t0=self.headers["setfile"].time,
-            sval=sval,
+        screens = [e for e in self.screens_and_markers_and_bpms if not e.name == self.start]
+        screens.append(self.endObject)
+        self.parallel_map(
+            self.gdf_to_hdf5,
+            [
+                {
+                    "gptbeamfilename": gptbeamfilename,
+                    "screen": e,
+                    "cathode": cathode,
+                    "gdf": gdfbeam,
+                    "t0": self.headers["setfile"].time,
+                    "sval": np.interp(e.physical.middle.z, zvals, svals),
+                }
+                for e in screens
+            ],
         )
+        if self.global_parameters["delete_tracking_files"]:
+            os.remove(
+                os.path.join(
+                    self.global_parameters["master_subdir"], gptbeamfilename
+                ).strip('"')
+            )
 
     def hdf5_to_gdf(self, prefix: str="") -> None:
         """
@@ -542,8 +543,8 @@ class gptLattice(frameworkLattice):
             position=screen.physical.middle.z,
             gdfbeam=gdf,
         )
-        self.beam.t += t0
-        self.beam.s = UnitValue(sval, units="m")
+        beam.t += t0
+        beam.s = UnitValue(sval, units="m")
         HDF5filename = screen.name + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
@@ -551,11 +552,3 @@ class gptLattice(frameworkLattice):
         )
         # except:
         #     print('Error with screen', self.objectname,'at', self.gpt_screen_position)
-        if self.global_parameters["delete_tracking_files"]:
-            os.remove(
-                (
-                    os.path.join(
-                        self.global_parameters["master_subdir"], gptbeamfilename
-                    )
-                ).strip('"')
-            )

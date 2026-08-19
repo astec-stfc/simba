@@ -27,9 +27,7 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
-from typing import Dict, List, Any, ClassVar
+from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
 
 
@@ -40,12 +38,6 @@ class ocelotLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
     and for tracking through it.
     """
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "ocelot"
     """String indicating the lattice object type"""
