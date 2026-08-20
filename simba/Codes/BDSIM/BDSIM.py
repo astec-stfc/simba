@@ -16,15 +16,19 @@ Classes:
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
-import subprocess
 import os
-from typing import Any, ClassVar
-import h5py
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
-from laura.models.diagnostic import DiagnosticElement
+import numpy as np
+from typing import Any
+from warnings import warn
 from pybdsim.Run import Bdsim, RebdsimOptics
 from pybdsim.Beam import Beam
+
+BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
+"""BDSIM particle names, keyed by the SIMBA particle index returned by
+:meth:`~simba.Modules.Beams.Particles.Particles.get_particle_index`.
+
+Index 4 is H-, which BDSIM has no built-in name for (it would need a PDG ion
+id), so it is deliberately absent rather than mapped to ``antiproton``."""
 
 
 class bdsimLattice(frameworkLattice):
@@ -34,12 +38,6 @@ class bdsimLattice(frameworkLattice):
     :class:`~simba.Framework_objects.frameworkLattice` into a BDSIM lattice object,
     and for tracking through it.
     """
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
 
     code: str = "bdsim"
     """String indicating the lattice object type"""
@@ -53,14 +51,6 @@ class bdsimLattice(frameworkLattice):
 
     .. _Machine: https://github.com/bdsim-collaboration/pybdsim/blob/develop/src/pybdsim/Builder.py
     """
-
-    pin: Any | None = None
-    """Initial particle distribution as a Cheetah `ParticleArray`_
-
-    .. _ParticleBeam: https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py"""
-
-    pout: Any | None = None
-    """Final particle distribution as a Cheetah `ParticleArray`_"""
 
     particle_definition: str = None
     """Initial particle distribution as a string"""
@@ -89,16 +79,49 @@ class bdsimLattice(frameworkLattice):
         else:
             self.particle_definition = self.start
 
+    @property
+    def gmadname(self) -> str:
+        """
+        Name of the gmad/ROOT files for this lattice (sanitized).
+        """
+        return self.section.name.replace("-", "_")
+
+    @property
+    def particle_type(self) -> str:
+        """
+        BDSIM name of the beam particle, from the mass and charge of the beam.
+        """
+        beam = self.global_parameters["beam"]
+        index = beam.beam.get_particle_index(
+            float(np.asarray(beam.particle_mass)[0]), np.asarray(beam.charge)[0]
+        )
+        if index not in BDSIM_PARTICLES:
+            raise ValueError(
+                f"Particle index {index} has no BDSIM particle name; "
+                "BDSIM cannot track this species by name"
+            )
+        return BDSIM_PARTICLES[index]
+
+    @property
+    def charge_sign(self) -> int:
+        """
+        Sign of the charge of the beam particle; needed for setting magnet polarities.
+        """
+        return int(self.global_parameters["beam"].chargesign[0])
+
     def write(self) -> None:
         """
         Create the lattice object and save it as a JSON file to `master_subdir`.
         """
         beam = Beam()
+        beam.SetParticleType(self.particle_type)
         beam.SetDistributionType("userfile")
         beam.SetDistrFile(os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim"))
-        beam.SetDistrFileFormat("x[m]:xp[rad]:y[m]:yp[rad]:z[m]:E[eV]")
+        beam.SetDistrFileFormat(rbf.bdsim.BDSIM_DISTRIBUTION_FORMAT)
         beam.SetEnergy(self.global_parameters["beam"].centroids.mean_energy.val, unitsstring="eV")
-        self.lattice = self.section.to_bdsim(save=True, beam=beam)
+        self.lattice = self.section.to_bdsim(
+            save=True, beam=beam, charge_sign=self.charge_sign
+        )
 
     def preProcess(self) -> None:
         """
@@ -158,46 +181,36 @@ class bdsimLattice(frameworkLattice):
             self.run_remote()
         else:
             Bdsim(
-                f"{self.global_parameters['master_subdir']}/{self.name}.gmad",
-                f"{self.global_parameters['master_subdir']}/{self.name}",
-                ngenerate=len(self.global_parameters["beam"].x)
+                f"{self.global_parameters['master_subdir']}/{self.gmadname}.gmad",
+                f"{self.global_parameters['master_subdir']}/{self.gmadname}",
+                ngenerate=len(self.global_parameters["beam"].x),
+                bdsimExecutable=self.executables[self.code][-1],
             )
             RebdsimOptics(
-                f"{self.global_parameters['master_subdir']}/{self.name}.root",
-                f"{self.global_parameters['master_subdir']}/{self.name}.optics.root",
+                f"{self.global_parameters['master_subdir']}/{self.gmadname}.root",
+                f"{self.global_parameters['master_subdir']}/{self.gmadname}.optics.root",
             )
 
-
-    @lox.thread(40)
-    def screen_threaded_function(
-        self, scr: DiagnosticElement, outname: str, name: str
-    ) -> None:
+    def screen_function(self, name: str, arrays: dict, outname: str) -> None:
         """
-        Convert output from Cheetah ParticleBeam to HDF5 format
+        Convert one BDSIM sampler into a SIMBA beam and write it to HDF5.
 
         Parameters
         ----------
-        scr: LAURA DiagnosticElement
-            Screen object
-        outname: str
-            Name of Cheetah beam file
         name: str
-            Name of element
+            Name of the element the sampler belongs to.
+        arrays: dict
+            Raw sampler arrays, see
+            :func:`~simba.Modules.Beams.bdsim.read_bdsim_sampler_arrays`.
+        outname: str
+            Name of the openPMD file to write.
         """
-        from ...Modules.Beams import cheetah as rbf_cheetah
-
         beam = rbf.beam()
-        s = 0
-        try:
-            s = self.elementObjects[name].physical.middle.z
-        except KeyError:
-            s = self.elementObjects[name.replace("_", "-")].physical.middle.z
-        # scr.tau -= self.startObject.physical.middle.z
-        rbf_cheetah.interpret_cheetah_ParticleBeam(
+        rbf.bdsim.interpret_bdsim_sampler(
             beam,
-            scr,
+            arrays,
+            charge=self.global_parameters["beam"].total_charge,
             zstart=self.startObject.physical.start.z,
-            s=scr.s.numpy(),
             ref_index=self.ref_idx,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
@@ -206,25 +219,39 @@ class bdsimLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        Convert the outputs from Cheetah to HDF5 format and save them to `master_subdir`.
-        """
-        from cheetah.accelerator import Screen
+        Convert the BDSIM sampler outputs to HDF5 format and save them to
+        `master_subdir`.
 
-        screens = {}
-        for element in self.segment.elements:
-            if isinstance(element, Screen):
-                screens.update({element.name: element.get_read_beam()})
-        if not isinstance(self.segment.elements[-1], Screen):
-            screens.update({self.end: self.pout})
-        i = 0
-        for name, scr in screens.items():
-            outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
-            self.screen_threaded_function.scatter(scr, outname, name)
-            i += 1
-        self.screen_threaded_function.gather()
-        if self.cheetahglobal["save_twiss"] and self.tws is not None:
-            twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
-            with h5py.File(twsname, "w") as f:
-                twsgrp = f.create_group("Twiss")
-                for key, val in zip(twiss_keys, self.tws):
-                    twsgrp.create_dataset(key, data=val.numpy())
+        BDSIM writes one sampler per marker into the ``Event`` tree of its raw ROOT
+        output.
+        """
+        super().postProcess()
+        if not self.trackBeam:
+            return
+        rootfile = os.path.join(
+            self.global_parameters["master_subdir"], self.gmadname + ".root"
+        )
+        if not os.path.isfile(rootfile):
+            raise FileNotFoundError(
+                f"BDSIM output file {rootfile} not found; the tracking run failed"
+            )
+        available = rbf.bdsim.get_bdsim_sampler_names(rootfile)
+        wanted = {
+            scr.name: scr.name.replace("-", "_")
+            for scr in self.screens_and_markers_and_bpms
+        }
+        missing = [n for n, s in wanted.items() if s not in available]
+        for name in missing:
+            warn(f"No BDSIM sampler found for {name}; no beam file will be written")
+        wanted = {n: s for n, s in wanted.items() if n not in missing}
+        if not wanted:
+            warn(f"No BDSIM samplers found in {rootfile}")
+            return
+        arrays = rbf.bdsim.read_bdsim_sampler_arrays(
+            rootfile, samplers=list(wanted.values())
+        )
+        for name, sampler in wanted.items():
+            outname = os.path.join(
+                self.global_parameters["master_subdir"], f"{name}.openpmd.hdf5"
+            )
+            self.screen_function(name, arrays[sampler], outname)
