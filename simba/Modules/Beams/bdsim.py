@@ -142,7 +142,8 @@ def load_bdsim_output(filename):
     except ImportError as exc:  # pragma: no cover - depends on local install
         raise ImportError(
             "The ROOT python bindings are required to read BDSIM sampler data. "
-            "Source BDSIM's thisroot.sh before running SIMBA."
+            "Source ROOT's thisroot.sh *and* BDSIM's bdsim.sh before running "
+            "SIMBA."
         ) from exc
     return pybdsim.Data.Load(filename)
 
