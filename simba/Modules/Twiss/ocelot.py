@@ -58,6 +58,34 @@ def read_ocelot_twiss_files(self, filename, reset=True):
         interpret_ocelot_data(self, lattice_name, fdat)
 
 
+def _uncorrected_emittance(uu, pp_, up, disp, dispp, varp, betagamma):
+    """
+    Add the dispersive contribution back into Ocelot's dispersion-subtracted
+    second moments and form the uncorrected emittance.
+
+    Parameters
+    ----------
+    uu, pp_, up: np.ndarray
+        Dispersion-subtracted second moments <u^2>, <u'^2> and <u u'>
+    disp, dispp: np.ndarray
+        Dispersion and its derivative for this plane
+    varp: np.ndarray
+        Momentum-spread variance <dp^2>
+    betagamma: np.ndarray
+        Relativistic beta*gamma, for the normalisation
+
+    Returns
+    -------
+    tuple
+        (normalised, geometric) uncorrected emittance
+    """
+    uu = uu + disp**2 * varp
+    pp_ = pp_ + dispp**2 * varp
+    up = up + disp * dispp * varp
+    geometric = np.sqrt(np.clip(uu * pp_ - up**2, 0, None))
+    return geometric * betagamma, geometric
+
+
 def interpret_ocelot_data(self, lattice_name, fdat):
     if "z" in fdat:
         self.z.val = np.append(self.z.val, fdat["z"])
@@ -78,16 +106,19 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    if "_emit_x" in fdat:
-        self.enx.val = np.append(self.enx.val, fdat["_emit_x"] / gamma)
-    else:
-        self.enx.val = np.append(self.enx.val, fdat["_emit_xn"])
-    if "_emit_y" in fdat:
-        self.eny.val = np.append(self.eny.val, fdat["_emit_y"] / gamma)
-    else:
-        self.eny.val = np.append(self.eny.val, fdat["_emit_yn"])
-    self.ex.val = np.append(self.ex.val, fdat["eigemit_1"])
-    self.ey.val = np.append(self.ey.val, fdat["eigemit_2"])
+    betagamma = np.sqrt(np.clip(gamma**2 - 1, 0, None))
+    enx, ex = _uncorrected_emittance(
+        fdat["xx"], fdat["pxpx"], fdat["xpx"],
+        fdat["Dx"], fdat["Dxp"], fdat["pp"], betagamma,
+    )
+    eny, ey = _uncorrected_emittance(
+        fdat["yy"], fdat["pypy"], fdat["ypy"],
+        fdat["Dy"], fdat["Dyp"], fdat["pp"], betagamma,
+    )
+    self.enx.val = np.append(self.enx.val, enx)
+    self.ex.val = np.append(self.ex.val, ex)
+    self.eny.val = np.append(self.eny.val, eny)
+    self.ey.val = np.append(self.ey.val, ey)
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
     self.beta_x.val = np.append(self.beta_x.val, fdat["_beta_x"])
@@ -117,7 +148,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.sigma_z.val = np.append(self.sigma_z.val, np.sqrt(fdat["tautau"]) * beta)
     # self.append('sigma_cp', elegantData['Sdelta'] * cp )
     self.sigma_cp.val = np.append(
-        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp / constants.elementary_charge
+        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp
     )
     self.mean_cp.val = np.append(self.mean_cp.val, cp)
     # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
@@ -128,7 +159,17 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.eta_xp.val = np.append(self.eta_xp.val, fdat["Dxp"])
     self.eta_y.val = np.append(self.eta_y.val, fdat["Dy"])
     self.eta_yp.val = np.append(self.eta_yp.val, fdat["Dyp"])
-    self.element_name.val = np.append(self.element_name.val, np.zeros(len(fdat["s"])))
+    if "id" in fdat:
+        names = np.array(
+            [
+                v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
+                for v in np.asarray(fdat["id"]).ravel()
+            ],
+            dtype="U",
+        )
+    else:
+        names = np.full(len(fdat["s"]), "", dtype="U")
+    self.element_name.val = np.append(self.element_name.val, names)
     self.lattice_name.val = np.append(
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )

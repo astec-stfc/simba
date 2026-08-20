@@ -514,6 +514,9 @@ class frameworkLattice(BaseModel):
     _csr_enable: bool = True
     """Flag to enable CSR drifts in the lattice."""
 
+    _wakefield_enable: bool = True
+    """Flag to enable structure wakefields in the lattice."""
+
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
@@ -552,6 +555,9 @@ class frameworkLattice(BaseModel):
 
     _section: SectionLatticeTranslator = None
     """LAURA SectionLatticeTranslator object"""
+
+    _start_s: float = None
+    """Cached s position of the start of the lattice; see :func:`start_s`."""
 
     remote_setup: Dict = {}
     """Dictionary containing parameters for running executables remotely."""
@@ -626,8 +632,16 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally
-        if name in frameworkLattice.model_fields:
+        # Let Pydantic set known fields normally, and private attributes too --
+        # pydantic keeps those in __pydantic_private__, whereas
+        # object.__setattr__ would drop them into the instance __dict__ where
+        # they survive only until the next field assignment re-validates the
+        # model (`validate_assignment=True`) and rebuilds __dict__. That is how
+        # `csr_enable`/`lsc_enable` and the cached `_section` used to be
+        # silently reset partway through preProcess.
+        # Everything else (element names set in model_post_init) bypasses
+        # pydantic deliberately, to avoid validating them as extra fields.
+        if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 
@@ -698,6 +712,28 @@ class frameworkLattice(BaseModel):
         for elem in self.elementObjects.values():
             try:
                 elem.simulation.lsc_enable = lsc
+            except ValueError:
+                pass
+            except AttributeError:
+                pass
+
+    @property
+    def wakefield_enable(self) -> bool:
+        """
+        Property to get or set the wakefield enable flag. When False, the
+        structure wakefields of accelerating cavities are not applied.
+        The wakefield definitions themselves are
+        left intact, so the flag can be toggled back on.
+        """
+        return self._wakefield_enable
+
+    @wakefield_enable.setter
+    def wakefield_enable(self, wake: bool) -> None:
+        self._wakefield_enable = wake
+        self.section.wakefield_enable = wake
+        for elem in self.elementObjects.values():
+            try:
+                elem.simulation.wakefield_enable = wake
             except ValueError:
                 pass
             except AttributeError:
@@ -1122,17 +1158,28 @@ class frameworkLattice(BaseModel):
         """
         if "start_element" in self.file_block["output"]:
             return self.file_block["output"]["start_element"]
-        elif "zstart" in self.file_block["output"]:
-            for name, elem in self.elementObjects.items():
-                if isinstance(elem, PhysicalBaseElement):
-                    if (
-                        np.isclose(elem.physical.start.z,
-                        self.file_block["output"]["zstart"], atol=1e-2)
-                    ) and not elem.subelement:
-                        return name
-            return list(self.elementObjects.keys())[0]
-        else:
-            return list(self.elementObjects.keys())[0]
+        # elementObjects is the whole machine, not just this lattice, and it contains
+        # off-beamline hardware -- the virtual cathode camera CLA-VCA-DIA-CAM-01 sits at
+        # z=0 with no beam through it. Only elements on the beam path can start a lattice.
+        beam_path = self.machine.elements_between(end=self.end)
+        if "zstart" in self.file_block["output"]:
+            zstart = self.file_block["output"]["zstart"]
+            candidates = [
+                name
+                for name in beam_path
+                if isinstance(self.elementObjects.get(name), PhysicalBaseElement)
+                and not self.elementObjects[name].subelement
+                and np.isclose(self.elementObjects[name].physical.start.z, zstart, atol=1e-2)
+            ]
+            # several elements can share a z: at the cathode the HRG1 section lists three
+            # laser shutters and an aperture, all zero-length, ahead of the gun cavity.
+            # Prefer something with real extent, so the answer does not depend on ordering.
+            for name in candidates:
+                if self.elementObjects[name].physical.length > 0:
+                    return name
+            if candidates:
+                return candidates[0]
+        return beam_path[0]
 
     @property
     def startObject(self) -> "PhysicalBaseElement":
@@ -1197,6 +1244,45 @@ class frameworkLattice(BaseModel):
             The final element of the lattice.
         """
         return self.elementObjects[self.end]
+
+    @property
+    def start_s(self) -> float:
+        """
+        Property to get the s position of the start of the lattice, measured along
+        the reference trajectory from the start of the machine.
+
+        This is what every tracking code should anchor its reported s to. It is not
+        the same as ``startObject.physical.start.z`` -- anything that bends (a
+        chicane, a dogleg) makes the path longer than its projection onto z, and
+        that difference has to carry forward into every downstream lattice.
+
+        Returns
+        -------
+        float
+            S position of the first element of the lattice.
+        """
+        if self._start_s is None:
+            self._start_s = self.machine.get_elements_s_pos(end=self.start)[self.start]
+        return self._start_s
+
+    @property
+    def entrance_s(self) -> float:
+        """
+        Property to get the s position of the lattice entrance.
+
+        :attr:`start_s` is the s at the *exit* of the first element, so its length has to
+        come back off. The two are equal for the usual case of a lattice starting on a
+        zero-length marker, and differ for one starting on a real element.
+
+        This is the anchor for per-element s positions, which are measured from the
+        lattice entrance.
+
+        Returns
+        -------
+        float
+            S position of the entrance of the lattice.
+        """
+        return float(self.start_s - self.startObject.physical.length)
 
     @computed_field
     @property
@@ -2395,29 +2481,84 @@ class chicane(frameworkGroup):
         a: float
             The angle to be set
         """
-        indices = list(
-            sorted([list(self.allElementObjects).index(e) for e in self.elements])
-        )
-        dipole_objs = [self.allElementObjects[e] for e in self.elements]
-        obj = dipole_objs
+        def zpos(e):
+            # Not every element in the machine is on the beamline (lasers, etc.)
+            try:
+                return e.physical.middle.z
+            except AttributeError:
+                return None
+
+        dipole_names = list(self.elements)
+        dipoles = [self.allElementObjects[e] for e in dipole_names]
+        zs = [d.physical.middle.z for d in dipoles]
+        # Everything between the first and last dipole rides on the chicane's
+        # displaced axis, so it has to be moved with the dipoles -- otherwise the
+        # mid-chicane elements keep their design-angle x and the drifts around them
+        # pick up a bogus transverse offset.
+        between = [
+            (z, e)
+            for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
+            if z is not None and min(zs) <= z <= max(zs)
+        ]
+        obj = [e for _, e in sorted(between, key=lambda ze: ze[0])]
+
+        z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
+
+        # Walk the reference trajectory. Each magnet keeps its z position, and its faces
+        # stay perpendicular to the 0mm axis, so it spans a *fixed* z; the beam crosses
+        # it on an arc that lengthens as the angle opens up, and the edge angles (which
+        # the lattice defines as tracking `angle`) carry the resulting edge focusing.
+        x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
         dipole_number = 0
-        ref_pos = None
-        ref_angle = None
-        for i in range(len(obj)):
-            if dipole_number > 0:
-                adj = obj[i].physical.middle.z - ref_pos.z
-                obj[i].physical.middle = Position(
-                    x=ref_pos.x + np.tan(-1.0 * ref_angle) * adj,
-                    y=0,
-                    z=obj[i].physical.middle.z,
-                )
-                obj[i].physical.global_rotation.theta = ref_angle
-            if obj[i] in dipole_objs:
-                ref_pos = deepcopy(obj[i].physical.middle)
-                obj[i].magnetic.angle = a * self.ratios[dipole_number]
-                ref_angle = obj[i].physical.global_rotation.theta + obj[i].magnetic.angle
-                obj[i].physical.physical_angle = obj[i].magnetic.angle
+        for e in obj:
+            z_here = e.physical.middle.z
+            if e.name in dipole_names:
+                lz = z_extents[dipole_number]
+                ang = a * self.ratios[dipole_number]
+                x += (z_here - lz / 2.0 - z_cursor) * np.tan(phi)
+                p0, p1 = phi, phi + ang
+                if abs(ang) > 1e-12:
+                    # radius fixed by having to cross `lz` in z while turning p0 -> p1
+                    r = lz / (np.sin(p1) - np.sin(p0))
+                    dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
+                else:
+                    dx, arc = 0.0, lz
+                # LAURA anchors start/end symmetrically about `middle`, so `middle` is
+                # the arc's centre. With `arc` set below that reproduces a fixed z extent
+                # and exactly the right entrance/exit x -- but only while the element is
+                # unrotated, otherwise the +-half vector is tilted along with it.
+                e.physical.middle = Position(x=x + dx / 2.0, y=0, z=z_here)
+                e.physical.global_rotation.theta = 0.0
+                e.magnetic.angle = ang
+                # `physical_angle` drives the start/end offsets, whose sign LAURA takes
+                # from it; the *displacement* through a chicane's second dipole runs the
+                # same way as through the first even though it bends back, so this is the
+                # sense of the displacement, not of the magnetic bend.
+                e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
+                e.magnetic.length = arc
+                e.physical.length = arc
+                x, phi, z_cursor = x + dx, p1, z_here + lz / 2.0
                 dipole_number += 1
+            elif dipole_number > 0:
+                x_here = x + (z_here - z_cursor) * np.tan(phi)
+                e.physical.middle = Position(x=x_here, y=0, z=z_here)
+                e.physical.global_rotation.theta = phi
+
+    def _z_extent(self, dipole, index: int) -> float:
+        """
+        The z that the magnet spans, which a variable chicane holds fixed while the angle
+        changes -- the magnets translate but never rotate, so their faces stay
+        perpendicular to the 0mm axis.
+
+        This is the length in the lattice, which is the zero-angle case where the arc and
+        the z extent coincide. Cached on first use because :func:`set_angle` overwrites
+        the element's length with the (longer) arc.
+        """
+        if not hasattr(self, "_design_z_extents"):
+            self._design_z_extents = {}
+        if dipole.name not in self._design_z_extents:
+            self._design_z_extents[dipole.name] = float(dipole.magnetic.length)
+        return self._design_z_extents[dipole.name]
 
     def __str__(self):
         return str(

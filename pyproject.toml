@@ -45,6 +45,8 @@ dependencies = [
     "xopt",
     "Wake-T>=0.8.0",
     "laura-accelerator",
+    "cpymad>=1.19.0",
+    "tfs-pandas",
 ]
 
 requires-python = ">= 3.10"

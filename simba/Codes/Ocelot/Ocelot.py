@@ -18,7 +18,7 @@ from ...Modules import Beams as rbf
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from copy import deepcopy
-from numpy import array, savez_compressed, linspace, save, interp
+from numpy import array, savez_compressed, linspace, save, interp, searchsorted, clip
 import os
 from yaml import safe_load
 
@@ -188,6 +188,17 @@ class ocelotLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.read_input_file(prefix, self.particle_definition)
+        # rematch the input beam to the requested Twiss, as the other tracking
+        # codes (Elegant, Cheetah, GPT, Wake-T) do; without this the Ocelot
+        # line tracks the raw upstream beam, mismatched to the lattice.
+        if self.initial_twiss["horizontal"]["beta"]:
+            self.global_parameters["beam"].beam.rematchXPlane(
+                **self.initial_twiss["horizontal"]
+            )
+        if self.initial_twiss["vertical"]["beta"]:
+            self.global_parameters["beam"].beam.rematchYPlane(
+                **self.initial_twiss["vertical"]
+            )
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_npz(prefix)
@@ -239,11 +250,28 @@ class ocelotLattice(frameworkLattice):
             for k, v in t.__dict__.items():
                 # Offset the s values to the start of the lattice
                 if k == "s":
-                    v += self.startObject.physical.start.z
+                    v += self.entrance_s
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
+        # Ocelot's tracked Twiss points carry no element identity (`id` is
+        # empty), so tag each point with the name of the (drift-expanded)
+        # element whose exit position first reaches it. This is what makes
+        # Twiss.get_parameter_at_element usable for Ocelot output.
+        elem_names = array(
+            [e.name for e in self.createDrifts().values()], dtype="U"
+        )
+        if len(elem_names):
+            idx = clip(
+                searchsorted(svals, twsdat["s"], side="left"),
+                0,
+                len(elem_names) - 1,
+            )
+            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
+            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
+            # would silently drop the names.
+            twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,
             filename=f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.oh5',
@@ -275,7 +303,7 @@ class ocelotLattice(frameworkLattice):
         navi_locations_end = []
         # settings = self.settings
         navi = Navigator(self.lat_obj, unit_step=self.unit_step)
-        if self.lsc:
+        if self.lsc and self.lsc_enable:
             lsc = self.physproc_lsc()
             navi_processes += [lsc]
             navi_locations_start += [self.lat_obj.sequence[0]]
@@ -297,7 +325,7 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_start += [self.lat_obj.sequence[0]]
                 navi_locations_end += [self.lat_obj.sequence[-1]]
                 space_charge_set = True
-        if "csr" in list(self.file_block.keys()):
+        if "csr" in list(self.file_block.keys()) and self.csr_enable:
             csr, start, end = self.physproc_csr()
             for i in range(len(csr)):
                 navi_processes += [csr[i]]
@@ -330,7 +358,7 @@ class ocelotLattice(frameworkLattice):
                 fieldstr = "wakefield_definition"
             elif "wake" in obj.hardware_type.lower():
                 fieldstr = "field_definition"
-            if fieldstr is not None:
+            if fieldstr is not None and self.wakefield_enable:
                 if getattr(obj.simulation, fieldstr) is not None:
                     wake, w_ind = self.physproc_wake(
                         name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
@@ -352,7 +380,13 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
+        # s along the reference trajectory, measured from the lattice entrance. Not the
+        # same as the lab z the beams are positioned by, once anything upstream bends.
+        sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
+        sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
         for w in self.screens_and_bpms + self.apertures:
+            if w.name == self.start:
+                continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]
             subdir = self.global_parameters["master_subdir"]
             navi_processes += [
@@ -360,6 +394,7 @@ class ocelotLattice(frameworkLattice):
                     filename=f"{subdir}/{w.name}.openpmd.hdf5",
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
+                    sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
                 )
             ]
@@ -372,6 +407,7 @@ class ocelotLattice(frameworkLattice):
                 filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
+                sstart=self.entrance_s + sval_out[self.end],
                 ref_idx=self.ref_idx,
             )
         ]

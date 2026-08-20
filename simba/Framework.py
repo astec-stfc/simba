@@ -1447,6 +1447,21 @@ class Framework(BaseModel):
                 **kwargs,
             )
         self.latticeObjects["generator"] = self.generator
+        self._propagate_generator()
+
+    def _propagate_generator(self) -> None:
+        """
+        Hand the generator to any lattice that declares a ``generator``
+        attribute. Codes that model beam generation and acceleration in a single
+        run (OPAL) need the generator's own settings to describe the cathode
+        distribution, rather than importing a particle file written by whichever
+        code produced it.
+        """
+        for name, lattice in self.latticeObjects.items():
+            if name == "generator":
+                continue
+            if "generator" in getattr(type(lattice), "model_fields", {}):
+                lattice.generator = self.generator
 
     def change_generator(
         self,
@@ -1827,6 +1842,9 @@ class Framework(BaseModel):
         if check_lattice:
             if not self.check_lattice():
                 raise Exception("Lattice Error - check definitions")
+        # Lattice objects are rebuilt by change_Lattice_Code after the generator
+        # is created, so hand it over here rather than only at construction.
+        self._propagate_generator()
         self.tracking = True
         self.progress = 0
         if files is None:
