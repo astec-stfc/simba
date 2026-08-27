@@ -1,4 +1,6 @@
 import os
+from warnings import warn
+
 try:
     from beamphysics import ParticleGroup, pmd_init, particle_paths
 except ImportError:
@@ -21,13 +23,8 @@ openpmd_coords = [
 ]
 
 
-def read_openpmd_beam_file(self, filename):
-    self.filename = filename
-    fname = os.path.expandvars(filename)
-    h5file = File(fname, "r")
-    pp = particle_paths(h5file)
-    bunch_data = h5file[pp[0]]
-    particles = ParticleGroup(h5=bunch_data)
+def read_particle_group(self, particles, s=None, reference_particle_index=None):
+    """Populate a SIMBA beam from an openPMD ``ParticleGroup``."""
     self._beam.x = UnitValue(particles.x, units="m")
     self._beam.y = UnitValue(particles.y, units="m")
     self._beam.t = UnitValue(particles.t, units="s")
@@ -40,18 +37,35 @@ def read_openpmd_beam_file(self, filename):
     self._beam.nmacro = UnitValue(particles.weight / constants.elementary_charge)
     self._beam.status = UnitValue(particles.status)
     self.set_species(particles.species)
-    bunch_species = bunch_data[particles.species]
-    self._beam.s = UnitValue(bunch_species["s"], units="m") if "s" in bunch_species else None
+    self._beam.s = UnitValue(s, units="m") if s is not None else None
     self.longitudinal_reference = "t"
-    if "reference_particle" in bunch_data[particles.species]:
-        ref_particle = bunch_data[particles.species]["reference_particle"]
-        self.reference_particle = [ref_particle[coord][()] for coord in openpmd_coords]
-        self.reference_particle_index = int(ref_particle["index"][()])
-        # print(f"OpenPMD We have a reference particle idx = {self.reference_particle_index} pz = {self.reference_particle[5]}")
-    else:
-        self.reference_particle = None
-        self.reference_particle_index = None
-    h5file.close()
+    self.reference_particle = None
+    self.reference_particle_index = None
+    if reference_particle_index is not None:
+        if 0 <= reference_particle_index < len(particles):
+            self.reference_particle = [
+                getattr(particles, coord)[reference_particle_index]
+                for coord in openpmd_coords
+            ]
+            self.reference_particle_index = int(reference_particle_index)
+        else:
+            warn("Reference particle is not present in the tracked bunch")
+
+
+def read_openpmd_beam_file(self, filename):
+    self.filename = filename
+    fname = os.path.expandvars(filename)
+    with File(fname, "r") as h5file:
+        pp = particle_paths(h5file)
+        bunch_data = h5file[pp[0]]
+        particles = ParticleGroup(h5=bunch_data)
+        read_particle_group(self, particles)
+        bunch_species = bunch_data[particles.species]
+        self._beam.s = UnitValue(bunch_species["s"], units="m") if "s" in bunch_species else None
+        if "reference_particle" in bunch_species:
+            ref_particle = bunch_species["reference_particle"]
+            self.reference_particle = [ref_particle[coord][()] for coord in openpmd_coords]
+            self.reference_particle_index = int(ref_particle["index"][()])
 
 
 def write_openpmd_beam_file(
