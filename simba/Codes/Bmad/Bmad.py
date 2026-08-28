@@ -16,6 +16,7 @@ Classes:
 
 """
 
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -73,7 +74,8 @@ class bmadLattice(frameworkLattice):
             if particle_definition == "initial_distribution"
             else particle_definition
         )
-        self.libtao = self.executables["tao"]
+        if self.libtao is None:
+            self.libtao = self.executables["tao"][0]
 
     def preProcess(self) -> None:
         """
@@ -105,13 +107,14 @@ class bmadLattice(frameworkLattice):
         """
         beam = self.global_parameters["beam"]
         p0c = self._reference_value(beam.cp.val)
+        z = beam.z.val - self._reference_value(beam.z.val)
         particles = np.column_stack(
             (
                 beam.x.val,
                 beam.cpx.val / p0c,
                 beam.y.val,
                 beam.cpy.val / p0c,
-                beam.z.val,
+                z,
                 beam.cp.val / p0c - 1,
                 np.abs(beam.charge.val),
                 beam.t.val,
@@ -210,17 +213,21 @@ class bmadLattice(frameworkLattice):
                 "Bmad lattice and input beam must be written before tracking"
             )
         from pytao import Tao
-        self.libtao = self.executables["tao"][0]
-        print(self.libtao)
 
-        self.tao = Tao(
-            init_file=self.tao_init_file,
-            lattice_file=self.lattice_file,
-            beam_init_position_file=self.input_beam_file,
-            so_lib=self.libtao,
-            noplot=True,
-        )
-        self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        try:
+            os.chdir(working_directory)
+            self.tao = Tao(
+                init_file=Path(self.tao_init_file).name,
+                lattice_file=Path(self.lattice_file).name,
+                beam_init_position_file=Path(self.input_beam_file).name,
+                so_lib=self.libtao,
+                noplot=True,
+            )
+            self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+        finally:
+            os.chdir(previous_directory)
 
     def _particles_at(self, element: str):
         """
