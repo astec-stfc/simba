@@ -74,7 +74,7 @@ def fieldmap_data(element, master_lattice):
         scale = element.simulation.field_amplitude
     if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
-        if element.structure_Type == "StandingWave" and element.n_cells > 2:
+        if element.structure_type == "StandingWave" and element.cavity.n_cells > 2:
             scale = scale / element.physical.length
     # file
     element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
@@ -87,7 +87,7 @@ def fieldmap_data(element, master_lattice):
             np.transpose([field.z.value.val, field.Ez.value.val]),
             field.start_cell_z,
             field.end_cell_z,
-            element.n_cells,
+            element.cavity.n_cells,
             field.mode_denominator,
         )
     else:
