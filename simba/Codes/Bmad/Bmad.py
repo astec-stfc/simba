@@ -62,6 +62,12 @@ class bmadLattice(frameworkLattice):
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
 
+    _SAVED_AT_LIMIT: int = 200
+    """Used to avoid truncation of elements using beam_saved_at"""
+
+    _ALIVE: int = 1
+    """Value of the Bmad/openPMD particle status flag for a live particle"""
+
     libtao: str | None = None
 
     def model_post_init(self, __context):
@@ -183,10 +189,9 @@ class bmadLattice(frameworkLattice):
         path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.bmad"
         path.write_text(lattice, encoding="utf-8")
         self.lattice_file = str(path)
-        saved_at = ", ".join(dict.fromkeys([*self._saved_elements, "END"]))
         tao_path = path.with_suffix(".tao.init")
         tao_path.write_text(
-            f'&tao_beam_init\n  beam_saved_at = "{saved_at}"\n/\n',
+            f'&tao_beam_init\n  beam_saved_at = "{self._saved_at(lattice)}"\n/\n',
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)
@@ -199,6 +204,39 @@ class bmadLattice(frameworkLattice):
                 for element in self.screens_and_markers_and_bpms
             )
         )
+
+    def _saved_at(self, lattice: str) -> str:
+        """
+        Build the Tao ``beam_saved_at`` list covering every output element.
+
+        Parameters
+        ----------
+        lattice: str
+            The Bmad lattice text, used to look up the class of each element.
+
+        Returns
+        -------
+        str
+            A comma-separated list of Bmad element classes, or ``*`` if even
+            that does not fit within Tao's 200 character limit.
+        """
+        classes = {}
+        for line in lattice.splitlines():
+            name, _, remainder = line.partition(":")
+            element_class = remainder.strip().partition(",")[0].strip().lower()
+            if element_class:
+                classes[name.strip()] = element_class
+        saved_at = ", ".join(
+            dict.fromkeys(
+                [
+                    f"{classes[name]}::*"
+                    for name in self._saved_elements
+                    if name in classes
+                ]
+                + ["END"]
+            )
+        )
+        return saved_at if len(saved_at) <= self._SAVED_AT_LIMIT else "*"
 
     def run(self) -> None:
         """
@@ -229,9 +267,13 @@ class bmadLattice(frameworkLattice):
         finally:
             os.chdir(previous_directory)
 
-    def _particles_at(self, element: str):
+    def _particles_at(self, element: str) -> tuple:
         """
         Get the particle distribution at a given element.
+
+        Bmad keeps particles lost upstream in the bunch, frozen at the
+        coordinates they had when they died, so they are dropped here; every
+        other code reports only the particles that survived to the element.
 
         Parameters
         ----------
@@ -240,21 +282,34 @@ class bmadLattice(frameworkLattice):
 
         Returns
         -------
-        ParticleGroup
-            openPMD particle group object
+        tuple[ParticleGroup, int | None]
+            openPMD particle group object, and the index of the reference
+            particle within it, or None if the reference particle is not alive.
         """
-        particles = rbf.openpmd.ParticleGroup(data=self.tao.bunch_data(element))
+        data = self.tao.bunch_data(element)
+        alive = np.asarray(data["status"]) == self._ALIVE
+        ref_idx = (
+            int(np.count_nonzero(alive[: self.ref_idx]))
+            if self.ref_idx is not None
+            and 0 <= self.ref_idx < len(alive)
+            and alive[self.ref_idx]
+            else None
+        )
+        particles = rbf.openpmd.ParticleGroup(
+            data={
+                key: value[alive] if np.shape(value) == alive.shape else value
+                for key, value in data.items()
+            }
+        )
         reference_time = (
-            particles.t[self.ref_idx]
-            if self.ref_idx is not None and 0 <= self.ref_idx < len(particles)
-            else np.mean(particles.t)
+            particles.t[ref_idx] if ref_idx is not None else np.mean(particles.t)
         )
         particles.z = (
             -particles.beta_z
             * constants.speed_of_light
             * (particles.t - reference_time)
         )
-        return particles
+        return particles, ref_idx
 
     def postProcess(self) -> None:
         """
@@ -273,11 +328,12 @@ class bmadLattice(frameworkLattice):
         final_beam = None
         for output_name, tao_element in outputs.items():
             beam = deepcopy(source_beam)
+            particles, ref_idx = self._particles_at(tao_element)
             rbf.openpmd.read_particle_group(
                 beam,
-                self._particles_at(tao_element),
+                particles,
                 s=s_values[output_name],
-                reference_particle_index=self.ref_idx,
+                reference_particle_index=ref_idx,
             )
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
