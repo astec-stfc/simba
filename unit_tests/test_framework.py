@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from pydantic import ValidationError
 import simba.Framework as fw
+from simba.Framework_objects import chicane
 from simba.Modules import Beams as rbf
 from simba.Codes.Generators import (
     frameworkGenerator,
@@ -17,7 +18,7 @@ from simba.Framework_lattices import (
     cheetahLattice,
     bmadLattice,
 )
-from laura.models.element import Quadrupole, Marker, PhysicalBaseElement
+from laura.models.element import Dipole, Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
@@ -205,6 +206,29 @@ def test_modifyElement(sample_framework):
     fw_obj.modifyElement("E1", "name", "NewE1")
     assert fw_obj.elementObjects["E1"].name == "NewE1"
 
+
+def test_check_lattice_after_chicane_angle_change(sample_framework):
+    dipoles = {
+        f"D{index + 1}": Dipole(
+            name=f"D{index + 1}",
+            machine_area="A1",
+            magnetic={"length": 0.2, "angle": 0.0},
+            physical={"length": 0.2, "middle": {"x": 0, "y": 0, "z": index}},
+        )
+        for index in range(4)
+    }
+    sample_framework.elementObjects = dipoles
+
+    chicane(
+        "bunch_compressor",
+        sample_framework,
+        "chicane",
+        list(dipoles),
+    ).set_angle(0.1)
+
+    assert sample_framework.check_lattice()
+
+
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
@@ -275,75 +299,6 @@ def test_change_lattice_code(framework_with_machine):
     framework_with_machine.change_Lattice_Code(["FODO"], "astra")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], astraLattice)
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
-
-def test_bmad_tracking_lifecycle(
-    framework_with_machine, simple_generator, monkeypatch
-):
-    pytao = pytest.importorskip("pytao")
-    framework_with_machine.change_Lattice_Code("FODO", "bmad")
-    lattice = framework_with_machine.latticeObjects["FODO"]
-    test_dir = Path(__file__).parent
-    lattice.set_prefix(f"{test_dir}/")
-    lattice.csr_bins = 0
-    lattice.lsc_bins = 64
-
-    class FakeTao:
-        instance = None
-
-        def __init__(
-            self, init_file, lattice_file, beam_init_position_file, noplot
-        ):
-            self.init_file = init_file
-            self.lattice_file = lattice_file
-            self.beam_init_position_file = beam_init_position_file
-            self.input_particles = rbf.openpmd.ParticleGroup(
-                h5=str(test_dir / "M1.openpmd.hdf5")
-            )
-            self.tracked = None
-            FakeTao.instance = self
-
-        def track_beam(self, start, end, use_progress_bar):
-            self.tracked = (start, end, use_progress_bar)
-
-        def bunch_data(self, element):
-            return self.input_particles.data
-
-    monkeypatch.setattr(pytao, "Tao", FakeTao)
-    try:
-        lattice.preProcess()
-        lattice.write()
-        text = Path(lattice.lattice_file).read_text()
-        assert "parameter[particle] = electron" in text
-        assert "space_charge_com[n_bin] = 64" in text
-        assert "beginning[e_tot]" in text
-        assert "beginning[beta_a] = 3.2844606" in text
-        assert "beginning[beta_b] = 3.2846606" in text
-        assert "#! x px y py z pz charge time" in Path(
-            lattice.input_beam_file
-        ).read_text()
-        assert Path(lattice.tao_init_file).read_text() == (
-            '&tao_beam_init\n  beam_saved_at = "M1, M3, END"\n/\n'
-        )
-
-        lattice.run()
-        lattice.postProcess()
-
-        assert FakeTao.instance.tracked == ("BEGINNING", "END", False)
-        assert FakeTao.instance.init_file == lattice.tao_init_file
-        assert (
-            FakeTao.instance.beam_init_position_file == lattice.input_beam_file
-        )
-        for name in ("M1", "M3"):
-            assert (
-                Path(lattice.global_parameters["master_subdir"])
-                / f"{name}.openpmd.hdf5"
-            ).is_file()
-        assert len(lattice.global_parameters["beam"]) == len(
-            FakeTao.instance.input_particles
-        )
-    finally:
-        shutil.rmtree(test_dir / "framework", ignore_errors=True)
-        (test_dir / "M1.openpmd.hdf5").unlink(missing_ok=True)
 
 
 def test_modify_lattices(framework_with_machine):

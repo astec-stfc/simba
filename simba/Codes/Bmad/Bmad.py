@@ -61,6 +61,8 @@ class bmadLattice(frameworkLattice):
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
 
+    libtao: str | None = None
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         particle_definition = self.file_block["input"].get(
@@ -71,6 +73,7 @@ class bmadLattice(frameworkLattice):
             if particle_definition == "initial_distribution"
             else particle_definition
         )
+        self.libtao = self.executables["tao"]
 
     def preProcess(self) -> None:
         """
@@ -207,11 +210,14 @@ class bmadLattice(frameworkLattice):
                 "Bmad lattice and input beam must be written before tracking"
             )
         from pytao import Tao
+        self.libtao = self.executables["tao"][0]
+        print(self.libtao)
 
         self.tao = Tao(
             init_file=self.tao_init_file,
             lattice_file=self.lattice_file,
             beam_init_position_file=self.input_beam_file,
+            so_lib=self.libtao,
             noplot=True,
         )
         self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)

@@ -346,6 +346,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_tao_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command()
         return executables
 
@@ -1061,7 +1065,7 @@ class Framework(BaseModel):
         Returns
         -------
         bool
-            True if errors are detected
+            True if no errors are detected
         """
         noerror = True
         for elem in self.elementObjects.values():
@@ -1074,9 +1078,11 @@ class Framework(BaseModel):
                 # Calculate local offset from middle to end
                 if abs(physical_angle) > 1e-9:
                     # Bent element - correct arc geometry
-                    ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
+                    half_angle = physical_angle / 2.0
+                    radius = length / physical_angle
+                    ex_local = radius * (np.cos(half_angle) - np.cos(physical_angle))
                     ey_local = 0
-                    ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
+                    ez_local = radius * (np.sin(physical_angle) - np.sin(half_angle))
                 else:
                     # Straight element
                     ex_local = 0
