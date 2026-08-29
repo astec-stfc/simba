@@ -28,6 +28,69 @@ from laura.translator.utils.functions import sanitize_string
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
+from ...Modules.Twiss.bmad import save_bmad_twiss_hdf
+
+LATTICE_TWISS = {
+    "s": "ele.s",
+    "e_tot": "ele.e_tot",
+    "p0c": "ele.p0c",
+    "design_beta_x": "ele.a.beta",
+    "design_alpha_x": "ele.a.alpha",
+    "design_gamma_x": "ele.a.gamma",
+    "design_beta_y": "ele.b.beta",
+    "design_alpha_y": "ele.b.alpha",
+    "design_gamma_y": "ele.b.gamma",
+    "design_eta_x": "ele.x.eta",
+    "design_etap_x": "ele.x.etap",
+    "design_eta_y": "ele.y.eta",
+    "design_etap_y": "ele.y.etap",
+    "mu_x": "ele.a.phi",
+    "mu_y": "ele.b.phi",
+}
+"""Lattice functions to extract from Tao, keyed by their name in the twiss file"""
+
+BEAM_TWISS = {
+    "beam_charge": "charge_live",
+    "beam_n_particle": "n_particle_live",
+    "beam_t": "centroid_t",
+    "beam_p0c": "centroid_p0c",
+    "beam_x": "centroid_vec_1",
+    "beam_y": "centroid_vec_3",
+    "beam_delta": "centroid_vec_6",
+    "beam_sigma_x": "twiss_sigma_x",
+    "beam_sigma_xp": "twiss_sigma_p_x",
+    "beam_sigma_y": "twiss_sigma_y",
+    "beam_sigma_yp": "twiss_sigma_p_y",
+    "beam_sigma_z": "twiss_sigma_z",
+    "beam_sigma_delta": "twiss_sigma_p_z",
+    "beam_sigma_t": "sigma_t",
+    "beam_emit_x": "twiss_emit_x",
+    "beam_emit_y": "twiss_emit_y",
+    "beam_emit_z": "twiss_emit_z",
+    "beam_norm_emit_x": "twiss_norm_emit_x",
+    "beam_norm_emit_y": "twiss_norm_emit_y",
+    "beam_norm_emit_z": "twiss_norm_emit_z",
+    "beam_norm_emit_a": "twiss_norm_emit_a",
+    "beam_norm_emit_b": "twiss_norm_emit_b",
+    "beam_beta_x": "twiss_beta_x",
+    "beam_alpha_x": "twiss_alpha_x",
+    "beam_gamma_x": "twiss_gamma_x",
+    "beam_beta_y": "twiss_beta_y",
+    "beam_alpha_y": "twiss_alpha_y",
+    "beam_gamma_y": "twiss_gamma_y",
+    "beam_beta_a": "twiss_beta_a",
+    "beam_alpha_a": "twiss_alpha_a",
+    "beam_beta_b": "twiss_beta_b",
+    "beam_alpha_b": "twiss_alpha_b",
+    "beam_beta_z": "twiss_beta_z",
+    "beam_alpha_z": "twiss_alpha_z",
+    "beam_gamma_z": "twiss_gamma_z",
+    "beam_eta_x": "twiss_eta_x",
+    "beam_etap_x": "twiss_etap_x",
+    "beam_eta_y": "twiss_eta_y",
+    "beam_etap_y": "twiss_etap_y",
+}
+"""Bunch parameters to extract from Tao, keyed by their name in the twiss file"""
 
 
 class bmadLattice(frameworkLattice):
@@ -58,6 +121,9 @@ class bmadLattice(frameworkLattice):
 
     ref_idx: int | None = None
     """Reference particle index"""
+
+    ref_s: float | None = None
+    """S position at the start of the lattice"""
 
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
@@ -93,6 +159,7 @@ class bmadLattice(frameworkLattice):
         self.read_input_file(self.get_prefix(), self.particle_definition)
         beam = self.global_parameters["beam"]
         self.ref_idx = beam.reference_particle_index
+        self.ref_s = beam.s
         self.input_beam_file = str(
             Path(self.global_parameters["master_subdir"])
             / f"{self.objectname}.bmad.beam"
@@ -267,7 +334,7 @@ class bmadLattice(frameworkLattice):
         finally:
             os.chdir(previous_directory)
 
-    def _particles_at(self, element: str) -> tuple:
+    def _particles_at(self, element: str, zstart: float = 0) -> tuple:
         """
         Get the particle distribution at a given element.
 
@@ -279,6 +346,8 @@ class bmadLattice(frameworkLattice):
         ----------
         element: str
             The name of the element to query.
+        zstart: float
+            Position of the element along the machine.
 
         Returns
         -------
@@ -304,31 +373,68 @@ class bmadLattice(frameworkLattice):
         reference_time = (
             particles.t[ref_idx] if ref_idx is not None else np.mean(particles.t)
         )
-        particles.z = (
+        particles.z = zstart + (
             -particles.beta_z
             * constants.speed_of_light
             * (particles.t - reference_time)
         )
         return particles, ref_idx
 
+    def _twiss_data(self) -> dict:
+        """
+        Extract the twiss parameters along the lattice from Tao.
+
+        Returns
+        -------
+        dict
+            Twiss data, ready to be written by
+            :func:`~simba.Modules.Twiss.bmad.save_bmad_twiss_hdf`.
+        """
+        indices = self.tao.lat_list("*", "ele.ix_ele", flags="-array_out -track_only")
+        twiss = {
+            name: self.tao.lat_list("*", command, flags="-array_out -track_only")
+            for name, command in LATTICE_TWISS.items()
+        }
+        twiss["element_name"] = np.asarray(
+            self.tao.lat_list("*", "ele.name", flags="-track_only")
+        )
+        bunch_params = [self.tao.bunch_params(int(index)) for index in indices]
+        twiss.update(
+            {
+                name: np.array([params[key] for params in bunch_params])
+                for name, key in BEAM_TWISS.items()
+            }
+        )
+        ref_s = self.ref_s if self.ref_s is not None else self.startObject.physical.start.z
+        twiss["s"] = twiss["s"] + ref_s
+        s_values = np.array(self.getSValues(at_entrance=False)) + ref_s
+        z_values = [z[-1] for z in self.getZValues()]
+        twiss["z"] = np.interp(twiss["s"], s_values, z_values)
+        return twiss
+
     def postProcess(self) -> None:
         """
-        Retrieve the outputs from Bmad and save them to `master_subdir` in openPMD format.
+        Retrieve the outputs from Bmad and save them to `master_subdir`,
+        and the twiss parameters along the lattice in HDF5 format.
         """
         super().postProcess()
         if self.tao is None:
             raise RuntimeError("Bmad tracking must finish before post-processing")
         source_beam = self.global_parameters["beam"]
-        s_values = self.getSValues(as_dict=True)
+        ref_s = self.ref_s if self.ref_s is not None else self.startObject.physical.start.z
+        s_values = {
+            name: value + ref_s
+            for name, value in self.getSValues(as_dict=True).items()
+        }
         outputs = {
-            element.name: sanitize_string(element.name)
+            element.name: (sanitize_string(element.name), element.physical.start.z)
             for element in self.screens_and_markers_and_bpms
         }
-        outputs[self.end] = "END"
+        outputs[self.end] = ("END", self.endObject.physical.end.z)
         final_beam = None
-        for output_name, tao_element in outputs.items():
+        for output_name, (tao_element, zstart) in outputs.items():
             beam = deepcopy(source_beam)
-            particles, ref_idx = self._particles_at(tao_element)
+            particles, ref_idx = self._particles_at(tao_element, zstart=zstart)
             rbf.openpmd.read_particle_group(
                 beam,
                 particles,
@@ -344,4 +450,11 @@ class bmadLattice(frameworkLattice):
             )
             if output_name == self.end:
                 final_beam = beam
+        save_bmad_twiss_hdf(
+            filename=str(
+                Path(self.global_parameters["master_subdir"])
+                / f"{self.objectname}_twiss.bmad.hdf5"
+            ),
+            twiss=self._twiss_data(),
+        )
         self.global_parameters["beam"] = final_beam
