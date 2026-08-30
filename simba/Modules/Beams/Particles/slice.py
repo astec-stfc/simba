@@ -522,7 +522,7 @@ class slice(BaseModel):
         np.ndarray
             Slice longitudinal bins
         """
-        return np.array(self.slice_bins)
+        return np.array(list(reversed(np.array(self.slice_bins))))
 
     @property
     def slice_horizontal_emittance(self) -> UnitValue:

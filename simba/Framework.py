@@ -33,6 +33,7 @@ from laura.Exporters.YAML import export_machine, export_elements
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
+from .Modules import Wavefronts as rwf
 from .Modules import constants
 from .Codes import Executables as exes
 from .Codes.Generators import (
@@ -693,7 +694,10 @@ class Framework(BaseModel):
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                 )
 
-            self.elementObjects = {k: v for k, v in self.machine.elements.items()}
+            for k in list(self.machine.elements.keys()):
+                _ = self.machine.elements[k]
+
+            self.elementObjects = dict(self.machine.elements)
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
@@ -1029,9 +1033,7 @@ class Framework(BaseModel):
             Flag to indicate which elements are being modified
         """
         for e, d in list(changes.items()):
-            # print 'found change element = ', e
-            if e in self.elementObjects:
-                # print 'change element exists!'
+            if e in self.elementObjects or e == "generator":
                 flat = flatten_changes_dict(d)
                 for param in flat:
                     try:
@@ -1068,7 +1070,7 @@ class Framework(BaseModel):
                 end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
                 length = elem.physical.length
                 physical_angle = elem.physical.physical_angle
-    
+
                 # Calculate local offset from middle to end
                 if abs(physical_angle) > 1e-9:
                     # Bent element - correct arc geometry
@@ -1080,15 +1082,15 @@ class Framework(BaseModel):
                     ex_local = 0
                     ey_local = 0
                     ez_local = length / 2.0
-    
+
                 local_offset = np.array([ex_local, ey_local, ez_local])
-    
+
                 # Apply the full 3D rotation matrix
                 rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-    
+
                 # Calculate expected end position
                 cend = middle + np.array(rotated_offset)
-    
+
                 # Check if calculated end matches actual end
                 diff = cend - end
                 if not np.allclose(diff, 0, atol=10 ** (-decimals)):
@@ -1294,6 +1296,8 @@ class Framework(BaseModel):
                 set_deep_attr(obj, parameter, value)
             else:
                 setattr(self.elementObjects[elementName], parameter, value)
+        elif elementName == "generator":
+            setattr(self.generator, parameter, value)
         else:
             warn("incorrect parameters passed to modifyElement")
 
@@ -2098,6 +2102,9 @@ class frameworkDirectory(BaseModel):
     beams: bool | rbf.beamGroup | None = False
     """Flag to indicate whether to load beam files"""
 
+    wavefronts: bool | rwf.wavefrontGroup | None = False
+    """Flag to indicate whether to load wavefront files"""
+
     verbose: bool = False
     """Flag to print status updates"""
 
@@ -2154,6 +2161,8 @@ class frameworkDirectory(BaseModel):
         else:
             self.beams = None
             self.twiss = rtf.twiss()
+        if self.wavefronts:
+            self.wavefronts = rwf.load_directory(directory)
         if self.twiss:
             self.twiss.load_directory(directory, verbose=self.verbose)
 
@@ -2270,8 +2279,8 @@ class frameworkDirectory(BaseModel):
 
 
 def load_directory(
-    directory: str = ".", twiss: bool = True, beams: bool = False, **kwargs
+    directory: str = ".", twiss: bool = True, beams: bool = False, wavefronts: bool = False, **kwargs
 ) -> frameworkDirectory:
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
-    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
+    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)
     return fw
