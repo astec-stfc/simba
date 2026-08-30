@@ -160,6 +160,8 @@ class bmadLattice(frameworkLattice):
         beam = self.global_parameters["beam"]
         self.ref_idx = beam.reference_particle_index
         self.ref_s = beam.s
+        beam.beam.rematchXPlane(**self.initial_twiss["horizontal"])
+        beam.beam.rematchYPlane(**self.initial_twiss["vertical"])
         self.input_beam_file = str(
             Path(self.global_parameters["master_subdir"])
             / f"{self.objectname}.bmad.beam"
@@ -219,20 +221,13 @@ class bmadLattice(frameworkLattice):
 
     def _bmad_initial_twiss(self) -> TwissMatchSimulationElement:
         """
-        Get the initial Twiss, either from the simulation settings or the incoming beam
+        Get the initial Twiss from the incoming beam.
 
         Returns
         -------
         TwissMatchSimulationElement
             Section initial twiss object
         """
-        if self.initial_twiss["horizontal"]["beta"] and self.initial_twiss["vertical"]["beta"]:
-            return TwissMatchSimulationElement(
-                beta_x=self.initial_twiss["horizontal"]["beta"],
-                alpha_x=self.initial_twiss["horizontal"]["alpha"],
-                beta_y=self.initial_twiss["vertical"]["beta"],
-                alpha_y=self.initial_twiss["vertical"]["alpha"],
-            )
         twiss = self.global_parameters["beam"].twiss
         return TwissMatchSimulationElement(
             beta_x=float(twiss.beta_x.val),

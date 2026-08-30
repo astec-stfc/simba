@@ -217,16 +217,17 @@ class cheetahLattice(frameworkLattice):
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
-        s = 0
-        try:
-            s = self.elementObjects[name].physical.middle.z
-        except KeyError:
-            s = self.elementObjects[name.replace('_', "-")].physical.middle.z
-        # scr.tau -= self.startObject.physical.middle.z
+        if name == self.end:
+            zstart = self.endObject.physical.end.z
+        else:
+            try:
+                zstart = self.elementObjects[name].physical.start.z
+            except KeyError:
+                zstart = self.elementObjects[name.replace('_', "-")].physical.start.z
         rbf_cheetah.interpret_cheetah_ParticleBeam(
             beam,
             scr,
-            zstart=self.startObject.physical.start.z,
+            zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
         )

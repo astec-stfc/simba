@@ -28,13 +28,13 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
         (zstart + parray.s + parray.tau()) / constants.speed_of_light, units="s"
     )
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
+    cp = np.sqrt((parray.energies * 1e9) ** 2 - self.E0_eV**2)
     self._beam.px = UnitValue(
-        parray.px() * parray.energies * 1e9 * self.q_over_c, units="kg*m/s"
+        parray.px() * cp * self.q_over_c, units="kg*m/s"
     )
     self._beam.py = UnitValue(
-        parray.py() * parray.energies * 1e9 * self.q_over_c, units="kg*m/s"
+        parray.py() * cp * self.q_over_c, units="kg*m/s"
     )
-    cp = parray.energies * 1e9
     self._beam.pz = UnitValue(
         (self.q_over_c * cp / np.sqrt(parray.px() ** 2 + parray.py() ** 2 + 1)),
         units="kg*m/s",
@@ -45,7 +45,6 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
 
     if ref_index is not None:
         self.reference_particle_index = int(ref_index)
-        """ If we have a reference particle, t=0 is relative to it """
         self._beam.z = UnitValue(
             zstart
             + (-1 * self._beam.Bz * constants.speed_of_light)
@@ -57,7 +56,6 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
             for coord in self.reference_particle_coords
         ]
     else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
         self._beam.z = UnitValue(
             zstart
             + (-1 * self._beam.Bz * constants.speed_of_light)
@@ -96,11 +94,12 @@ def particle_group_to_parray(self, s_start=0) -> ParticleArray:
 
     """
     E = self.energy.mean().val * 1e-9
+    p0c = np.sqrt(E**2 - (self.E0_eV * 1e-9) ** 2)
     x = self.x.val
     y = self.y.val
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
-    p = ((self.energy.val * 1e-9) - E) / E
+    p = ((self.energy.val * 1e-9) - E) / p0c
     tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = np.mean(self.t.val) * constants.speed_of_light
 

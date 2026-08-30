@@ -70,7 +70,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     cp = np.sqrt(E**2 - self.E0_eV**2)
     # self.append('cp', cp)
     ke = np.array(
-        (np.sqrt(self.E0**2 + cp**2) - self.E0**2)
+        (np.sqrt(self.E0_eV**2 + cp**2) - self.E0_eV)
     )
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
     gamma = 1 + ke / self.E0_eV
@@ -117,7 +117,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     self.sigma_z.val = np.append(self.sigma_z.val, np.sqrt(fdat["tautau"]) * beta)
     # self.append('sigma_cp', elegantData['Sdelta'] * cp )
     self.sigma_cp.val = np.append(
-        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp / constants.elementary_charge
+        self.sigma_cp.val, np.sqrt(fdat["pp"]) * cp
     )
     self.mean_cp.val = np.append(self.mean_cp.val, cp)
     # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)

@@ -27,7 +27,7 @@ def read_cheetah_twiss_files(self, filename, reset=True):
             self.cp.val = np.append(self.cp.val, cp)
             self.mean_cp.val = np.append(self.mean_cp.val, cp)
             ke = np.array(
-                (np.sqrt(self.E0 ** 2 + cp ** 2) - self.E0 ** 2)
+                (np.sqrt(self.E0_eV ** 2 + cp ** 2) - self.E0_eV)
             )
             self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
             gamma = 1 + ke / self.E0_eV

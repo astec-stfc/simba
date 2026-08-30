@@ -190,6 +190,12 @@ class ocelotLattice(frameworkLattice):
         self.read_input_file(prefix, self.particle_definition)
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.global_parameters["beam"].beam.rematchXPlane(
+            **self.initial_twiss["horizontal"]
+        )
+        self.global_parameters["beam"].beam.rematchYPlane(
+            **self.initial_twiss["vertical"]
+        )
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -297,12 +303,13 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_start += [self.lat_obj.sequence[0]]
                 navi_locations_end += [self.lat_obj.sequence[-1]]
                 space_charge_set = True
-        if "csr" in list(self.file_block.keys()):
+        if self.csr_enable:
             csr, start, end = self.physproc_csr()
             for i in range(len(csr)):
                 navi_processes += [csr[i]]
                 navi_locations_start += [start[i]]
                 navi_locations_end += [end[i]]
+            csr_set = len(csr) > 0
         if self.mbi["set_mbi"]:
             self.mbi_navi = MBI(
                 lattice=self.lat_obj,
@@ -436,12 +443,11 @@ class ocelotLattice(frameworkLattice):
         stlist = []
         enlist = []
         from ocelot.cpbd.csr import CSR
-        if ("start" in list(self.file_block["csr"].keys())) and (
-            "end" in list(self.file_block["csr"].keys())
-        ):
-            start = self.file_block["csr"]["start"]
+        block = self.file_block["csr"] if "csr" in self.file_block else {}
+        if ("start" in list(block.keys())) and ("end" in list(block.keys())):
+            start = block["start"]
             st = [start] if isinstance(start, str) else start
-            end = self.file_block["csr"]["end"]
+            end = block["end"]
             en = [end] if isinstance(end, str) else end
             for i in range(len(st)):
                 stelem = self.lat_obj.sequence[self.names.index(st[i])]
@@ -458,6 +464,7 @@ class ocelotLattice(frameworkLattice):
             csr.n_bin = self.nbin_csr
             csr.m_bin = self.mbin_csr
             csr.sigma_min = self.sigmamin_csr
+            csrlist = [csr]
             stlist = [self.lat_obj.sequence[0]]
             enlist = [self.lat_obj.sequence[-1]]
         return csrlist, stlist, enlist
