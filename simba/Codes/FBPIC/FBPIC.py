@@ -14,10 +14,11 @@ Classes:
 """
 
 from ...Framework_objects import frameworkLattice
+from ...Modules import Beams as rbf
 from laura.models.element import Plasma
 from warnings import warn
 from typing import Dict, Literal, List, Any
-from copy import deepcopy
+import glob
 import os
 from yaml import safe_load
 import numpy as np
@@ -136,6 +137,16 @@ class fbpicLattice(frameworkLattice):
     zstep: float = 0
     """Distance from max to min longitudinal position of plasma"""
 
+    bunch_z_position: float = 0
+    """Position in the FBPIC box, in metres, at which the incoming bunch centroid
+    is placed. The default of 0 puts it at the box origin. It has to be settable
+    because the bunch's position relative to the driver is what phases it in the
+    wake, and because a boosted-frame run needs the laser at z = 0 (see
+    :func:`~configure_boost`), which leaves the bunch nowhere else to go."""
+
+    zstart: float = 0
+    """Lattice z-position that FBPIC's z = 0 corresponds to."""
+
     write_period: int = 50
     """Period of writing the cached, backtransformed lab frame diagnostics to disk"""
 
@@ -143,10 +154,22 @@ class fbpicLattice(frameworkLattice):
     """Plasma electrons for when in boosted-frame mode; should be FBPIC `Particles` object"""
 
     min_longitudinal_position: float = 0
-    """Min position of the box along z (meters) -- same as plasma"""
+    """Min position of the simulation box along z (meters)"""
 
     max_longitudinal_position: float = 0
-    """Max position of the box along z (meters) -- same as plasma"""
+    """Max position of the simulation box along z (meters)"""
+
+    include_ions: bool = False
+    """Whether to add a (mobile) hydrogen ion species alongside the plasma electrons"""
+
+    laser_injection_method: Literal["direct", "antenna"] = "direct"
+    """How the laser pulse is introduced; see `fbpic.lpa_utils.laser.add_laser_pulse`"""
+
+    pin: Any | None = None
+    """FBPIC `Particles` object holding the injected bunch"""
+
+    bunch_list: List[Any] | None = None
+    """Output distributions produced by tracking"""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -205,6 +228,46 @@ class fbpicLattice(frameworkLattice):
         self.boost = BoostConverter(self.gamma_boost)
         self.v_comoving = - c * np.sqrt(1. - 1. / self.boost.gamma0 ** 2)
         self.v_window = c*(1 - 0.5*plas.density/plas.plasma.critical_density(omega0))
+        if not self.include_ions:
+            warn(
+                "Running in a boosted frame without an ion species. In the boosted "
+                "frame the ions stream backwards at -beta0*c and carry a current "
+                "that is not negligible, unlike in the lab frame, so FBPIC's "
+                "documentation requires them. Set include_ions=True."
+            )
+        # `direct` injection stamps the analytic vacuum profile onto the mesh at
+        # boosted t' = 0, which corresponds to a lab time that grows with the
+        # laser's lab-frame start position. The pulse therefore arrives having
+        # apparently propagated ~2*gamma^2*z0 in vacuum, and a Gaussian that far
+        # past its waist is weaker by 1/sqrt(1 + (drift/z_R)^2). The failure is
+        # silent -- a weak driver just makes a weak wake -- so check it here.
+        laser = getattr(plas, "laser", None)
+        if laser is not None and self.laser_injection_method == "direct":
+            z_rayleigh = np.pi * laser.waist ** 2 / laser.wavelength
+            drift = self.boost.gamma0 * self.boost.beta0 * (
+                self.boost.gamma0 * (1 + self.boost.beta0)
+            ) * laser.initial_position
+            attenuation = 1 / np.sqrt(1 + (drift / z_rayleigh) ** 2)
+            if attenuation < 0.95:
+                warn(
+                    f"The laser starts at z0 = {laser.initial_position * 1e6:.1f} um, "
+                    f"so at gamma_boost = {self.gamma_boost} `direct` injection puts it "
+                    f"on the mesh as though it had propagated {drift * 1e6:.0f} um "
+                    f"({drift / z_rayleigh:.1f} Rayleigh lengths) in vacuum, cutting a0 "
+                    f"to {attenuation:.1%} of its intended value. Move the laser to "
+                    "z0 ~ 0 (shift the whole lattice if need be), widen the waist, or "
+                    "lower gamma_boost; 2*gamma_boost^2*z0 has to stay well inside the "
+                    "Rayleigh length."
+                )
+        # gamma_boost above roughly omega0/omega_p leaves the wake under-resolved;
+        # FBPIC's documentation asks for gamma_boost < gamma_wake / 2.
+        gamma_wake = omega0 / plas.plasma.plasma_frequency()
+        if self.gamma_boost >= 0.5 * gamma_wake:
+            warn(
+                f"gamma_boost = {self.gamma_boost} is not below gamma_wake / 2 = "
+                f"{0.5 * gamma_wake:.1f} for this plasma density; the boosted-frame "
+                "result is unlikely to be converged."
+            )
 
     def configure_simulation(self, beamline: list) -> None:
         """
@@ -225,20 +288,26 @@ class fbpicLattice(frameworkLattice):
         n_radial = 0
         max_radial_position = 0
         lasers = None
+        laser_z0 = None
         plasmas = None
         for element in beamline:
             if element.hardware_type.lower() == "plasma":
                 plasmas = element
-                n_longitudinal = element.n_longitudinal
-                n_radial = element.n_radial
-                max_radial_position = element.r_max
-                self.max_longitudinal_position = element.max_longitudinal_position
-                self.min_longitudinal_position = element.min_longitudinal_position
+                n_longitudinal = element.simulation.n_longitudinal
+                n_radial = element.simulation.n_radial
+                max_radial_position = element.simulation.r_max
+                self.max_longitudinal_position = element.simulation.max_longitudinal_position
+                self.min_longitudinal_position = element.simulation.min_longitudinal_position
                 self.zstep = (self.max_longitudinal_position - self.min_longitudinal_position)
                 time_step = self.zstep / n_longitudinal / c
+                if lasers is None and element.laser is not None:
+                    lasers = element.laser_to_fbpic()
+                    omega0 = element.laser.angular_frequency
+                    laser_z0 = element.laser.initial_position
             if element.hardware_type.lower() == "laser":
                 lasers = element.to_fbpic()
-                omega0 = element.angular_frequency()
+                omega0 = element.laser.angular_frequency
+                laser_z0 = element.laser.initial_position
 
         if plasmas is None:
             raise ValueError(f"No plasmas found in {self.name}; aborting")
@@ -275,27 +344,38 @@ class fbpicLattice(frameworkLattice):
             boundaries=self.boundaries,
             v_comoving=self.v_comoving,
             particle_shape=self.particle_shape,
+            gamma_boost=(
+                self.boost.gamma0 if isinstance(self.boost, BoostConverter) else None
+            ),
         )
-        self.pin = self.prepare_bunch()
-        gamma_boost = None
-        if isinstance(self.boost, BoostConverter):
-            self.plasma_electrons = self.simulation.add_new_species(
-                **self.add_plasma_species(plasmas, typ="electron"),
-            )
+        self.plasma_electrons = self.simulation.add_new_species(
+            **self.add_plasma_species(plasmas, typ="electron"),
+        )
+        if self.include_ions:
             self.simulation.add_new_species(
                 **self.add_plasma_species(plasmas, typ="hydrogen"),
             )
+
+        self.pin = self.prepare_bunch()
 
         if self.track_bunch:
             self.pin.track(self.simulation.comm)
 
         if lasers is not None:
-            z0_antenna = lasers.initial_position if self.method == "antenna" else None
+            gamma_boost = (
+                self.boost.gamma0 if isinstance(self.boost, BoostConverter) else None
+            )
+            # The antenna needs the laser's starting position. Take it from the
+            # LAURA element rather than the FBPIC profile object, which does not
+            # carry a `z0` attribute (it lives on the longitudinal sub-profile).
+            z0_antenna = (
+                laser_z0 if self.laser_injection_method == "antenna" else None
+            )
             add_laser_pulse(
                 self.simulation,
                 lasers,
                 gamma_boost=gamma_boost,
-                method=lasers.method,
+                method=self.laser_injection_method,
                 z0_antenna=z0_antenna,
             )
 
@@ -329,22 +409,26 @@ class fbpicLattice(frameworkLattice):
         Dict
             Dictionary containing plasma parameters
         """
-        dens_func = plas._density_profile if plas.density_profile else None
-        boost_positions = True if self.boost else False
+        from fbpic.lpa_utils.boosted_frame import BoostConverter
+
+        dens_func = (
+            plas._relative_density_profile if plas.plasma.density_profile else None
+        )
+        boost_positions = isinstance(self.boost, BoostConverter)
         q = plas.plasma.charge(typ)
         m = plas.plasma.mass(typ)
 
         plas_dict = {
             "q": q,
             "m": m,
-            "n": plas.density,
+            "n": plas.plasma.density,
             "dens_func": dens_func,
-            "p_zmin": plas.min_longitudinal_position,
-            "p_zmax": plas.max_longitudinal_position,
-            "p_rmax": plas.r_max,
-            "p_nr": plas.particles_per_radial_cell,
-            "p_nz": plas.particles_per_longitudinal_cell,
-            "p_nt": plas.particles_per_angular_cell,
+            "p_zmin": plas.simulation.p_zmin,
+            "p_zmax": plas.simulation.p_zmax,
+            "p_rmax": plas.simulation.p_rmax,
+            "p_nr": plas.simulation.particles_per_radial_cell,
+            "p_nz": plas.simulation.particles_per_longitudinal_cell,
+            "p_nt": plas.simulation.particles_per_angular_cell,
             "boost_positions_in_dens_func": boost_positions,
         }
         return plas_dict
@@ -372,14 +456,17 @@ class fbpicLattice(frameworkLattice):
                 self.diag_period,
                 self.simulation.fld,
                 comm=self.simulation.comm,
-                # write_dir = self.global_parameters["master_subdir"],
+                write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
+            species = {"electrons": self.plasma_electrons}
+            if self.pin is not None:
+                species["bunch"] = self.pin
             part_diag = ParticleDiagnostic(
                 self.diag_period,
-                species={"electrons": deepcopy(self.pin)},
+                species=species,
                 select={"uz": [1., None]},
                 comm=self.simulation.comm,
-                # write_dir=self.global_parameters["master_subdir"],
+                write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
             return [field_diag, part_diag]
         else:
@@ -448,15 +535,23 @@ class fbpicLattice(frameworkLattice):
             Flag to indicate whether to save the file
         """
         from ...Modules.Beams.fbpic import beam_to_particles
-        prefix = self.get_prefix()
+        prefix = prefix if prefix else self.get_prefix()
         self.read_input_file(prefix, self.particle_definition)
         self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
+        # Shifting by the centroid alone would land the bunch at z = 0; subtracting
+        # the requested position as well puts it where it was asked for, and keeps
+        # `zstart` the offset that postProcess adds back to recover lattice
+        # coordinates.
+        self.zstart = (
+            float(self.global_parameters["beam"].beam.centroids.mean_z.val)
+            - self.bunch_z_position
+        )
         return beam_to_particles(
             self.global_parameters["beam"],
             simulation=self.simulation,
             boost=self.boost,
-            zstart=float(self.global_parameters["beam"].beam.centroids.mean_z.val),
+            zstart=self.zstart,
         )
 
     def prepare_bunch(self) -> "Particles":
@@ -478,3 +573,68 @@ class fbpicLattice(frameworkLattice):
         Run the code, and set :attr:`~bunch_list`
         """
         self.simulation.step(self.n_step)
+        self.bunch_list = [self.pin]
+
+    def final_lab_diagnostic(self) -> str | None:
+        """
+        Path to the last back-transformed lab-frame snapshot, if there is one.
+
+        Returns
+        -------
+        str or None
+            The snapshot with the highest iteration number, or None if the
+            diagnostic wrote nothing
+        """
+        pattern = os.path.join(
+            self.global_parameters["master_subdir"], "lab_diags", "hdf5", "*.h5"
+        )
+        snapshots = sorted(glob.glob(pattern))
+        return snapshots[-1] if snapshots else None
+
+    def postProcess(self) -> None:
+        """
+        Convert the tracked bunch back to a `beam` object and write it to
+        `master_subdir` as openPMD, so the next line in the lattice can pick it up.
+
+        In a boosted-frame run the live species arrays are in the *boosted* frame,
+        so the lab-frame distribution is taken from the last snapshot written by
+        the `BackTransformedParticleDiagnostic` instead.
+        """
+        from fbpic.lpa_utils.boosted_frame import BoostConverter
+        from ...Modules.Beams.fbpic import particles_to_beam, read_fbpic_beam_file
+
+        super().postProcess()
+        if self.pin is None:
+            return
+        outbeamname = f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5'
+        if isinstance(self.boost, BoostConverter):
+            snapshot = self.final_lab_diagnostic()
+            if snapshot is None:
+                warn(
+                    "No back-transformed lab-frame diagnostics were written, so the "
+                    "output distribution of boosted-frame line "
+                    f"{self.objectname} cannot be produced in the lab frame."
+                )
+                return
+            read_fbpic_beam_file(
+                self.global_parameters["beam"], snapshot, z_offset=self.zstart
+            )
+            captured = len(self.global_parameters["beam"].beam.x)
+            if captured < self.pin.Ntot:
+                warn(
+                    f"The final lab-frame snapshot captured {captured} of "
+                    f"{self.pin.Ntot} macroparticles. A particle is only recorded "
+                    "once it crosses the snapshot plane, so the shortfall is "
+                    "particles that had not crossed it when the run ended; step "
+                    "a little past the last snapshot to capture them."
+                )
+        else:
+            particles_to_beam(
+                self.global_parameters["beam"],
+                self.pin,
+                zpos=self.zstart,
+            )
+        rbf.openpmd.write_openpmd_beam_file(
+            self.global_parameters["beam"],
+            outbeamname,
+        )

@@ -2,7 +2,6 @@ import numpy as np
 from ..units import UnitValue
 from .. import constants
 import h5py
-from os.path import basename
 
 def beam_to_particles(
         self,
@@ -68,40 +67,150 @@ def beam_to_particles(
     )
     return bunch
 
-def read_fbpic_beam_file(self, filename, z_offset=0, charge=None):
+def particles_to_beam(self, species: "Particles", zpos: float = 0) -> None:
+    """
+    Convert an FBPIC `Particles` object back into the internal beam representation.
+
+    Parameters
+    ----------
+    self: :class:`~simba.Modules.Beams.beam`
+        The beam object to populate
+    species: fbpic.particles.particles.Particles
+        The FBPIC species to read back
+    zpos: float
+        Longitudinal position to add to the particle z co-ordinates
+    """
+    self.code = "fbpic"
+    self._beam.particle_rest_energy_eV = self.E0_eV
+    on_gpu = getattr(species, "use_cuda", False)
+    if on_gpu:
+        species.receive_particles_from_gpu()
+    try:
+        x = np.asarray(species.x, dtype=float)
+        y = np.asarray(species.y, dtype=float)
+        z = np.asarray(species.z, dtype=float)
+        ux = np.asarray(species.ux, dtype=float)
+        uy = np.asarray(species.uy, dtype=float)
+        uz = np.asarray(species.uz, dtype=float)
+        w = np.asarray(species.w, dtype=float)
+        q = float(species.q)
+        m = float(species.m)
+    finally:
+        if on_gpu:
+            species.send_particles_to_gpu()
+
+    self._beam.x = UnitValue(x, "m")
+    self._beam.y = UnitValue(y, "m")
+    self._beam.z = UnitValue(z + zpos, "m")
+    self._beam.t = UnitValue((z + zpos) / constants.speed_of_light, "s")
+    self._beam.px = UnitValue(ux * m * constants.speed_of_light, "kg*m/s")
+    self._beam.py = UnitValue(uy * m * constants.speed_of_light, "kg*m/s")
+    self._beam.pz = UnitValue(uz * m * constants.speed_of_light, "kg*m/s")
+    self._beam.particle_mass = UnitValue(np.full(len(x), m), units="kg")
+    self._beam.charge = UnitValue(q * w, "C")
+    self._beam.total_charge = UnitValue(float(np.sum(q * w)), "C")
+    self._beam.nmacro = w
+    self._beam.status = UnitValue(np.full(len(x), 5))
+
+
+def _openpmd_record(group, path: str, npart: int) -> np.ndarray:
+    """
+    Read one openPMD record, whether it is stored as a dataset or as a constant.
+
+    Parameters
+    ----------
+    group: h5py.Group
+        The species group, e.g. ``/data/10/particles/bunch``
+    path: str
+        Record path within the species group, e.g. ``position/x``
+    npart: int
+        Number of macroparticles, used to broadcast constant records
+
+    Returns
+    -------
+    np.ndarray
+        The record, in SI units
+    """
+    record = group[path]
+    unit_si = record.attrs.get("unitSI", 1.0)
+    if isinstance(record, h5py.Dataset) and record.shape:
+        return np.asarray(record[:], dtype=float) * unit_si
+    # Constant record: the value lives in the attributes.
+    return np.full(npart, float(record.attrs["value"]) * unit_si)
+
+
+def read_fbpic_beam_file(self, filename, z_offset=0, charge=None, species=None):
+    """
+    Read an FBPIC openPMD particle dump into the internal beam representation.
+
+    This is how a boosted-frame run is read back: the raw
+    `fbpic.particles.particles.Particles` arrays are in the boosted frame, so the
+    lab-frame distribution has to come from the snapshots written by
+    `BackTransformedParticleDiagnostic` instead.
+
+    Parameters
+    ----------
+    self: :class:`~simba.Modules.Beams.beam`
+        The beam object to populate
+    filename: str
+        Path to the openPMD HDF5 file
+    z_offset: float
+        Longitudinal position to add to the particle z co-ordinates
+    charge: float, optional
+        Total bunch charge in C. If given it overrides the per-particle
+        weighting stored in the file.
+    species: str, optional
+        Name of the species to read. Defaults to ``bunch`` when present, and
+        otherwise to the only species in the file.
+
+    Raises
+    ------
+    KeyError
+        If the requested species is not in the file
+    """
     self.code = "fbpic"
     self._beam.particle_rest_energy_eV = self.E0_eV
     self.filename = filename
-    with h5py.File(filename, 'r') as f:
-        namestrip = basename(filename).strip('data').strip('.h5').lstrip('0')
-        if namestrip == '':
-            try:
-                particles = f[f"/data/0/particles/elec_bunch/"]
-            except KeyError as e:
-                raise KeyError(
-                    f"Could not find '/data/0/particles/bunch/' in {filename}. "
-                    f"Available keys: {list(f.keys())}"
-                ) from e
-        else:
-            particles = f[f"/data/{namestrip}/particles/bunch/"]
-        # assuming you have your file object as f
-        # particles = f["/data/0/particles/elec_bunch/"]
-        # print(f['data']['0']['particles']['elec_bunch']['momentum'].keys())
-        self._beam.x = UnitValue(particles['position/x'][:], "m")
-        self._beam.y = UnitValue(particles['position/y'][:], "m")
-        self._beam.z = UnitValue(particles['position/z'][:] + z_offset, "m")
-        self._beam.t = UnitValue(self._beam.z / constants.speed_of_light, "s")
-        self._beam.px = UnitValue(particles['momentum/x'][:], "kg*m/s")
-        self._beam.py = UnitValue(particles['momentum/y'][:], "kg*m/s")
-        self._beam.pz = UnitValue(particles['momentum/z'][:], "kg*m/s")
-        self._beam.nmacro = np.full(len(self._beam.x), 1)
-        self._beam.particle_mass = UnitValue(
-            np.full(len(self._beam.x), constants.m_e),
-            units="kg",
-        )
-        if charge is not None:
-            self._beam.charge = UnitValue(np.full(len(self._beam["x"]), charge / len(self._beam["x"])), "C")
-            self._beam.total_charge = UnitValue(charge, "C")
-        else:
-            if not hasattr(self, "charge"):
-                raise AttributeError("Bunch charge must be part of the beam object or provided as an argument.")
+    with h5py.File(filename, "r") as f:
+        iteration = next(iter(f["data"]))
+        particles = f[f"data/{iteration}/particles"]
+        if species is None:
+            species = "bunch" if "bunch" in particles else next(iter(particles))
+        if species not in particles:
+            raise KeyError(
+                f"Species {species!r} not found in {filename}. "
+                f"Available species: {list(particles)}."
+            )
+        group = particles[species]
+        npart = group["position/z"].shape[0]
+
+        x = _openpmd_record(group, "position/x", npart)
+        y = _openpmd_record(group, "position/y", npart)
+        z = _openpmd_record(group, "position/z", npart)
+        if "positionOffset" in group:
+            x = x + _openpmd_record(group, "positionOffset/x", npart)
+            y = y + _openpmd_record(group, "positionOffset/y", npart)
+            z = z + _openpmd_record(group, "positionOffset/z", npart)
+        px = _openpmd_record(group, "momentum/x", npart)
+        py = _openpmd_record(group, "momentum/y", npart)
+        pz = _openpmd_record(group, "momentum/z", npart)
+        w = _openpmd_record(group, "weighting", npart)
+        q = _openpmd_record(group, "charge", npart)
+        m = _openpmd_record(group, "mass", npart)
+
+    self._beam.x = UnitValue(x, "m")
+    self._beam.y = UnitValue(y, "m")
+    self._beam.z = UnitValue(z + z_offset, "m")
+    self._beam.t = UnitValue((z + z_offset) / constants.speed_of_light, "s")
+    self._beam.px = UnitValue(px, "kg*m/s")
+    self._beam.py = UnitValue(py, "kg*m/s")
+    self._beam.pz = UnitValue(pz, "kg*m/s")
+    self._beam.particle_mass = UnitValue(m, units="kg")
+    self._beam.nmacro = w
+    self._beam.status = UnitValue(np.full(npart, 5))
+    if charge is not None:
+        self._beam.charge = UnitValue(np.full(npart, charge / npart), "C")
+        self._beam.total_charge = UnitValue(charge, "C")
+    else:
+        self._beam.charge = UnitValue(q * w, "C")
+        self._beam.total_charge = UnitValue(float(np.sum(q * w)), "C")
