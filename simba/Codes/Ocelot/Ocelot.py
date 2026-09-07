@@ -221,7 +221,6 @@ class ocelotLattice(frameworkLattice):
             s_start=self.ref_s
         )
 
-
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
@@ -236,7 +235,7 @@ class ocelotLattice(frameworkLattice):
             pin,
             navi=navi,
             calc_tws=True,
-            twiss_disp_correction=True,
+            twiss_disp_correction=False,
         )
 
     def postProcess(self) -> None:
@@ -313,7 +312,7 @@ class ocelotLattice(frameworkLattice):
         if "charge" in list(self.file_block.keys()):
             if (
                 "space_charge_mode" in list(self.file_block["charge"].keys())
-                and self.file_block["charge"]["space_charge_mode"].lower() == "3d"
+                and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
             ):
                 gridsize = self.grids.getGridSizes(
                     (len(self.global_parameters["beam"].x) / self.sample_interval)
@@ -331,6 +330,7 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [csr[i]]
                 navi_locations_start += [start[i]]
                 navi_locations_end += [end[i]]
+            csr_set = True
         if self.mbi["set_mbi"]:
             self.mbi_navi = MBI(
                 lattice=self.lat_obj,
