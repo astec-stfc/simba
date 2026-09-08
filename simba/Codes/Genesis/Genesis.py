@@ -412,7 +412,10 @@ class genesisLattice(frameworkLattice):
         rootname = f"{self.global_parameters['master_subdir']}/{self.end}"
         genesisbeamfilename = f"{rootname}_BEAM.par.h5"
         rbf.genesis.read_genesis_beam_file(beam, genesisbeamfilename)
-        HDF5filename = f"{rootname}.openpmd.hdf5"
+        HDF5filename = (
+            f"{self.global_parameters['master_subdir']}/"
+            f"{self.output_basename(self.end)}.openpmd.hdf5"
+        )
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         self.commandFiles = {}
         outfields = sorted(

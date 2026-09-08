@@ -357,7 +357,7 @@ class ocelotLattice(frameworkLattice):
             subdir = self.global_parameters["master_subdir"]
             navi_processes += [
                 SaveBeamOpenPMD(
-                    filename=f"{subdir}/{w.name}.openpmd.hdf5",
+                    filename=f"{subdir}/{self.output_basename(w.name)}.openpmd.hdf5",
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
                     ref_idx=self.ref_idx,
@@ -369,7 +369,7 @@ class ocelotLattice(frameworkLattice):
         subdir = self.global_parameters["master_subdir"]
         navi_processes += [
             SaveBeamOpenPMD(
-                filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
+                filename=f"{subdir}/{self.output_basename(self.names[-1])}.openpmd.hdf5",
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
                 ref_idx=self.ref_idx,

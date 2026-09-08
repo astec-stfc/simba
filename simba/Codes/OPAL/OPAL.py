@@ -217,14 +217,16 @@ class opalLattice(frameworkLattice):
                 beam._beam.t = UnitValue(beam._beam.t.val + (self.startObject.physical.middle.z / speed_of_light), "s")
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
-                    f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
+                    f'{self.global_parameters["master_subdir"]}/'
+                    f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
         opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
         beam = rbf.beam()
         beam.read_opal_beam_file(filename=opalbeamname, step=-1)
         rbf.openpmd.write_openpmd_beam_file(
             beam,
-            f'{self.global_parameters["master_subdir"]}/{self.endObject.name}.openpmd.hdf5',
+            f'{self.global_parameters["master_subdir"]}/'
+            f'{self.output_basename(self.endObject.name)}.openpmd.hdf5',
         )
         self.commandFiles = {}
         opalObject = SDDSFile()

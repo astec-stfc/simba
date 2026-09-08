@@ -276,7 +276,8 @@ class xsuiteLattice(frameworkLattice):
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
-            f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5',
+            f'{self.global_parameters["master_subdir"]}/'
+            f'{self.output_basename(self.end)}.openpmd.hdf5',
         )
         for elem in self.screens_and_bpms:
             fname = f'{self.global_parameters["master_subdir"]}/{elem.name}.xsuite.json'
@@ -291,7 +292,8 @@ class xsuiteLattice(frameworkLattice):
             )
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
-                f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
+                f'{self.global_parameters["master_subdir"]}/'
+                f'{self.output_basename(elem.name)}.openpmd.hdf5',
             )
         df = self.tws.to_pandas()
         if self.ref_s is None:

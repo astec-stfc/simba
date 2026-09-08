@@ -64,7 +64,11 @@ from typing import (
     Dict,
     List,
     Any,
+    Set,
 )
+
+OUTPUT_LINE_SEPARATOR = "-"
+"""Separates a line name from an element name in an output beam filename."""
 
 if os.name == "nt":
     # from .Modules.symmlinks import has_symlink_privilege
@@ -480,6 +484,12 @@ class frameworkLattice(BaseModel):
     file_block: Dict
     """File block containing input and output settings for the lattice."""
 
+    colliding_outputs: Set[str] = set()
+    """Element names another line in this run also writes an output file for.
+
+    Set by :meth:`~simba.Framework.Framework.track` before anything is
+    written. See :meth:`output_basename`."""
+
     machine: LAURA
     """LAURA model of the lattice"""
 
@@ -721,6 +731,19 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    def output_basename(self, name: str) -> str:
+        """Filename stem for ``name``'s output beam file, qualified if needed.
+
+        Output beam files are named by element alone, so they must not clash for
+        multi-turn tracking. Qualifies only what actually collides:
+        :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
+        same name written by more than one line. All colliding occurrences are
+        qualified, including the first, so the name follows from the settings file.
+        """
+        if name in self.colliding_outputs:
+            return f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
+        return name
 
     def get_prefix(self) -> str:
         """

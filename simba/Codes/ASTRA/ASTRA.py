@@ -494,7 +494,7 @@ class astraLattice(frameworkLattice):
                 postOffset=-1 * np.array(self.starting_offset),
             )
             beam.s = UnitValue(sval, units="m")
-            HDF5filename = scr.name + ".openpmd.hdf5"
+            HDF5filename = self.output_basename(scr.name) + ".openpmd.hdf5"
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
                 self.global_parameters["master_subdir"] + "/" + HDF5filename,

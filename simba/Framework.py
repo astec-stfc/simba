@@ -1775,6 +1775,42 @@ class Framework(BaseModel):
                 allZ = allZ + zelems
         return list(sorted(allZ, key=lambda x: x[2][0]))
 
+    def _line_output_names(self, lattice_name: str) -> set:
+        """Element names ``lattice_name`` will write an output beam file for:
+        screens, markers and BPMs, plus the final element (for codes that do not
+        do this natively).
+        """
+        latt = self.latticeObjects.get(lattice_name)
+        if latt is None:
+            return set()
+        names = {
+            element.name
+            for element in getattr(latt, "screens_and_markers_and_bpms", [])
+        }
+        end = getattr(latt, "end", None)
+        if isinstance(end, str):
+            names.add(end)
+        return names
+
+    def _mark_colliding_outputs(self, files: list) -> None:
+        """Tell each line which of its outputs another line also writes.
+
+        Output beam files are named by element alone, so they must not clash.
+        Only names written by more than one line in this run are marked, so
+        a run whose lines share no screens keeps every filename it had.
+        """
+        seen: Dict[str, int] = {}
+        per_line = {}
+        for lattice_name in files:
+            if lattice_name == "generator":
+                continue
+            per_line[lattice_name] = self._line_output_names(lattice_name)
+            for name in per_line[lattice_name]:
+                seen[name] = seen.get(name, 0) + 1
+        shared = {name for name, count in seen.items() if count > 1}
+        for lattice_name, names in per_line.items():
+            self.latticeObjects[lattice_name].colliding_outputs = names & shared
+
     def track(
         self,
         files: list | None = None,
@@ -1841,6 +1877,7 @@ class Framework(BaseModel):
         if endfile is not None and endfile in files:
             index = files.index(endfile)
             files = files[: index + 1]
+        self._mark_colliding_outputs(files)
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)

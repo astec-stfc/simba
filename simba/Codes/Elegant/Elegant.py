@@ -618,7 +618,10 @@ class elegantLattice(frameworkLattice):
             xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
             ref_index=ref_index
         )
-        HDF5filename = f"{rootname}.openpmd.hdf5"
+        HDF5filename = (
+            f"{self.global_parameters['master_subdir']}/"
+            f"{self.output_basename(screen.name)}.openpmd.hdf5"
+        )
         rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)

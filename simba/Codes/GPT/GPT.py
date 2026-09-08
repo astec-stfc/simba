@@ -544,7 +544,7 @@ class gptLattice(frameworkLattice):
         )
         self.beam.t += t0
         self.beam.s = UnitValue(sval, units="m")
-        HDF5filename = screen.name + ".openpmd.hdf5"
+        HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
