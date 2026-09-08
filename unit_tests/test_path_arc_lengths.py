@@ -17,6 +17,7 @@ import pytest
 import simba.Framework as sfw
 from laura import LAURA
 from laura.models.element import Quadrupole
+from simba.Framework_objects import frameworkLattice
 
 P1, P2 = 100e6, 200e6
 
@@ -123,6 +124,88 @@ def test_a_single_pass_machine_never_warns(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         fw.modifyElement("LIN_Q", "machine_area", "B")
+
+
+# --- the rigidity a field is derived with -------------------------------
+#
+# GPT takes a field, not a normalised strength, and simba hands it
+# `Brho * k1`. The `k` was resolved at the momentum the pass states, so if the
+# tracked beam's rigidity differs the field is wrong by exactly the ratio --
+# on every magnet in the line, and silently.
+
+
+class FakeLine:
+    """A lattice stub carrying only what `check_pass_rigidity` reads."""
+
+    def __init__(self, machine, start, name="LINAC_2"):
+        self.machine = machine
+        self.start = start
+        self.objectname = name
+
+    check_pass_rigidity = frameworkLattice.check_pass_rigidity
+
+
+def line(layout, start):
+    return FakeLine(machine(layout), start)
+
+
+def test_a_matching_rigidity_is_silent():
+    from laura.models.magnetic import brho
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P2))
+
+
+def test_a_mismatched_rigidity_warns():
+    from laura.models.magnetic import brho
+
+    with pytest.warns(UserWarning, match="out by the ratio"):
+        line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P1))
+
+
+def test_the_warning_reports_the_ratio():
+    """Half the momentum, so every field is out by a factor two."""
+    from laura.models.magnetic import brho
+
+    with pytest.warns(UserWarning, match=r"0\.5000"):
+        line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P1))
+
+
+def test_a_small_drift_is_tolerated():
+    """A real beam never sits exactly on its design momentum."""
+    from laura.models.magnetic import brho
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P2) * 1.005)
+
+
+def test_a_pass_stating_no_momentum_is_silent():
+    layout = [
+        "INJ",
+        {"LINAC": {"multipass": 1}},
+        "ARC",
+        {"LINAC": {"multipass": 2}},
+        "DUMP",
+    ]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line(layout, "LIN_Q#2").check_pass_rigidity(1.0)
+
+
+def test_an_unqualified_start_is_silent():
+    """A single-pass line has no pass momentum to disagree with."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line(ERL, "ARC_Q").check_pass_rigidity(1.0)
+
+
+def test_a_zero_rigidity_is_silent():
+    """Before a beam is loaded there is nothing to compare."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line(ERL, "LIN_Q#2").check_pass_rigidity(0.0)
 
 
 def test_no_machine_never_warns(tmp_path):

@@ -39,6 +39,7 @@ from laura.models.elementList import (
     ElementList,
     flatten_occurrence,
 )
+from laura.models.magnetic import brho as laura_brho
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
@@ -735,6 +736,33 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    def check_pass_rigidity(self, brho: float, tolerance: float = 0.01) -> None:
+        """Warn if the tracked beam disagrees with this pass's stated momentum.
+
+        Codes that take a field rather than a normalised strength get ``Brho``
+        from the beam actually loaded.
+        The ``k`` came from the layout, resolved at the momentum that
+        pass states.
+
+        A warning rather than a refusal.
+        """
+        stated = None
+        layout = None
+        machine = getattr(self, "machine", None)
+        if machine is not None:
+            layout = machine.lattices.get(machine.default_path)
+        if layout is not None:
+            stated = layout.pass_momentum(self.start)
+        if stated is None or not brho:
+            return
+        expected = laura_brho(stated)
+        if abs(brho - expected) > tolerance * expected:
+            warn(
+                f"Line '{self.objectname}' tracks a beam of rigidity "
+                f"{float(brho):.4f} T.m, but pass {self.start} states a "
+                f"momentum of {stated:.4g} eV/c ({expected:.4f} T.m)."
+            )
 
     def output_basename(self, name: str) -> str:
         """Filename stem for ``name``'s output beam file, qualified if needed.

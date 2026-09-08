@@ -229,6 +229,7 @@ class gptLattice(frameworkLattice):
         # self.headers['scatterplate'] = gpt_scatterplate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
+        self.check_pass_rigidity(self.global_parameters["beam"].Brho)
         fulltext = self.section.to_gpt(
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
