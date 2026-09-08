@@ -77,6 +77,12 @@ version_scheme = "post-release"   # valid built-in scheme
 local_scheme = "no-local-version" # removes +untagged suffix
 
 
+[tool.pytest.ini_options]
+markers = [
+    "needs_container: requires docker and the simcodes image (see docs/source/SimCodes.rst)",
+]
+
+
 [project.urls]
 Homepage = "https://github.com/astec-stfc/simba"
 Repository = "https://github.com/astec-stfc/simba.git"

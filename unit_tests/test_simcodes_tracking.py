@@ -6,20 +6,16 @@ from laura.models.element import Quadrupole, Marker, Plasma, Wiggler
 from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
-RUN_SIMCODES_TESTS = os.environ.get("SIMBA_TEST_SIMCODES") == "1"
-SKIP_REASON = (
-    "set SIMBA_TEST_SIMCODES=1 to run real tracking codes "
-    "(needs docker and the simcodes image; see docs/source/SimCodes.rst)"
-)
+needs_container = pytest.mark.needs_container
 
 CODES = [
-    pytest.param("astra", "docker", id="astra"),
-    pytest.param("elegant", "docker", id="elegant"),
-    pytest.param("csrtrack", "docker", id="csrtrack"),
+    pytest.param("astra", "docker", id="astra", marks=needs_container),
+    pytest.param("elegant", "docker", id="elegant", marks=needs_container),
+    pytest.param("csrtrack", "docker", id="csrtrack", marks=needs_container),
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
-    pytest.param("opal", "docker", id="opal"),
+    pytest.param("opal", "docker", id="opal", marks=needs_container),
     pytest.param(
         "gpt", None, id="gpt",
         marks=pytest.mark.skipif("GPTLICENSE" not in os.environ, reason="requires a local GPT install and GPTLICENSE env var"),
@@ -81,14 +77,12 @@ def _fodo_elements():
     ]
 
 
-@pytest.mark.skipif(not RUN_SIMCODES_TESTS, reason=SKIP_REASON)
 @pytest.mark.parametrize("code,container_runtime", CODES)
 def test_code_tracks(tmp_path, code, container_runtime):
     output_file = _track_lattice(tmp_path, code, container_runtime, _fodo_elements())
     assert os.path.isfile(output_file)
 
 
-@pytest.mark.skipif(not RUN_SIMCODES_TESTS, reason=SKIP_REASON)
 def test_waket_tracks(tmp_path):
     plasma = Plasma(
         name="TEST-PLASMA-01",
@@ -124,7 +118,7 @@ def test_waket_tracks(tmp_path):
     assert os.path.isfile(output_file)
 
 
-@pytest.mark.skipif(not RUN_SIMCODES_TESTS, reason=SKIP_REASON)
+@needs_container
 def test_genesis_tracks(tmp_path):
     wiggler = Wiggler(
         name="TEST-WIGGLER-01",

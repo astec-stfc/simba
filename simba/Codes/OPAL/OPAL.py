@@ -261,25 +261,24 @@ class opalLattice(frameworkLattice):
         if self.remote_setup:
             self.run_remote()
         else:
-            if not os.name == "nt":
-                workdir = os.path.abspath(self.global_parameters["master_subdir"])
-                command_list = self.executables.build_command(
-                    self.executables[self.code] + [self.objectname + ".in"], workdir
+            workdir = os.path.abspath(self.global_parameters["master_subdir"])
+            command_list = self.executables.build_command(
+                self.executables[self.code] + [self.objectname + ".in"], workdir
+            )
+            command = "bash -c '" + " ".join(command_list) + "'"
+            with open(
+                os.path.abspath(
+                    self.global_parameters["master_subdir"]
+                    + "/"
+                    + self.objectname
+                    + ".log"
+                ),
+                "w",
+            ) as f:
+                subprocess.call(
+                    command,
+                    stdout=f,
+                    cwd=self.global_parameters["master_subdir"],
+                    env={**os.environ},
+                    shell=True
                 )
-                command = "bash -c '" + " ".join(command_list) + "'"
-                with open(
-                    os.path.abspath(
-                        self.global_parameters["master_subdir"]
-                        + "/"
-                        + self.objectname
-                        + ".log"
-                    ),
-                    "w",
-                ) as f:
-                    subprocess.call(
-                        command,
-                        stdout=f,
-                        cwd=self.global_parameters["master_subdir"],
-                        env={**os.environ},
-                        shell=True
-                    )

@@ -660,18 +660,21 @@ class elegantLattice(frameworkLattice):
             code_string = " ".join(self.executables[self.code]).lower()
             command = self.executables[self.code] + [self.objectname + ".ele"]
             if "pelegant" in code_string:
-                command = (
-                    [command[0]]
-                    + [
-                        "-env",
-                        "RPN_DEFNS",
-                        (
-                            os.path.abspath(self.global_parameters["simcodes_location"])
-                            + "/Elegant/defns.rpn"
-                        ).replace("/", "\\"),
-                    ]
-                    + command[1:]
-                )
+                if self.global_parameters["simcodes_location"] is not None:
+                    command = (
+                        [command[0]]
+                        + [
+                            "-env",
+                            "RPN_DEFNS",
+                            (
+                                os.path.abspath(
+                                    self.global_parameters["simcodes_location"]
+                                )
+                                + "/Elegant/defns.rpn"
+                            ).replace("/", "\\"),
+                        ]
+                        + command[1:]
+                    )
                 command = [c.replace("/", "\\") for c in command]
                 with open(
                     os.path.abspath(

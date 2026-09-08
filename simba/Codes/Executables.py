@@ -33,6 +33,8 @@ def default_sif_path(filename: str = "simcodes-apptainer_master.sif") -> str:
 
 SIMCODES_SIF = default_sif_path()
 
+WINDOWS_UNSUPPORTED_CODES = ("opal", "genesis")
+
 def container_user() -> str:
     """
     Get the `uid:gid` string for runing via container so files written into a
@@ -120,7 +122,6 @@ class executable:
             settings: dict={},
             location: str | None = None,
             ncpu: int = 1,
-            workdir: str | None = None,
             default: str | list = "",
             override_location: str = None,
     ):
@@ -128,7 +129,6 @@ class executable:
         self.settings = settings
         self.location = location
         self.ncpu = ncpu
-        self.workdir = workdir
         if location is not None:
             if isinstance(location, str):
                 if location in self.settings and name in self.settings[location]:
@@ -139,22 +139,16 @@ class executable:
                     self.executable = self._substitute_variables([location])
             elif isinstance(location, list):
                 self.executable = self._substitute_variables(location)
-        elif socket.gethostname() in self.settings:
-            self.executable = self._substitute_variables(
-                self.settings[socket.gethostname()][name]
-            )
-        elif socket.gethostname().split(".")[0] in self.settings:
-            self.executable = self._substitute_variables(
-                self.settings[socket.gethostname().split(".")[0]][name]
-            )
-        elif override_location in self.settings and name in self.settings[override_location]:
-            self.executable = self._substitute_variables(
-                self.settings[override_location][name]
-            )
-        elif os.name in self.settings:
-            self.executable = self._substitute_variables(self.settings[os.name][name])
         else:
-            self.executable = self._substitute_variables(default)
+            hostname = socket.gethostname()
+            for section in (hostname, hostname.split(".")[0], override_location, os.name):
+                if section in self.settings and name in self.settings[section]:
+                    self.executable = self._substitute_variables(
+                        self.settings[section][name]
+                    )
+                    break
+            else:
+                self.executable = self._substitute_variables(default)
 
     def _substitute_sif(self, param):
         if isinstance(param, list):
@@ -184,19 +178,11 @@ class executable:
                 self._substitute_ncpu(
                     self._substitute_simcodes(
                         self._substitute_sif(
-                            self._substitute_image(
-                                self._substitute_uidgid(param)
-                            )
+                            self._substitute_image(param)
                         )
                     )
                 )
             )
-
-    def _substitute_uidgid(self, param):
-        if isinstance(param, list):
-            return [self._substitute_uidgid(s) for s in param]
-        else:
-            return param.replace("$uid$", str(os.getuid())).replace("$gid$", str(os.getgid()))
 
     def _substitute_simcodes(self, param):
         if isinstance(param, list):
@@ -209,12 +195,6 @@ class executable:
             return [self._substitute_ncpu(s) for s in param]
         else:
             return param.replace("$ncpu$", str(self.ncpu))
-
-    def _substitute_workdir(self, param):
-        if isinstance(param, list):
-            return [self._substitute_workdir(s) for s in param]
-        else:
-            return param.replace("$workdir$", str(self.workdir))
 
     def _substitute_image(self, param):
         if isinstance(param, list):
@@ -293,6 +273,13 @@ class Executables(object):
         self.define_genesis_command(location=self.runtime)
 
     def __getitem__(self, item):
+        if os.name == "nt" and self.runtime is None and item in WINDOWS_UNSUPPORTED_CODES:
+            raise RuntimeError(
+                f"'{item}' has no native Windows build, so it cannot be run by a Python "
+                "process on Windows itself. Either run SIMBA from within WSL, or "
+                "instantiate it with container_runtime='docker'. "
+                "See docs/source/SimCodes.rst for both routes."
+            )
         return getattr(self, item)
 
     def build_command(self, cmd: list, workdir: str) -> list:
