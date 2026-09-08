@@ -612,20 +612,29 @@ class elegantLattice(frameworkLattice):
         ref_index: int, optional
             Reference particle index
         """
-        beam = rbf.beam()
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
-        rbf.sdds.read_SDDS_beam_file(
-            beam,
-            elegantbeamfilename,
-            xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
-            ref_index=ref_index
+        xyzoffset = list(
+            self.elementObjects[screen.name].physical.start.model_dump().values()
         )
-        HDF5filename = (
-            f"{self.global_parameters['master_subdir']}/"
-            f"{self.output_basename(screen.name)}.openpmd.hdf5"
-        )
-        rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        pages = [-1]
+        if self.turns > 1:
+            pages = list(range(rbf.sdds.count_SDDS_pages(elegantbeamfilename)))
+        for index, page in enumerate(pages, start=1):
+            beam = rbf.beam()
+            rbf.sdds.read_SDDS_beam_file(
+                beam,
+                elegantbeamfilename,
+                page=page,
+                xyzoffset=xyzoffset,
+                ref_index=ref_index,
+            )
+            turn = None if self.turns <= 1 else index
+            HDF5filename = (
+                f"{self.global_parameters['master_subdir']}/"
+                f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"
+            )
+            rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 

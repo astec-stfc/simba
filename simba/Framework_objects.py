@@ -74,6 +74,10 @@ from typing import (
     Set,
 )
 
+OUTPUT_TURN_SEPARATOR = "-t"
+"""Separates an element name from a turn index in an output beam filename,
+multi-turn only."""
+
 OUTPUT_LINE_SEPARATOR = "-"
 """Separates a line name from an element name in an output beam filename."""
 
@@ -855,7 +859,7 @@ class frameworkLattice(BaseModel):
                 f"momentum of {stated:.4g} eV/c ({expected:.4f} T.m)."
             )
 
-    def output_basename(self, name: str) -> str:
+    def output_basename(self, name: str, turn: int | None = None) -> str:
         """Filename stem for ``name``'s output beam file, qualified if needed.
 
         Output beam files are named by element alone, so they must not clash for
@@ -863,11 +867,16 @@ class frameworkLattice(BaseModel):
         :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
         same name written by more than one line. All colliding occurrences are
         qualified, including the first, so the name follows from the settings file.
+
+        ``turn`` qualifies the other axis. It is ignored on a single-turn run,
+        so nothing changes for a lattice that does not ask for turns.
         """
         qualified = name in self.colliding_outputs
         name = flatten_occurrence(name)
         if qualified:
-            return f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
+            name = f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
+        if turn is not None and self.turns > 1:
+            name = f"{name}{OUTPUT_TURN_SEPARATOR}{turn:0{len(str(self.turns))}d}"
         return name
 
     def get_prefix(self) -> str:

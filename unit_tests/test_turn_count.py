@@ -231,6 +231,231 @@ def test_the_net_bend_of_a_straight_line_is_zero():
     assert ring(4, 0.0).net_bend_angle == pytest.approx(0.0)
 
 
+# --- one file per turn --------------------------------------------------
+#
+# N turns through one screen is N beams wanting one filename: the collision S4
+# fixed across lines, now within one. The turn suffix only appears when turns
+# were asked for, so a single-pass run keeps the names it always had.
+
+
+class NamingLine:
+    """A stub exposing just the naming path."""
+
+    def __init__(self, turns=1, colliding=(), name="LINAC"):
+        self.file_block = {"tracking": {"turns": turns}}
+        self.colliding_outputs = set(colliding)
+        self.objectname = name
+
+    turns = frameworkLattice.turns
+    output_basename = frameworkLattice.output_basename
+
+
+def test_a_single_turn_run_is_unchanged():
+    assert NamingLine(turns=1).output_basename("SCR", turn=1) == "SCR"
+
+
+def test_no_turn_given_is_unchanged():
+    assert NamingLine(turns=100).output_basename("SCR") == "SCR"
+
+
+def test_turns_qualify_the_name():
+    assert NamingLine(turns=100).output_basename("SCR", turn=7) == "SCR-t007"
+
+
+def test_the_index_is_padded_to_the_count():
+    """So the files sort in turn order rather than lexically."""
+    assert NamingLine(turns=1000).output_basename("SCR", turn=7) == "SCR-t0007"
+    assert NamingLine(turns=9).output_basename("SCR", turn=7) == "SCR-t7"
+
+
+def test_every_turn_gets_a_distinct_name():
+    line = NamingLine(turns=5)
+    names = {line.output_basename("SCR", turn=t) for t in range(1, 6)}
+    assert len(names) == 5
+
+
+def test_a_line_collision_and_a_turn_compose():
+    line = NamingLine(turns=20, colliding=["SCR"], name="PASS2")
+    assert line.output_basename("SCR", turn=3) == "PASS2-SCR-t03"
+
+
+def test_a_pass_selector_and_a_turn_compose():
+    line = NamingLine(turns=20)
+    assert line.output_basename("SCR#2", turn=3) == "SCR.2-t03"
+
+
+# --- the monitor has to be sized for the turns --------------------------
+
+
+def test_a_screen_monitor_is_sized_for_one_turn_by_default():
+    """`stop_at_turn` is how many slots a ParticlesMonitor has."""
+    pytest.importorskip("xtrack")
+    from laura.models.element import Screen
+    from laura.translator.converters.converter import translate_elements
+
+    screen = Screen(name="SCR", machine_area="A", physical={"length": 0.0})
+    _, _, properties = translate_elements([screen])["SCR"].to_xsuite(beam_length=10)
+    assert properties["stop_at_turn"] == 1
+
+
+def test_a_multi_turn_line_resizes_its_monitors():
+    """Otherwise every turn after the first is silently dropped."""
+    pytest.importorskip("xtrack")
+    from laura.models.element import Screen, Drift
+    from laura.models.elementList import SectionLattice, ElementList
+    from laura.translator.converters.section import SectionLatticeTranslator
+
+    screen = Screen(name="SCR", machine_area="A", physical={"length": 0.0})
+    drift = Drift(
+        name="D1",
+        hardware_class="Drift",
+        hardware_type="Drift",
+        machine_area="A",
+        physical={"length": 1.0},
+    )
+    section = SectionLattice(
+        name="S",
+        order=["D1", "SCR"],
+        elements=ElementList(elements={"D1": drift, "SCR": screen}),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        line = SectionLatticeTranslator.from_section(section).to_xsuite(
+            beam_length=10, turns=250
+        )
+    assert line["SCR"].stop_at_turn == 250
+
+
+# --- splitting a monitor's record into turns ----------------------------
+#
+# `monitor.x` is (particle, turn), but `data.to_dict()` flattens it and
+# carries an `at_turn` column saying which turn each row came from. Masking on
+# that is exact; slicing by stride would assume an ordering.
+
+
+def tracked_monitor(num_particles=4, num_turns=3):
+    """A real xtrack monitor, tracked, so the layout is measured not assumed."""
+    pytest.importorskip("xtrack")
+    import xtrack as xt
+    import xpart as xp
+
+    env = xt.Environment()
+    line = env.new_line()
+    line.append("d1", xt.Drift(length=1.0))
+    line.append(
+        "mon",
+        xt.ParticlesMonitor(
+            num_particles=num_particles, start_at_turn=0, stop_at_turn=num_turns
+        ),
+    )
+    line.particle_ref = xt.Particles(
+        p0c=[1e9], mass0=[xp.ELECTRON_MASS_EV], q0=-1
+    )
+    particles = xt.Particles(
+        p0c=1e9,
+        mass0=xp.ELECTRON_MASS_EV,
+        q0=-1,
+        x=[1e-3 * (i + 1) for i in range(num_particles)],
+    )
+    line.build_tracker()
+    line.track(particles, num_turns=num_turns)
+    return line["mon"]
+
+
+def test_a_monitor_records_one_row_per_particle_per_turn():
+    data = tracked_monitor(4, 3).data.to_dict()
+    import numpy as np
+
+    assert np.asarray(data["x"]).size == 12
+    assert list(np.asarray(data["at_turn"])) == [0, 1, 2] * 4
+
+
+def test_selecting_a_turn_keeps_one_row_per_particle():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+    import numpy as np
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    for turn in range(3):
+        selected = _select_turn(data, turn)
+        assert np.asarray(selected["x"]).size == 4
+        assert set(np.asarray(selected["at_turn"])) == {turn}
+
+
+def test_every_particle_appears_once_in_a_turn():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+    import numpy as np
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    ids = np.asarray(_select_turn(data, 1)["particle_id"])
+    assert sorted(ids) == [0, 1, 2, 3]
+
+
+def test_the_turns_partition_the_record():
+    """No row is dropped and none is counted twice."""
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+    import numpy as np
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    total = sum(np.asarray(_select_turn(data, t)["x"]).size for t in range(3))
+    assert total == np.asarray(data["x"]).size
+
+
+def test_a_dump_without_at_turn_is_returned_untouched():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+
+    data = {"x": [1, 2, 3]}
+    assert _select_turn(data, 0) is data
+
+
+# --- ocelot: the named mechanism was the wrong one ----------------------
+#
+# `track_nturns` sounds like the answer and is not: it takes single Particles
+# wrapped in Track_info for dynamic-aperture studies, never a ParticleArray or
+# a Navigator, so it carries none of this backend's physics or output. Turns
+# come from looping `track` and feeding the bunch back in.
+
+
+def test_ocelot_track_nturns_takes_a_track_list_not_a_bunch():
+    """Pins why it is not used: the signature is the evidence."""
+    pytest.importorskip("ocelot")
+    import inspect
+    from ocelot.cpbd.track import track_nturns
+
+    parameters = list(inspect.signature(track_nturns).parameters)
+    assert parameters[:3] == ["lat", "nturns", "track_list"]
+    assert "nsuperperiods" in parameters
+
+
+def test_ocelot_track_takes_a_particle_array_and_a_navigator():
+    """Which is what this backend uses, and why the loop goes around it."""
+    pytest.importorskip("ocelot")
+    import inspect
+    from ocelot.cpbd.track import track
+
+    parameters = list(inspect.signature(track).parameters)
+    assert parameters[:3] == ["lattice", "p_array", "navi"]
+
+
+def test_a_navigator_can_be_rewound_for_the_next_turn():
+    pytest.importorskip("ocelot")
+    from ocelot.cpbd.navi import Navigator
+
+    assert hasattr(Navigator, "go_to_start")
+
+
+def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
+    """The monitor filenames are fixed when the processes are built, so a
+    shared navigator would write every turn to the same file."""
+    import inspect
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    source = inspect.getsource(ocelotLattice.run)
+    assert "self.navi_setup(turn=" in source
+    # Called, not merely mentioned -- the comment above the loop names
+    # `track_nturns` precisely to say why it is the wrong one.
+    assert "track_nturns(" not in source
+
+
 # --- elegant, the one wired so far --------------------------------------
 
 
