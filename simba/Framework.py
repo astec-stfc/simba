@@ -28,6 +28,7 @@ import numpy as np
 from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement, Dipole
+from laura.models.elementList import flatten_occurrence, split_occurrence
 from laura.Exporters.YAML import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -1262,6 +1263,35 @@ class Framework(BaseModel):
         else:
             raise ValueError
 
+    def _default_layout(self):
+        """This machine's default beam path, or ``None`` if it has no machine."""
+        machine = getattr(self, "machine", None)
+        if machine is None:
+            return None
+        return machine.lattices.get(machine.default_path)
+
+    def _warn_if_shared_across_passes(self, element_name: str) -> None:
+        """Flag when a change reaches every pass through one device.
+
+        To vary a value *between* passes, state it per pass in
+        the layout (``overrides``) instead.
+        """
+        layout = self._default_layout()
+        if layout is None or not getattr(layout, "is_multipass", False):
+            return
+        passes = [
+            name
+            for name in layout.elements
+            if split_occurrence(name)[0] == element_name
+        ]
+        if len(passes) > 1:
+            warn(
+                f"'{element_name}' is entered {len(passes)} times by beam path "
+                f"'{layout.name}' ({', '.join(passes)}) and is one device, so "
+                "this change applies to every pass. Use a per-pass "
+                "'overrides' entry in the layout if you meant only one."
+            )
+
     def modifyElement(
         self,
         elementName: str,
@@ -1291,6 +1321,7 @@ class Framework(BaseModel):
         elif elementName in self.groupObjects:
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
+            self._warn_if_shared_across_passes(elementName)
             if "." in parameter:
                 obj = self.elementObjects[elementName]
                 set_deep_attr(obj, parameter, value)
@@ -1715,21 +1746,45 @@ class Framework(BaseModel):
         """
         return list(self.commandObjects.keys())
 
+    def path_arc_lengths(self) -> dict:
+        """Each element's arc length along the beam path, keyed as a line names it,
+        using :meth:`~laura.models.elementList.MachineLayout.arc_lengths` to calculate.
+
+        Its keys address a pass (``NAME#N``); a line names its elements the way
+        a flattened export does (``NAME.N``); conversion is done here.
+        """
+        layout = self._default_layout()
+        if layout is None:
+            return {}
+        try:
+            return {
+                flatten_occurrence(name): s for name, s in layout.arc_lengths().items()
+            }
+        except Exception:
+            return {}
+
     def getSValues(self) -> list:
         """
         Returns a list of S values for the current lattice from :attr:`~latticeObjects`;
         see :func:`~simba.Framework_objects.frameworkLattice.getSValues`.
+
+        Each line's values are offset to where that line actually starts along
+        the beam path, taken from :meth:`path_arc_lengths`. A line's own
+        ``getSValues`` restarts at zero. Falls back to zero for
+        any line the layout cannot place.
 
         Returns
         -------
         list
             S values for all elements
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects.values():
             try:
-                latticeS = [a + s0 for a in lo.getSValues()]
+                start = offsets.get(flatten_occurrence(lo.start), s0)
+                latticeS = [a + start for a in lo.getSValues()]
                 allS = allS + latticeS
                 s0 = allS[-1]
             except Exception:
@@ -1746,12 +1801,15 @@ class Framework(BaseModel):
         list
             Element names, element object and its S position
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects:
             if not lo == "generator":
-                names, elems, svals = self.latticeObjects[lo].getSNamesElems()
-                latticeS = [a + s0 for a in svals]
+                latt = self.latticeObjects[lo]
+                names, elems, svals = latt.getSNamesElems()
+                start = offsets.get(flatten_occurrence(latt.start), s0)
+                latticeS = [a + start for a in svals]
                 selems = list(zip(names, elems, latticeS))
                 allS = allS + selems
                 s0 = latticeS[-1]

@@ -1240,15 +1240,15 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
+            layout = self.machine.lattices.get(self.machine.default_path)
             order, vals = [], {}
             for key in keys:
-                element = self.machine.get_element(key)
+                element = layout.element_on_pass(key) if layout is not None else None
+                if element is None:
+                    element = self.machine.get_element(key)
                 if not isinstance(element, PhysicalBaseElement):
                     continue
                 flat = flatten_occurrence(key)
-                if flat != key:
-                    element = element.model_copy(deep=True)
-                    element.name = flat
                 order.append(flat)
                 vals[flat] = element
             section = SectionLattice(
