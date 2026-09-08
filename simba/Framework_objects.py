@@ -34,7 +34,11 @@ from copy import deepcopy
 import time
 
 from laura import LAURA
-from laura.models.elementList import SectionLattice, ElementList
+from laura.models.elementList import (
+    SectionLattice,
+    ElementList,
+    flatten_occurrence,
+)
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
@@ -741,7 +745,9 @@ class frameworkLattice(BaseModel):
         same name written by more than one line. All colliding occurrences are
         qualified, including the first, so the name follows from the settings file.
         """
-        if name in self.colliding_outputs:
+        qualified = name in self.colliding_outputs
+        name = flatten_occurrence(name)
+        if qualified:
             return f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
         return name
 
@@ -1234,9 +1240,19 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
-            vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
+            order, vals = [], {}
+            for key in keys:
+                element = self.machine.get_element(key)
+                if not isinstance(element, PhysicalBaseElement):
+                    continue
+                flat = flatten_occurrence(key)
+                if flat != key:
+                    element = element.model_copy(deep=True)
+                    element.name = flat
+                order.append(flat)
+                vals[flat] = element
             section = SectionLattice(
-                order=keys,
+                order=order,
                 elements=ElementList(elements=vals),
                 name=self.objectname,
                 master_lattice=self.global_parameters["master_lattice"],

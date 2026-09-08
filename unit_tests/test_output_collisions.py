@@ -173,3 +173,34 @@ def test_a_lattice_never_marked_qualifies_nothing():
 @pytest.mark.parametrize("name", ["CLA-S01-SCR", "SCR_WITH_UNDERSCORE", "X"])
 def test_unqualified_names_pass_through_verbatim(name):
     assert FakeLattice("L", [name]).output_basename(name) == name
+
+
+# --- a pass selector never reaches a filename ---------------------------
+#
+# `start_element: CAV_01#2` picks a traversal, and `self.end` is used as an
+# output filename by several codes. `#` is not a legal name character in
+# elegant or MAD-X, so the selector is converted to the `.N` a flattened
+# export writes before it can reach a file.
+
+
+def test_a_pass_selector_becomes_the_flattened_name():
+    latt = FakeLattice("PASS2", ["CAV_01#2"])
+    assert latt.output_basename("CAV_01#2") == "CAV_01.2"
+
+
+def test_no_output_name_can_contain_a_hash():
+    latt = FakeLattice("PASS2", ["CAV_01#2"])
+    latt.colliding_outputs = {"CAV_01#2"}
+    assert "#" not in latt.output_basename("CAV_01#2")
+
+
+def test_a_selector_and_a_collision_compose():
+    latt = FakeLattice("PASS2", ["CAV_01#2"])
+    latt.colliding_outputs = {"CAV_01#2"}
+    assert latt.output_basename("CAV_01#2") == "PASS2-CAV_01.2"
+
+
+def test_a_repeat_index_keeps_the_export_spelling():
+    """``DRIFT.2#1`` is drift 2 on pass 1, which export writes ``DRIFT.1.2``."""
+    latt = FakeLattice("PASS1", ["DRIFT.2#1"])
+    assert latt.output_basename("DRIFT.2#1") == "DRIFT.1.2"
