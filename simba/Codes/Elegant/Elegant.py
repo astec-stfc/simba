@@ -99,6 +99,9 @@ class elegantLattice(frameworkLattice):
     code: str = "elegant"
     """String indicating the lattice object type"""
 
+    supports_turns: ClassVar[bool] = True
+    """``run_control``'s ``n_passes``."""
+
     allow_negative_drifts: bool = False
     """Flag to indicate whether negative drifts are allowed"""
 
@@ -412,7 +415,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns,
-                    n_passes=1,
+                    n_passes=self.turns,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
                 )
@@ -436,7 +439,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns - 1,
-                    n_passes=1,
+                    n_passes=self.turns,
                     n_indices=1,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
@@ -454,7 +457,7 @@ class elegantLattice(frameworkLattice):
                 # print('run_control for standard runs with no jitter')
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
-                    n_steps=1, n_passes=1
+                    n_steps=1, n_passes=self.turns
                 )
 
             # print('twiss_output')

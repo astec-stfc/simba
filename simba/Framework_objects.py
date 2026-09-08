@@ -25,6 +25,7 @@ Classes:
     - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number of space charge grids given a number of particles.
 """
 
+import math
 import os
 import subprocess
 from warnings import warn
@@ -66,6 +67,7 @@ from pydantic import (
     Field,
 )
 from typing import (
+    ClassVar,
     Dict,
     List,
     Any,
@@ -574,6 +576,10 @@ class frameworkLattice(BaseModel):
     files: List = []
     """List of all files needed to run the lattice."""
 
+    supports_turns: ClassVar[bool] = False
+    """Whether this code can track a line more than once. Set on those that can:
+    currently elegant, Xsuite and Ocelot."""
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
@@ -736,6 +742,91 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    @property
+    def turns(self) -> int:
+        """How many times this line is tracked; ``1`` unless the settings say.
+
+        A turn count is a tracking setting rather than lattice data, so it is
+        read from the ``files:`` block::
+
+            files:
+              RING:
+                code: elegant
+                tracking: {turns: 1000}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return int(tracking.get("turns", 1))
+
+    def check_turns_supported(self) -> None:
+        """Warn when turns were asked for and this code cannot do them."""
+        if self.turns > 1 and not self.supports_turns:
+            warn(
+                f"Line '{self.objectname}' asks for {self.turns} turns, but "
+                f"{self.code} tracks a line once and has no turn count. One "
+                "turn will be tracked. elegant, Xsuite and Ocelot are the "
+                "codes that can."
+            )
+
+    def check_turns_closed(self, tolerance: float = 1e-4) -> None:
+        """Warn when more than one turn is asked of a line that does not close.
+
+        Closure is tested on LAURA's geometry: the first
+        element's entrance against the last element's exit, to ``tolerance``
+        relative to the path length.
+
+        A **superperiod** is the legitimate exception -- one sector of an
+        N-fold-symmetric ring is open on its own and closes after N of them.
+        """
+        if self.turns <= 1:
+            return
+        try:
+            entrance = self.startObject.physical.start
+            exit_ = self.endObject.physical.end
+        except (AttributeError, TypeError):
+            return
+        gap = math.dist(
+            (entrance.x, entrance.y, entrance.z), (exit_.x, exit_.y, exit_.z)
+        )
+        length = sum(
+            e.physical.length or 0.0
+            for e in self.elements.values()
+            if getattr(e, "physical", None) is not None
+        )
+        if not length or gap <= tolerance * length:
+            return
+        message = (
+            f"Line '{self.objectname}' is tracked for {self.turns} turns, but "
+            f"its geometry does not close: it ends {gap:.4g} m from where it "
+            f"starts, over {length:.4g} m."
+        )
+        turn = 2 * math.pi
+        angle = abs(self.net_bend_angle)
+        if angle > 1e-9 and abs(round(turn / angle) - turn / angle) < 1e-3:
+            message += (
+                f" Its net bend is a 1/{round(turn / angle)} fraction of a "
+                "turn, so if this is one superperiod of a symmetric ring, "
+                "track the whole ring instead."
+            )
+        warn(message)
+
+    @property
+    def net_bend_angle(self) -> float:
+        """Total bending angle of the line, in radians.
+
+        ``2*pi`` for a closed planar ring, or an even fraction for one
+        superperiod, see :meth:`check_turns_closed`.
+        """
+        total = 0.0
+        for element in self.elements.values():
+            magnetic = getattr(element, "magnetic", None)
+            if magnetic is None:
+                continue
+            try:
+                total += float(magnetic.KnL(0))
+            except (TypeError, ValueError, KeyError):
+                continue
+        return total
 
     def check_pass_rigidity(self, brho: float, tolerance: float = 0.01) -> None:
         """Warn if the tracked beam disagrees with this pass's stated momentum.
@@ -1619,6 +1710,8 @@ class frameworkLattice(BaseModel):
         -------
         None
         """
+        self.check_turns_supported()
+        self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:

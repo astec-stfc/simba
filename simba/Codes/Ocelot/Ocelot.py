@@ -50,6 +50,9 @@ class ocelotLattice(frameworkLattice):
     code: str = "ocelot"
     """String indicating the lattice object type"""
 
+    supports_turns: ClassVar[bool] = True
+    """``cpbd.track.track_nturns(lat, nturns, ..., nsuperperiods=1)``."""
+
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 

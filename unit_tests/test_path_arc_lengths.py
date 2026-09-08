@@ -160,16 +160,18 @@ def test_a_matching_rigidity_is_silent():
 def test_a_mismatched_rigidity_warns():
     from laura.models.magnetic import brho
 
-    with pytest.warns(UserWarning, match="out by the ratio"):
+    with pytest.warns(UserWarning, match="states a momentum of"):
         line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P1))
 
 
-def test_the_warning_reports_the_ratio():
-    """Half the momentum, so every field is out by a factor two."""
+def test_the_warning_reports_both_rigidities():
+    """Both numbers, so the reader can see the factor for themselves."""
     from laura.models.magnetic import brho
 
-    with pytest.warns(UserWarning, match=r"0\.5000"):
+    with pytest.warns(UserWarning) as caught:
         line(ERL, "LIN_Q#2").check_pass_rigidity(brho(P1))
+    message = str(caught[0].message)
+    assert f"{brho(P1):.4f}" in message and f"{brho(P2):.4f}" in message
 
 
 def test_a_small_drift_is_tolerated():

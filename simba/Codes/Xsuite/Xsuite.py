@@ -24,7 +24,7 @@ from copy import deepcopy
 import numpy as np
 import json
 
-from typing import Dict, List, Any, Literal
+from typing import Dict, List, Any, ClassVar, Literal
 
 
 class xsuiteLattice(frameworkLattice):
@@ -37,6 +37,9 @@ class xsuiteLattice(frameworkLattice):
 
     code: str = "xsuite"
     """String indicating the lattice object type"""
+
+    supports_turns: ClassVar[bool] = True
+    """``line.track(num_turns=...)``."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam.
