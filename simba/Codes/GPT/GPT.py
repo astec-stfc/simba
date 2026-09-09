@@ -229,6 +229,7 @@ class gptLattice(frameworkLattice):
         # self.headers['scatterplate'] = gpt_scatterplate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
+        self.check_pass_rigidity(self.global_parameters["beam"].Brho)
         fulltext = self.section.to_gpt(
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
@@ -544,7 +545,7 @@ class gptLattice(frameworkLattice):
         )
         self.beam.t += t0
         self.beam.s = UnitValue(sval, units="m")
-        HDF5filename = screen.name + ".openpmd.hdf5"
+        HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,

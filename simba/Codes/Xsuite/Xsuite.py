@@ -24,7 +24,30 @@ from copy import deepcopy
 import numpy as np
 import json
 
-from typing import Dict, List, Any, Literal
+from typing import Dict, List, Any, ClassVar, Literal
+
+
+def _select_turn(data: Dict, turn: int) -> Dict:
+    """One turn's rows out of a ``ParticlesMonitor``'s flattened dump.
+
+    A monitor records one row per particle per turn -- ``monitor.x`` is
+    ``(particle, turn)``.
+
+    Anything not the same length as ``at_turn`` (scalars, metadata) is passed
+    through untouched.
+    """
+    at_turn = np.asarray(data.get("at_turn", []))
+    if not at_turn.size:
+        return data
+    mask = at_turn == turn
+    selected = {}
+    for key, value in data.items():
+        array = np.asarray(value) if hasattr(value, "__len__") else None
+        if array is not None and array.ndim == 1 and array.size == at_turn.size:
+            selected[key] = array[mask]
+        else:
+            selected[key] = value
+    return selected
 
 
 class xsuiteLattice(frameworkLattice):
@@ -37,6 +60,9 @@ class xsuiteLattice(frameworkLattice):
 
     code: str = "xsuite"
     """String indicating the lattice object type"""
+
+    supports_turns: ClassVar[bool] = True
+    """``line.track(num_turns=...)``."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam.
@@ -128,7 +154,13 @@ class xsuiteLattice(frameworkLattice):
             zeta=0.0,
         )
         beam_length = len(self.global_parameters["beam"].x.val)
-        self.line = self.section.to_xsuite(beam_length, env=self.env, particle_ref=particle_ref, save=True)
+        self.line = self.section.to_xsuite(
+            beam_length,
+            env=self.env,
+            particle_ref=particle_ref,
+            save=True,
+            turns=self.turns,
+        )
         self.names = self.line.element_names
 
     def setup_collective_effects(self) -> None:
@@ -217,6 +249,12 @@ class xsuiteLattice(frameworkLattice):
         self.line.freeze_energy(state=False, force=True)
         pin = deepcopy(self.pin)
 
+        if self.turns > 1:
+            self.line.track(pin, num_turns=self.turns)
+            self.pout = pin
+            self.tws = self._twiss()
+            return
+
         for el, name in zip(self.line.elements, self.line.element_names):
             if isinstance(el, Cavity):
                 xt.ReferenceEnergyIncrease(
@@ -240,7 +278,11 @@ class xsuiteLattice(frameworkLattice):
             self.beam_data.update({name: stats})
         self.beam_data.update({"_end_point": stats})
         self.pout = pin
-        self.tws = self.line.twiss(
+        self.tws = self._twiss()
+
+    def _twiss(self):
+        """Twiss the line from the incoming beam's parameters."""
+        return self.line.twiss(
             betx=self.global_parameters["beam"].twiss.beta_x.val,
             alfx=self.global_parameters["beam"].twiss.alpha_x.val,
             bety=self.global_parameters["beam"].twiss.beta_y.val,
@@ -276,23 +318,31 @@ class xsuiteLattice(frameworkLattice):
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
-            f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5',
+            f'{self.global_parameters["master_subdir"]}/'
+            f'{self.output_basename(self.end)}.openpmd.hdf5',
         )
         for elem in self.screens_and_bpms:
-            fname = f'{self.global_parameters["master_subdir"]}/{elem.name}.xsuite.json'
-            with open(fname, 'w') as fid:
-                json.dump(self.line[elem.name].data.to_dict(), fid, cls=xo.JEncoder)
-            beam = deepcopy(self.global_parameters["beam"])
-            beam.read_xsuite_beam_file(
-                fname,
-                zstart=elem.physical.middle.z,
-                s=svals[elem.name],
-                ref_index=self.ref_idx,
-            )
-            rbf.openpmd.write_openpmd_beam_file(
-                beam,
-                f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
-            )
+            data = self.line[elem.name].data.to_dict()
+            for turn in range(1, self.turns + 1) if self.turns > 1 else [None]:
+                payload = data if turn is None else _select_turn(data, turn - 1)
+                stem = self.output_basename(elem.name, turn=turn)
+                fname = (
+                    f'{self.global_parameters["master_subdir"]}/{stem}.xsuite.json'
+                )
+                with open(fname, 'w') as fid:
+                    json.dump(payload, fid, cls=xo.JEncoder)
+                beam = deepcopy(self.global_parameters["beam"])
+                beam.read_xsuite_beam_file(
+                    fname,
+                    zstart=elem.physical.middle.z,
+                    s=svals[elem.name],
+                    ref_index=self.ref_idx,
+                )
+                rbf.openpmd.write_openpmd_beam_file(
+                    beam,
+                    f'{self.global_parameters["master_subdir"]}/'
+                    f'{stem}.openpmd.hdf5',
+                )
         df = self.tws.to_pandas()
         if self.ref_s is None:
             self.ref_s = self.startObject.physical.start.z

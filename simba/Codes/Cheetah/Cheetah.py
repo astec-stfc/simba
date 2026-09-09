@@ -247,7 +247,10 @@ class cheetahLattice(frameworkLattice):
             screens.update({self.end: self.pout})
         i = 0
         for name, scr in screens.items():
-            outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
+            outname = (
+                f'{self.global_parameters["master_subdir"]}/'
+                f'{self.output_basename(name).replace("_", "-")}.openpmd.hdf5'
+            )
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
         self.screen_threaded_function.gather()

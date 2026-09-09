@@ -27,10 +27,8 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
-from laura.models.diagnostic import DiagnosticElement
 
 
 class ocelotLattice(frameworkLattice):
@@ -49,6 +47,13 @@ class ocelotLattice(frameworkLattice):
 
     code: str = "ocelot"
     """String indicating the lattice object type"""
+
+    supports_turns: ClassVar[bool] = True
+    """By looping ``cpbd.track.track`` and feeding the bunch back in.
+
+    **Not** ``track_nturns``, despite the name: we need to track a ``ParticleArray``
+    via a ``Navigator``.
+    """
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -216,17 +221,20 @@ class ocelotLattice(frameworkLattice):
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
         from ocelot.cpbd.track import track
-        navi = self.navi_setup()
         pin = deepcopy(self.pin)
         if self.sample_interval > 1:
             pin = pin.thin_out(nth=self.sample_interval)
-        self.tws, self.pout = track(
-            self.lat_obj,
-            pin,
-            navi=navi,
-            calc_tws=True,
-            twiss_disp_correction=True,
-        )
+        for turn in range(1, self.turns + 1):
+            navi = self.navi_setup(turn=turn if self.turns > 1 else None)
+            navi.go_to_start()
+            self.tws, self.pout = track(
+                self.lat_obj,
+                pin,
+                navi=navi,
+                calc_tws=True,
+                twiss_disp_correction=True,
+            )
+            pin = self.pout
 
     def postProcess(self) -> None:
         """
@@ -255,9 +263,13 @@ class ocelotLattice(frameworkLattice):
                 self.mbi_navi.bf,
             )
 
-    def navi_setup(self) -> "Navigator":
+    def navi_setup(self, turn: int | None = None) -> "Navigator":
         """
         Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
+
+        ``turn`` is passed to :meth:`output_basename` for the ``SaveBeamOpenPMD``
+        processes, so each turn of a multi-turn run writes its own files rather
+        than overwriting the last. The navigator is rebuilt per turn.
 
         .. _Navigator: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/navi.py
 
@@ -357,7 +369,10 @@ class ocelotLattice(frameworkLattice):
             subdir = self.global_parameters["master_subdir"]
             navi_processes += [
                 SaveBeamOpenPMD(
-                    filename=f"{subdir}/{w.name}.openpmd.hdf5",
+                    filename=(
+                        f"{subdir}/"
+                        f"{self.output_basename(w.name, turn=turn)}.openpmd.hdf5"
+                    ),
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
                     ref_idx=self.ref_idx,
@@ -369,7 +384,10 @@ class ocelotLattice(frameworkLattice):
         subdir = self.global_parameters["master_subdir"]
         navi_processes += [
             SaveBeamOpenPMD(
-                filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
+                filename=(
+                    f"{subdir}/"
+                    f"{self.output_basename(self.names[-1], turn=turn)}.openpmd.hdf5"
+                ),
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
                 ref_idx=self.ref_idx,

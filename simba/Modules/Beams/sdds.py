@@ -5,6 +5,12 @@ from ..units import UnitValue
 from ..SDDSFile import SDDSFile, SDDS_Types
 
 
+def count_SDDS_pages(fileName, ascii=False) -> int:
+    """How many pages -- for a watch point, how many passes -- ``fileName`` has.
+    """
+    return SDDSFile(index=0, ascii=ascii).count_pages(fileName)
+
+
 def read_SDDS_beam_file(
     self, fileName, charge=None, ascii=False, page=-1, xyzoffset=[0, 0, 0], ref_index=None
 ):

@@ -25,6 +25,7 @@ Classes:
     - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number of space charge grids given a number of particles.
 """
 
+import math
 import os
 import subprocess
 from warnings import warn
@@ -34,7 +35,12 @@ from copy import deepcopy
 import time
 
 from laura import LAURA
-from laura.models.elementList import SectionLattice, ElementList
+from laura.models.elementList import (
+    SectionLattice,
+    ElementList,
+    flatten_occurrence,
+)
+from laura.models.magnetic import brho as laura_brho
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
@@ -61,10 +67,19 @@ from pydantic import (
     Field,
 )
 from typing import (
+    ClassVar,
     Dict,
     List,
     Any,
+    Set,
 )
+
+OUTPUT_TURN_SEPARATOR = "-t"
+"""Separates an element name from a turn index in an output beam filename,
+multi-turn only."""
+
+OUTPUT_LINE_SEPARATOR = "-"
+"""Separates a line name from an element name in an output beam filename."""
 
 if os.name == "nt":
     # from .Modules.symmlinks import has_symlink_privilege
@@ -480,6 +495,12 @@ class frameworkLattice(BaseModel):
     file_block: Dict
     """File block containing input and output settings for the lattice."""
 
+    colliding_outputs: Set[str] = set()
+    """Element names another line in this run also writes an output file for.
+
+    Set by :meth:`~simba.Framework.Framework.track` before anything is
+    written. See :meth:`output_basename`."""
+
     machine: LAURA
     """LAURA model of the lattice"""
 
@@ -558,6 +579,10 @@ class frameworkLattice(BaseModel):
 
     files: List = []
     """List of all files needed to run the lattice."""
+
+    supports_turns: ClassVar[bool] = False
+    """Whether this code can track a line more than once. Set on those that can:
+    currently elegant, Xsuite and Ocelot."""
 
     def model_post_init(self, __context):
         # super().model_post_init(__context)
@@ -721,6 +746,138 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    @property
+    def turns(self) -> int:
+        """How many times this line is tracked; ``1`` unless the settings say.
+
+        A turn count is a tracking setting rather than lattice data, so it is
+        read from the ``files:`` block::
+
+            files:
+              RING:
+                code: elegant
+                tracking: {turns: 1000}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return int(tracking.get("turns", 1))
+
+    def check_turns_supported(self) -> None:
+        """Warn when turns were asked for and this code cannot do them."""
+        if self.turns > 1 and not self.supports_turns:
+            warn(
+                f"Line '{self.objectname}' asks for {self.turns} turns, but "
+                f"{self.code} tracks a line once and has no turn count. One "
+                "turn will be tracked. elegant, Xsuite and Ocelot are the "
+                "codes that can."
+            )
+
+    def check_turns_closed(self, tolerance: float = 1e-4) -> None:
+        """Warn when more than one turn is asked of a line that does not close.
+
+        Closure is tested on LAURA's geometry: the first
+        element's entrance against the last element's exit, to ``tolerance``
+        relative to the path length.
+
+        A **superperiod** is the legitimate exception -- one sector of an
+        N-fold-symmetric ring is open on its own and closes after N of them.
+        """
+        if self.turns <= 1:
+            return
+        try:
+            entrance = self.startObject.physical.start
+            exit_ = self.endObject.physical.end
+        except (AttributeError, TypeError):
+            return
+        gap = math.dist(
+            (entrance.x, entrance.y, entrance.z), (exit_.x, exit_.y, exit_.z)
+        )
+        length = sum(
+            e.physical.length or 0.0
+            for e in self.elements.values()
+            if getattr(e, "physical", None) is not None
+        )
+        if not length or gap <= tolerance * length:
+            return
+        message = (
+            f"Line '{self.objectname}' is tracked for {self.turns} turns, but "
+            f"its geometry does not close: it ends {gap:.4g} m from where it "
+            f"starts, over {length:.4g} m."
+        )
+        turn = 2 * math.pi
+        angle = abs(self.net_bend_angle)
+        if angle > 1e-9 and abs(round(turn / angle) - turn / angle) < 1e-3:
+            message += (
+                f" Its net bend is a 1/{round(turn / angle)} fraction of a "
+                "turn, so if this is one superperiod of a symmetric ring, "
+                "track the whole ring instead."
+            )
+        warn(message)
+
+    @property
+    def net_bend_angle(self) -> float:
+        """Total bending angle of the line, in radians.
+
+        ``2*pi`` for a closed planar ring, or an even fraction for one
+        superperiod, see :meth:`check_turns_closed`.
+        """
+        total = 0.0
+        for element in self.elements.values():
+            magnetic = getattr(element, "magnetic", None)
+            if magnetic is None:
+                continue
+            try:
+                total += float(magnetic.KnL(0))
+            except (TypeError, ValueError, KeyError):
+                continue
+        return total
+
+    def check_pass_rigidity(self, brho: float, tolerance: float = 0.01) -> None:
+        """Warn if the tracked beam disagrees with this pass's stated momentum.
+
+        Codes that take a field rather than a normalised strength get ``Brho``
+        from the beam actually loaded.
+        The ``k`` came from the layout, resolved at the momentum that
+        pass states.
+
+        A warning rather than a refusal.
+        """
+        stated = None
+        layout = None
+        machine = getattr(self, "machine", None)
+        if machine is not None:
+            layout = machine.lattices.get(machine.default_path)
+        if layout is not None:
+            stated = layout.pass_momentum(self.start)
+        if stated is None or not brho:
+            return
+        expected = laura_brho(stated)
+        if abs(brho - expected) > tolerance * expected:
+            warn(
+                f"Line '{self.objectname}' tracks a beam of rigidity "
+                f"{float(brho):.4f} T.m, but pass {self.start} states a "
+                f"momentum of {stated:.4g} eV/c ({expected:.4f} T.m)."
+            )
+
+    def output_basename(self, name: str, turn: int | None = None) -> str:
+        """Filename stem for ``name``'s output beam file, qualified if needed.
+
+        Output beam files are named by element alone, so they must not clash for
+        multi-turn tracking. Qualifies only what actually collides:
+        :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
+        same name written by more than one line. All colliding occurrences are
+        qualified, including the first, so the name follows from the settings file.
+
+        ``turn`` qualifies the other axis. It is ignored on a single-turn run,
+        so nothing changes for a lattice that does not ask for turns.
+        """
+        qualified = name in self.colliding_outputs
+        name = flatten_occurrence(name)
+        if qualified:
+            name = f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
+        if turn is not None and self.turns > 1:
+            name = f"{name}{OUTPUT_TURN_SEPARATOR}{turn:0{len(str(self.turns))}d}"
+        return name
 
     def get_prefix(self) -> str:
         """
@@ -1211,9 +1368,19 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
-            vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
+            layout = self.machine.lattices.get(self.machine.default_path)
+            order, vals = [], {}
+            for key in keys:
+                element = layout.element_on_pass(key) if layout is not None else None
+                if element is None:
+                    element = self.machine.get_element(key)
+                if not isinstance(element, PhysicalBaseElement):
+                    continue
+                flat = flatten_occurrence(key)
+                order.append(flat)
+                vals[flat] = element
             section = SectionLattice(
-                order=keys,
+                order=order,
                 elements=ElementList(elements=vals),
                 name=self.objectname,
                 master_lattice=self.global_parameters["master_lattice"],
@@ -1554,6 +1721,8 @@ class frameworkLattice(BaseModel):
         -------
         None
         """
+        self.check_turns_supported()
+        self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:

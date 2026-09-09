@@ -99,6 +99,9 @@ class elegantLattice(frameworkLattice):
     code: str = "elegant"
     """String indicating the lattice object type"""
 
+    supports_turns: ClassVar[bool] = True
+    """``run_control``'s ``n_passes``."""
+
     allow_negative_drifts: bool = False
     """Flag to indicate whether negative drifts are allowed"""
 
@@ -412,7 +415,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns,
-                    n_passes=1,
+                    n_passes=self.turns,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
                 )
@@ -436,7 +439,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns - 1,
-                    n_passes=1,
+                    n_passes=self.turns,
                     n_indices=1,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
@@ -454,7 +457,7 @@ class elegantLattice(frameworkLattice):
                 # print('run_control for standard runs with no jitter')
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
-                    n_steps=1, n_passes=1
+                    n_steps=1, n_passes=self.turns
                 )
 
             # print('twiss_output')
@@ -609,17 +612,29 @@ class elegantLattice(frameworkLattice):
         ref_index: int, optional
             Reference particle index
         """
-        beam = rbf.beam()
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
-        rbf.sdds.read_SDDS_beam_file(
-            beam,
-            elegantbeamfilename,
-            xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
-            ref_index=ref_index
+        xyzoffset = list(
+            self.elementObjects[screen.name].physical.start.model_dump().values()
         )
-        HDF5filename = f"{rootname}.openpmd.hdf5"
-        rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        pages = [-1]
+        if self.turns > 1:
+            pages = list(range(rbf.sdds.count_SDDS_pages(elegantbeamfilename)))
+        for index, page in enumerate(pages, start=1):
+            beam = rbf.beam()
+            rbf.sdds.read_SDDS_beam_file(
+                beam,
+                elegantbeamfilename,
+                page=page,
+                xyzoffset=xyzoffset,
+                ref_index=ref_index,
+            )
+            turn = None if self.turns <= 1 else index
+            HDF5filename = (
+                f"{self.global_parameters['master_subdir']}/"
+                f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"
+            )
+            rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 

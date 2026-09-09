@@ -150,7 +150,10 @@ class waketLattice(frameworkLattice):
         Convert the outputs from Wake-T to a `beam` object and save them to `master_subdir`.
         """
         super().postProcess()
-        outbeamname = f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5'
+        outbeamname = (
+            f'{self.global_parameters["master_subdir"]}/'
+            f'{self.output_basename(self.end)}.openpmd.hdf5'
+        )
         particle_bunch_to_beam(
             self.global_parameters["beam"],
             self.bunch_list[-1],
