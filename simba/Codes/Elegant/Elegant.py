@@ -625,12 +625,12 @@ class elegantLattice(frameworkLattice):
 
     def run(self):
         """Run the code with input 'filename'"""
+        command = self.executables[self.code] + [self.objectname + ".ele"]
+        workdir = os.path.abspath(self.global_parameters["master_subdir"])
+        command = self.executables.build_command(command, workdir)
         if self.remote_setup:
             super().run_remote()
         elif not os.name == "nt":
-            command = self.executables[self.code] + [self.objectname + ".ele"]
-            workdir = os.path.abspath(self.global_parameters["master_subdir"])
-            command = self.executables.build_command(command, workdir)
             if self.global_parameters["simcodes_location"] is None:
                 my_env = {**os.environ}
             else:
@@ -658,7 +658,6 @@ class elegantLattice(frameworkLattice):
                 )
         else:
             code_string = " ".join(self.executables[self.code]).lower()
-            command = self.executables[self.code] + [self.objectname + ".ele"]
             if "pelegant" in code_string:
                 if self.global_parameters["simcodes_location"] is not None:
                     command = (
@@ -671,11 +670,10 @@ class elegantLattice(frameworkLattice):
                                     self.global_parameters["simcodes_location"]
                                 )
                                 + "/Elegant/defns.rpn"
-                            ).replace("/", "\\"),
+                            ),
                         ]
                         + command[1:]
                     )
-                command = [c.replace("/", "\\") for c in command]
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
@@ -689,7 +687,6 @@ class elegantLattice(frameworkLattice):
                         command, stdout=f, cwd=self.global_parameters["master_subdir"]
                     )
             else:
-                command = [c.replace("/", "\\") for c in command]
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
@@ -709,7 +706,7 @@ class elegantLattice(frameworkLattice):
                                     self.global_parameters["simcodes_location"]
                                 )
                                 + "/Elegant/defns.rpn"
-                            ).replace("/", "\\")
+                            )
                         },
                     )
 
