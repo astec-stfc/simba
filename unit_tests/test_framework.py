@@ -2,8 +2,11 @@ import os
 import pytest
 from unittest.mock import MagicMock
 import shutil
+from pathlib import Path
 from pydantic import ValidationError
 import simba.Framework as fw
+from simba.Framework_objects import chicane
+from simba.Modules import Beams as rbf
 from simba.Codes.Generators import (
     frameworkGenerator,
     ASTRAGenerator,
@@ -13,8 +16,9 @@ from simba.Framework_lattices import (
     elegantLattice,
     astraLattice,
     cheetahLattice,
+    bmadLattice,
 )
-from laura.models.element import Quadrupole, Marker, PhysicalBaseElement
+from laura.models.element import Dipole, Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
@@ -202,6 +206,29 @@ def test_modifyElement(sample_framework):
     fw_obj.modifyElement("E1", "name", "NewE1")
     assert fw_obj.elementObjects["E1"].name == "NewE1"
 
+
+def test_check_lattice_after_chicane_angle_change(sample_framework):
+    dipoles = {
+        f"D{index + 1}": Dipole(
+            name=f"D{index + 1}",
+            machine_area="A1",
+            magnetic={"length": 0.2, "angle": 0.0},
+            physical={"length": 0.2, "middle": {"x": 0, "y": 0, "z": index}},
+        )
+        for index in range(4)
+    }
+    sample_framework.elementObjects = dipoles
+
+    chicane(
+        "bunch_compressor",
+        sample_framework,
+        "chicane",
+        list(dipoles),
+    ).set_angle(0.1)
+
+    assert sample_framework.check_lattice()
+
+
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
@@ -265,11 +292,14 @@ def test_change_subdirectory(sample_framework):
 def test_change_lattice_code(framework_with_machine):
     framework_with_machine.change_Lattice_Code("FODO", "elegant")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], elegantLattice)
+    framework_with_machine.change_Lattice_Code("FODO", "bmad")
+    assert isinstance(framework_with_machine.latticeObjects["FODO"], bmadLattice)
     framework_with_machine.change_Lattice_Code("All", "cheetah")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], cheetahLattice)
     framework_with_machine.change_Lattice_Code(["FODO"], "astra")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], astraLattice)
     shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
+
 
 def test_modify_lattices(framework_with_machine):
     framework_with_machine.modifyLattices("FODO", "lsc_enable", False)

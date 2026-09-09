@@ -15,7 +15,7 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
         energy=beam_energy,
         dtype=float64,
     )
-    interpret_cheetah_ParticleBeam(self, parray, beam_energy, zstart=zstart, s=s, ref_index=ref_index)
+    interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
 
 
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
@@ -38,9 +38,9 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.y = UnitValue(parray.y.numpy(), "m")
     self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
     # self._beam["p"] = parray.energies.numpy()
-    self._beam.px = UnitValue(parray.px.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(parray.py.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    cp = parray.energies.numpy()
+    cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
+    self._beam.px = UnitValue(parray.px.numpy() * cp * self.q_over_c, "kg*m/s")
+    self._beam.py = UnitValue(parray.py.numpy() * cp * self.q_over_c, "kg*m/s")
     self._beam.pz = UnitValue((
         self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
     ), "kg*m/s")
@@ -50,7 +50,6 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
 
     if ref_index is not None:
         self.reference_particle_index = int(ref_index)
-        """ If we have a reference particle, t=0 is relative to it """
         self._beam.z = UnitValue(
             zstart
             + (-1 * self._beam.Bz * constants.speed_of_light)
@@ -83,13 +82,14 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     y = self.y.val
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
-    p = (self.energy.val - E) / E
+    p0c = np.sqrt(E**2 - self.E0_eV**2)
+    p = (self.energy.val - E) / p0c
     tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = self.s
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     num_particles = len(x)
-    particles = ones((num_particles, 7))
+    particles = ones((num_particles, 7), dtype=float64)
     particles[:, :6] = tensor(rparticles.transpose(), dtype=float64)
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
     particle_charges = tensor(q_array, dtype=float64)

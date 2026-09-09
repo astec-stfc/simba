@@ -54,7 +54,7 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
         cp = self.E0 * np.sqrt(gdfbeamdata.avgG**2 - 1)
         # self.cp.val = np.append(self.cp.val, cp / constants.elementary_charge)
         ke = np.array(
-            (np.sqrt(self.E0**2 + cp**2) - self.E0**2) / constants.elementary_charge
+            (np.sqrt(self.E0**2 + cp**2) - self.E0) / constants.elementary_charge
         )
         self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
         gamma = 1 + ke / self.E0_eV

@@ -15,6 +15,7 @@ SimulationFramework/Examples/S2EBunchPrePostCombined_v2.sdds
 SimulationFramework/Examples/S2EBunchPrePostCombined.astra
 SAMM3.0/Examples
 examples/notebooks/getting_started/
+examples/fbpic_lwfa/
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.astra
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.gdf
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.ocelot.npz
