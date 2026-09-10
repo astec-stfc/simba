@@ -29,34 +29,39 @@ dependencies = [
     "fastKDE>=2.1.5",
     "pydantic>=2.5.3",
     "attrs>=23.2.0",
-    "ocelot-desy==25.06.0",
     "scipy>=1.5",
     "soliday.sdds",
     "easygdf>=2.1.1",
-    "xsuite>=0.39.0",
     "paramiko",
     "deap",
     "pyqtgraph",
     "numba",
     "pyfftw",
     "numexpr",
-    "cheetah-accelerator>=0.7.5",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "Wake-T>=0.8.0",
+    "laura-accelerator>=1.0.2",
     "laura-accelerator",
-    "cpymad>=1.19.0",
     "tfs-pandas",
     "pytao>=1.0.0",
 ]
 
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 classifiers = [
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 #    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 
 [project.optional-dependencies]
+
+simcodes = [
+    "ocelot-desy==25.06.0",
+    "xsuite>=0.39.0",
+    "cheetah-accelerator>=0.8.4",
+    "Wake-T>=0.8.0",
+    "cpymad>=1.19.0",
+]
 
 test = [
     "pytest",
@@ -74,6 +79,12 @@ docs = [
 [tool.setuptools_scm]
 version_scheme = "post-release"   # valid built-in scheme
 local_scheme = "no-local-version" # removes +untagged suffix
+
+
+[tool.pytest.ini_options]
+markers = [
+    "needs_container: requires docker and the simcodes image (see docs/source/SimCodes.rst)",
+]
 
 
 [project.urls]

@@ -31,7 +31,7 @@ setup(
         "numba",
         "pyfftw",
         "numexpr",
-        "cheetah-accelerator>=0.7.5",
+        "cheetah-accelerator>=0.8.4",
         "openpmd-beamphysics>=0.10",
         "xopt",
     ],
@@ -48,7 +48,7 @@ setup(
             "*.yaml",
         ]
     },
-    python_requires=">=3.10",
+    python_requires=">=3.11",
     long_description=readme,
     long_description_content_type="text/markdown",
 )

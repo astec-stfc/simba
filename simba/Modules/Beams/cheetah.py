@@ -85,7 +85,7 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     p0c = np.sqrt(E**2 - self.E0_eV**2)
     p = (self.energy.val - E) / p0c
     tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
-    s = self.s
+    s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     num_particles = len(x)

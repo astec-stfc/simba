@@ -35,7 +35,7 @@ from copy import deepcopy
 import time
 
 from laura import LAURA
-from laura.models.elementList import (
+from laura.models.element_list import (
     SectionLattice,
     ElementList,
     flatten_occurrence,
@@ -486,10 +486,10 @@ class frameworkLattice(BaseModel):
     name: str
     """Name of the lattice, used as a prefix for output files and commands."""
 
-    objectname: str | None = ""
+    objectname: str = ""
     """Name of the lattice, used as a prefix for output files and commands."""
 
-    objecttype: str | None = ""
+    objecttype: str = ""
     """Type of the lattice, used as a prefix for output files and commands."""
 
     file_block: Dict
@@ -586,6 +586,9 @@ class frameworkLattice(BaseModel):
     files: List = []
     """List of all files needed to run the lattice."""
 
+    code: str = None
+    """Code to run the lattice."""
+
     supports_turns: ClassVar[bool] = False
     """Whether this code can track a line more than once. Set on those that can:
     currently elegant, Xsuite and Ocelot."""
@@ -657,15 +660,6 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally, and private attributes too --
-        # pydantic keeps those in __pydantic_private__, whereas
-        # object.__setattr__ would drop them into the instance __dict__ where
-        # they survive only until the next field assignment re-validates the
-        # model (`validate_assignment=True`) and rebuilds __dict__. That is how
-        # `csr_enable`/`lsc_enable` and the cached `_section` used to be
-        # silently reset partway through preProcess.
-        # Everything else (element names set in model_post_init) bypasses
-        # pydantic deliberately, to avoid validating them as extra fields.
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
@@ -1315,9 +1309,6 @@ class frameworkLattice(BaseModel):
         """
         if "start_element" in self.file_block["output"]:
             return self.file_block["output"]["start_element"]
-        # elementObjects is the whole machine, not just this lattice, and it contains
-        # off-beamline hardware -- the virtual cathode camera CLA-VCA-DIA-CAM-01 sits at
-        # z=0 with no beam through it. Only elements on the beam path can start a lattice.
         beam_path = self.machine.elements_between(end=self.end)
         if "zstart" in self.file_block["output"]:
             zstart = self.file_block["output"]["zstart"]
@@ -1328,9 +1319,6 @@ class frameworkLattice(BaseModel):
                 and not self.elementObjects[name].subelement
                 and np.isclose(self.elementObjects[name].physical.start.z, zstart, atol=1e-2)
             ]
-            # several elements can share a z: at the cathode the HRG1 section lists three
-            # laser shutters and an aperture, all zero-length, ahead of the gun cavity.
-            # Prefer something with real extent, so the answer does not depend on ordering.
             for name in candidates:
                 if self.elementObjects[name].physical.length > 0:
                     return name
@@ -1514,6 +1502,8 @@ class frameworkLattice(BaseModel):
             self.run_remote()
         else:
             command = self.executables[self.code] + [self.name]
+            workdir = os.path.abspath(self.global_parameters["master_subdir"])
+            command = self.executables.build_command(command, workdir)
             with open(
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",
@@ -2662,10 +2652,6 @@ class chicane(frameworkGroup):
         dipole_names = list(self.elements)
         dipoles = [self.allElementObjects[e] for e in dipole_names]
         zs = [d.physical.middle.z for d in dipoles]
-        # Everything between the first and last dipole rides on the chicane's
-        # displaced axis, so it has to be moved with the dipoles -- otherwise the
-        # mid-chicane elements keep their design-angle x and the drifts around them
-        # pick up a bogus transverse offset.
         between = [
             (z, e)
             for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
@@ -2675,10 +2661,6 @@ class chicane(frameworkGroup):
 
         z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
 
-        # Walk the reference trajectory. Each magnet keeps its z position, and its faces
-        # stay perpendicular to the 0mm axis, so it spans a *fixed* z; the beam crosses
-        # it on an arc that lengthens as the angle opens up, and the edge angles (which
-        # the lattice defines as tracking `angle`) carry the resulting edge focusing.
         x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
         dipole_number = 0
         for e in obj:
