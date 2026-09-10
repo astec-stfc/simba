@@ -1,6 +1,5 @@
 import os
 import pytest
-from pathlib import Path
 from unittest.mock import patch
 from simba.Codes.Executables import Executables
 
@@ -40,11 +39,14 @@ def test_apptainer_runtime_resolves_full_command(tmp_path):
 def test_linux_only_codes_raise_on_windows(tmp_path):
     ex = Executables({"simcodes_location": str(tmp_path)})
     # codes with a real Windows build still resolve, to a file that actually exists -
-    # not hardcoded to whichever subpath `Executables.yaml`'s `nt:` section uses today
-    elegant_path = Path(ex["elegant"][0])
-    elegant_path.parent.mkdir(parents=True, exist_ok=True)
-    elegant_path.touch()
-    assert elegant_path.is_file()
+    # not hardcoded to whichever subpath `Executables.yaml`'s `nt:` section uses today.
+    # `os.name` is patched process-wide above (it's the same `os` module everywhere),
+    # so pathlib.Path would try to build a WindowsPath on this (possibly POSIX) host
+    # and fail - stick to plain os.path/open, which don't care about `os.name`.
+    elegant_path = ex["elegant"][0]
+    os.makedirs(os.path.dirname(elegant_path), exist_ok=True)
+    open(elegant_path, "w").close()
+    assert os.path.isfile(elegant_path)
     for code in ("opal", "genesis"):
         with pytest.raises(RuntimeError, match="WSL"):
             ex[code]
