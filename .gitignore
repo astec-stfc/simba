@@ -32,3 +32,4 @@ docs/source/examples/notebooks/utility_functions/*
 docs/source/examples/notebooks/changes.yaml
 docs/source/examples/notebooks/params.yaml
 M1.openpmd.hdf5
+unit_tests/S.json
