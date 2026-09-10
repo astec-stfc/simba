@@ -7,7 +7,10 @@ def cumtrapz(
         x: list | np.ndarray = [],
         y: list | np.ndarray = []
 ):
-    return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
+    try:
+        return [np.trapezoid(x=x[:n], y=y[:n]) for n in range(len(x))]
+    except AttributeError as e:
+        return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 def read_cheetah_twiss_files(self, filename, reset=True):
     if reset:

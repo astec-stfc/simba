@@ -8,6 +8,7 @@ import os
 
 @pytest.fixture
 def simple_beam():
+    np.random.seed(42)  # keep the randomly-generated beam reproducible across runs
     beam = rbf.beam()
     particle_mass = UnitValue(m_e, "kg")
     E0 = UnitValue(particle_mass * c ** 2, "J")
