@@ -34,6 +34,7 @@ from . import cheetah
 from . import opal
 from . import xsuite
 from . import genesis
+from . import madx
 from . import bmad
 
 try:
@@ -55,6 +56,7 @@ codes = {
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
     "genesis": genesis.read_genesis_twiss_files,
+    "madx": madx.read_madx_twiss_files,
     "bmad": bmad.read_bmad_twiss_files,
 }
 
@@ -70,6 +72,7 @@ code_signatures = [
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
+    ["madx", "_twiss.madx.hdf5"],
     ["bmad", "_twiss.bmad.hdf5"],
 ]
 
@@ -434,6 +437,7 @@ class twiss(BaseModel):
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
             "genesis": genesis.read_genesis_twiss_files,
+            "madx": madx.read_madx_twiss_files,
             "bmad": bmad.read_bmad_twiss_files,
         }
         self.code_signatures = code_signatures
@@ -514,6 +518,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return genesis.read_genesis_twiss_files(self, *args, **kwargs)
+
+    def read_madx_twiss_files(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return madx.read_madx_twiss_files(self, *args, **kwargs)
 
     def read_bmad_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -961,6 +970,7 @@ class twiss(BaseModel):
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
+            "madx": "_twiss.madx.hdf5",
             "bmad": "_twiss.bmad.hdf5",
         },
         preglob: str = "*",
@@ -1028,6 +1038,7 @@ def load_directory(
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",
+        "madx": "_twiss.madx.hdf5",
         "bmad": "_twiss.bmad.hdf5",
     },
     preglob="*",

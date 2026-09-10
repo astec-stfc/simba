@@ -1,3 +1,7 @@
+Examples/
+Manuals/
+.vscode/
+
 build/
 dist/
 *.egg*/

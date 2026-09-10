@@ -10,6 +10,23 @@ def cumtrapz(x=[], y=[]):
         return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 
+def read_s_offset(filename, lattice_name) -> float:
+    """
+    Distance between this lattice's s and z origins, written next to the ASTRA output by
+    :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.write_s_offset`. It is non-zero once
+    anything upstream bends -- a chicane's path is longer than its projection onto z.
+
+    Returns 0.0 when the file is absent, so directories written before this existed, or
+    by something other than SIMBA, still read as s == z.
+    """
+    path = os.path.join(os.path.dirname(filename), lattice_name + ".s_offset")
+    try:
+        with open(path) as f:
+            return float(f.read())
+    except (OSError, ValueError):
+        return 0.0
+
+
 def read_astra_twiss_files(self, filename, reset=True) -> None:
     if reset:
         self.reset_dicts()
@@ -18,6 +35,7 @@ def read_astra_twiss_files(self, filename, reset=True) -> None:
             self.read_astra_twiss_files(f, reset=False)
     elif os.path.isfile(filename):
         lattice_name = os.path.basename(filename).split(".")[0]
+        s_offset = read_s_offset(filename, lattice_name)
         if "xemit" not in filename.lower():
             filename = filename.replace("Yemit", "Xemit").replace("Zemit", "Xemit")
         xemit = (
@@ -33,10 +51,10 @@ def read_astra_twiss_files(self, filename, reset=True) -> None:
         zemit = (
             np.loadtxt(filename, unpack=False) if os.path.isfile(filename) else False
         )
-        interpret_astra_data(self, lattice_name, xemit, yemit, zemit)
+        interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset)
 
 
-def interpret_astra_data(self, lattice_name, xemit, yemit, zemit) -> None:
+def interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset=0.0) -> None:
     z, t, mean_x, rms_x, rms_xp, exn, mean_xxp = np.transpose(xemit)
     z, t, mean_y, rms_y, rms_yp, eyn, mean_yyp = np.transpose(yemit)
     z, t, e_kin, rms_z, rms_e, ezn, mean_zep = np.transpose(zemit)
@@ -52,7 +70,8 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit) -> None:
     )
 
     self.z.val = np.append(self.z.val, z)
-    self.s.val = np.append(self.s.val, z)
+    # ASTRA only knows lab z; s additionally carries the path length of upstream bends
+    self.s.val = np.append(self.s.val, z + s_offset)
     self.t.val = np.append(self.t.val, t)
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, e_kin)
     gamma = 1 + (e_kin / self.E0_eV)

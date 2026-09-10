@@ -21,10 +21,10 @@ def read_xsuite_twiss_files(self, filename, reset=True):
 
 
 def interpret_xsuite_data(self, lattice_name, fdat):
-    self.z.val = np.append(self.z.val, np.array(fdat["s"])[1:])
-    self.s.val = np.append(self.s.val, np.array(fdat["s"])[1:])
-    self.z.val = np.append(self.z.val, np.array(fdat["s"])[-1])
-    self.s.val = np.append(self.s.val, np.array(fdat["s"])[-1])
+    self.z.val = np.append(
+        self.z.val, np.array(fdat["z"] if "z" in fdat else fdat["s"])
+    )
+    self.s.val = np.append(self.s.val, np.array(fdat["s"]))
     E = fdat["momentum"]
     ke = E - self.E0_eV
     gamma = E / self.E0_eV
@@ -78,9 +78,14 @@ def interpret_xsuite_data(self, lattice_name, fdat):
     self.lattice_name.val = np.append(
         self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
     )
-    # ## BEAM parameters
-    self.ecnx.val = np.append(self.ecnx.val, fdat["emit_xn"])
-    self.ecny.val = np.append(self.ecny.val, fdat["emit_yn"])
+    self.ecnx.val = np.append(
+        self.ecnx.val,
+        fdat["emit_xn_corrected"] if "emit_xn_corrected" in fdat else fdat["emit_xn"],
+    )
+    self.ecny.val = np.append(
+        self.ecny.val,
+        fdat["emit_yn_corrected"] if "emit_yn_corrected" in fdat else fdat["emit_yn"],
+    )
     self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["dx"])
     self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["dpx"])
     self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["dy"])

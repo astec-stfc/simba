@@ -1,0 +1,11 @@
+single_particle: False
+nslice_quadrupole: 4
+nslice_sbend: 8
+cavity_model: rsmatrix
+nslice_rfcavity: 10
+nslice_default: 1
+makethin_style: teapot
+makedipedge: True
+maxaper: [100.0, 100.0, 100.0, 100.0, 1000.0, 1000.0]
+write_model_twiss: True
+fd_delta: 0.000001

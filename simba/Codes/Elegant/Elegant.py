@@ -406,7 +406,7 @@ class elegantLattice(frameworkLattice):
                 p_central=np.mean(self.global_parameters["beam"].BetaGamma),
                 seed=seed,
                 # losses="%s.loss",
-                s_start=self.startObject.physical.start.z,
+                s_start=self.start_s,
                 use_beamline=self.objectname,
             )
 
@@ -652,7 +652,7 @@ class elegantLattice(frameworkLattice):
                     "RPN_DEFNS": os.path.abspath(
                         self.global_parameters["simcodes_location"]
                     )
-                    + "/Elegant/defns_linux.rpn",
+                    + "/Elegant/linux/defns_linux.rpn",
                 }
             with open(
                 os.path.abspath(
@@ -680,7 +680,7 @@ class elegantLattice(frameworkLattice):
                         "RPN_DEFNS",
                         (
                             os.path.abspath(self.global_parameters["simcodes_location"])
-                            + "/Elegant/defns.rpn"
+                            + "/Elegant/nt/defns.rpn"
                         ).replace("/", "\\"),
                     ]
                     + command[1:]
@@ -718,7 +718,7 @@ class elegantLattice(frameworkLattice):
                                 os.path.abspath(
                                     self.global_parameters["simcodes_location"]
                                 )
-                                + "/Elegant/defns.rpn"
+                                + "/Elegant/nt/defns.rpn"
                             ).replace("/", "\\")
                         },
                     )
