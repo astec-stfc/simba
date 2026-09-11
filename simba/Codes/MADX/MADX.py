@@ -82,6 +82,8 @@ with open(
 speed_of_light = constants.speed_of_light
 elementary_charge = constants.elementary_charge
 
+madx_accelerating_types = ("rfcavity", "twcavity")
+
 # MAD-X particle names for the species supported by the beam object
 madx_particle_names = {
     "electron": "electron",
@@ -302,9 +304,6 @@ class madxLattice(frameworkLattice):
         current = []
         for name, elem in self._elem_dict.items():
             current.append(name)
-            # segment boundaries at accelerating cavities (but not
-            # transverse deflecting cavities, which do not change the
-            # reference momentum)
             if elem.hardware_type.lower() == "rfcavity":
                 segments.append(current)
                 current = []
@@ -421,10 +420,7 @@ class madxLattice(frameworkLattice):
         element containing the Rosenzweig-Serafini accelerating-structure
         matrix (the same transverse model used by Ocelot, with eta = 1),
         followed by a thin ``RFCAVITY`` applying the energy gain and RF
-        curvature. In the fixed-reference-momentum canonical coordinates
-        (px = Px/P0) of a lattice segment the resulting 4x4 transverse matrix
-        is exactly symplectic, so it can be used directly by the MAD-X
-        thin-lens tracking and Twiss modules.
+        curvature.
 
         Parameters
         ----------
@@ -452,7 +448,7 @@ class madxLattice(frameworkLattice):
                 )
             return cavstring, energy
         elemname, etype, attrs = self.parse_madx_element(cavstring)
-        if etype != "rfcavity":
+        if etype not in madx_accelerating_types:
             return cavstring, energy
         try:
             volt = float(attrs.get("volt", 0.0)) * 1e6  # MV -> eV
@@ -475,9 +471,6 @@ class madxLattice(frameworkLattice):
         r12 = np.sqrt(8.0) * Ei / Ep * cos_phi * sin_a if abs(Ep) > 1e-10 else L
         r21 = -Ep / Ef * (cos_phi / np.sqrt(2.0) + np.sqrt(1.0 / 8.0) / cos_phi) * sin_a
         r22 = Ei / Ef * (cos_a + np.sqrt(2.0) * cos_phi * sin_a)
-        # convert from trace-space (x, x') to the segment's canonical
-        # coordinates (x, px = Px/P0) with P0 = P(entrance): the resulting
-        # matrix has unit determinant
         Pi = np.sqrt(Ei**2 - 1.0)
         Pf = np.sqrt(Ef**2 - 1.0)
         m11, m12 = r11, r12
@@ -503,12 +496,7 @@ class madxLattice(frameworkLattice):
         uniformly along the body of the structure. The MAD-X thin-lens
         tracking module applies each sub-cavity as a thin RF kick, with exact
         drifts in between, which reproduces the adiabatic damping of the
-        transverse coordinates through the accelerating structure (a single
-        lumped kick would let the beam expand at the injection energy over
-        half the structure length before feeling any acceleration).
-
-        The last slice keeps the original element name, so that observation
-        points and Twiss-table lookups remain valid.
+        transverse coordinates through the accelerating structure.
 
         Parameters
         ----------
@@ -532,7 +520,7 @@ class madxLattice(frameworkLattice):
         if ":=" in cavstring:
             return cavstring
         elemname, etype, attrs = self.parse_madx_element(cavstring)
-        if etype != "rfcavity":
+        if etype not in madx_accelerating_types:
             return cavstring
         try:
             volt = float(attrs.get("volt", 0.0))
@@ -568,9 +556,6 @@ class madxLattice(frameworkLattice):
             f.write(fulltext)
         self.files.append(latticefile)
 
-    # ------------------------------------------------------------------
-    # Pre-processing
-    # ------------------------------------------------------------------
     def preProcess(self) -> None:
         """
         Get the initial particle distribution defined in
@@ -592,9 +577,6 @@ class madxLattice(frameworkLattice):
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.pin = deepcopy(self.global_parameters["beam"])
 
-    # ------------------------------------------------------------------
-    # MAD-X interaction
-    # ------------------------------------------------------------------
     def start_madx(self) -> Any:
         """
         Start a `cpymad` MAD-X interpreter, logging its output to
@@ -845,9 +827,6 @@ class madxLattice(frameworkLattice):
             "muy": data["muy"][-1] + init["muy"],
         }
 
-    # ------------------------------------------------------------------
-    # Tracking
-    # ------------------------------------------------------------------
     def initial_twiss_conditions(self, bm: rbf.beam) -> Dict:
         """Initial Twiss conditions for the model Twiss, from the beam"""
         try:
@@ -888,12 +867,6 @@ class madxLattice(frameworkLattice):
         reference momentum. Since the beam is accelerated by the cavity at the
         end of each segment, the reference momentum changes at every segment
         boundary and the Twiss functions have to be transformed accordingly.
-
-        Under P0 -> P0' the transverse coordinate x is unchanged while
-        px -> px * P0/P0', so the canonical emittance scales as
-        eps -> eps * P0/P0'. Hence beta (= sigma_x^2/eps) and the dispersion
-        (per unit pt, which rescales the same way) are multiplied by `ratio`,
-        while alpha and dpx/dpy are invariant.
         """
         if not np.isfinite(ratio) or ratio <= 0:
             return init
@@ -965,10 +938,7 @@ class madxLattice(frameworkLattice):
 
         In full-beam mode (default), every particle in the (sampled) input
         distribution is tracked and the beam is recorded at every diagnostic;
-        in :attr:`~single_particle` mode, the beam centroid and 12 probe
-        particles are tracked to build the segment maps, which are then
-        applied to the initial distribution to generate the output beam at
-        the end of the line.
+        see also :attr:`~single_particle` mode.
         """
         if len(self.seqstrings) == 0:
             self.writeElements()
@@ -989,7 +959,6 @@ class madxLattice(frameworkLattice):
 
     def run_segments(self, madx: Any) -> None:
         """Track through each lattice segment in turn; see :func:`~run`."""
-        # _sval_in/_sval_out are measured from the lattice entrance, so anchor there
         sstart_lattice = self.entrance_s
         current_beam = deepcopy(self.pin)
         if not self.single_particle and self.sample_interval > 1:
@@ -1014,8 +983,6 @@ class madxLattice(frameworkLattice):
             seg_s1 = self._sval_out[segnames[-1]]
             seg_len = seg_s1 - seg_s0
             p0c = float(np.mean(current_beam.cp.val))
-            # the MAD-X Twiss functions are canonical w.r.t. the segment
-            # reference momentum, which changes at every segment boundary
             if p0c_prev is not None and p0c_prev > 0:
                 twiss_init = self.rescale_twiss_init(twiss_init, p0c / p0c_prev)
             p0c_prev = p0c
@@ -1125,8 +1092,6 @@ class madxLattice(frameworkLattice):
             if not name == self.end:
                 self.write_output_beam(name, bm)
 
-        # end-of-segment beam (MAD-X automatically observes at the end of the
-        # sequence)
         data = self.extract_observation(trackdata, seg_len)
         nlost = npart - len(data["x"])
         if nlost > 0:
@@ -1182,15 +1147,6 @@ class madxLattice(frameworkLattice):
         distribution is then transformed with the resulting map (centroid +
         R matrix); see :func:`~run`.
 
-        The probes are observed at every diagnostic (`Screen`, `Marker`,
-        `BPM`) within the segment as well as at its end, so that the map --
-        and hence the transformed beam statistics -- are recorded along the
-        whole line (via :func:`~store_beam_data`), not just at the segment
-        boundaries (the accelerating cavities). Consistent with the
-        ``single_particle`` contract, only the beam *statistics* are stored at
-        the intermediate points; the beam distribution file is written once,
-        for the end of the line (see :func:`~run_segments`).
-
         Returns
         -------
         :class:`~simba.Modules.Beams.beam`
@@ -1202,7 +1158,6 @@ class madxLattice(frameworkLattice):
         zin = np.array([coords[k] for k in keys])
         centroid = np.mean(zin, axis=1)
         delta = abs(self.fd_delta)
-        # centroid + (+/- delta) probes in each of the 6 canonical coordinates
         probes = [centroid]
         for k in range(6):
             for sign in (1, -1):
@@ -1213,8 +1168,6 @@ class madxLattice(frameworkLattice):
         probecoords = {k: probes[i] for i, k in enumerate(keys)}
         charge_total = abs(np.sum(np.array(current_beam.charge.val)))
         ref_index = current_beam.reference_particle_index
-        # observe the probes at every diagnostic in the segment (and, via the
-        # automatic end-of-sequence dump, at the segment end)
         observe = self.observation_points(segnames)
         trackdata = self.run_track(madx, probecoords, observe)
 
@@ -1240,8 +1193,6 @@ class madxLattice(frameworkLattice):
                 ref_index=ref_index,
             )
 
-        # record the beam statistics at each diagnostic within the segment (no
-        # beam file is written here -- only the end-of-line beam is, in run)
         for name, s_local in observe:
             elem = self._elements_with_drifts[name]
             spos = seg_s0 + s_local + sstart_lattice
@@ -1288,16 +1239,10 @@ class madxLattice(frameworkLattice):
             newbeam.reference_particle_index = None
         return newbeam
 
-    # ------------------------------------------------------------------
-    # Post-processing
-    # ------------------------------------------------------------------
     def postProcess(self) -> None:
         """
         Assemble the collected beam statistics and MAD-X model Twiss
-        parameters into a Twiss summary file
-        (``<lattice>_twiss.madx.hdf5``, readable by
-        :func:`simba.Modules.Twiss.load_directory`), and update the global
-        beam distribution with the beam at the end of the line.
+        parameters into a Twiss summary file.
         """
         super().postProcess()
         if len(self.beam_data) == 0:
@@ -1329,8 +1274,6 @@ class madxLattice(frameworkLattice):
         twsdat["beta_z"] = np.zeros(len(rows))
         twsdat["alpha_z"] = np.zeros(len(rows))
         twsdat["gamma_z"] = np.zeros(len(rows))
-        # model twiss values (fall back to the beam values if the model
-        # twiss is not available at an element)
         model_keys = {
             "beta_x": ("betx", "beta_x_beam"),
             "alpha_x": ("alfx", "alpha_x_beam"),
@@ -1377,8 +1320,6 @@ class madxLattice(frameworkLattice):
             ),
             twiss=twsdat,
         )
-        # update the global beam object with the distribution at the end of
-        # the line, so that subsequent lattices start from it
         endfile = os.path.join(
             self.global_parameters["master_subdir"], f"{self.end}.openpmd.hdf5"
         )

@@ -17,12 +17,12 @@ from ...Modules.SDDSFile import SDDSFile
 # mpi4py.rc.initialize = False
 
 from laura.translator.converters.codes.opal import (
-    opal_option,
-    opal_distribution,
-    opal_fieldsolver,
-    opal_beam,
-    opal_track,
-    opal_run,
+    OpalOption,
+    OpalDistribution,
+    OpalFieldSolver,
+    OpalBeam,
+    OpalTrack,
+    OpalRun,
 )
 
 from ...Modules.constants import speed_of_light, elementary_charge, m_e
@@ -275,11 +275,11 @@ class opalLattice(frameworkLattice):
         Returns
         -------
         dict
-            Keyword arguments for :class:`~laura.translator.converters.codes.opal.opal_option`
+            Keyword arguments for :class:`~laura.translator.converters.codes.opal.OpalOption`
         """
         opalglobal = update_globals(self.globalSettings)
         settings = dict(opalglobal.get("global", {}) or {})
-        allowed = opal_option.model_fields
+        allowed = OpalOption.model_fields
         dropped = [k for k in settings if k not in allowed]
         for k in dropped:
             warn(f"OPAL OPTION has no attribute {k}; ignoring")
@@ -408,21 +408,21 @@ class opalLattice(frameworkLattice):
             initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.start
         else:
             initobj = self.start
-        self.headers["option"] = opal_option(**self.option_settings())
+        self.headers["option"] = OpalOption(**self.option_settings())
         native = self.native_distribution_block()
-        self.headers["distribution"] = opal_distribution(
+        self.headers["distribution"] = OpalDistribution(
             input_particle_definition=f"\"{initobj}.opal\"",
             raw_block=native,
             **({} if native else self.emission_settings()),
         )
-        self.headers["fieldsolver"] = opal_fieldsolver(
+        self.headers["fieldsolver"] = OpalFieldSolver(
             npart=beamlen,
             sample_interval=self.sample_interval,
             space_charge_mode=str(self.space_charge_mode),
             grid_size_override=self.space_charge_grid,
             BBOXINCR=self.bbox_increase,
         )
-        self.headers["beam"] = opal_beam(
+        self.headers["beam"] = OpalBeam(
             PC=pc,
             NPART=beamlen,
             CHARGE=chargesign,
@@ -437,14 +437,14 @@ class opalLattice(frameworkLattice):
                     f"time_step_boundaries needs {len(self.time_step_size) - 1} "
                     f"entries for {len(self.time_step_size)} time steps, got {len(bounds)}"
                 )
-        self.headers["track"] = opal_track(
+        self.headers["track"] = OpalTrack(
             DT=self.time_step_size,
             MAXSTEPS=self.maxsteps,
             LINE=self.objectname,
             ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
             ZSTOP_STAGES=bounds,
         )
-        self.headers["run"] = opal_run()
+        self.headers["run"] = OpalRun()
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 

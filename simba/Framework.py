@@ -125,7 +125,7 @@ yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
 latticeClasses = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+    obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
 with open(

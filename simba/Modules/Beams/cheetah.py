@@ -82,9 +82,8 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     y = self.y.val
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
-    p0c = np.sqrt(E**2 - self.E0_eV**2)
-    p = (self.energy.val - E) / p0c
-    tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    p = (self.energy.val - E) / E
+    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])

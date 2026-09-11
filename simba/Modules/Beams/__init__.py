@@ -326,9 +326,6 @@ class beam(BaseModel):
     particle_mass: np.ndarray | None = None
     """Particle mass in kg"""
 
-    beam_energy: float | None = None
-    """Beam energy [required for Cheetah]"""
-
     species: str = "electron"
 
     model_config = ConfigDict(
@@ -348,7 +345,7 @@ class beam(BaseModel):
         "status",
     ]
 
-    def __init__(self, filename=None, beam_energy=None, step=0, *args, **kwargs):
+    def __init__(self, filename=None, step=0, *args, **kwargs):
         super(beam, self).__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
@@ -358,7 +355,7 @@ class beam(BaseModel):
         # self.sddsindex = sddsindex
         self.code = None
         if self.filename is not None:
-            self.read_beam_file(self.filename, beam_energy=beam_energy, step=step)
+            self.read_beam_file(self.filename, step=step)
             self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
@@ -718,10 +715,6 @@ class beam(BaseModel):
         """
         opal.read_opal_beam_file(self, *args, **kwargs)
 
-    def read_cheetah_beam_file(self, *args, **kwargs):
-        from . import cheetah
-        cheetah.read_cheetah_beam_file(self, *args, **kwargs)
-
     def write_openpmd_beam_file(self, *args, **kwargs):
         """
         Write out an openpmd-type beam distribution file.
@@ -796,7 +789,7 @@ class beam(BaseModel):
         """
         return madx.madx_coords_to_beam(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
+    def read_beam_file(self, filename, run_extension="001", step=0):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
@@ -809,21 +802,16 @@ class beam(BaseModel):
             The name of the file to be loaded
         run_extension: str
             Run extension for ASTRA-type beam distribution files.
-        beam_energy: float, optional
-            Beam energy in eV (for Cheetah beam distributions)
         step: int, optional
             Step number in output file (for OPAL beam distributions)
         """
         pre, ext = os.path.splitext(os.path.basename(filename))
         if ext.lower()[:4] == ".hdf":
-            if "cheetah" in pre:
-                from . import cheetah
-                cheetah.read_cheetah_beam_file(self, filename, beam_energy)
+            # cheetah writes plain openPMD, it just doesn't say so in the name
+            if "openpmd" in pre.lower() or "cheetah" in pre.lower():
+                openpmd.read_openpmd_beam_file(self, filename)
             else:
-                if "openpmd" in pre.lower():
-                    openpmd.read_openpmd_beam_file(self, filename)
-                else:
-                    hdf5.read_HDF5_beam_file(self, filename)
+                hdf5.read_HDF5_beam_file(self, filename)
         elif ext.lower() == ".sdds":
             sdds.read_SDDS_beam_file(self, filename)
         elif ext.lower() == ".gdf":
