@@ -60,15 +60,15 @@ class csrtrackLattice(frameworkLattice):
         )
         if self.particle_definition == "initial_distribution":
             self.csrtrack_headers["particles"].particle_definition = "laser.astra"
-            self.csrtrack_headers["particles"].array = "#file{name=laser.astra}"
+            self.csrtrack_headers["particles"].array = "#file{\nname=laser.astra\n}"
         else:
             self.particle_definition = self.start
             self.csrtrack_headers["particles"].particle_definition = self.start
             self.csrtrack_headers["particles"].array = (
-                "#file{name="
+                "#file{\nname="
                 + self.start
                 + ".astra"
-                + "}"
+                + "\n}"
             )
 
     @property

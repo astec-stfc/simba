@@ -1,0 +1,53 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install simba
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test,simcodes]
+
+      - name: Run unit tests (no container image needed)
+        run: pytest unit_tests/ -v -m "not needs_container"
+
+  container-tests:
+    # The simcodes image is several GB, so only pull it nightly or on demand.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install simba
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test,simcodes]
+
+      - name: Pull simcodes image
+        run: docker pull ghcr.io/astec-stfc/simcodes-docker:master
+
+      - name: Run tracking tests via docker
+        run: pytest unit_tests/ -v -m needs_container
