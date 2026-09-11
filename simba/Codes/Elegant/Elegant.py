@@ -629,16 +629,15 @@ class elegantLattice(frameworkLattice):
             super().run_remote()
         elif not os.name == "nt":
             command = self.executables[self.code] + [self.objectname + ".ele"]
-            if self.global_parameters["simcodes_location"] is None:
-                my_env = {**os.environ}
-            else:
-                my_env = {
-                    **os.environ,
-                    "RPN_DEFNS": os.path.abspath(
-                        self.global_parameters["simcodes_location"]
-                    )
-                    + "/Elegant/linux/defns_linux.rpn",
-                }
+            my_env = {**os.environ}
+            if self.global_parameters["simcodes_location"] is not None:
+                rpn_defns = os.path.join(
+                    os.path.abspath(self.global_parameters["simcodes_location"]),
+                    "Elegant",
+                    "defns_linux.rpn",
+                )
+                if os.path.isfile(rpn_defns):
+                    my_env["RPN_DEFNS"] = rpn_defns
             with open(
                 os.path.abspath(
                     self.global_parameters["master_subdir"]
