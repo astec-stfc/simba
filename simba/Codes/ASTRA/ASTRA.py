@@ -43,10 +43,10 @@ from laura.models.diagnostic import DiagnosticElement
 from laura.models.element import Screen
 from laura.models.physical import PhysicalElement
 from laura.translator.converters.codes.astra import (
-    astra_newrun,
-    astra_charge,
-    astra_output,
-    astra_errors,
+    AstraNewRun,
+    AstraCharge,
+    AstraOutput,
+    AstraErrors,
 )
 
 from ...Modules.units import UnitValue
@@ -146,7 +146,7 @@ class astraLattice(frameworkLattice):
         # starting_offset/starting_rotation are not passed to the namelists: both are in
         # astra_newrun/astra_output's `exclude`, so ASTRA is never told about them. They
         # are applied to the output beam instead, in astra_to_hdf5.
-        self.section.astra_headers["newrun"] = astra_newrun(
+        self.section.astra_headers["newrun"] = AstraNewRun(
             global_parameters=self.global_parameters,
             input_particle_definition = self.startObject.name,
             **settings,
@@ -185,7 +185,7 @@ class astraLattice(frameworkLattice):
         screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
-        self.section.astra_headers["output"] = astra_output(
+        self.section.astra_headers["output"] = AstraOutput(
             global_parameters=self.global_parameters,
             zstart=zstart,
             zstop=self.zstop,
@@ -201,7 +201,7 @@ class astraLattice(frameworkLattice):
             self.globalSettings["charge"] = {}
         space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
         charge_settings = space_charge_dict | self.globalSettings["ASTRAsettings"]
-        self.section.astra_headers["charge"] = astra_charge(
+        self.section.astra_headers["charge"] = AstraCharge(
             global_parameters=self.global_parameters,
             **charge_settings,
         )
@@ -218,7 +218,7 @@ class astraLattice(frameworkLattice):
                 global_parameters=self.global_parameters,
             )
             error_settings = self.file_block["global_errors"] | self.globalSettings["global_errors"]
-            self.section.astra_headers["global_errors"] = astra_errors(
+            self.section.astra_headers["global_errors"] = AstraErrors(
                 element=globalerror,
                 global_parameters=self.global_parameters,
                 **error_settings,

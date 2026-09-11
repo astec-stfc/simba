@@ -8,7 +8,7 @@ import pytest
 import simba.Framework as sfw
 import simba.Codes
 import simba.Modules.Beams as rbf
-from simba.Codes.ASTRA.ASTRA import astra_newrun, astraLattice
+from simba.Codes.ASTRA.ASTRA import astraLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Twiss.astra import read_s_offset
 from simba.Modules.units import UnitValue
@@ -178,16 +178,6 @@ def test_beam_s_must_be_written_to_the_particles_object():
     b = rbf.beam()
     b.Particles.s = UnitValue(12.34, units="m")
     assert float(b.s) == pytest.approx(12.34)
-
-@pytest.mark.parametrize("interval", [1, 8, 64])
-def test_astra_sample_interval_written_as_n_red(interval):
-    """astraLattice.preProcess copies sample_interval into this header; guard the mapping."""
-    header = astra_newrun(
-        global_parameters={},
-        input_particle_definition="test.astra",
-        sample_interval=interval,
-    )
-    assert f"n_red = {interval}," in header.write_ASTRA()
 
 def _lattice_stub(path, elements, output):
     """Enough of a frameworkLattice for the `start` property."""

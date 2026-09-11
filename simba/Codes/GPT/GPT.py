@@ -63,18 +63,18 @@ from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
-    gpt_setfile,
-    gpt_charge,
-    gpt_setreduce,
-    gpt_accuracy,
-    gpt_spacecharge,
-    gpt_tout,
-    gpt_csr1d,
-    gpt_writefloorplan,
-    gpt_Zminmax,
-    gpt_forwardscatter,
-    gpt_scatterplate,
-    gpt_dtmaxt,
+    GptSetFile,
+    GptCharge,
+    GptSetReduce,
+    GptAccuracy,
+    GptSpaceCharge,
+    GptTout,
+    GptCsr1D,
+    GptWriteFloorPlan,
+    GptZMinMax,
+    GptForwardScatter,
+    GptScatterPlate,
+    GptDtMaxT,
 )
 
 gpt_defaults = {}
@@ -152,10 +152,10 @@ class gptLattice(frameworkLattice):
                 ]
         else:
             self.particle_definition = self.start
-        self.headers["setfile"] = gpt_setfile(
+        self.headers["setfile"] = GptSetFile(
             set='"beam"', filename='"' + self.name + '.gdf"'
         )
-        self.headers["floorplan"] = gpt_writefloorplan(
+        self.headers["floorplan"] = GptWriteFloorPlan(
             filename='"' + self.objectname + '_floor.gdf"'
         )
 
@@ -212,14 +212,14 @@ class gptLattice(frameworkLattice):
         str
             The lattice represented as a string compatible with GPT
         """
-        self.headers["accuracy"] = gpt_accuracy(accuracy=self.accuracy)
+        self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
         if "charge" not in self.globalSettings:
             self.globalSettings["charge"] = {}
         space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
         space_charge = self.global_parameters | space_charge_dict
-        self.headers["spacecharge"] = gpt_spacecharge(**space_charge)
+        self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
         if self.particle_definition == "laser" and self.space_charge_mode is not None:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
             self.headers["spacecharge"].sample_interval = self.sample_interval
@@ -229,10 +229,10 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.angle) for d in self.dipoles]) > 0
         ):  # and not os.name == 'nt':
-            self.headers["csr1d"] = gpt_csr1d()
+            self.headers["csr1d"] = GptCsr1d()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
-        # self.headers['forwardscatter'] = gpt_forwardscatter(ECS='"wcs", "I"', name='cathode', probability=0)
-        # self.headers['scatterplate'] = gpt_scatterplate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
+        # self.headers['forwardscatter'] = GptForwardScatter(ECS='"wcs", "I"', name='cathode', probability=0)
+        # self.headers['scatterplate'] = GptScatterPlate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
         fulltext = self.section.to_gpt(
@@ -341,11 +341,6 @@ class gptLattice(frameworkLattice):
         if "crestscan" not in scan_text:
             raise ValueError(f"could not substitute the phase assignment for {var}")
 
-        # The crest is a single-particle property of the RF, which is how ASTRA
-        # and OPAL phase internally.
-        # Collective effects have no place in a single-particle crest scan, and
-        # GPT refuses to run a wakefield on a reduced bunch ("Bunch length cannot
-        # be zero"), so strip them along with the space charge.
         for collective in (r"spacecharge\w*", "wakefield", r"csr\w*", "Wakefield"):
             scan_text = re.sub(
                 rf"^\s*{collective}\(.*$", "", scan_text, flags=re.MULTILINE
@@ -380,9 +375,6 @@ class gptLattice(frameworkLattice):
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
-        # Read the energy just past this cavity, not at the end of the line: with
-        # downstream cavities still present the final energy depends on their
-        # phases too, which would confound the scan.
         z_eval = float(self.elementObjects[name].physical.end.z)
         phases, energies = scan(phase_range[0], phase_range[1], step)
         peak = phases[int(np.argmax(energies))]
@@ -499,15 +491,7 @@ class gptLattice(frameworkLattice):
             pos, ph, en, npar = min(
                 downstream or found, key=lambda f: abs(f[0] - z_eval)
             )
-        # Drop phases that lose particles. avgG averages over survivors, so
-        # losing the low-energy tail *raises* it -- off-crest phases where the
-        # beam is being scraped produce spurious maxima higher than the real
-        # crest, and which particles survive varies from run to run.
         if npar is not None and len(npar) == len(en):
-            # Compare against the median rather than the maximum: the count is
-            # occasionally one *above* the nominal at a single phase, and keying
-            # off the maximum would then discard every other point and let one
-            # sample decide the crest.
             keep = npar >= np.median(npar)
             if keep.any():
                 ph, en = ph[keep], en[keep]

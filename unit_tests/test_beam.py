@@ -515,6 +515,48 @@ def test_sfhdf_beam(simple_beam):
     )
     os.remove("test.hdf5")
 
+def test_cheetah_beam_chirp_sign(simple_beam):
+    """A chirped bunch must survive the cheetah round trip with its chirp intact.
+
+    Every RMS moment is even under z -> -z, so a flipped longitudinal axis is
+    invisible in the emittances and beam sizes. It only shows up in the sign of
+    the chirp here -- and downstream as an RF chirp that subtracts from the
+    incoming one instead of adding to it, once a cavity is tracked.
+    """
+    from simba.Modules.Beams.cheetah import interpret_cheetah_ParticleBeam
+
+    # impose a known chirp: the later a particle arrives, the higher its momentum
+    t = simple_beam.Particles.t.val
+    pz = simple_beam.Particles.pz.val
+    simple_beam.Particles.pz = UnitValue(pz * (1 + 10.0 * c * (t - t.mean())), "kg*m/s")
+
+    def chirp(b):
+        """d(dp/p)/dt -- signed, and immune to the sign convention used for z."""
+        tt = b.Particles.t.val - b.Particles.t.val.mean()
+        cp = b.Particles.cp.val
+        return np.polyfit(tt, (cp - cp.mean()) / cp.mean(), 1)[0]
+
+    chirp_in = chirp(simple_beam)
+    assert chirp_in > 0, "test beam has no chirp to preserve"
+
+    parray = simple_beam.write_cheetah_beam_file("test.cheetah.hdf5")
+    roundtripped = rbf.beam()
+    interpret_cheetah_ParticleBeam(roundtripped, parray)
+
+    assert np.isclose(chirp(roundtripped), chirp_in, rtol=1e-3)
+
+    # and the same again via the file, which is how beam() loads a cheetah dump
+    from_file = rbf.beam("test.cheetah.hdf5")
+    assert np.isclose(chirp(from_file), chirp_in, rtol=1e-3)
+    os.remove("test.cheetah.hdf5")
+    # sigma_z is left out: the fixture sets z and t as independent random arrays,
+    # so a z reconstructed from t cannot reproduce it
+    for moment in ("sigma_x", "sigma_y", "momentum_spread"):
+        assert np.isclose(
+            getattr(roundtripped.sigmas, moment), getattr(simple_beam.sigmas, moment), rtol=1e-3
+        )
+
+
 def test_resample(simple_beam):
     newlen = 10000
     newbeam = simple_beam.resample(newlen)

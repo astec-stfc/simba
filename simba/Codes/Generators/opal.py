@@ -60,6 +60,8 @@ class OPALGenerator(frameworkGenerator):
         :return: None
         """
         command = self.executables[self.code] + [self.objectname + ".in"]
+        workdir = os.path.abspath(self.global_parameters["master_subdir"])
+        command = self.executables.build_command(command, workdir)
         with open(os.devnull, "w") as f:
             subprocess.call(
                 command, stdout=f, cwd=self.global_parameters["master_subdir"]

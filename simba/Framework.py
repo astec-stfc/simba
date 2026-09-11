@@ -28,7 +28,7 @@ import numpy as np
 from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement, Dipole
-from laura.Exporters.YAML import export_machine, export_elements
+from laura.exporters.yaml_exporter import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
@@ -124,7 +124,7 @@ yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
 latticeClasses = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+    obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
 with open(
