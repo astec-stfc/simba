@@ -4,20 +4,6 @@ from ..units import UnitValue
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
-def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index=None):
-    from cheetah import ParticleBeam
-    self.filename = filename
-    self.code = "Cheetah"
-    self._beam.particle_rest_energy_eV = self.E0_eV
-
-    parray = ParticleBeam.from_openpmd_file(
-        filename,
-        energy=beam_energy,
-        dtype=float64,
-    )
-    interpret_cheetah_ParticleBeam(self, parray, beam_energy, zstart=zstart, s=s, ref_index=ref_index)
-
-
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
     self._beam.particle_rest_energy = UnitValue(
@@ -84,7 +70,10 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
     p = (self.energy.val - E) / E
-    tau = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    # cheetah's tau runs with time, not against it: the head of the bunch (early t)
+    # sits at negative tau. Negating here put the bunch in back to front, which the
+    # RMS moments hide and only shows up as a reversed RF chirp out of a cavity.
+    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])

@@ -79,6 +79,7 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         [constants.elementary_charge * self.charge_sign_index[i] for i in index],
         units="C",
     )
+
     # print self.Bz
     self._beam.t = UnitValue(
         [

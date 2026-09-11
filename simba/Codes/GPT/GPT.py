@@ -50,6 +50,7 @@ Classes:
 """
 
 import os
+import re
 import subprocess
 import numpy as np
 from laura.models.diagnostic import DiagnosticElement
@@ -62,18 +63,18 @@ from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
-    gpt_setfile,
-    gpt_charge,
-    gpt_setreduce,
-    gpt_accuracy,
-    gpt_spacecharge,
-    gpt_tout,
-    gpt_csr1d,
-    gpt_writefloorplan,
-    gpt_Zminmax,
-    gpt_forwardscatter,
-    gpt_scatterplate,
-    gpt_dtmaxt,
+    GptSetFile,
+    GptCharge,
+    GptSetReduce,
+    GptAccuracy,
+    GptSpaceCharge,
+    GptTout,
+    GptCsr1D,
+    GptWriteFloorPlan,
+    GptZMinMax,
+    GptForwardScatter,
+    GptScatterPlate,
+    GptDtMaxT,
 )
 
 gpt_defaults = {}
@@ -105,8 +106,9 @@ class gptLattice(frameworkLattice):
     screen_step_size: float = 0.1
     """Step size for screen output"""
 
-    time_step_size: float = 1e-11
-    """Step size for output data during tracking"""
+    time_step_size: float = 5e-10
+    """Interval between ``tout`` beam dumps [s].
+    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`."""
 
     override_meanBz: float | int | None = None
     """Set the average particle longitudinal velocity manually"""
@@ -129,6 +131,10 @@ class gptLattice(frameworkLattice):
     dtmin: float | None = None
     """Integration time step size"""
 
+    crest_scan_particles: int = 10
+    """Particles retained during a crest scan (:func:`~find_crest`). The crest is
+    a single-particle property of the RF, so a handful is enough."""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         if (
@@ -146,10 +152,10 @@ class gptLattice(frameworkLattice):
                 ]
         else:
             self.particle_definition = self.start
-        self.headers["setfile"] = gpt_setfile(
+        self.headers["setfile"] = GptSetFile(
             set='"beam"', filename='"' + self.name + '.gdf"'
         )
-        self.headers["floorplan"] = gpt_writefloorplan(
+        self.headers["floorplan"] = GptWriteFloorPlan(
             filename='"' + self.objectname + '_floor.gdf"'
         )
 
@@ -206,14 +212,14 @@ class gptLattice(frameworkLattice):
         str
             The lattice represented as a string compatible with GPT
         """
-        self.headers["accuracy"] = gpt_accuracy(accuracy=self.accuracy)
+        self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
         if "charge" not in self.globalSettings:
             self.globalSettings["charge"] = {}
         space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
         space_charge = self.global_parameters | space_charge_dict
-        self.headers["spacecharge"] = gpt_spacecharge(**space_charge)
+        self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
         if self.particle_definition == "laser" and self.space_charge_mode is not None:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
             self.headers["spacecharge"].sample_interval = self.sample_interval
@@ -223,10 +229,10 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.angle) for d in self.dipoles]) > 0
         ):  # and not os.name == 'nt':
-            self.headers["csr1d"] = gpt_csr1d()
+            self.headers["csr1d"] = GptCsr1d()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
-        # self.headers['forwardscatter'] = gpt_forwardscatter(ECS='"wcs", "I"', name='cathode', probability=0)
-        # self.headers['scatterplate'] = gpt_scatterplate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
+        # self.headers['forwardscatter'] = GptForwardScatter(ECS='"wcs", "I"', name='cathode', probability=0)
+        # self.headers['scatterplate'] = GptScatterPlate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
         fulltext = self.section.to_gpt(
@@ -248,6 +254,248 @@ class gptLattice(frameworkLattice):
         )
         saveFile(code_file, self.writeElements())
         self.files.append(code_file)
+
+    def _cavity_phase_variable(self, name: str, text: str) -> str:
+        """
+        Find the GPT variable holding the RF phase of a named cavity.
+
+        The converter names a cavity's variables after its position with the
+        decimal point stripped. The ``map1D_TM`` lines are parsed and matched
+        against the element's own start position.
+
+        Parameters
+        ----------
+        name: str
+            Name of the cavity element.
+        text: str
+            Contents of the generated GPT input file.
+
+        Returns
+        -------
+        str
+            The name of the phase variable, e.g. ``phi119357``.
+        """
+        element = self.elementObjects[name]
+        zpos = float(element.physical.start.z)
+        pattern = re.compile(
+            r'map1D_TM\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*([-\d.eE+]+)\s*,'
+            r'[^)]*?,\s*(phi\w+)\s*,'
+        )
+        matches = [(float(z), var) for z, var in pattern.findall(text)]
+        if not matches:
+            raise ValueError(f"no map1D_TM cavity found in the GPT input for {name}")
+        z, var = min(matches, key=lambda m: abs(m[0] - zpos))
+        if abs(z - zpos) > 1e-3:
+            raise ValueError(
+                f"no GPT cavity within 1 mm of {name} at z = {zpos}; "
+                f"closest is {var} at z = {z}"
+            )
+        return var
+
+    def find_crest(
+        self,
+        name: str,
+        phase_range: tuple = (0.0, 350.0),
+        step: float = 10.0,
+        refine: bool = True,
+    ) -> float:
+        """
+        Find the crest phase of an RF cavity by scanning it with GPT's ``mr``.
+        ``mr`` runs GPT once per phase and concatenates the output, and ``gdfa``
+        reduces each run to an average Lorentz factor, so the crest is simply the
+        phase of maximum ``avgG``.
+
+        The converter writes ``phi = (crest + 90 - phase)``, so running on crest
+        means ``phase = 0`` and therefore ``phi = crest + 90``. A scan peaking at
+        ``phi*`` gives ``crest = phi* - 90``.
+
+        Parameters
+        ----------
+        name: str
+            Name of the cavity element to phase.
+        phase_range: tuple
+            ``(from, to)`` of the coarse scan in degrees.
+        step: float
+            Coarse scan step in degrees.
+        refine: bool
+            Follow the coarse scan with a finer one, one coarse step either side
+            of the peak, to a tenth of the step.
+
+        Returns
+        -------
+        float
+            The measured crest phase in degrees, also written back onto the
+            element.
+        """
+        self.write()
+        subdir = self.global_parameters["master_subdir"]
+        base = os.path.join(subdir, self.objectname)
+        text = open(base + ".in").read()
+        var = self._cavity_phase_variable(name, text)
+
+        # The scanned symbol has to be *undefined* in the input file: mr supplies
+        # it on the GPT command line, and a local assignment would shadow it.
+        scan_text = re.sub(
+            rf"^\s*{var}\s*=.*$", f"{var} = crestscan/deg;", text, flags=re.MULTILINE
+        )
+        if "crestscan" not in scan_text:
+            raise ValueError(f"could not substitute the phase assignment for {var}")
+
+        for collective in (r"spacecharge\w*", "wakefield", r"csr\w*", "Wakefield"):
+            scan_text = re.sub(
+                rf"^\s*{collective}\(.*$", "", scan_text, flags=re.MULTILINE
+            )
+        scan_text = re.sub(r"^\s*tout\(.*$", "", scan_text, flags=re.MULTILINE)
+        scan_text = re.sub(
+            r'^(\s*setfile\(.*)$',
+            rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
+            scan_text, count=1, flags=re.MULTILINE,
+        )
+
+        def scan(lo, hi, dx):
+            saveFile(base + "_crest.in", scan_text)
+            saveFile(base + "_crest.mr", f"crestscan {lo} {hi} {dx}\n")
+            gpt = self.executables[self.code]
+            mr = [gpt[0].replace("gpt", "mr")]
+            gdfa = [gpt[0].replace("gpt", "gdfa")]
+            env = os.environ.copy()
+            env["OMP_WAIT_POLICY"] = "PASSIVE"
+            subprocess.call(
+                mr + ["-o", self.objectname + "_crest_out.gdf",
+                      self.objectname + "_crest.mr"]
+                + gpt + [self.objectname + "_crest.in",
+                         "GPTLICENSE=" + str(self.global_parameters["GPTLICENSE"])],
+                cwd=subdir, env=env,
+            )
+            subprocess.call(
+                gdfa + ["-o", self.objectname + "_crest_avg.gdf",
+                        self.objectname + "_crest_out.gdf",
+                        "crestscan", "avgG", "numpar"],
+                cwd=subdir, env=env,
+            )
+            return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
+
+        z_eval = float(self.elementObjects[name].physical.end.z)
+        phases, energies = scan(phase_range[0], phase_range[1], step)
+        peak = phases[int(np.argmax(energies))]
+        if refine:
+            fine_p, fine_e = scan(peak - step, peak + step, step / 10.0)
+            if len(fine_e):
+                peak = fine_p[int(np.argmax(fine_e))]
+
+        element = self.elementObjects[name]
+        # The converter writes phi = (crest + 90 - phase), so running on crest
+        # means phase = 0, i.e. phi = crest + 90. A scan peaking at phi* therefore
+        # gives crest = phi* - 90 directly; it does not depend on the crest the
+        # element happened to be carrying beforehand.
+        crest = (float(peak) - 90.0) % 360.0
+        element.crest = crest
+        return crest
+
+    def autophase(
+        self,
+        names: list | None = None,
+        phase_range: tuple = (0.0, 350.0),
+        step: float = 10.0,
+        refine: bool = True,
+    ) -> dict:
+        """
+        Phase every RF cavity in the section, upstream to downstream.
+
+        The order matters and the cavities cannot be done independently. While
+        the beam is still slow, the time it arrives at a cavity depends on how
+        much energy it gained in the ones before it, so the crest of the second
+        cavity is only meaningful once the first is already on crest. Scanning
+        them in isolation, or in the wrong order, measures the crest of a beam
+        that will never exist.
+
+        Each cavity is therefore scanned with every upstream cavity already set
+        to its measured crest -- which happens naturally, because
+        :func:`~find_crest` writes the result back onto the element and the input
+        file is regenerated for the next scan.
+
+        Parameters
+        ----------
+        names: list or None
+            Cavities to phase, in any order; they are sorted by position. When
+            None, every cavity in the section is phased.
+        phase_range: tuple
+            ``(from, to)`` of the coarse scan in degrees.
+        step: float
+            Coarse scan step in degrees.
+        refine: bool
+            Follow each coarse scan with a finer one around the peak.
+
+        Returns
+        -------
+        dict
+            ``{name: crest}`` in the order the cavities were phased.
+        """
+        if names is None:
+            # elementObjects spans the whole machine, so restrict to accelerating
+            # cavities that actually sit inside this section. Deflecting cavities
+            # are excluded: they are not run on crest and their energy gain is
+            # nominally zero, so an avgG scan says nothing about them.
+            z0 = float(self.startObject.physical.start.z)
+            z1 = float(self.endObject.physical.end.z)
+            names = []
+            for n, e in self.elementObjects.items():
+                if getattr(e, "crest", None) is None:
+                    continue
+                if not float(getattr(e, "field_amplitude", 0.0) or 0.0):
+                    continue
+                z = float(e.physical.start.z)
+                if z0 - 1e-6 <= z <= z1 + 1e-6:
+                    names.append(n)
+        ordered = sorted(names, key=lambda n: float(self.elementObjects[n].physical.start.z))
+        crests = {}
+        for name in ordered:
+            crests[name] = self.find_crest(
+                name, phase_range=phase_range, step=step, refine=refine
+            )
+        return crests
+
+    @staticmethod
+    def _read_crest_scan(filename: str, z_eval: float | None = None) -> tuple:
+        """
+        Pull the scanned phase and average Lorentz factor out of a ``gdfa``
+        aggregate, which nests them one level below the screen position.
+
+        Parameters
+        ----------
+        filename: str
+            The ``gdfa`` aggregate file.
+        z_eval: float or None
+            Preferred evaluation position; the screen at or just beyond it is
+            used. When None the furthest downstream screen is taken.
+        """
+        import easygdf
+
+        data = easygdf.load(filename)
+        found = []
+        for block in data["blocks"]:
+            children = {
+                str(np.atleast_1d(c["name"])[0]): np.atleast_1d(c["value"])
+                for c in block.get("children", [])
+            }
+            if "crestscan" in children and "avgG" in children:
+                pos = float(np.atleast_1d(block.get("value", np.nan)).ravel()[0])
+                npar = children.get("numpar")
+                found.append((pos, children["crestscan"], children["avgG"], npar))
+        if not found:
+            return np.array([]), np.array([])
+        if z_eval is None:
+            pos, ph, en, npar = max(found, key=lambda f: f[0])
+        else:
+            downstream = [f for f in found if f[0] >= z_eval - 1e-6]
+            pos, ph, en, npar = min(
+                downstream or found, key=lambda f: abs(f[0] - z_eval)
+            )
+        if npar is not None and len(npar) == len(en):
+            keep = npar >= np.median(npar)
+            if keep.any():
+                ph, en = ph[keep], en[keep]
+        return ph, en
 
     def preProcess(self) -> None:
         """
@@ -408,7 +656,7 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.startObject.physical.start.z
+        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
@@ -542,8 +790,8 @@ class gptLattice(frameworkLattice):
             position=screen.physical.middle.z,
             gdfbeam=gdf,
         )
-        self.beam.t += t0
-        self.beam.s = UnitValue(sval, units="m")
+        beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
+        beam._beam.s = UnitValue(sval, units="m")
         HDF5filename = screen.name + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,

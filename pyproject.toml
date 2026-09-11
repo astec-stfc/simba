@@ -40,7 +40,8 @@ dependencies = [
     "numexpr",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "laura-accelerator>=1.0.2",
+    "laura-accelerator>=1.0.3",
+    "tfs-pandas",
 ]
 
 requires-python = ">= 3.11"
@@ -57,6 +58,7 @@ simcodes = [
     "xsuite>=0.39.0",
     "cheetah-accelerator>=0.8.4",
     "Wake-T>=0.8.0",
+    "cpymad>=1.19.0",
 ]
 
 test = [

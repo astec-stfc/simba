@@ -28,7 +28,7 @@ import numpy as np
 from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement, Dipole
-from laura.Exporters.YAML import export_machine, export_elements
+from laura.exporters.yaml_exporter import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
@@ -124,7 +124,7 @@ yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
 latticeClasses = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+    obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
 with open(
@@ -1381,6 +1381,21 @@ class Framework(BaseModel):
                 **kwargs,
             )
         self.latticeObjects["generator"] = self.generator
+        self._propagate_generator()
+
+    def _propagate_generator(self) -> None:
+        """
+        Hand the generator to any lattice that declares a ``generator``
+        attribute. Codes that model beam generation and acceleration in a single
+        run (OPAL) need the generator's own settings to describe the cathode
+        distribution, rather than importing a particle file written by whichever
+        code produced it.
+        """
+        for name, lattice in self.latticeObjects.items():
+            if name == "generator":
+                continue
+            if "generator" in getattr(type(lattice), "model_fields", {}):
+                lattice.generator = self.generator
 
     def change_generator(
         self,

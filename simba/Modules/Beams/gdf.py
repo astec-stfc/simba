@@ -67,7 +67,20 @@ def write_gdf_beam_file(
     easygdf.save_initial_distribution(filename, **dataarray)
 
 
-def read_gdf_beam_file_object(self, file):
+def read_gdf_beam_file_object(file):
+    """
+    Open a GPT output file, or pass through an already-opened one.
+
+    Parameters
+    ----------
+    file: str or gdf_beam
+        Path to a GPT ``.gdf`` file, or an existing :class:`~gdf_beam`.
+
+    Returns
+    -------
+    gdf_beam
+        The opened beam file.
+    """
     if isinstance(file, str):
         gdfbeam = gdf_beam(file)
     elif isinstance(file, gdf_beam):
@@ -94,7 +107,7 @@ def read_gdf_beam_file(
 ):
     self.reset_dicts()
     if gdfbeam is None and filename is not None:
-        gdfbeam = read_gdf_beam_file_object(self, filename)
+        gdfbeam = read_gdf_beam_file_object(filename)
     elif gdfbeam is None and filename is None:
         return None
 
