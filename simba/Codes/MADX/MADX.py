@@ -63,6 +63,7 @@ from ...Modules import Beams as rbf
 from ...Modules import constants
 from ...Modules.units import UnitValue
 from ...Modules.Twiss.madx import save_madx_twiss_hdf
+from ...Modules.rf_focusing import tw1_focusing_matrix
 
 from laura.translator.converters.converter import translate_elements
 from laura.translator.utils.functions import (
@@ -91,7 +92,6 @@ madx_particle_names = {
     "proton": "proton",
     "antiproton": "antiproton",
 }
-
 
 class madxLattice(frameworkLattice):
     """
@@ -346,15 +346,26 @@ class madxLattice(frameworkLattice):
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
                 estr = d.to_madx(at=at).strip()
                 if d.hardware_type.lower() == "rfcavity":
-                    if self.cavity_model.lower() == "rsmatrix":
-                        estr, self._design_energy = self.rs_matrix_cavity(
-                            estr, d.physical.length, at, self._design_energy
-                        )
-                    elif (
-                        self.cavity_model.lower() == "sliced"
-                        and self.nslice_rfcavity > 1
-                    ):
-                        estr = self.slice_cavity(estr, d.physical.length, at)
+                    if d.cavity.structure_type == "StandingWave":
+                        if self.cavity_model.lower() == "rsmatrix":
+                            estr, self._design_energy = self.rs_matrix_cavity(
+                                estr, d.physical.length, at, self._design_energy
+                            )
+                        elif (
+                            self.cavity_model.lower() == "sliced"
+                            and self.nslice_rfcavity > 1
+                        ):
+                            estr = self.slice_cavity(estr, d.physical.length, at)
+                    elif d.cavity.structure_type == "TravellingWave":
+                        if self.cavity_model.lower() == "rsmatrix":
+                            estr, self._design_energy = self.tw_matrix_cavity(
+                                estr, d.physical.length, at, self._design_energy
+                            )
+                        elif (
+                            self.cavity_model.lower() == "sliced"
+                            and self.nslice_rfcavity > 1
+                        ):
+                            estr = self.slice_cavity(estr, d.physical.length, at)
                 lines.append(estr)
             lines.append("endsequence;")
             seqstr = "\n".join(lines)
@@ -488,6 +499,75 @@ class madxLattice(frameworkLattice):
             + f", at = {at + L / 2.0};"
         )
         return matrixstr + "\n" + cavstr, energy + de
+
+    def tw_matrix_cavity(
+        self,
+        cavstring: str,
+        length: float,
+        at: float,
+        energy: float,
+    ) -> tuple:
+        """
+        Convert a travelling-wave RF cavity definition into a first-order
+        MAD-X ``MATRIX`` element built from :func:`tw1_focusing_matrix`
+        (reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1``), followed by a
+        thin ``RFCAVITY`` applying the energy gain and RF curvature -- the
+        travelling-wave counterpart of :meth:`~rs_matrix_cavity`.
+
+        Parameters
+        ----------
+        cavstring: str
+            The full MAD-X element definition for the cavity
+        length: float
+            Physical length of the cavity [m]
+        at: float
+            Position of the cavity centre within the segment [m]
+        energy: float
+            Total beam (design) energy at the entrance of the cavity [eV]
+
+        Returns
+        -------
+        tuple
+            (MAD-X definitions string, energy at the exit of the cavity [eV])
+        """
+        m0 = self.particle_rest_energy_eV
+        if ":=" in cavstring or energy <= m0:
+            if energy <= m0:
+                warn(
+                    "MADX: beam energy unknown when writing the lattice -- "
+                    "using a thin-kick cavity model. Call preProcess() "
+                    "before write() to enable the tw1 cavity model."
+                )
+            return cavstring, energy
+        elemname, etype, attrs = self.parse_madx_element(cavstring)
+        if etype not in madx_accelerating_types:
+            return cavstring, energy
+        try:
+            volt = float(attrs.get("volt", 0.0)) * 1e6  # MV -> eV
+            lag = float(attrs.get("lag", 0.0))
+            freq = float(attrs.get("freq", 2998.5)) * 1e6  # MHz -> Hz
+            L = float(attrs.get("l", length))
+        except ValueError:
+            return cavstring, energy
+        de = volt * np.sin(2 * np.pi * lag)
+        if L <= 0 or abs(de) < 1e-9 * max(energy, 1.0):
+            return cavstring, energy + de
+        m11, m12, m21, m22, energy_out = tw1_focusing_matrix(
+            volt, freq, 2 * np.pi * lag, L, energy, m0, canonical_rescale=True
+        )
+        matrixstr = (
+            f"{elemname}_TWM: matrix, l = {L}, "
+            f"rm11 = {m11}, rm12 = {m12}, rm21 = {m21}, rm22 = {m22}, "
+            f"rm33 = {m11}, rm34 = {m12}, rm43 = {m21}, rm44 = {m22}, "
+            f"at = {at};"
+        )
+        others = {k: v for k, v in attrs.items() if k not in ("l", "at")}
+        cavstr = (
+            f"{elemname}: rfcavity, l = 0, "
+            + ", ".join([f"{k} = {v}" for k, v in others.items()])
+            + f", at = {at + L / 2.0};"
+        )
+        return matrixstr + "\n" + cavstr, energy_out
 
     def slice_cavity(self, cavstring: str, length: float, at: float) -> str:
         """
