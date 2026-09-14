@@ -1306,6 +1306,8 @@ class frameworkLattice(BaseModel):
                 elements=ElementList(elements=vals),
                 name=self.objectname,
                 master_lattice=self.global_parameters["master_lattice"],
+                functional_definitions=self.settings["functional_definitions"],
+                resolve_functional=self.settings["resolve_functional"],
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
@@ -1385,7 +1387,7 @@ class frameworkLattice(BaseModel):
                 filename = os.path.splitext(fn)[0]
                 if cod in ["opal", "gpt", "astra"]:
                     self.files.append(f'{subdir}/{filename}.{cod.lower()}')
-            if hasattr(e.simulation, "wakefield_definition") and  isinstance(e.simulation.wakefield_definition, str):
+            if hasattr(e.simulation, "wakefield_definition") and isinstance(e.simulation.wakefield_definition, str):
                 fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
                 filename = os.path.splitext(fn)[0]
                 self.files.append(f'{subdir}/{filename}.{cod.lower()}')
@@ -1588,10 +1590,10 @@ class frameworkLattice(BaseModel):
         initial_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         final_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         for cav in cavs:
-            final_energy += (cav.simulation.field_amplitude * np.cos(cav.cavity.phase)) * 1e-9
+            final_energy += (cav.simulation.resolved("field_amplitude") * np.cos(cav.cavity.resolved("phase"))) * 1e-9
         if harmonics:
             for harm in harmonics:
-                final_energy += (harm.simulation.field_amplitude * np.cos(harm.cavity.phase)) * 1e-9
+                final_energy += (harm.simulation.resolved("field_amplitude") * np.cos(harm.cavity.resolved("phase"))) * 1e-9
 
         chirps = self.global_parameters["beam"].slice.get_chirp_coeffs()
 
@@ -2463,7 +2465,7 @@ class chicane(frameworkGroup):
             The bending angle
         """
         obj = [self.allElementObjects[e] for e in self.elements]
-        return float(obj[0].angle)
+        return float(obj[0].magnetic.KnL(0))
 
     @angle.setter
     def angle(self, theta: float) -> None:
