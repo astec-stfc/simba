@@ -291,7 +291,7 @@ class madxLattice(frameworkLattice):
         List
             A list of segments, each a list of element names (in order).
         """
-        elements_with_drifts = self.section.createDrifts()
+        elements_with_drifts = self.section.create_drifts()
         self._elements_with_drifts = elements_with_drifts
         self._elem_dict = translate_elements(
             list(elements_with_drifts.values()),
@@ -359,7 +359,9 @@ class madxLattice(frameworkLattice):
                     elif d.cavity.structure_type == "TravellingWave":
                         if self.cavity_model.lower() == "rsmatrix":
                             estr, self._design_energy = self.tw_matrix_cavity(
-                                estr, d.physical.length, at, self._design_energy
+                                estr, d.physical.length, at, self._design_energy,
+                                end1_focus=bool(d.simulation.end1_focus),
+                                end2_focus=bool(d.simulation.end2_focus),
                             )
                         elif (
                             self.cavity_model.lower() == "sliced"
@@ -506,11 +508,14 @@ class madxLattice(frameworkLattice):
         length: float,
         at: float,
         energy: float,
+        end1_focus: bool = True,
+        end2_focus: bool = True,
     ) -> tuple:
         """
         Convert a travelling-wave RF cavity definition into a first-order
         MAD-X ``MATRIX`` element built from :func:`tw1_focusing_matrix`
-        (reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1``), followed by a
+        (reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1`` plus its
+        ``END1_FOCUS``/``END2_FOCUS`` entrance/exit kicks), followed by a
         thin ``RFCAVITY`` applying the energy gain and RF curvature -- the
         travelling-wave counterpart of :meth:`~rs_matrix_cavity`.
 
@@ -524,6 +529,12 @@ class madxLattice(frameworkLattice):
             Position of the cavity centre within the segment [m]
         energy: float
             Total beam (design) energy at the entrance of the cavity [eV]
+        end1_focus: bool
+            Apply the entrance RF-focusing kick (matches the cavity's own
+            ``simulation.end1_focus``, as used for ELEGANT)
+        end2_focus: bool
+            Apply the exit RF-focusing kick (matches
+            ``simulation.end2_focus``)
 
         Returns
         -------
@@ -553,7 +564,8 @@ class madxLattice(frameworkLattice):
         if L <= 0 or abs(de) < 1e-9 * max(energy, 1.0):
             return cavstring, energy + de
         m11, m12, m21, m22, energy_out = tw1_focusing_matrix(
-            volt, freq, 2 * np.pi * lag, L, energy, m0, canonical_rescale=True
+            volt, freq, 2 * np.pi * lag, L, energy, m0, canonical_rescale=True,
+            end1_focus=end1_focus, end2_focus=end2_focus,
         )
         matrixstr = (
             f"{elemname}_TWM: matrix, l = {L}, "

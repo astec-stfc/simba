@@ -31,11 +31,33 @@ def test_energy_gain_matches_crest_voltage():
     assert np.isclose(e_out, ENERGY + VOLT, rtol=1e-9)
 
 
-def test_focusing_vanishes_exactly_on_crest():
+def test_body_focusing_vanishes_exactly_on_crest():
     # dpr ~ cos(phi): at crest (phi=pi/2) the TW body kick is exactly zero,
-    # unlike the SW matrix which still focuses on crest.
-    _, _, r21, _, _ = tw1_focusing_matrix(VOLT, FREQ, CREST_PHI, LENGTH, ENERGY, M0)
+    # unlike the SW matrix which still focuses on crest. Isolate the body
+    # kick by switching off the (independent) end1/end2 focus kicks, which
+    # go as sin(phi) and so are instead *maximal* at crest.
+    _, _, r21, _, _ = tw1_focusing_matrix(
+        VOLT, FREQ, CREST_PHI, LENGTH, ENERGY, M0,
+        end1_focus=False, end2_focus=False,
+    )
     assert np.isclose(r21, 0.0, atol=1e-12)
+
+
+def test_end_focus_kicks_are_off_by_default_symmetric_and_max_on_crest():
+    # end1/end2 focus go as sin(phi): zero off... no -- maximal exactly on
+    # crest (phi=pi/2, sin=1), the opposite of the body kick above.
+    m11, m12, m21, m22, _ = tw1_focusing_matrix(
+        VOLT, FREQ, CREST_PHI, LENGTH, ENERGY, M0,
+        end1_focus=True, end2_focus=True,
+    )
+    assert not np.isclose(m21, 0.0, atol=1e-9)
+
+    # switching both off exactly reproduces the pre-existing body-only matrix
+    body_only = tw1_focusing_matrix(
+        VOLT, FREQ, CREST_PHI, LENGTH, ENERGY, M0,
+        end1_focus=False, end2_focus=False,
+    )
+    assert np.isclose(body_only[2], 0.0, atol=1e-12)
 
 
 def test_tw_focusing_is_much_weaker_than_standing_wave():
@@ -86,6 +108,43 @@ def test_symplectic():
     assert np.isclose(m11 * m22 - m12 * m21, Pi / Pf, rtol=1e-9)
 
 
+def test_end_focus_matches_elegant_reference_for_clara_l02_cavity():
+    # Regression test for the bug this end-focus support fixes: MAD-X and
+    # Ocelot's TW1 matrix (body-only) silently disagreed with ELEGANT's
+    # Twiss through a real travelling-wave cavity, because ELEGANT applies
+    # END1_FOCUS/END2_FOCUS (on by default) on top of BODY_FOCUS_MODEL=TW1
+    # and the shared tw1_focusing_matrix only modelled the body kick.
+    #
+    # Reference values below are ELEGANT's own numbers for CLARA's
+    # CLA-L02-LIN-CAV-01 (volt=87539819.51 V, freq=2998.5 MHz, phase=67 deg,
+    # l=4.06667 m, entrance energy 35.174 MeV), obtained two ways that agree
+    # with each other: (a) &matrix_output on a standalone single-element
+    # rfca with end1_focus=end2_focus=1, giving R = [[0.40588, 2.11364],
+    # [-0.08522, 0.30359]] entrance-only and [[1.00123, 2.11364],[0.08614,
+    # 0.48482]] exit-only (composed: m11=0.40588, m12=2.11364, m21=-0.05040,
+    # m22=0.48487); (b) &twiss_output on the same element with initial
+    # (beta_x, alpha_x) = (75.40984, -0.09373681) giving beta_x=250.72 (no
+    # end focus) and beta_x=41.6818 (with end focus, matching a full
+    # framework run's Twiss_Summary to 8 significant figures).
+    volt, freq = 87539819.51089449, 2998500000.0
+    phase_deg = 67.0
+    phi = np.radians(phase_deg)
+    length = 4.06667
+    m0 = 0.51099895e6
+    p_central = 68.82667045970253
+    energy = m0 * np.sqrt(p_central**2 + 1.0)
+
+    m11, m12, m21, m22, _ = tw1_focusing_matrix(
+        volt, freq, phi, length, energy, m0, canonical_rescale=False,
+    )
+    # n_slices=50 (default) vs. ELEGANT's much finer internal slicing
+    # (n_kicks=360) -- a few tenths of a percent apart is expected.
+    assert np.isclose(m11, 0.405883, rtol=5e-3)
+    assert np.isclose(m12, 2.113645, rtol=5e-3)
+    assert np.isclose(m21, -0.050403, rtol=2e-2)
+    assert np.isclose(m22, 0.484869, rtol=5e-3)
+
+
 def test_canonical_rescale_toggle_changes_only_output_row():
     phi = 2 * np.pi * 0.15
     m11_c, m12_c, m21_c, m22_c, e_c = tw1_focusing_matrix(
@@ -106,9 +165,11 @@ def test_canonical_rescale_toggle_changes_only_output_row():
 if __name__ == "__main__":
     test_zero_voltage_is_a_drift()
     test_energy_gain_matches_crest_voltage()
-    test_focusing_vanishes_exactly_on_crest()
+    test_body_focusing_vanishes_exactly_on_crest()
+    test_end_focus_kicks_are_off_by_default_symmetric_and_max_on_crest()
     test_tw_focusing_is_much_weaker_than_standing_wave()
     test_converged_with_slice_count()
     test_symplectic()
+    test_end_focus_matches_elegant_reference_for_clara_l02_cavity()
     test_canonical_rescale_toggle_changes_only_output_row()
     print("All tw1_focusing_matrix sanity checks passed.")

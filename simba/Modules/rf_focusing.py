@@ -28,30 +28,42 @@ def tw1_focusing_matrix(
     m0: float,
     n_slices: int = TW1_N_SLICES,
     canonical_rescale: bool = True,
+    end1_focus: bool = True,
+    end2_focus: bool = True,
 ) -> tuple:
     """
     Build the transverse first-order transfer matrix for a travelling-wave
-    cavity body, reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1`` kick (see
-    ``identifyRfcaBodyFocusModel``/the ``twFocusing1`` branch of
-    ``track_through_rf_cavity`` in ELEGANT's ``simple_rfca.c``). Unlike the
-    Rosenzweig-Serafini standing-wave matrix (as used by MAD-X's
-    ``rsmatrix`` cavity model and Ocelot's ``CavityAtom``, both of which
-    assume a pure pi-mode standing wave and do not apply to a travelling
-    structure), this integrates the actual radial-electric /
-    azimuthal-magnetic field kick of a synchronous forward travelling wave.
-    For an on-axis field ``Ez = E0 sin(kz - wt + phi)`` (phase velocity =
-    c), the paraxial fields are ``Er = -(r/2) dEz/dz`` and ``Bphi = Er/c``,
-    so the net radial Lorentz force on a co-propagating ultrarelativistic
-    particle, ``F_r = q(Er - v_z*Bphi) = q*Er*(1 - v_z/c)``, is suppressed
-    by ``(1 - beta) ~ 1/(2*gamma**2)`` relative to the naive electrostatic
+    cavity, reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1`` body kick *plus*
+    its ``END1_FOCUS``/``END2_FOCUS`` entrance/exit RF focusing (see
+    ``identifyRfcaBodyFocusModel``/the ``twFocusing1`` branch, and the
+    end-focus kicks, of ``track_through_rf_cavity`` in ELEGANT's
+    ``simple_rfca.c``). Unlike the Rosenzweig-Serafini standing-wave matrix
+    (as used by MAD-X's ``rsmatrix`` cavity model and Ocelot's
+    ``CavityAtom``, both of which assume a pure pi-mode standing wave and
+    do not apply to a travelling structure), this integrates the actual
+    radial-electric / azimuthal-magnetic field kick of a synchronous
+    forward travelling wave. For an on-axis field
+    ``Ez = E0 sin(kz - wt + phi)`` (phase velocity = c), the paraxial
+    fields are ``Er = -(r/2) dEz/dz`` and ``Bphi = Er/c``, so the net
+    radial Lorentz force on a co-propagating ultrarelativistic particle,
+    ``F_r = q(Er - v_z*Bphi) = q*Er*(1 - v_z/c)``, is suppressed by
+    ``(1 - beta) ~ 1/(2*gamma**2)`` relative to the naive electrostatic
     term -- this is why travelling-wave RF focusing is much weaker than
     standing-wave, and why re-using the SW matrix over-predicts it.
 
-    The cavity is sliced into ``n_slices`` drift-kick-drift steps, each
-    applying ELEGANT's ``dpr = volt/(2*beta)*(omega/c)*(1-beta)*cos(phi)``
+    The cavity body is sliced into ``n_slices`` drift-kick-drift steps,
+    each applying ELEGANT's ``dpr = volt/(2*beta)*(omega/c)*(1-beta)*cos(phi)``
     kick (to both x and y, since the force is rotationally symmetric), and
     chain-multiplied in the beam's local (accelerating) momentum
-    normalisation.
+    normalisation. ``end1_focus``/``end2_focus`` add ELEGANT's separate
+    thin-lens entrance/exit RF-focusing kicks on top of the body matrix --
+    the same "quasi-static" edge-field focusing present at the ends of any
+    cavity (a much larger effect than the body kick itself, since it is
+    *not* suppressed by ``(1-beta)``) -- using the standard
+    ``k = -/+ (E0 sin(phi)) / (2 * E)`` thin-lens strength (``E0 = volt /
+    length`` the average on-axis gradient, entrance evaluated at the
+    entrance energy, exit at the exit energy, sign flipped between the
+    two). Leaving both off reproduces the pre-existing body-only matrix.
 
     Parameters
     ----------
@@ -80,6 +92,12 @@ def tw1_focusing_matrix(
         momentum per segment (see :meth:`~simba.Codes.MADX.MADX.madxLattice.rs_matrix_cavity`).
         Ocelot re-normalises its canonical momentum locally at every
         element instead, so its caller should pass False.
+    end1_focus: bool
+        Apply the entrance RF-focusing kick (matches ELEGANT's
+        ``END1_FOCUS``, default on there too).
+    end2_focus: bool
+        Apply the exit RF-focusing kick (matches ELEGANT's
+        ``END2_FOCUS``, default on there too).
 
     Returns
     -------
@@ -121,6 +139,15 @@ def tw1_focusing_matrix(
         m22 = d * kappa + rho
         M = np.array([[m11, m12], [m21, m22]]) @ M
         E_i = E_f
+
+    if (end1_focus or end2_focus) and length > 0:
+        E0 = volt / length
+        if end1_focus:
+            k1 = -(E0 * sin_phi) / (2.0 * energy)
+            M = M @ np.array([[1.0, 0.0], [k1, 1.0]])
+        if end2_focus:
+            k2 = (E0 * sin_phi) / (2.0 * E_i)
+            M = np.array([[1.0, 0.0], [k2, 1.0]]) @ M
 
     m11, m12 = M[0, 0], M[0, 1]
     m21, m22 = M[1, 0], M[1, 1]

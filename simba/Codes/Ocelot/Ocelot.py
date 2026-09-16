@@ -229,7 +229,10 @@ class ocelotLattice(frameworkLattice):
         cavity, inserts a thin corrective ``Matrix`` element immediately
         after it that cancels the standing-wave matrix Ocelot will apply at
         that cavity and replaces it with the travelling-wave model
-        (matching ELEGANT's ``BODY_FOCUS_MODEL=TW1``). Both matrices are
+        (matching ELEGANT's ``BODY_FOCUS_MODEL=TW1`` plus its
+        ``END1_FOCUS``/``END2_FOCUS`` entrance/exit kicks, read from the
+        cavity's own ``simulation.end1_focus``/``end2_focus``). Both
+        matrices are
         evaluated at the same running estimate of the design energy (built
         up from :attr:`~pin`'s mean energy plus each preceding cavity's own
         energy gain) -- the same approximation
@@ -263,9 +266,12 @@ class ocelotLattice(frameworkLattice):
                 # via phi = pi/2 - phi_ocelot.
                 phi = np.pi / 2.0 - phi_ocelot
                 sw = _sw_focusing_matrix(volt, phi, elem.l, design_energy, m0)
+                sim = getattr(source, "simulation", None)
                 m11, m12, m21, m22, _ = tw1_focusing_matrix(
                     volt, elem.freq, phi, elem.l, design_energy, m0,
                     canonical_rescale=False,
+                    end1_focus=bool(getattr(sim, "end1_focus", True)),
+                    end2_focus=bool(getattr(sim, "end2_focus", True)),
                 )
                 tw = np.array([[m11, m12], [m21, m22]])
                 correction = tw @ np.linalg.inv(sw)
@@ -370,7 +376,7 @@ class ocelotLattice(frameworkLattice):
         # element whose exit position first reaches it. This is what makes
         # Twiss.get_parameter_at_element usable for Ocelot output.
         elem_names = array(
-            [e.name for e in self.createDrifts().values()], dtype="U"
+            [e.name for e in self.create_drifts().values()], dtype="U"
         )
         if len(elem_names):
             idx = clip(
