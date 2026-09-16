@@ -1672,7 +1672,7 @@ class frameworkLattice(BaseModel):
             str += e + ", "
         return str + ")"
 
-    def createDrifts(
+    def create_drifts(
         self, drift_elements: tuple = ("screen", "beam_position_monitor")
     ) -> dict:
         """
@@ -1692,7 +1692,7 @@ class frameworkLattice(BaseModel):
             A dictionary containing the new drift elements created for the lattice.
             The keys are the names of the new drift elements, and the values are the corresponding drift objects.
         """
-        return self.section.createDrifts()
+        return self.section.create_drifts()
 
     def getSValues(
         self,
@@ -1723,7 +1723,7 @@ class frameworkLattice(BaseModel):
             If `as_dict` is True, returns a dictionary with element names as keys and their S values as values.
             If `as_dict` is False, returns a list of S values.
         """
-        elems = self.createDrifts() if drifts else self.elements
+        elems = self.create_drifts() if drifts else self.elements
         s = [0]
         for e in list(elems.values()):
             s.append(s[-1] + e.physical.length)
@@ -1755,7 +1755,7 @@ class frameworkLattice(BaseModel):
             If `as_dict` is False, returns a list of Z values.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         if as_dict:
@@ -1778,7 +1778,7 @@ class frameworkLattice(BaseModel):
             If `drifts` is True, includes drift elements; otherwise, only includes main elements.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         return [e.name for e in list(elems.values())]
@@ -1800,7 +1800,7 @@ class frameworkLattice(BaseModel):
             A list or dictionary of elements in the lattice.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         if as_dict:
