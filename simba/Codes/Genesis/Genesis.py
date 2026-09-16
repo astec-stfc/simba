@@ -246,7 +246,21 @@ class genesisLattice(frameworkLattice):
     `profile`=use `&beam` with profile labels; `distribution`: use `&importdistribution`"""
 
     beam_slices: int = 128
-    """Number of beam slices for `profile`"""
+    """Number of beam slices for `profile`, and the number of slices a steady-state
+    output beam is replicated over when it is handed to the next code."""
+
+    slicewidth: float = 0.01
+    """Fraction of the distribution length used to reconstruct each slice for
+    `distribution`; see
+    :class:`~simba.Codes.Genesis.Genesis.genesis_importdistribution_command`."""
+
+    sample: int = 1
+    """Simulate only every `sample`-th wavelength when time-dependent. Cost scales
+    with the slice count, so a long bunch usually needs this above 1."""
+
+    time_window: float = 99.8
+    """Percentile range of the bunch the simulation window covers; see
+    :func:`~simba.Codes.Genesis.Genesis.genesisLattice.beam_length`."""
 
     steady_state: bool = True
     """If `True`, run in steady-state mode; if not, set `time=true` and set up simulation window
@@ -411,12 +425,23 @@ class genesisLattice(frameworkLattice):
         beam = rbf.beam()
         rootname = f"{self.global_parameters['master_subdir']}/{self.end}"
         genesisbeamfilename = f"{rootname}_BEAM.par.h5"
-        rbf.genesis.read_genesis_beam_file(beam, genesisbeamfilename)
+        expand = {}
+        if self.steady_state:
+            expand = {
+                "steady_state": True,
+                "bunch_length": self.beam_length(),
+                "n_slices": self.beam_slices,
+            }
+        rbf.genesis.read_genesis_beam_file(beam, genesisbeamfilename, **expand)
         HDF5filename = (
             f"{self.global_parameters['master_subdir']}/"
             f"{self.output_basename(self.end)}.openpmd.hdf5"
         )
-        rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            HDF5filename,
+            pos=list(self.endObject.physical.start.model_dump().values()),
+        )
         self.commandFiles = {}
         outfields = sorted(
             [
@@ -475,14 +500,23 @@ class genesisLattice(frameworkLattice):
             npart=self.npart,
         )
 
+    def beam_length(self) -> float:
+        """Length of the input distribution, from its time profile.
+
+        Between percentiles rather than end to end: after an arc a handful of
+        particles sit far out in the energy tails, and taking the full range lets
+        them set the simulation window. The slice count, and so the run time and
+        the size of the beam handed to the next code, scale straight off it.
+        """
+        t = np.asarray(self.global_parameters["beam"].t)
+        edges = [50 - self.time_window / 2, 50 + self.time_window / 2]
+        return float(np.ptp(np.percentile(t, edges))) * speed_of_light
+
     def write_time(self) -> None:
-        self.global_parameters["beam"].beam.slice.bin_time()
-        tbins = self.global_parameters["beam"].beam.slice._t_Bins.val
-        slen = (tbins[-1] - tbins[0]) * speed_of_light
         self.commandFiles["time"] = genesis_time_command(
-            slen=slen,
+            slen=self.beam_length(),
             time=True,
-            sample=1
+            sample=self.sample,
         )
 
     def hdf5_to_genesis(self) -> None:
@@ -502,7 +536,7 @@ class genesisLattice(frameworkLattice):
             rbf.genesis.write_genesis_beam_file(
                 self.global_parameters["beam"],
                 genesisbeamfilename,
-                n_slice = int(self.nbins),
+                n_slice = int(self.beam_slices),
             )
             props = {}
             self.commandFiles["profile_file"] = []
@@ -520,6 +554,22 @@ class genesisLattice(frameworkLattice):
         elif self.beam_type == "beam":
             beam_properties = self.get_average_beam_properties()
             self.commandFiles["beam"] = genesis_beam_command(**beam_properties)
+        elif self.beam_type == "distribution":
+            if self.steady_state:
+                raise ValueError("beam_type 'distribution' needs steady_state = False")
+            rbf.genesis.write_genesis_beam_distribution(
+                self.global_parameters["beam"],
+                genesisbeamfilename,
+                pos=[-v for v in self.startObject.physical.start.model_dump().values()],
+            )
+            self.commandFiles["importdistribution"] = genesis_importdistribution_command(
+                file=f"{self.start}.genesis.hdf5",
+                charge=abs(float(self.global_parameters["beam"].total_charge)),
+                slicewidth=self.slicewidth,
+                gamma0=float(self.global_parameters["beam"].beam.centroids.mean_gamma.val),
+                settimewindow=True,
+            )
+            self.files.append(genesisbeamfilename)
         else:
             raise ValueError(f"beam_type {self.beam_type} not understood")
 

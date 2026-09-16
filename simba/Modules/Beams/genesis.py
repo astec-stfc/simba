@@ -27,32 +27,32 @@ def read_genesis_beam_file(
         n_slices: int | None = None,
         resample: int = None,
 ):
-    if steady_state and any([bunch_length is None and n_slices is None]):
+    if steady_state and bunch_length is None and n_slices is None:
         raise ValueError("bunch_length or n_slices must be provided for steady-state beams.")
     data = genesis4_par_to_data(filename)
     opmdfn = filename.replace('_BEAM.par.h5', '.openpmd.hdf5')
     if steady_state:
-        newdata = {
-            "x": [],
-            "y": [],
-            "z": [],
-            "px": [],
-            "py": [],
-            "pz": [],
-            "t": [],
-            "weight": [],
-            "status": [],
-        }
+        slice_length = np.ptp(data["z"])
+        if bunch_length is None:
+            bunch_length = n_slices * slice_length
+        if n_slices is None:
+            n_slices = max(int(round(bunch_length / slice_length)), 1)
         zvals = np.linspace(-bunch_length / 2, bunch_length / 2, n_slices)
-        for z in zvals:
-            for k, v in data.items():
-                if not k in ["species", "z"]:
-                    newdata[k].append(v)
-            newdata["z"].append(data["z"] + z + zoffset)
+        scale = bunch_length / n_slices / slice_length
+        newdata = {
+            k: np.concatenate([v] * n_slices)
+            for k, v in data.items() if k not in ("species", "z", "t", "weight")
+        }
+        newdata["species"] = data["species"]
+        newdata["t"] = np.concatenate([data["t"]] * n_slices)
+        newdata["z"] = np.concatenate([data["z"] + z + zoffset for z in zvals])
+        newdata["weight"] = np.concatenate([data["weight"] * scale] * n_slices)
         pg = ParticleGroup(data=newdata)
     else:
         pg = ParticleGroup(data=data)
         pg.z += zoffset
+    if np.ptp(pg.z) > 0:
+        pg.drift_to_z()
     pg.write(opmdfn)
     read_openpmd_beam_file(self, opmdfn)
     if isinstance(resample, int):
@@ -64,8 +64,8 @@ def read_genesis_beam_file(
         self.Particles.py = UnitValue(postbeam[4], "kg*m/s")
         self.Particles.pz = UnitValue(postbeam[5], "kg*m/s")
 
-def write_genesis_beam_distribution(self, filename: str):
-    pg = write_openpmd_beam_file(self, filename)
+def write_genesis_beam_distribution(self, filename: str, pos=[0, 0, 0]):
+    pg = write_openpmd_beam_file(self, filename, pos=pos)
     write_genesis4_distribution(pg, filename.replace('openpmd', 'genesis'))
 
 def write_genesis_beam_file(self, filename: str, n_slice: int = 10):
