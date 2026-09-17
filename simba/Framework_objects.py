@@ -541,8 +541,8 @@ class frameworkLattice(BaseModel):
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
-    _csr_bins: int = 20
-    """Number of bins for CSR calculations"""
+    _csr_bins: int | None = None
+    """Number of bins for CSR calculations, or None if nobody has chosen one."""
 
     lsc_high_frequency_cutoff_start: float = -1
     """Spatial frequency at which smoothing filter begins. If not positive, no frequency filter smoothing is done. 
@@ -703,8 +703,14 @@ class frameworkLattice(BaseModel):
     def csr_bins(self) -> int:
         """
         Property to get or set the number of bins for CSR calculations.
+
+        Reads 20 until somebody chooses otherwise, either here or on the machine
+        section this lattice cuts.
         """
-        return self._csr_bins
+        if self._csr_bins is not None:
+            return self._csr_bins
+        stated = getattr(self._machine_space_charge(), "number_of_bins", None)
+        return 20 if stated is None else stated
 
     @csr_bins.setter
     def csr_bins(self, csr: int) -> None:
@@ -1429,6 +1435,22 @@ class frameworkLattice(BaseModel):
         """
         return float(self.start_s - self.startObject.physical.length)
 
+    def _machine_space_charge(self):
+        """
+        The collective-field resolution of the machine section this lattice cuts.
+        `csr_bins` set on this lattice still wins, being applied after.
+
+        Returns
+        -------
+        SpaceChargeSettings | None
+            The settings to run this lattice with, or None to leave each code on
+            its own defaults.
+        """
+        for section in (getattr(self.machine, "sections", None) or {}).values():
+            if self.start in getattr(section, "order", ()):
+                return section.space_charge
+        return None
+
     @computed_field
     @property
     def section(self) -> SectionLatticeTranslator:
@@ -1460,6 +1482,7 @@ class frameworkLattice(BaseModel):
                 master_lattice=self.global_parameters["master_lattice"],
                 functional_definitions=self.settings["functional_definitions"],
                 resolve_functional=self.settings["resolve_functional"],
+                space_charge=self._machine_space_charge(),
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
