@@ -66,6 +66,7 @@ def read_genesis_beam_file(
 
 def write_genesis_beam_distribution(self, filename: str, pos=[0, 0, 0]):
     pg = write_openpmd_beam_file(self, filename, pos=pos)
+    pg.z = np.full(len(pg.z), np.mean(pg.z))
     write_genesis4_distribution(pg, filename.replace('openpmd', 'genesis'))
 
 def write_genesis_beam_file(self, filename: str, n_slice: int = 10):

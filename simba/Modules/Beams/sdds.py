@@ -54,9 +54,8 @@ def read_SDDS_beam_file(
         (self._beam.particle_rest_energy / constants.elementary_charge),
         units="eV/c",
     )
-    # print('SDDS', self._beam["particle_rest_energy_eV"])
     self._beam.particle_charge = UnitValue(
-        np.full(len(beamprops["x"]), constants.elementary_charge),
+        np.full(len(beamprops["x"]), -constants.elementary_charge),
         units="C",
     )
     # print('SDDS', self._beam["particle_charge"])
@@ -78,7 +77,9 @@ def read_SDDS_beam_file(
         self._beam.set_total_charge(self._beam.total_charge)
     else:
         self._beam.set_total_charge(charge)
-    self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
+    self._beam.nmacro = UnitValue(
+        np.abs(self._beam.charge / self._beam.particle_charge)
+    )
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
     if ref_index is not None:
         self.reference_particle_index = int(ref_index)
