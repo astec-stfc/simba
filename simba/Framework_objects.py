@@ -743,6 +743,19 @@ class frameworkLattice(BaseModel):
                 pass
 
     @property
+    def lsc_in_use(self) -> bool:
+        """
+        Whether any element in this lattice actually asks the code for LSC.
+
+        Not the same as :attr:`lsc_enable`, which is on by default: a lattice of
+        drifts and quadrupoles has nothing to do LSC in even with the flag set.
+        """
+        return any(
+            getattr(getattr(elem, "simulation", None), "lsc_enable", False)
+            for elem in self.elementObjects.values()
+        )
+
+    @property
     def wakefield_enable(self) -> bool:
         """
         Property to get or set the wakefield enable flag. When False, the
@@ -1508,6 +1521,44 @@ class frameworkLattice(BaseModel):
     def write(self):
         pass
 
+    def run_command(self, command: list, logfile: str, **kwargs) -> None:
+        """
+        Run a simulation code, logging to `logfile`, and raise if the code says it failed.
+
+        A code that gives up part-way still looks like a successful run to everything
+        downstream, which then dies reading output that was never written -- so the
+        exit status is read here, once, for every code that runs a subprocess.
+
+        Parameters
+        ----------
+        command: list
+            The command to run, as passed to :mod:`subprocess`
+        logfile: str
+            Where the code's output is written; its tail is quoted if the code fails
+        kwargs:
+            Passed through to :func:`subprocess.call` (``cwd``, ``env``, ...)
+
+        Raises
+        ------
+        RuntimeError
+            If the code exits with a non-zero status.
+        """
+        with open(logfile, "w") as f:
+            status = subprocess.call(
+                command, stdout=f, stderr=subprocess.STDOUT, **kwargs
+            )
+        if status == 0:
+            return
+        try:
+            with open(logfile, "r") as f:
+                tail = "".join(f.readlines()[-20:]).strip()
+        except OSError:
+            tail = ""
+        raise RuntimeError(
+            f"{self.code} exited with status {status} running {self.objectname}.\n"
+            f"Last lines of {logfile}:\n{tail}"
+        )
+
     def run(self) -> None:
         """
         Run the code with input 'filename'
@@ -1520,6 +1571,8 @@ class frameworkLattice(BaseModel):
         ------
         FileNotFoundError
             If the executable for the specified code is not found in the executables dictionary.
+        RuntimeError
+            If the code exits with a non-zero status.
         """
         if self.remote_setup:
             self.run_remote()
@@ -1527,16 +1580,14 @@ class frameworkLattice(BaseModel):
             command = self.executables[self.code] + [self.name]
             workdir = os.path.abspath(self.global_parameters["master_subdir"])
             command = self.executables.build_command(command, workdir)
-            with open(
+            self.run_command(
+                command,
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",
                     ".",
                 ),
-                "w",
-            ) as f:
-                subprocess.call(
-                    command, stdout=f, cwd=self.global_parameters["master_subdir"]
-                )
+                cwd=self.global_parameters["master_subdir"],
+            )
 
     def run_remote(self) -> None:
         """

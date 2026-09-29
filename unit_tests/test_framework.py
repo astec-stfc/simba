@@ -229,6 +229,28 @@ def test_check_lattice_after_chicane_angle_change(sample_framework):
     assert sample_framework.check_lattice()
 
 
+def test_check_lattice_catches_a_magnet_the_layout_was_not_told_about(sample_framework):
+    """Changing the field without moving the magnet leaves the machine being tracked
+    through and the machine being drawn disagreeing about where the beam goes."""
+    def dipole(layout_angle):
+        return Dipole(
+            name="D1",
+            machine_area="A1",
+            magnetic={"length": 0.2, "angle": 0.1},
+            physical={
+                "length": 0.2,
+                "middle": {"x": 0, "y": 0, "z": 1.0},
+                "physical_angle": layout_angle,
+            },
+        )
+
+    sample_framework.elementObjects = {"D1": dipole(0.1)}
+    assert sample_framework.check_lattice()
+
+    sample_framework.elementObjects = {"D1": dipole(0.13)}
+    assert not sample_framework.check_lattice()
+
+
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
