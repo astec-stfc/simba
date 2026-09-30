@@ -303,7 +303,7 @@ class xsuiteLattice(frameworkLattice):
                 'sigma_y': np.std(pin.y),
                 'sigma_py': np.std(pin.py),
                 'sigma_zeta': np.std(pin.zeta),
-                'sigma_delta': np.std(pin.delta) * np.mean(pin.energy),
+                'sigma_delta': np.std(pin.delta),
                 'momentum': np.mean(pin.energy) - pin.mass0,
                 'emit_xn': np.mean(self.compute_norm_emit(pin.x, pin.px, pin)),
                 'emit_yn': np.mean(self.compute_norm_emit(pin.y, pin.py, pin)),

@@ -25,23 +25,18 @@ def interpret_xsuite_data(self, lattice_name, fdat):
         self.z.val, np.array(fdat["z"] if "z" in fdat else fdat["s"])
     )
     self.s.val = np.append(self.s.val, np.array(fdat["s"]))
-    E = fdat["momentum"]
-    ke = E - self.E0_eV
-    gamma = E / self.E0_eV
-    cp = E
-    # self.append('cp', cp)
-    self.cp.val = np.append(self.cp.val, cp / constants.elementary_charge)
-    ke = np.array(
-        (np.sqrt(self.E0**2 + cp**2) - self.E0) / constants.elementary_charge
-    )
+    ke = np.array(fdat["momentum"])
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
     gamma = 1 + ke / self.E0_eV
+    cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
+    self.cp.val = np.append(self.cp.val, cp)
     self.gamma.val = np.append(self.gamma.val, gamma)
     self.p.val = np.append(self.p.val, cp * self.q_over_c)
+    bg = cp / self.E0_eV
     self.enx.val = np.append(self.enx.val, fdat["emit_xn"])
-    self.ex.val = np.append(self.ex.val, fdat["emit_xn"] / gamma)
+    self.ex.val = np.append(self.ex.val, fdat["emit_xn"] / bg)
     self.eny.val = np.append(self.eny.val, fdat["emit_yn"])
-    self.ey.val = np.append(self.ey.val, fdat["emit_yn"] / gamma)
+    self.ey.val = np.append(self.ey.val, fdat["emit_yn"] / bg)
     self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
     self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
     self.beta_x.val = np.append(self.beta_x.val, fdat["betx"])
@@ -63,10 +58,8 @@ def interpret_xsuite_data(self, lattice_name, fdat):
     beta = np.sqrt(1 - (gamma**-2))
     self.t.val = np.append(self.t.val, fdat["s"] / (beta * constants.speed_of_light))
     self.sigma_z.val = np.append(self.sigma_z.val, fdat["sigma_zeta"])
-    # self.append('sigma_cp', elegantData['Sdelta'] * cp )
-    self.sigma_cp.val = np.append(self.sigma_cp.val, fdat["sigma_delta"])
+    self.sigma_cp.val = np.append(self.sigma_cp.val, fdat["sigma_delta"] * cp)
     self.mean_cp.val = np.append(self.mean_cp.val, cp)
-    # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
     self.sigma_p.val = np.append(self.sigma_p.val, fdat["sigma_delta"])
     self.mux.val = np.append(self.mux.val, fdat["mux"])
     self.muy.val = np.append(self.muy.val, fdat["muy"])

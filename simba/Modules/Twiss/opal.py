@@ -10,6 +10,13 @@ def cumtrapz(x=[], y=[]):
     except AttributeError as e:
         return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
 
+def geometric_twiss(sigma_u, sigma_pu, emit_n, corr, bg):
+    """Geometric Twiss beta/alpha from OPAL's normalised stat columns."""
+    cov = np.sqrt(np.clip(sigma_u**2 * sigma_pu**2 - emit_n**2, 0, None))
+    beta = sigma_u**2 * bg / emit_n
+    alpha = -np.sign(corr) * cov / emit_n
+    return beta, alpha
+
 def read_opal_twiss_files(self, filename, startS=0, reset=True):
     if reset:
         self.reset_dicts()
@@ -26,8 +33,12 @@ def read_opal_twiss_files(self, filename, startS=0, reset=True):
             # z += self.z.val[-1] if len(self.z.val) > 0 else 0
             self.z.val = np.append(self.z.val, z)
             self.s.val = np.append(self.s.val, z)
-            cp = opalData["ref_pz"][()]
-            # self.append('cp', cp)
+
+            def column(name):
+                """A stat column, or zeros if this file predates it."""
+                return opalData[name][()] if name in opalData else np.zeros(len(z))
+            bg = opalData["ref_pz"][()]
+            cp = bg * self.E0
             ke = np.array(
                 (np.sqrt(self.E0**2 + cp**2) - self.E0) / constants.elementary_charge
             )
@@ -38,35 +49,39 @@ def read_opal_twiss_files(self, filename, startS=0, reset=True):
             self.gamma.val = np.append(self.gamma.val, gamma)
             self.p.val = np.append(self.p.val, cp * self.q_over_c)
             self.enx.val = np.append(self.enx.val, opalData["emit_x"][()])
-            self.ex.val = np.append(self.ex.val, opalData["emit_x"][()] / cp)
+            self.ex.val = np.append(self.ex.val, opalData["emit_x"][()] / bg)
             self.eny.val = np.append(self.eny.val, opalData["emit_y"][()])
-            self.ey.val = np.append(self.ey.val, opalData["emit_y"][()] / cp)
-            betax = opalData["rms_x"][()] / opalData["emit_x"][()] / opalData["ref_pz"][()]
-            alphax = (-1 * np.sign(opalData["xpx"][()]) * opalData["rms_x"][()] * opalData["rms_px"][()]) / opalData["emit_x"][()] / \
-                     opalData["ref_pz"][()]
-            betay = opalData["rms_y"][()] / opalData["emit_y"][()] / opalData["ref_pz"][()]
-            alphay = (-1 * np.sign(opalData["ypy"][()]) * opalData["rms_y"][()] * opalData["rms_py"][()]) / opalData["emit_y"][()] / \
-                     opalData["ref_pz"][()]
+            self.ey.val = np.append(self.ey.val, opalData["emit_y"][()] / bg)
+            betax, alphax = geometric_twiss(
+                opalData["rms_x"][()], opalData["rms_px"][()],
+                opalData["emit_x"][()], opalData["xpx"][()], bg,
+            )
+            betay, alphay = geometric_twiss(
+                opalData["rms_y"][()], opalData["rms_py"][()],
+                opalData["emit_y"][()], opalData["ypy"][()], bg,
+            )
             self.beta_x.val = np.append(self.beta_x.val, betax)
             self.alpha_x.val = np.append(self.alpha_x.val, alphax)
             self.beta_y.val = np.append(self.beta_y.val, betay)
             self.alpha_y.val = np.append(self.alpha_y.val, alphay)
             self.sigma_x.val = np.append(self.sigma_x.val, opalData["rms_x"][()])
             self.sigma_y.val = np.append(self.sigma_y.val, opalData["rms_y"][()])
-            self.sigma_xp.val = np.append(self.sigma_xp.val, opalData["rms_px"][()])
-            self.sigma_yp.val = np.append(self.sigma_yp.val, opalData["rms_py"][()])
+            # rms_p* are normalised momenta; sigma_*p is a divergence in rad.
+            self.sigma_xp.val = np.append(self.sigma_xp.val, opalData["rms_px"][()] / bg)
+            self.sigma_yp.val = np.append(self.sigma_yp.val, opalData["rms_py"][()] / bg)
             self.sigma_t.val = np.append(self.sigma_t.val, opalData["rms_s"][()] / constants.speed_of_light)
             self.mean_x.val = np.append(self.mean_x.val, opalData["mean_x"][()])
             self.mean_y.val = np.append(self.mean_y.val, opalData["mean_y"][()])
-            eta_x = opalData["mean_x"][()]
-            eta_xp = opalData["mean_x"][()]
-            eta_y = opalData["mean_y"][()]
-            eta_yp = opalData["mean_y"][()]
+            eta_x = column("Dx")
+            eta_xp = column("Dxp")
+            eta_y = column("Dy")
+            eta_yp = column("Dyp")
             self.eta_x.val = np.append(self.eta_x.val, eta_x)
             self.eta_xp.val = np.append(self.eta_xp.val, eta_xp)
             self.eta_y.val = np.append(self.eta_y.val, eta_y)
             self.eta_yp.val = np.append(self.eta_yp.val, eta_yp)
-            self.sigma_p.val = np.append(self.sigma_p.val, np.zeros(len(opalData["rms_x"][()])))
+            sigma_p = column("rms_ps") / bg
+            self.sigma_p.val = np.append(self.sigma_p.val, sigma_p)
             self.beta_x_beam.val = np.append(self.beta_x_beam.val, betax)
             self.beta_y_beam.val = np.append(self.beta_y_beam.val, betay)
             self.alpha_x_beam.val = np.append(self.alpha_x_beam.val, alphax)
@@ -90,13 +105,12 @@ def read_opal_twiss_files(self, filename, startS=0, reset=True):
             # print 'len(z) = ', len(z), '  len(beta) = ', len(beta)
             self.t.val = np.append(self.t.val, z / (beta * constants.speed_of_light))
             self.sigma_z.val = np.append(self.sigma_z.val, opalData["rms_s"][()])
-            # self.append('sigma_cp', elegantData['Sdelta'] * cp )
-            self.sigma_cp.val = np.append(self.sigma_cp.val, np.zeros(len(opalData["rms_x"][()])))
+            self.sigma_cp.val = np.append(self.sigma_cp.val, sigma_p * cp)
             self.mean_cp.val = np.append(self.mean_cp.val, cp)
             # print('elegant = ', (elegantData['Sdelta'] * cp / constants.elementary_charge)[-1)
 
-            self.mux.val = np.append(self.mux.val, cumtrapz(x=z, y=1 / (opalData["rms_x"][()]**2 / opalData["emit_x"][()] / opalData["ref_pz"][()])))
-            self.muy.val = np.append(self.muy.val, cumtrapz(x=z, y=1 / (opalData["rms_y"][()]**2 / opalData["emit_y"][()] / opalData["ref_pz"][()])))
+            self.mux.val = np.append(self.mux.val, cumtrapz(x=z, y=1 / betax))
+            self.muy.val = np.append(self.muy.val, cumtrapz(x=z, y=1 / betay))
 
             self.element_name.val = np.append(self.element_name.val, np.full(len(z), lattice_name))
             self.lattice_name.val = np.append(self.lattice_name.val, np.full(len(z), lattice_name))
