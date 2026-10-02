@@ -595,7 +595,6 @@ class elegantLattice(frameworkLattice):
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
                 self.global_parameters["master_subdir"] + "/" + sddsbeamfilename,
-                xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
@@ -622,11 +621,10 @@ class elegantLattice(frameworkLattice):
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
         if not os.path.isfile(elegantbeamfilename):
-            warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
+            if screen.hardware_type != "Beam_Position_Monitor":
+                warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
             return
-        xyzoffset = list(
-            self.elementObjects[screen.name].physical.start.model_dump().values()
-        )
+        xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
         pages = [-1]
         if self.turns > 1:
             pages = list(range(rbf.sdds.count_SDDS_pages(elegantbeamfilename)))

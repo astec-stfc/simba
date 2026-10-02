@@ -1802,16 +1802,27 @@ class Framework(BaseModel):
         Output beam files are named by element alone, so they must not clash.
         Only names written by more than one line in this run are marked, so
         a run whose lines share no screens keeps every filename it had.
+
+        The exception is the element one line ends on and the next starts from.
+        Both write it and both mean the same beam, and it is by that plain name
+        that the downstream line goes looking for it, so qualifying it would
+        leave the handoff with nothing to read.
         """
         seen: Dict[str, int] = {}
         per_line = {}
+        starts, ends = set(), set()
         for lattice_name in files:
             if lattice_name == "generator":
                 continue
+            latt = self.latticeObjects[lattice_name]
             per_line[lattice_name] = self._line_output_names(lattice_name)
+            for side, names in ((latt.start, starts), (latt.end, ends)):
+                if isinstance(side, str):
+                    names.add(side)
             for name in per_line[lattice_name]:
                 seen[name] = seen.get(name, 0) + 1
-        shared = {name for name, count in seen.items() if count > 1}
+        handoffs = {name for name in starts & ends if seen.get(name, 0) == 2}
+        shared = {name for name, count in seen.items() if count > 1} - handoffs
         for lattice_name, names in per_line.items():
             self.latticeObjects[lattice_name].colliding_outputs = names & shared
 

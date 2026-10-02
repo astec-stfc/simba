@@ -19,9 +19,10 @@ from simba.Framework_objects import OUTPUT_LINE_SEPARATOR, frameworkLattice
 class FakeLattice:
     """Just enough of a lattice for the two units under test."""
 
-    def __init__(self, name, screens, end=None):
+    def __init__(self, name, screens, end=None, start=None):
         self.objectname = name
         self.screens_and_markers_and_bpms = [Named(s) for s in screens]
+        self.start = start
         self.end = end
         self.colliding_outputs = set()
 
@@ -149,6 +150,43 @@ def test_three_lines_sharing_one_screen():
     )
     written = {fw.latticeObjects[f"P{n}"].output_basename("BPM") for n in (1, 2, 3)}
     assert written == {"P1-BPM", "P2-BPM", "P3-BPM"}
+
+
+# --- the handoff, which is the one shared name that must not be qualified ---
+
+
+def test_the_element_one_line_hands_over_on_keeps_its_plain_name():
+    """A ends where B starts, and B goes looking for the plain filename."""
+    fw = framework(
+        A=FakeLattice("A", ["OTR2"], end="OTR2"),
+        B=FakeLattice("B", ["OTR2"], start="OTR2", end="ENDDL1"),
+    )
+    assert fw.latticeObjects["A"].colliding_outputs == set()
+    assert fw.latticeObjects["A"].output_basename("OTR2") == "OTR2"
+    assert fw.latticeObjects["B"].output_basename("OTR2") == "OTR2"
+
+
+def test_a_handoff_name_a_third_line_also_writes_still_collides():
+    """Only the two lines either side of it mean the same beam by that name."""
+    fw = framework(
+        A=FakeLattice("A", ["OTR2"], end="OTR2"),
+        B=FakeLattice("B", ["OTR2"], start="OTR2"),
+        C=FakeLattice("C", ["OTR2"]),
+    )
+    # The pair would have been let through on its own; C writing a different
+    # beam to the same name is the collision the pass exists to catch, so the
+    # exemption lapses and all three qualify.
+    for line in ("A", "B", "C"):
+        assert fw.latticeObjects[line].colliding_outputs == {"OTR2"}
+
+
+def test_a_screen_shared_away_from_the_handoff_still_collides():
+    fw = framework(
+        A=FakeLattice("A", ["BPM", "OTR2"], end="OTR2"),
+        B=FakeLattice("B", ["BPM", "OTR2"], start="OTR2"),
+    )
+    assert fw.latticeObjects["A"].colliding_outputs == {"BPM"}
+    assert fw.latticeObjects["B"].output_basename("OTR2") == "OTR2"
 
 
 def test_the_generator_is_skipped():

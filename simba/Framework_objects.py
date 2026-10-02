@@ -614,6 +614,7 @@ class frameworkLattice(BaseModel):
                 self.sample_interval = self.file_block["input"]["sample_interval"]
         else:
             self.file_block.update({"input": {}})
+        self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -679,6 +680,17 @@ class frameworkLattice(BaseModel):
         for i, _ in enumerate(range(len(self.elements))):
             k, v = self.elements.popitem(False)
             self.elements[element.name if i == index else k] = element
+
+    def _apply_collective_settings(self) -> None:
+        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block.
+
+        Whether CSR and LSC are worth modelling is a property of the line, not
+        of the elements in it.
+        """
+        for flag in ("csr_enable", "lsc_enable"):
+            stated = self.file_block.get(flag)
+            if stated is not None:
+                setattr(self, flag, bool(stated))
 
     @property
     def csr_enable(self) -> bool:
@@ -1504,6 +1516,7 @@ class frameworkLattice(BaseModel):
             slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
             return slt
+        self._section.directory = self.global_parameters["master_subdir"]
         return self._section
 
     @property
@@ -2716,33 +2729,40 @@ class chicane(frameworkGroup):
         a: float
             The angle to be set
         """
-        def zpos(e):
+        rotation, theta0, origin = self._design_axis
+        across, _, along = rotation.T
+
+        def spos(e):
             # Not every element in the machine is on the beamline (lasers, etc.)
             try:
-                return e.physical.middle.z
+                return float(np.dot(np.asarray(e.physical.middle.array) - origin, along))
             except AttributeError:
                 return None
 
+        def to_global(u, s):
+            p = origin + rotation @ np.array([u, 0.0, s])
+            return Position(x=p[0], y=p[1], z=p[2])
+
         dipole_names = list(self.elements)
         dipoles = [self.allElementObjects[e] for e in dipole_names]
-        zs = [d.physical.middle.z for d in dipoles]
+        ss = [spos(d) for d in dipoles]
         between = [
-            (z, e)
-            for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
-            if z is not None and min(zs) <= z <= max(zs)
+            (s, e)
+            for s, e in ((spos(e), e) for e in self.allElementObjects.values())
+            if s is not None and min(ss) <= s <= max(ss)
         ]
-        obj = [e for _, e in sorted(between, key=lambda ze: ze[0])]
+        obj = [e for _, e in sorted(between, key=lambda se: se[0])]
 
         z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
 
-        x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
+        x, phi, s_cursor = 0.0, 0.0, ss[0] - z_extents[0] / 2.0
         dipole_number = 0
         for e in obj:
-            z_here = e.physical.middle.z
+            s_here = spos(e)
             if e.name in dipole_names:
                 lz = z_extents[dipole_number]
                 ang = a * self.ratios[dipole_number]
-                x += (z_here - lz / 2.0 - z_cursor) * np.tan(phi)
+                x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
@@ -2750,26 +2770,43 @@ class chicane(frameworkGroup):
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
                 else:
                     dx, arc = 0.0, lz
-                # LAURA anchors start/end symmetrically about `middle`, so `middle` is
-                # the arc's centre. With `arc` set below that reproduces a fixed z extent
-                # and exactly the right entrance/exit x -- but only while the element is
-                # unrotated, otherwise the +-half vector is tilted along with it.
-                e.physical.middle = Position(x=x + dx / 2.0, y=0, z=z_here)
-                e.physical.global_rotation.theta = 0.0
+                e.physical.middle = to_global(x + dx / 2.0, s_here)
+                e.physical.global_rotation.theta = theta0
                 e.magnetic.angle = ang
-                # `physical_angle` drives the start/end offsets, whose sign LAURA takes
-                # from it; the *displacement* through a chicane's second dipole runs the
-                # same way as through the first even though it bends back, so this is the
-                # sense of the displacement, not of the magnetic bend.
                 e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
-                x, phi, z_cursor = x + dx, p1, z_here + lz / 2.0
+                x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
                 dipole_number += 1
             elif dipole_number > 0:
-                x_here = x + (z_here - z_cursor) * np.tan(phi)
-                e.physical.middle = Position(x=x_here, y=0, z=z_here)
-                e.physical.global_rotation.theta = phi
+                x_here = x + (s_here - s_cursor) * np.tan(phi)
+                e.physical.middle = to_global(x_here, s_here)
+                e.physical.global_rotation.theta = theta0 + phi
+
+    @property
+    def _design_axis(self) -> tuple:
+        """
+        The axis the beam arrives on: LAURA's orientation matrix for the first dipole,
+        the yaw that goes back onto the elements, and the dipole's entrance, which sits
+        on the axis whatever the angle. Everything :func:`set_angle` lays out is
+        measured in this frame.
+
+        Cached on first use, because :func:`set_angle` moves the entrance it is read
+        from.
+
+        Returns
+        -------
+        tuple
+            ``(rotation_matrix, theta, entrance)``.
+        """
+        if not hasattr(self, "_axis"):
+            d0 = self.allElementObjects[self.elements[0]].physical
+            self._axis = (
+                np.array(d0.rotation_matrix),
+                float(d0.global_rotation.theta),
+                np.asarray(d0.start.array, dtype=float),
+            )
+        return self._axis
 
     def _z_extent(self, dipole, index: int) -> float:
         """

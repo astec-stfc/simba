@@ -104,12 +104,17 @@ def test_no_property_setter_shadowed_by_inherited_field():
             broken[cls.__name__] = lost
     assert not broken, f"property setters dropped by pydantic: {broken}"
 
+def _to_local_stub(point):
+    """A lattice that is not in local-frame mode hands world positions straight back."""
+    return (0.0, 0.0, point.z)
+
 def _astra_lattice_stub(tmp_path, zstart, zstop):
-    """Enough of an astraLattice for find_ASTRA_filename, which only touches these three."""
+    """Enough of an astraLattice for find_ASTRA_filename, which only touches these four."""
     return types.SimpleNamespace(
         startObject=types.SimpleNamespace(physical=types.SimpleNamespace(start=types.SimpleNamespace(z=zstart))),
         zstop=zstop,
         global_parameters={"master_subdir": str(tmp_path)},
+        to_local=_to_local_stub,
     )
 
 def test_find_astra_filename_prefers_screen_position_over_lattice_end(tmp_path):
@@ -145,6 +150,7 @@ def test_astra_s_offset(entrance_s, start_z, expected):
         startObject=types.SimpleNamespace(
             physical=types.SimpleNamespace(start=types.SimpleNamespace(z=start_z))
         ),
+        to_local=_to_local_stub,
     )
     assert astraLattice.s_offset.fget(latt) == pytest.approx(expected)
 

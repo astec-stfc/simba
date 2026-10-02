@@ -41,7 +41,7 @@ from ...FrameworkHelperFunctions import expand_substitution, saveFile
 from ...Modules import Beams as rbf
 from laura.models.diagnostic import DiagnosticElement
 from laura.models.element import Screen
-from laura.models.physical import PhysicalElement
+from laura.models.physical import PhysicalElement, Position
 from laura.translator.converters.codes.astra import (
     AstraNewRun,
     AstraCharge,
@@ -116,6 +116,14 @@ class astraLattice(frameworkLattice):
     ref_s: float = None
     """Reference s position"""
 
+    local_frame: bool | None = None
+    """
+    Write the deck in the lattice's own frame rather than in world coordinates.
+    With this set, positions are mapped
+    through :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.to_local` first, so
+    the deck starts at the origin and runs along z.
+    """
+
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
         self.starting_offset = (
@@ -133,6 +141,11 @@ class astraLattice(frameworkLattice):
             if "starting_rotation" in self.file_block
             else self.starting_rotation
         )
+
+        if "local_frame" in self.file_block:
+            self.local_frame = bool(self.file_block["local_frame"])
+        elif self.local_frame is None:
+            self.local_frame = abs(self.starting_rotation[2]) > 1e-9
 
         # Create a "newrun" block
         if "input" not in self.file_block:
@@ -177,9 +190,9 @@ class astraLattice(frameworkLattice):
         if "output" not in self.file_block:
             self.file_block["output"] = {}
         output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
-        zstart = self.startObject.physical.start.z
-        self.zstop = self.endObject.physical.end.z
-        screens = [e for e in self.section.elements.elements.values() if e.hardware_class == "Diagnostic"]
+        zstart = self.to_local(self.startObject.physical.start)[2]
+        self.zstop = self.to_local(self.endObject.physical.end)[2]
+        screens = [e for e in self.deck_section.elements.elements.values() if e.hardware_class == "Diagnostic"]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = AstraOutput(
@@ -299,6 +312,56 @@ class astraLattice(frameworkLattice):
         self._toffset = toffset
         self.astra_headers["newrun"].toffset = 1e9 * toffset
 
+    def to_local(self, point) -> np.ndarray:
+        """
+        Map a world position into the frame the deck is written in.
+
+        The frame is anchored on the entrance of the first element and turned
+        so that the lattice sets off along +z.
+
+        Parameters
+        ----------
+        point: Position | Sequence[float]
+            A world position, either a LAURA ``Position`` or an ``(x, y, z)``.
+
+        Returns
+        -------
+        np.ndarray
+            The position as ``(x, y, z)`` in the deck's frame.
+        """
+        p = np.asarray(getattr(point, "array", point), dtype=float)
+        if not self.local_frame:
+            return p
+        physical = self.startObject.physical
+        origin = np.asarray(physical.start.array, dtype=float)
+        local = physical.rotation_matrix.T @ (p - origin)
+        return np.round(local, 9)
+
+    @property
+    def deck_section(self):
+        """
+        The section as it is written out, in the frame given by :attr:`local_frame`.
+
+        When the frame is non-trivial this is a deep copy with every element
+        moved into it.
+
+        Returns
+        -------
+        SectionLatticeTranslator
+            The section to write the deck from.
+        """
+        if not self.local_frame:
+            return self.section
+        section = self.section.model_copy(deep=True)
+        for element in section.elements.elements.values():
+            physical = getattr(element, "physical", None)
+            if physical is None or physical.middle is None:
+                continue
+            x, y, z = self.to_local(physical.middle)
+            physical.middle = Position(x=x, y=y, z=z)
+            physical.global_rotation.theta += self.starting_rotation[2]
+        return section
+
     def write(self) -> None:
         """
         Writes the ASTRA input file from :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.writeElements`
@@ -307,8 +370,10 @@ class astraLattice(frameworkLattice):
         code_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
-        self.section.astra_headers = self.astra_headers
-        saveFile(code_file, self.section.to_astra())
+        section = self.deck_section
+        section.directory = self.global_parameters["master_subdir"]
+        section.astra_headers = self.astra_headers
+        saveFile(code_file, section.to_astra())
         self.files.append(code_file)
 
     def preProcess(self) -> None:
@@ -399,7 +464,7 @@ class astraLattice(frameworkLattice):
                 objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
-                sval=offset + e.middle.z,
+                sval=offset + self.to_local(e.middle)[2],
             )
         self.screen_threaded_function.gather()
         endelem = Screen(
@@ -407,7 +472,7 @@ class astraLattice(frameworkLattice):
             hardware_class="Diagnostic",
             hardware_type="",
             machine_area="",
-            physical=PhysicalElement(middle=[0, 0, self.zstop])
+            physical=PhysicalElement(middle=self.endObject.physical.end.array),
         )
         self.astra_to_hdf5(
             lattice=self.objectname,
@@ -429,7 +494,9 @@ class astraLattice(frameworkLattice):
         float
             s minus z at the start of this lattice.
         """
-        return float(self.entrance_s - self.startObject.physical.start.z)
+        return float(
+            self.entrance_s - self.to_local(self.startObject.physical.start)[2]
+        )
 
     def write_s_offset(self) -> str:
         """
@@ -497,12 +564,13 @@ class astraLattice(frameworkLattice):
                 ).strip('"'),
                 normaliseZ=False,
             )
-            rbf.hdf5.rotate_beamXZ(
-                beam,
-                -1 * self.starting_rotation[2],
-                preOffset=[0, 0, 0],
-                postOffset=-1 * np.array(self.starting_offset),
-            )
+            if not self.local_frame:
+                rbf.hdf5.rotate_beamXZ(
+                    beam,
+                    -1 * self.starting_rotation[2],
+                    preOffset=[0, 0, 0],
+                    postOffset=-1 * np.array(self.starting_offset),
+                )
 
             beam.Particles.s = UnitValue(sval, units="m")
             HDF5filename = self.output_basename(scr.name) + ".openpmd.hdf5"
@@ -552,26 +620,28 @@ class astraLattice(frameworkLattice):
         # ASTRA names outputs in cm, but switches to mm for sections shorter than 1m.
         # `mult` comes from the screens, which is useless for a lattice that has none
         # so fall back to the other conventions before giving up.
+        scr_z = self.to_local(scr.physical.middle)[2]
+        start_z = self.to_local(self.startObject.physical.start)[2]
         for m in dict.fromkeys([mult, 1000, 100, 10]):
             for i in [0, -0.001, 0.001]:
                 tempfilename = (
                         lattice
                         + "."
-                        + str(int(round((scr.physical.middle.z + i - self.startObject.physical.start.z) * m))).zfill(4)
+                        + str(int(round((scr_z + i - start_z) * m))).zfill(4)
                         + "."
                         + str(master_run_no).zfill(3)
                 )
                 tempfilenamenozstart = (
                         lattice
                         + "."
-                        + str(int(round((scr.physical.middle.z + i) * m))).zfill(4)
+                        + str(int(round((scr_z + i) * m))).zfill(4)
                         + "."
                         + str(master_run_no).zfill(3)
                 )
                 tempfilenameend = (
                         lattice
                         + "."
-                        + str(int(round((self.zstop + i - self.startObject.physical.start.z) * m))).zfill(4)
+                        + str(int(round((self.zstop + i - start_z) * m))).zfill(4)
                         + "."
                         + str(master_run_no).zfill(3)
                 )
