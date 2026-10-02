@@ -18,7 +18,7 @@ Classes:
     - :class:`~simba.Codes.GPT.GPT.gpt_charge`: Class for defining the
     bunch charge for the GPT input file.
 
-    - :class:`~simba.Codes.GPT.GPT.gpt_setreduce`: Class for reducing the
+    - :class:`~simba.Codes.GPT.GPT.GptSetReduce`: Class for reducing the
     number of particles for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_accuracy`: Class for setting the
@@ -27,7 +27,7 @@ Classes:
     - :class:`~simba.Codes.GPT.GPT.gpt_spacecharge`: Class for defining the
     space charge setup for the GPT input file.
 
-    - :class:`~simba.Codes.GPT.GPT.gpt_tout`: Class for defining the
+    - :class:`~simba.Codes.GPT.GPT.GptTout`: Class for defining the
     number of steps for particle distribution output for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_csr1d`: Class for defining the
@@ -227,14 +227,15 @@ class gptLattice(frameworkLattice):
         if (
             self.csr_enable
             and len(self.dipoles) > 0
-            and max([abs(d.angle) for d in self.dipoles]) > 0
+            and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
         ):  # and not os.name == 'nt':
-            self.headers["csr1d"] = GptCsr1d()
+            self.headers["csr1d"] = GptCsr1D()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
         # self.headers['forwardscatter'] = GptForwardScatter(ECS='"wcs", "I"', name='cathode', probability=0)
         # self.headers['scatterplate'] = GptScatterPlate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
+        self.check_pass_rigidity(self.global_parameters["beam"].Brho)
         fulltext = self.section.to_gpt(
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
@@ -384,10 +385,6 @@ class gptLattice(frameworkLattice):
                 peak = fine_p[int(np.argmax(fine_e))]
 
         element = self.elementObjects[name]
-        # The converter writes phi = (crest + 90 - phase), so running on crest
-        # means phase = 0, i.e. phi = crest + 90. A scan peaking at phi* therefore
-        # gives crest = phi* - 90 directly; it does not depend on the crest the
-        # element happened to be carrying beforehand.
         crest = (float(peak) - 90.0) % 360.0
         element.crest = crest
         return crest
@@ -705,7 +702,7 @@ class gptLattice(frameworkLattice):
             self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].t, units="m")
         self.headers["setfile"].time = np.mean(self.global_parameters["beam"].t)
         if self.sample_interval > 1:
-            self.headers["setreduce"] = gpt_setreduce(
+            self.headers["setreduce"] = GptSetReduce(
                 set='"beam"',
                 setreduce=int(
                     len(self.global_parameters["beam"].x) / self.sample_interval
@@ -723,7 +720,7 @@ class gptLattice(frameworkLattice):
         if self.override_tout is not None and isinstance(
             self.override_tout, (int, float)
         ):
-            self.headers["tout"] = gpt_tout(
+            self.headers["tout"] = GptTout(
                 starttime=0, endpos=self.override_tout, step=str(self.time_step_size)
             )
         else:
@@ -731,7 +728,7 @@ class gptLattice(frameworkLattice):
                     self.findS(self.endObject.name)[0][1]
                     - self.findS(self.startObject.name)[0][1]
             )
-            self.headers["tout"] = gpt_tout(
+            self.headers["tout"] = GptTout(
                 starttime=0,
                 endpos=endpos / meanBz / speed_of_light,
                 step=str(self.time_step_size),
@@ -792,7 +789,7 @@ class gptLattice(frameworkLattice):
         )
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
-        HDF5filename = screen.name + ".openpmd.hdf5"
+        HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,

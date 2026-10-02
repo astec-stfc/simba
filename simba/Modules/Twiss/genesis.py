@@ -28,7 +28,7 @@ def read_genesis_twiss_files(self, filename, startS: float = 0, reset = True):
         cp = get_mean(file["/Beam/energy"], is_array) * self.E0
         # self.append('cp', cp)
         ke = np.array(
-            (np.sqrt(self.E0 ** 2 + cp ** 2) - self.E0 ** 2) / constants.elementary_charge
+            (np.sqrt(self.E0 ** 2 + cp ** 2) - self.E0) / constants.elementary_charge
         )
         self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
         gamma = 1 + ke / self.E0_eV

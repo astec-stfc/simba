@@ -19,6 +19,7 @@ SimulationFramework/Examples/S2EBunchPrePostCombined_v2.sdds
 SimulationFramework/Examples/S2EBunchPrePostCombined.astra
 SAMM3.0/Examples
 examples/notebooks/getting_started/
+examples/fbpic_lwfa/
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.astra
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.gdf
 tests/CLARA/Basefiles/Base_250pC/CLA-S02-SIM-APER-01.ocelot.npz
@@ -30,5 +31,8 @@ docs/source/examples/notebooks/getting_started/*
 docs/source/examples/notebooks/utility_functions/*
 docs/source/examples/notebooks/changes.yaml
 docs/source/examples/notebooks/params.yaml
-
 M1.openpmd.hdf5
+unit_tests/S.json
+unit_tests/JFEL-S02-SIM-APER-01.openpmd.hdf5
+S.json
+JFEL-S02-SIM-APER-01.openpmd.hdf5

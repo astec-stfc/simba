@@ -91,6 +91,57 @@ def canonical_emittances(filename: str, b_threshold: float = 1e-6) -> Dict[float
     return corrected
 
 
+def _dispersion(u: np.ndarray, delta: np.ndarray, var_delta: float) -> float:
+    """
+    Linear regression of ``u`` against ``delta``: ``<u*delta>/<delta**2>``.
+    """
+    return float(((u - u.mean()) * delta).mean() / var_delta)
+
+
+def dispersions(filename: str, min_spread: float = 1e-6) -> Dict[float, tuple]:
+    """
+    Dispersion and its derivative at each step of an OPAL particle dump, keyed
+    by longitudinal position.
+
+    Parameters
+    ----------
+    filename: str
+        Path to the OPAL particle dump (``<name>.h5``).
+    min_spread: float
+        Relative momentum spread below which no dispersion is reported.
+
+    Returns
+    -------
+    Dict[float, tuple]
+        ``{s: (Dx, Dxp, Dy, Dyp)}`` for the steps with enough spread to fit.
+    """
+    import h5py
+
+    disp = {}
+    with h5py.File(filename, "r") as f:
+        for key in f:
+            if not key.startswith("Step#"):
+                continue
+            step = f[key]
+            px, py, pz = step["px"][()], step["py"][()], step["pz"][()]
+            if pz.size == 0 or pz.min() <= 0:
+                continue
+            p = np.sqrt(px**2 + py**2 + pz**2)
+            p0 = p.mean()
+            if p0 <= 0:
+                continue
+            delta = p / p0 - 1.0
+            var_delta = (delta * delta).mean()
+            if np.sqrt(var_delta) < min_spread:
+                continue
+            spos = float(np.atleast_1d(step.attrs["SPOS"])[0])
+            disp[spos] = tuple(
+                _dispersion(u, delta, var_delta)
+                for u in (step["x"][()], px / pz, step["y"][()], py / pz)
+            )
+    return disp
+
+
 def update_globals(global_settings, beamlen=None, sample_interval=1):
     grids = getGrids()
     with open(
@@ -466,7 +517,8 @@ class opalLattice(frameworkLattice):
                 )
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
-                    f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
+                    f'{self.global_parameters["master_subdir"]}/'
+                    f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
         beam = rbf.beam()
         beam.read_opal_beam_file(filename=opalbeamname, step=-1)
@@ -475,7 +527,8 @@ class opalLattice(frameworkLattice):
         beam._beam.t = UnitValue(beam._beam.t.val + (zpos / speed_of_light), "s")
         rbf.openpmd.write_openpmd_beam_file(
             beam,
-            f'{self.global_parameters["master_subdir"]}/{self.endObject.name}.openpmd.hdf5',
+            f'{self.global_parameters["master_subdir"]}/'
+            f'{self.output_basename(self.endObject.name)}.openpmd.hdf5',
         )
         self.commandFiles = {}
         opalObject = SDDSFile()
@@ -490,14 +543,22 @@ class opalLattice(frameworkLattice):
                 opalData[k] = np.array(opalData[k])
         # OPAL's own emittances use mechanical momenta, so replace them with
         # canonical ones wherever a solenoid is on -- see canonical_emittances.
+        svals_stat = np.asarray(opalData["s"], dtype=float)
         corrected = canonical_emittances(opalbeamname)
         if corrected:
-            svals_stat = np.asarray(opalData["s"], dtype=float)
             for spos, (ex, ey) in corrected.items():
                 idx = int(np.argmin(np.abs(svals_stat - spos)))
                 if abs(svals_stat[idx] - spos) < 1e-6:
                     opalData["emit_x"][idx] = ex
                     opalData["emit_y"][idx] = ey
+        DISPERSION_COLUMNS = ("Dx", "Dxp", "Dy", "Dyp")
+        for name in DISPERSION_COLUMNS:
+            opalData[name] = np.zeros(len(svals_stat))
+        for spos, values in dispersions(opalbeamname).items():
+            idx = int(np.argmin(np.abs(svals_stat - spos)))
+            if abs(svals_stat[idx] - spos) < 1e-6:
+                for name, value in zip(DISPERSION_COLUMNS, values):
+                    opalData[name][idx] = value
         # OPAL tracks from zero, so anchor s to the lattice start (not the incoming
         # beam's accumulated s) to match Elegant/Ocelot/MAD-X.
         opalData["s"] += self.start_s

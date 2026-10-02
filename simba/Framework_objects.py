@@ -25,6 +25,7 @@ Classes:
     - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number of space charge grids given a number of particles.
 """
 
+import math
 import os
 import subprocess
 from warnings import warn
@@ -34,7 +35,12 @@ from copy import deepcopy
 import time
 
 from laura import LAURA
-from laura.models.element_list import SectionLattice, ElementList
+from laura.models.element_list import (
+    SectionLattice,
+    ElementList,
+    flatten_occurrence,
+)
+from laura.models.magnetic import brho as laura_brho
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
@@ -61,10 +67,19 @@ from pydantic import (
     Field,
 )
 from typing import (
+    ClassVar,
     Dict,
     List,
     Any,
+    Set,
 )
+
+OUTPUT_TURN_SEPARATOR = "-t"
+"""Separates an element name from a turn index in an output beam filename,
+multi-turn only."""
+
+OUTPUT_LINE_SEPARATOR = "-"
+"""Separates a line name from an element name in an output beam filename."""
 
 if os.name == "nt":
     # from .Modules.symmlinks import has_symlink_privilege
@@ -480,6 +495,12 @@ class frameworkLattice(BaseModel):
     file_block: Dict
     """File block containing input and output settings for the lattice."""
 
+    colliding_outputs: Set[str] = set()
+    """Element names another line in this run also writes an output file for.
+
+    Set by :meth:`~simba.Framework.Framework.track` before anything is
+    written. See :meth:`output_basename`."""
+
     machine: LAURA
     """LAURA model of the lattice"""
 
@@ -520,8 +541,8 @@ class frameworkLattice(BaseModel):
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
-    _csr_bins: int = 20
-    """Number of bins for CSR calculations"""
+    _csr_bins: int | None = None
+    """Number of bins for CSR calculations, or None if nobody has chosen one."""
 
     lsc_high_frequency_cutoff_start: float = -1
     """Spatial frequency at which smoothing filter begins. If not positive, no frequency filter smoothing is done. 
@@ -568,6 +589,10 @@ class frameworkLattice(BaseModel):
     code: str = None
     """Code to run the lattice."""
 
+    supports_turns: ClassVar[bool] = False
+    """Whether this code can track a line more than once. Set on those that can:
+    currently elegant, Xsuite and Ocelot."""
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
@@ -589,6 +614,7 @@ class frameworkLattice(BaseModel):
                 self.sample_interval = self.file_block["input"]["sample_interval"]
         else:
             self.file_block.update({"input": {}})
+        self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -635,15 +661,6 @@ class frameworkLattice(BaseModel):
     #     return value
 
     def __setattr__(self, name, value):
-        # Let Pydantic set known fields normally, and private attributes too --
-        # pydantic keeps those in __pydantic_private__, whereas
-        # object.__setattr__ would drop them into the instance __dict__ where
-        # they survive only until the next field assignment re-validates the
-        # model (`validate_assignment=True`) and rebuilds __dict__. That is how
-        # `csr_enable`/`lsc_enable` and the cached `_section` used to be
-        # silently reset partway through preProcess.
-        # Everything else (element names set in model_post_init) bypasses
-        # pydantic deliberately, to avoid validating them as extra fields.
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
@@ -663,6 +680,17 @@ class frameworkLattice(BaseModel):
         for i, _ in enumerate(range(len(self.elements))):
             k, v = self.elements.popitem(False)
             self.elements[element.name if i == index else k] = element
+
+    def _apply_collective_settings(self) -> None:
+        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block.
+
+        Whether CSR and LSC are worth modelling is a property of the line, not
+        of the elements in it.
+        """
+        for flag in ("csr_enable", "lsc_enable"):
+            stated = self.file_block.get(flag)
+            if stated is not None:
+                setattr(self, flag, bool(stated))
 
     @property
     def csr_enable(self) -> bool:
@@ -687,8 +715,14 @@ class frameworkLattice(BaseModel):
     def csr_bins(self) -> int:
         """
         Property to get or set the number of bins for CSR calculations.
+
+        Reads 20 until somebody chooses otherwise, either here or on the machine
+        section this lattice cuts.
         """
-        return self._csr_bins
+        if self._csr_bins is not None:
+            return self._csr_bins
+        stated = getattr(self._machine_space_charge(), "number_of_bins", None)
+        return 20 if stated is None else stated
 
     @csr_bins.setter
     def csr_bins(self, csr: int) -> None:
@@ -719,6 +753,19 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    @property
+    def lsc_in_use(self) -> bool:
+        """
+        Whether any element in this lattice actually asks the code for LSC.
+
+        Not the same as :attr:`lsc_enable`, which is on by default: a lattice of
+        drifts and quadrupoles has nothing to do LSC in even with the flag set.
+        """
+        return any(
+            getattr(getattr(elem, "simulation", None), "lsc_enable", False)
+            for elem in self.elementObjects.values()
+        )
 
     @property
     def wakefield_enable(self) -> bool:
@@ -760,6 +807,138 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    @property
+    def turns(self) -> int:
+        """How many times this line is tracked; ``1`` unless the settings say.
+
+        A turn count is a tracking setting rather than lattice data, so it is
+        read from the ``files:`` block::
+
+            files:
+              RING:
+                code: elegant
+                tracking: {turns: 1000}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return int(tracking.get("turns", 1))
+
+    def check_turns_supported(self) -> None:
+        """Warn when turns were asked for and this code cannot do them."""
+        if self.turns > 1 and not self.supports_turns:
+            warn(
+                f"Line '{self.objectname}' asks for {self.turns} turns, but "
+                f"{self.code} tracks a line once and has no turn count. One "
+                "turn will be tracked. elegant, Xsuite and Ocelot are the "
+                "codes that can."
+            )
+
+    def check_turns_closed(self, tolerance: float = 1e-4) -> None:
+        """Warn when more than one turn is asked of a line that does not close.
+
+        Closure is tested on LAURA's geometry: the first
+        element's entrance against the last element's exit, to ``tolerance``
+        relative to the path length.
+
+        A **superperiod** is the legitimate exception -- one sector of an
+        N-fold-symmetric ring is open on its own and closes after N of them.
+        """
+        if self.turns <= 1:
+            return
+        try:
+            entrance = self.startObject.physical.start
+            exit_ = self.endObject.physical.end
+        except (AttributeError, TypeError):
+            return
+        gap = math.dist(
+            (entrance.x, entrance.y, entrance.z), (exit_.x, exit_.y, exit_.z)
+        )
+        length = sum(
+            e.physical.length or 0.0
+            for e in self.elements.values()
+            if getattr(e, "physical", None) is not None
+        )
+        if not length or gap <= tolerance * length:
+            return
+        message = (
+            f"Line '{self.objectname}' is tracked for {self.turns} turns, but "
+            f"its geometry does not close: it ends {gap:.4g} m from where it "
+            f"starts, over {length:.4g} m."
+        )
+        turn = 2 * math.pi
+        angle = abs(self.net_bend_angle)
+        if angle > 1e-9 and abs(round(turn / angle) - turn / angle) < 1e-3:
+            message += (
+                f" Its net bend is a 1/{round(turn / angle)} fraction of a "
+                "turn, so if this is one superperiod of a symmetric ring, "
+                "track the whole ring instead."
+            )
+        warn(message)
+
+    @property
+    def net_bend_angle(self) -> float:
+        """Total bending angle of the line, in radians.
+
+        ``2*pi`` for a closed planar ring, or an even fraction for one
+        superperiod, see :meth:`check_turns_closed`.
+        """
+        total = 0.0
+        for element in self.elements.values():
+            magnetic = getattr(element, "magnetic", None)
+            if magnetic is None:
+                continue
+            try:
+                total += float(magnetic.KnL(0))
+            except (TypeError, ValueError, KeyError):
+                continue
+        return total
+
+    def check_pass_rigidity(self, brho: float, tolerance: float = 0.01) -> None:
+        """Warn if the tracked beam disagrees with this pass's stated momentum.
+
+        Codes that take a field rather than a normalised strength get ``Brho``
+        from the beam actually loaded.
+        The ``k`` came from the layout, resolved at the momentum that
+        pass states.
+
+        A warning rather than a refusal.
+        """
+        stated = None
+        layout = None
+        machine = getattr(self, "machine", None)
+        if machine is not None:
+            layout = machine.lattices.get(machine.default_path)
+        if layout is not None:
+            stated = layout.pass_momentum(self.start)
+        if stated is None or not brho:
+            return
+        expected = laura_brho(stated)
+        if abs(brho - expected) > tolerance * expected:
+            warn(
+                f"Line '{self.objectname}' tracks a beam of rigidity "
+                f"{float(brho):.4f} T.m, but pass {self.start} states a "
+                f"momentum of {stated:.4g} eV/c ({expected:.4f} T.m)."
+            )
+
+    def output_basename(self, name: str, turn: int | None = None) -> str:
+        """Filename stem for ``name``'s output beam file, qualified if needed.
+
+        Output beam files are named by element alone, so they must not clash for
+        multi-turn tracking. Qualifies only what actually collides:
+        :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
+        same name written by more than one line. All colliding occurrences are
+        qualified, including the first, so the name follows from the settings file.
+
+        ``turn`` qualifies the other axis. It is ignored on a single-turn run,
+        so nothing changes for a lattice that does not ask for turns.
+        """
+        qualified = name in self.colliding_outputs
+        name = flatten_occurrence(name)
+        if qualified:
+            name = f"{self.objectname}{OUTPUT_LINE_SEPARATOR}{name}"
+        if turn is not None and self.turns > 1:
+            name = f"{name}{OUTPUT_TURN_SEPARATOR}{turn:0{len(str(self.turns))}d}"
+        return name
 
     def get_prefix(self) -> str:
         """
@@ -1161,9 +1340,6 @@ class frameworkLattice(BaseModel):
         """
         if "start_element" in self.file_block["output"]:
             return self.file_block["output"]["start_element"]
-        # elementObjects is the whole machine, not just this lattice, and it contains
-        # off-beamline hardware -- the virtual cathode camera CLA-VCA-DIA-CAM-01 sits at
-        # z=0 with no beam through it. Only elements on the beam path can start a lattice.
         beam_path = self.machine.elements_between(end=self.end)
         if "zstart" in self.file_block["output"]:
             zstart = self.file_block["output"]["zstart"]
@@ -1174,9 +1350,6 @@ class frameworkLattice(BaseModel):
                 and not self.elementObjects[name].subelement
                 and np.isclose(self.elementObjects[name].physical.start.z, zstart, atol=1e-2)
             ]
-            # several elements can share a z: at the cathode the HRG1 section lists three
-            # laser shutters and an aperture, all zero-length, ahead of the gun cavity.
-            # Prefer something with real extent, so the answer does not depend on ordering.
             for name in candidates:
                 if self.elementObjects[name].physical.length > 0:
                     return name
@@ -1287,6 +1460,22 @@ class frameworkLattice(BaseModel):
         """
         return float(self.start_s - self.startObject.physical.length)
 
+    def _machine_space_charge(self):
+        """
+        The collective-field resolution of the machine section this lattice cuts.
+        `csr_bins` set on this lattice still wins, being applied after.
+
+        Returns
+        -------
+        SpaceChargeSettings | None
+            The settings to run this lattice with, or None to leave each code on
+            its own defaults.
+        """
+        for section in (getattr(self.machine, "sections", None) or {}).values():
+            if self.start in getattr(section, "order", ()):
+                return section.space_charge
+        return None
+
     @computed_field
     @property
     def section(self) -> SectionLatticeTranslator:
@@ -1300,12 +1489,25 @@ class frameworkLattice(BaseModel):
         """
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
-            vals = {k: self.machine.get_element(k) for k in keys if isinstance(self.machine.get_element(k), PhysicalBaseElement)}
+            layout = self.machine.lattices.get(self.machine.default_path)
+            order, vals = [], {}
+            for key in keys:
+                element = layout.element_on_pass(key) if layout is not None else None
+                if element is None:
+                    element = self.machine.get_element(key)
+                if not isinstance(element, PhysicalBaseElement):
+                    continue
+                flat = flatten_occurrence(key)
+                order.append(flat)
+                vals[flat] = element
             section = SectionLattice(
-                order=keys,
+                order=order,
                 elements=ElementList(elements=vals),
                 name=self.objectname,
                 master_lattice=self.global_parameters["master_lattice"],
+                functional_definitions=self.settings["functional_definitions"],
+                resolve_functional=self.settings["resolve_functional"],
+                space_charge=self._machine_space_charge(),
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
@@ -1332,6 +1534,44 @@ class frameworkLattice(BaseModel):
     def write(self):
         pass
 
+    def run_command(self, command: list, logfile: str, **kwargs) -> None:
+        """
+        Run a simulation code, logging to `logfile`, and raise if the code says it failed.
+
+        A code that gives up part-way still looks like a successful run to everything
+        downstream, which then dies reading output that was never written -- so the
+        exit status is read here, once, for every code that runs a subprocess.
+
+        Parameters
+        ----------
+        command: list
+            The command to run, as passed to :mod:`subprocess`
+        logfile: str
+            Where the code's output is written; its tail is quoted if the code fails
+        kwargs:
+            Passed through to :func:`subprocess.call` (``cwd``, ``env``, ...)
+
+        Raises
+        ------
+        RuntimeError
+            If the code exits with a non-zero status.
+        """
+        with open(logfile, "w") as f:
+            status = subprocess.call(
+                command, stdout=f, stderr=subprocess.STDOUT, **kwargs
+            )
+        if status == 0:
+            return
+        try:
+            with open(logfile, "r") as f:
+                tail = "".join(f.readlines()[-20:]).strip()
+        except OSError:
+            tail = ""
+        raise RuntimeError(
+            f"{self.code} exited with status {status} running {self.objectname}.\n"
+            f"Last lines of {logfile}:\n{tail}"
+        )
+
     def run(self) -> None:
         """
         Run the code with input 'filename'
@@ -1344,6 +1584,8 @@ class frameworkLattice(BaseModel):
         ------
         FileNotFoundError
             If the executable for the specified code is not found in the executables dictionary.
+        RuntimeError
+            If the code exits with a non-zero status.
         """
         if self.remote_setup:
             self.run_remote()
@@ -1351,16 +1593,14 @@ class frameworkLattice(BaseModel):
             command = self.executables[self.code] + [self.name]
             workdir = os.path.abspath(self.global_parameters["master_subdir"])
             command = self.executables.build_command(command, workdir)
-            with open(
+            self.run_command(
+                command,
                 os.path.relpath(
                     self.global_parameters["master_subdir"] + "/" + self.name + ".log",
                     ".",
                 ),
-                "w",
-            ) as f:
-                subprocess.call(
-                    command, stdout=f, cwd=self.global_parameters["master_subdir"]
-                )
+                cwd=self.global_parameters["master_subdir"],
+            )
 
     def run_remote(self) -> None:
         """
@@ -1386,7 +1626,7 @@ class frameworkLattice(BaseModel):
                 filename = os.path.splitext(fn)[0]
                 if cod in ["opal", "gpt", "astra"]:
                     self.files.append(f'{subdir}/{filename}.{cod.lower()}')
-            if hasattr(e.simulation, "wakefield_definition") and  isinstance(e.simulation.wakefield_definition, str):
+            if hasattr(e.simulation, "wakefield_definition") and isinstance(e.simulation.wakefield_definition, str):
                 fn = e.simulation.wakefield_definition.split('/')[-1].split('\\')[-1]
                 filename = os.path.splitext(fn)[0]
                 self.files.append(f'{subdir}/{filename}.{cod.lower()}')
@@ -1589,10 +1829,10 @@ class frameworkLattice(BaseModel):
         initial_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         final_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
         for cav in cavs:
-            final_energy += (cav.simulation.field_amplitude * np.cos(cav.cavity.phase)) * 1e-9
+            final_energy += (cav.simulation.resolved("field_amplitude") * np.cos(cav.cavity.resolved("phase"))) * 1e-9
         if harmonics:
             for harm in harmonics:
-                final_energy += (harm.simulation.field_amplitude * np.cos(harm.cavity.phase)) * 1e-9
+                final_energy += (harm.simulation.resolved("field_amplitude") * np.cos(harm.cavity.resolved("phase"))) * 1e-9
 
         chirps = self.global_parameters["beam"].slice.get_chirp_coeffs()
 
@@ -1644,6 +1884,8 @@ class frameworkLattice(BaseModel):
         -------
         None
         """
+        self.check_turns_supported()
+        self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:
@@ -2464,7 +2706,7 @@ class chicane(frameworkGroup):
             The bending angle
         """
         obj = [self.allElementObjects[e] for e in self.elements]
-        return float(obj[0].angle)
+        return float(obj[0].magnetic.KnL(0))
 
     @angle.setter
     def angle(self, theta: float) -> None:
@@ -2487,41 +2729,40 @@ class chicane(frameworkGroup):
         a: float
             The angle to be set
         """
-        def zpos(e):
+        rotation, theta0, origin = self._design_axis
+        across, _, along = rotation.T
+
+        def spos(e):
             # Not every element in the machine is on the beamline (lasers, etc.)
             try:
-                return e.physical.middle.z
+                return float(np.dot(np.asarray(e.physical.middle.array) - origin, along))
             except AttributeError:
                 return None
 
+        def to_global(u, s):
+            p = origin + rotation @ np.array([u, 0.0, s])
+            return Position(x=p[0], y=p[1], z=p[2])
+
         dipole_names = list(self.elements)
         dipoles = [self.allElementObjects[e] for e in dipole_names]
-        zs = [d.physical.middle.z for d in dipoles]
-        # Everything between the first and last dipole rides on the chicane's
-        # displaced axis, so it has to be moved with the dipoles -- otherwise the
-        # mid-chicane elements keep their design-angle x and the drifts around them
-        # pick up a bogus transverse offset.
+        ss = [spos(d) for d in dipoles]
         between = [
-            (z, e)
-            for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
-            if z is not None and min(zs) <= z <= max(zs)
+            (s, e)
+            for s, e in ((spos(e), e) for e in self.allElementObjects.values())
+            if s is not None and min(ss) <= s <= max(ss)
         ]
-        obj = [e for _, e in sorted(between, key=lambda ze: ze[0])]
+        obj = [e for _, e in sorted(between, key=lambda se: se[0])]
 
         z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
 
-        # Walk the reference trajectory. Each magnet keeps its z position, and its faces
-        # stay perpendicular to the 0mm axis, so it spans a *fixed* z; the beam crosses
-        # it on an arc that lengthens as the angle opens up, and the edge angles (which
-        # the lattice defines as tracking `angle`) carry the resulting edge focusing.
-        x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
+        x, phi, s_cursor = 0.0, 0.0, ss[0] - z_extents[0] / 2.0
         dipole_number = 0
         for e in obj:
-            z_here = e.physical.middle.z
+            s_here = spos(e)
             if e.name in dipole_names:
                 lz = z_extents[dipole_number]
                 ang = a * self.ratios[dipole_number]
-                x += (z_here - lz / 2.0 - z_cursor) * np.tan(phi)
+                x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
@@ -2529,26 +2770,43 @@ class chicane(frameworkGroup):
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
                 else:
                     dx, arc = 0.0, lz
-                # LAURA anchors start/end symmetrically about `middle`, so `middle` is
-                # the arc's centre. With `arc` set below that reproduces a fixed z extent
-                # and exactly the right entrance/exit x -- but only while the element is
-                # unrotated, otherwise the +-half vector is tilted along with it.
-                e.physical.middle = Position(x=x + dx / 2.0, y=0, z=z_here)
-                e.physical.global_rotation.theta = 0.0
+                e.physical.middle = to_global(x + dx / 2.0, s_here)
+                e.physical.global_rotation.theta = theta0
                 e.magnetic.angle = ang
-                # `physical_angle` drives the start/end offsets, whose sign LAURA takes
-                # from it; the *displacement* through a chicane's second dipole runs the
-                # same way as through the first even though it bends back, so this is the
-                # sense of the displacement, not of the magnetic bend.
                 e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
-                x, phi, z_cursor = x + dx, p1, z_here + lz / 2.0
+                x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
                 dipole_number += 1
             elif dipole_number > 0:
-                x_here = x + (z_here - z_cursor) * np.tan(phi)
-                e.physical.middle = Position(x=x_here, y=0, z=z_here)
-                e.physical.global_rotation.theta = phi
+                x_here = x + (s_here - s_cursor) * np.tan(phi)
+                e.physical.middle = to_global(x_here, s_here)
+                e.physical.global_rotation.theta = theta0 + phi
+
+    @property
+    def _design_axis(self) -> tuple:
+        """
+        The axis the beam arrives on: LAURA's orientation matrix for the first dipole,
+        the yaw that goes back onto the elements, and the dipole's entrance, which sits
+        on the axis whatever the angle. Everything :func:`set_angle` lays out is
+        measured in this frame.
+
+        Cached on first use, because :func:`set_angle` moves the entrance it is read
+        from.
+
+        Returns
+        -------
+        tuple
+            ``(rotation_matrix, theta, entrance)``.
+        """
+        if not hasattr(self, "_axis"):
+            d0 = self.allElementObjects[self.elements[0]].physical
+            self._axis = (
+                np.array(d0.rotation_matrix),
+                float(d0.global_rotation.theta),
+                np.asarray(d0.start.array, dtype=float),
+            )
+        return self._axis
 
     def _z_extent(self, dipole, index: int) -> float:
         """

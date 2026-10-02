@@ -35,6 +35,7 @@ from . import opal
 from . import xsuite
 from . import genesis
 from . import madx
+from . import bmad
 
 try:
     from . import plot
@@ -56,6 +57,7 @@ codes = {
     "xsuite": xsuite.read_xsuite_twiss_files,
     "genesis": genesis.read_genesis_twiss_files,
     "madx": madx.read_madx_twiss_files,
+    "bmad": bmad.read_bmad_twiss_files,
 }
 
 code_signatures = [
@@ -71,6 +73,7 @@ code_signatures = [
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
     ["madx", "_twiss.madx.hdf5"],
+    ["bmad", "_twiss.bmad.hdf5"],
 ]
 
 twiss_defaults = {
@@ -435,6 +438,7 @@ class twiss(BaseModel):
             "xsuite": xsuite.read_xsuite_twiss_files,
             "genesis": genesis.read_genesis_twiss_files,
             "madx": madx.read_madx_twiss_files,
+            "bmad": bmad.read_bmad_twiss_files,
         }
         self.code_signatures = code_signatures
 
@@ -519,6 +523,11 @@ class twiss(BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return madx.read_madx_twiss_files(self, *args, **kwargs)
+
+    def read_bmad_twiss_files(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return bmad.read_bmad_twiss_files(self, *args, **kwargs)
 
     def save_HDF5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -962,6 +971,7 @@ class twiss(BaseModel):
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
             "madx": "_twiss.madx.hdf5",
+            "bmad": "_twiss.bmad.hdf5",
         },
         preglob: str = "*",
         verbose: bool = False,
@@ -1029,6 +1039,7 @@ def load_directory(
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",
         "madx": "_twiss.madx.hdf5",
+        "bmad": "_twiss.bmad.hdf5",
     },
     preglob="*",
     verbose=False,

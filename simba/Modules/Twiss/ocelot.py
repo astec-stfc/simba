@@ -101,7 +101,7 @@ def interpret_ocelot_data(self, lattice_name, fdat):
     cp = np.sqrt(E**2 - self.E0_eV**2)
     # self.append('cp', cp)
     ke = np.array(
-        (np.sqrt(self.E0**2 + cp**2) - self.E0**2)
+        (np.sqrt(self.E0_eV**2 + cp**2) - self.E0_eV)
     )
     self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
     gamma = 1 + ke / self.E0_eV

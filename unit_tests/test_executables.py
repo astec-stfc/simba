@@ -38,11 +38,6 @@ def test_apptainer_runtime_resolves_full_command(tmp_path):
 @patch("simba.Codes.Executables.os.name", "nt")
 def test_linux_only_codes_raise_on_windows(tmp_path):
     ex = Executables({"simcodes_location": str(tmp_path)})
-    # codes with a real Windows build still resolve, to a file that actually exists -
-    # not hardcoded to whichever subpath `Executables.yaml`'s `nt:` section uses today.
-    # `os.name` is patched process-wide above (it's the same `os` module everywhere),
-    # so pathlib.Path would try to build a WindowsPath on this (possibly POSIX) host
-    # and fail - stick to plain os.path/open, which don't care about `os.name`.
     elegant_path = ex["elegant"][0]
     os.makedirs(os.path.dirname(elegant_path), exist_ok=True)
     open(elegant_path, "w").close()
@@ -83,6 +78,7 @@ class _StubExecutables(dict):
 def _run_elegant_on_windows(tmp_path, simcodes_location):
     """Drive elegantLattice.run's `nt` branch against a stub, capturing the command."""
     from types import SimpleNamespace
+    from simba import Framework_objects
     from simba.Codes.Elegant import Elegant
 
     captured = []
@@ -96,8 +92,16 @@ def _run_elegant_on_windows(tmp_path, simcodes_location):
             "master_subdir": str(tmp_path),
         },
     )
+    stub.run_command = lambda *args, **kwargs: Framework_objects.frameworkLattice.run_command(
+        stub, *args, **kwargs
+    )
+
+    def fake_call(cmd, **kwargs):
+        captured.append(cmd)
+        return 0
+
     with patch.object(Elegant.os, "name", "nt"), patch.object(
-        Elegant.subprocess, "call", lambda cmd, **kw: captured.append(cmd)
+        Framework_objects.subprocess, "call", fake_call
     ):
         Elegant.elegantLattice.run(stub)
     return captured[0]
@@ -116,3 +120,21 @@ def test_pelegant_windows_with_simcodes_location(tmp_path):
     assert command[1:3] == ["-env", "RPN_DEFNS"]
     assert command[3].endswith("\\Elegant\\defns.rpn")
     assert command[-1] == "test.ele"
+
+
+def test_a_code_that_fails_says_so(tmp_path):
+    """A code that gives up used to look like a successful run, and the failure only
+    surfaced much later as a parse error on output that was never written."""
+    from types import SimpleNamespace
+    from simba import Framework_objects
+
+    stub = SimpleNamespace(code="elegant", objectname="Linac")
+    logfile = str(tmp_path / "Linac.log")
+
+    def fake_call(cmd, stdout=None, **kwargs):
+        stdout.write("error: No charge defined for LSC.\n")
+        return 1
+
+    with patch.object(Framework_objects.subprocess, "call", fake_call):
+        with pytest.raises(RuntimeError, match="No charge defined for LSC"):
+            Framework_objects.frameworkLattice.run_command(stub, ["elegant"], logfile)

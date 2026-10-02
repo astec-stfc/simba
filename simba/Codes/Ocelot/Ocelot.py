@@ -27,10 +27,8 @@ with open(
     "r",
 ) as infile:
     oceglobal = safe_load(infile)
-import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
-from laura.models.diagnostic import DiagnosticElement
 
 
 class ocelotLattice(frameworkLattice):
@@ -49,6 +47,13 @@ class ocelotLattice(frameworkLattice):
 
     code: str = "ocelot"
     """String indicating the lattice object type"""
+
+    supports_turns: ClassVar[bool] = True
+    """By looping ``cpbd.track.track`` and feeding the bunch back in.
+
+    **Not** ``track_nturns``, despite the name: we need to track a ``ParticleArray``
+    via a ``Navigator``.
+    """
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -188,9 +193,6 @@ class ocelotLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.read_input_file(prefix, self.particle_definition)
-        # rematch the input beam to the requested Twiss, as the other tracking
-        # codes (Elegant, Cheetah, GPT, Wake-T) do; without this the Ocelot
-        # line tracks the raw upstream beam, mismatched to the lattice.
         if self.initial_twiss["horizontal"]["beta"]:
             self.global_parameters["beam"].beam.rematchXPlane(
                 **self.initial_twiss["horizontal"]
@@ -226,17 +228,20 @@ class ocelotLattice(frameworkLattice):
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
         from ocelot.cpbd.track import track
-        navi = self.navi_setup()
         pin = deepcopy(self.pin)
         if self.sample_interval > 1:
             pin = pin.thin_out(nth=self.sample_interval)
-        self.tws, self.pout = track(
-            self.lat_obj,
-            pin,
-            navi=navi,
-            calc_tws=True,
-            twiss_disp_correction=False,
-        )
+        for turn in range(1, self.turns + 1):
+            navi = self.navi_setup(turn=turn if self.turns > 1 else None)
+            navi.go_to_start()
+            self.tws, self.pout = track(
+                self.lat_obj,
+                pin,
+                navi=navi,
+                calc_tws=True,
+                twiss_disp_correction=False,
+            )
+            pin = self.pout
 
     def postProcess(self) -> None:
         """
@@ -254,10 +259,6 @@ class ocelotLattice(frameworkLattice):
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
-        # Ocelot's tracked Twiss points carry no element identity (`id` is
-        # empty), so tag each point with the name of the (drift-expanded)
-        # element whose exit position first reaches it. This is what makes
-        # Twiss.get_parameter_at_element usable for Ocelot output.
         elem_names = array(
             [e.name for e in self.createDrifts().values()], dtype="U"
         )
@@ -267,9 +268,6 @@ class ocelotLattice(frameworkLattice):
                 0,
                 len(elem_names) - 1,
             )
-            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
-            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
-            # would silently drop the names.
             twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,
@@ -282,9 +280,13 @@ class ocelotLattice(frameworkLattice):
                 self.mbi_navi.bf,
             )
 
-    def navi_setup(self) -> "Navigator":
+    def navi_setup(self, turn: int | None = None) -> "Navigator":
         """
         Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
+
+        ``turn`` is passed to :meth:`output_basename` for the ``SaveBeamOpenPMD``
+        processes, so each turn of a multi-turn run writes its own files rather
+        than overwriting the last. The navigator is rebuilt per turn.
 
         .. _Navigator: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/navi.py
 
@@ -330,7 +332,7 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [csr[i]]
                 navi_locations_start += [start[i]]
                 navi_locations_end += [end[i]]
-            csr_set = True
+            csr_set = len(csr) > 0
         if self.mbi["set_mbi"]:
             self.mbi_navi = MBI(
                 lattice=self.lat_obj,
@@ -380,8 +382,6 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
-        # s along the reference trajectory, measured from the lattice entrance. Not the
-        # same as the lab z the beams are positioned by, once anything upstream bends.
         sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
         sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
         for w in self.screens_and_bpms + self.apertures:
@@ -391,7 +391,10 @@ class ocelotLattice(frameworkLattice):
             subdir = self.global_parameters["master_subdir"]
             navi_processes += [
                 SaveBeamOpenPMD(
-                    filename=f"{subdir}/{w.name}.openpmd.hdf5",
+                    filename=(
+                        f"{subdir}/"
+                        f"{self.output_basename(w.name, turn=turn)}.openpmd.hdf5"
+                    ),
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
                     sstart=self.entrance_s + sval_in[w.name],
@@ -404,7 +407,10 @@ class ocelotLattice(frameworkLattice):
         subdir = self.global_parameters["master_subdir"]
         navi_processes += [
             SaveBeamOpenPMD(
-                filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
+                filename=(
+                    f"{subdir}/"
+                    f"{self.output_basename(self.names[-1], turn=turn)}.openpmd.hdf5"
+                ),
                 global_parameters=self.global_parameters,
                 zstart=self.endObject.physical.end.z,
                 sstart=self.entrance_s + sval_out[self.end],
@@ -472,12 +478,11 @@ class ocelotLattice(frameworkLattice):
         stlist = []
         enlist = []
         from ocelot.cpbd.csr import CSR
-        if ("start" in list(self.file_block["csr"].keys())) and (
-            "end" in list(self.file_block["csr"].keys())
-        ):
-            start = self.file_block["csr"]["start"]
+        block = self.file_block["csr"] if "csr" in self.file_block else {}
+        if ("start" in list(block.keys())) and ("end" in list(block.keys())):
+            start = block["start"]
             st = [start] if isinstance(start, str) else start
-            end = self.file_block["csr"]["end"]
+            end = block["end"]
             en = [end] if isinstance(end, str) else end
             for i in range(len(st)):
                 stelem = self.lat_obj.sequence[self.names.index(st[i])]
@@ -494,6 +499,7 @@ class ocelotLattice(frameworkLattice):
             csr.n_bin = self.nbin_csr
             csr.m_bin = self.mbin_csr
             csr.sigma_min = self.sigmamin_csr
+            csrlist = [csr]
             stlist = [self.lat_obj.sequence[0]]
             enlist = [self.lat_obj.sequence[-1]]
         return csrlist, stlist, enlist

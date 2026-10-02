@@ -193,7 +193,7 @@ class csrtrackLattice(frameworkLattice):
             self.global_parameters["master_subdir"] + "/" + astrabeamfilename,
             normaliseZ=False,
         )
-        HDF5filename = csrtrackbeamfilename.replace(".fmt2", ".openpmd.hdf5")
+        HDF5filename = self.output_basename(self.end) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + HDF5filename,

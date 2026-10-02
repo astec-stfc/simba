@@ -262,8 +262,9 @@ class Executables(object):
         self.gpt = None
         self.csrtrack = None
         self.genesis = None
-        self.madx = None
         self.opal = None
+        self.tao = None
+        self.madx = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command(location=self.runtime)
         self.define_astra_command(location=self.runtime)
@@ -272,7 +273,8 @@ class Executables(object):
         self.define_gpt_command()
         self.define_opal_command(location=self.runtime)
         self.define_genesis_command(location=self.runtime)
-        self.define_madx_command()
+        self.define_tao_command(location=self.runtime)
+        self.define_madx_command(location=self.runtime)
 
     def __getitem__(self, item):
         if os.name == "nt" and self.runtime is None and item in WINDOWS_UNSUPPORTED_CODES:
@@ -604,3 +606,36 @@ class Executables(object):
             override_location=override_location,
         )
         self.madx = self.madxExecutable.executable
+
+    def define_tao_command(
+            self,
+            location: str | None = None,
+            ncpu: int = 1,
+            scaling: int | None = None,
+            override_location: str | None = None,
+    ) -> None:
+        """
+        Define the Tao :class:`~executable` object and sets :attr:`~tao`
+
+        Parameters
+        ----------
+        location: str
+            Location of Tao library; overrides `default`.
+        ncpu: int
+            Number of CPUs to run
+        scaling: int, optional
+            Scaling parameter for number of CPUs.
+        override_location: str, optional
+            Name of remote server on which to run the executable;
+            must be defined in `Executables.yaml`
+        """
+        ncpu = self.getNCPU(ncpu, scaling)
+        self.taoExecutable = executable(
+            "tao",
+            settings=self.settings,
+            location=location,
+            ncpu=ncpu,
+            default=[self.sim_codes_location + "Bmad/lib/libtao.so"],
+            override_location=override_location,
+        )
+        self.tao = self.taoExecutable.executable

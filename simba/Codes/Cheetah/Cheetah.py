@@ -220,16 +220,17 @@ class cheetahLattice(frameworkLattice):
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
-        s = 0
-        try:
-            s = self.elementObjects[name].physical.middle.z
-        except KeyError:
-            s = self.elementObjects[name.replace('_', "-")].physical.middle.z
-        # scr.tau -= self.startObject.physical.middle.z
+        if name == self.end:
+            zstart = self.endObject.physical.end.z
+        else:
+            try:
+                zstart = self.elementObjects[name].physical.start.z
+            except KeyError:
+                zstart = self.elementObjects[name.replace('_', "-")].physical.start.z
         rbf_cheetah.interpret_cheetah_ParticleBeam(
             beam,
             scr,
-            zstart=self.startObject.physical.start.z,
+            zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
         )
@@ -252,7 +253,10 @@ class cheetahLattice(frameworkLattice):
         for name, scr in screens.items():
             if name.replace("_", "-") == self.start:
                 continue
-            outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
+            outname = (
+                f'{self.global_parameters["master_subdir"]}/'
+                f'{self.output_basename(name).replace("_", "-")}.openpmd.hdf5'
+            )
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
         self.screen_threaded_function.gather()
@@ -264,10 +268,6 @@ class cheetahLattice(frameworkLattice):
                 for key, val in zip(twiss_keys, self.tws):
                     data = val.numpy()
                     if key == "s":
-                        # Cheetah's s is carried over from the incoming beam, so it
-                        # accumulates whatever the upstream sections tracked. Anchor it
-                        # to the lattice start instead, as Elegant/Ocelot/MAD-X do, so
-                        # every code reports the same s for the same element.
                         svals = data - data[0]
                         data = svals + self.start_s
                     twsgrp.create_dataset(key, data=data)

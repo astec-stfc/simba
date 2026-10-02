@@ -463,6 +463,12 @@ class SDDSFile(object):
     def load(self, *args, **kwargs):
         return self.read_file(*args, **kwargs)
 
+    def count_pages(self, filename) -> int:
+        """How many pages ``filename`` holds."""
+        self._sddsObject.load(filename)
+        data = self._sddsObject.columnData
+        return len(data[0]) if data else 0
+
     def read_file(self, filename, page=-1):
         self._sddsObject.load(filename)
         sddsref = self._sddsObject

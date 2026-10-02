@@ -28,6 +28,7 @@ import numpy as np
 from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement, Dipole
+from laura.models.element_list import flatten_occurrence, split_occurrence
 from laura.exporters.yaml_exporter import export_machine, export_elements
 
 from .Modules.merge_two_dicts import merge_two_dicts
@@ -359,6 +360,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_tao_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command(override_location=location)
         self.executables_ready = True
         return executables
@@ -614,6 +619,8 @@ class Framework(BaseModel):
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
@@ -623,6 +630,8 @@ class Framework(BaseModel):
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
@@ -995,48 +1004,37 @@ class Framework(BaseModel):
         Returns
         -------
         bool
-            True if errors are detected
+            True if no errors are detected
         """
         noerror = True
         for elem in self.elementObjects.values():
-            if isinstance(elem, PhysicalBaseElement):
-                middle = np.array([elem.physical.middle.x, elem.physical.middle.y, elem.physical.middle.z])
-                end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
-                length = elem.physical.length
-                physical_angle = elem.physical.physical_angle
+            if not isinstance(elem, PhysicalBaseElement):
+                continue
+            physical = elem.physical
+            middle = np.array(physical.middle.array)
+            end = np.array(physical.end.array)
+            angle = physical._physical_angle
 
-                # Calculate local offset from middle to end
-                if abs(physical_angle) > 1e-9:
-                    # Bent element - correct arc geometry
-                    ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
-                    ey_local = 0
-                    ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
-                else:
-                    # Straight element
-                    ex_local = 0
-                    ey_local = 0
-                    ez_local = length / 2.0
+            cend = middle + physical.offset_from_middle("end")
+            diff = cend - end
+            if not np.allclose(diff, 0, atol=10 ** (-decimals)):
+                noerror = False
+                print(f"check_lattice error: {elem.name}")
+                print(f"  Middle: {middle}")
+                print(f"  Calculated end: {cend}")
+                print(f"  Actual end: {end}")
+                print(f"  Difference: {diff}")
+                print(f"  Physical angle: {angle}")
+                print(
+                    f"  Global rotation: [{physical.global_rotation.phi}, {physical.global_rotation.psi}, {physical.global_rotation.theta}]")
 
-                local_offset = np.array([ex_local, ey_local, ez_local])
-
-                # Apply the full 3D rotation matrix
-                rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-
-                # Calculate expected end position
-                cend = middle + np.array(rotated_offset)
-
-                # Check if calculated end matches actual end
-                diff = cend - end
-                if not np.allclose(diff, 0, atol=10 ** (-decimals)):
-                    noerror = False
-                    print(f"check_lattice error: {elem.name}")
-                    print(f"  Middle: {middle}")
-                    print(f"  Calculated end: {cend}")
-                    print(f"  Actual end: {end}")
-                    print(f"  Difference: {diff}")
-                    print(f"  Physical angle: {physical_angle}")
-                    print(
-                        f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]")
+            magnet_angle = physical.magnet_angle
+            if magnet_angle is not None and not np.isclose(
+                    abs(angle), abs(magnet_angle), atol=10 ** (-decimals)):
+                noerror = False
+                print(f"check_lattice error: {elem.name}")
+                print(f"  Layout angle: {angle}")
+                print(f"  Magnet angle: {magnet_angle}")
 
         return noerror
 
@@ -1196,6 +1194,35 @@ class Framework(BaseModel):
         else:
             raise ValueError
 
+    def _default_layout(self):
+        """This machine's default beam path, or ``None`` if it has no machine."""
+        machine = getattr(self, "machine", None)
+        if machine is None:
+            return None
+        return machine.lattices.get(machine.default_path)
+
+    def _warn_if_shared_across_passes(self, element_name: str) -> None:
+        """Flag when a change reaches every pass through one device.
+
+        To vary a value *between* passes, state it per pass in
+        the layout (``overrides``) instead.
+        """
+        layout = self._default_layout()
+        if layout is None or not getattr(layout, "is_multipass", False):
+            return
+        passes = [
+            name
+            for name in layout.elements
+            if split_occurrence(name)[0] == element_name
+        ]
+        if len(passes) > 1:
+            warn(
+                f"'{element_name}' is entered {len(passes)} times by beam path "
+                f"'{layout.name}' ({', '.join(passes)}) and is one device, so "
+                "this change applies to every pass. Use a per-pass "
+                "'overrides' entry in the layout if you meant only one."
+            )
+
     def modifyElement(
         self,
         elementName: str,
@@ -1225,6 +1252,7 @@ class Framework(BaseModel):
         elif elementName in self.groupObjects:
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
+            self._warn_if_shared_across_passes(elementName)
             if "." in parameter:
                 obj = self.elementObjects[elementName]
                 set_deep_attr(obj, parameter, value)
@@ -1664,21 +1692,45 @@ class Framework(BaseModel):
         """
         return list(self.commandObjects.keys())
 
+    def path_arc_lengths(self) -> dict:
+        """Each element's arc length along the beam path, keyed as a line names it,
+        using :meth:`~laura.models.elementList.MachineLayout.arc_lengths` to calculate.
+
+        Its keys address a pass (``NAME#N``); a line names its elements the way
+        a flattened export does (``NAME.N``); conversion is done here.
+        """
+        layout = self._default_layout()
+        if layout is None:
+            return {}
+        try:
+            return {
+                flatten_occurrence(name): s for name, s in layout.arc_lengths().items()
+            }
+        except Exception:
+            return {}
+
     def getSValues(self) -> list:
         """
         Returns a list of S values for the current lattice from :attr:`~latticeObjects`;
         see :func:`~simba.Framework_objects.frameworkLattice.getSValues`.
+
+        Each line's values are offset to where that line actually starts along
+        the beam path, taken from :meth:`path_arc_lengths`. A line's own
+        ``getSValues`` restarts at zero. Falls back to zero for
+        any line the layout cannot place.
 
         Returns
         -------
         list
             S values for all elements
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects.values():
             try:
-                latticeS = [a + s0 for a in lo.getSValues()]
+                start = offsets.get(flatten_occurrence(lo.start), s0)
+                latticeS = [a + start for a in lo.getSValues()]
                 allS = allS + latticeS
                 s0 = allS[-1]
             except Exception:
@@ -1695,12 +1747,15 @@ class Framework(BaseModel):
         list
             Element names, element object and its S position
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects:
             if not lo == "generator":
-                names, elems, svals = self.latticeObjects[lo].getSNamesElems()
-                latticeS = [a + s0 for a in svals]
+                latt = self.latticeObjects[lo]
+                names, elems, svals = latt.getSNamesElems()
+                start = offsets.get(flatten_occurrence(latt.start), s0)
+                latticeS = [a + start for a in svals]
                 selems = list(zip(names, elems, latticeS))
                 allS = allS + selems
                 s0 = latticeS[-1]
@@ -1723,6 +1778,53 @@ class Framework(BaseModel):
                 zelems = list(zip(names, elems, zvals))
                 allZ = allZ + zelems
         return list(sorted(allZ, key=lambda x: x[2][0]))
+
+    def _line_output_names(self, lattice_name: str) -> set:
+        """Element names ``lattice_name`` will write an output beam file for:
+        screens, markers and BPMs, plus the final element (for codes that do not
+        do this natively).
+        """
+        latt = self.latticeObjects.get(lattice_name)
+        if latt is None:
+            return set()
+        names = {
+            element.name
+            for element in getattr(latt, "screens_and_markers_and_bpms", [])
+        }
+        end = getattr(latt, "end", None)
+        if isinstance(end, str):
+            names.add(end)
+        return names
+
+    def _mark_colliding_outputs(self, files: list) -> None:
+        """Tell each line which of its outputs another line also writes.
+
+        Output beam files are named by element alone, so they must not clash.
+        Only names written by more than one line in this run are marked, so
+        a run whose lines share no screens keeps every filename it had.
+
+        The exception is the element one line ends on and the next starts from.
+        Both write it and both mean the same beam, and it is by that plain name
+        that the downstream line goes looking for it, so qualifying it would
+        leave the handoff with nothing to read.
+        """
+        seen: Dict[str, int] = {}
+        per_line = {}
+        starts, ends = set(), set()
+        for lattice_name in files:
+            if lattice_name == "generator":
+                continue
+            latt = self.latticeObjects[lattice_name]
+            per_line[lattice_name] = self._line_output_names(lattice_name)
+            for side, names in ((latt.start, starts), (latt.end, ends)):
+                if isinstance(side, str):
+                    names.add(side)
+            for name in per_line[lattice_name]:
+                seen[name] = seen.get(name, 0) + 1
+        handoffs = {name for name in starts & ends if seen.get(name, 0) == 2}
+        shared = {name for name, count in seen.items() if count > 1} - handoffs
+        for lattice_name, names in per_line.items():
+            self.latticeObjects[lattice_name].colliding_outputs = names & shared
 
     def track(
         self,
@@ -1778,6 +1880,9 @@ class Framework(BaseModel):
                 raise Exception("Lattice Error - check definitions")
         if not self.executables_ready:
             raise Exception("Executables not ready - check setup and paths")
+        # Lattice objects are rebuilt by change_Lattice_Code after the generator
+        # is created, so hand it over here rather than only at construction.
+        self._propagate_generator()
         self.tracking = True
         self.progress = 0
         if files is None:
@@ -1792,6 +1897,7 @@ class Framework(BaseModel):
         if endfile is not None and endfile in files:
             index = files.index(endfile)
             files = files[: index + 1]
+        self._mark_colliding_outputs(files)
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)

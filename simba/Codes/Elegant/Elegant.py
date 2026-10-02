@@ -58,9 +58,7 @@ Classes:
 """
 
 import os
-import time
 from copy import copy
-import subprocess
 import numpy as np
 from warnings import warn
 try:
@@ -98,6 +96,9 @@ class elegantLattice(frameworkLattice):
 
     code: str = "elegant"
     """String indicating the lattice object type"""
+
+    supports_turns: ClassVar[bool] = True
+    """``run_control``'s ``n_passes``."""
 
     allow_negative_drifts: bool = False
     """Flag to indicate whether negative drifts are allowed"""
@@ -412,7 +413,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns,
-                    n_passes=1,
+                    n_passes=self.turns,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
                 )
@@ -436,7 +437,7 @@ class elegantLattice(frameworkLattice):
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
                     n_steps=nruns - 1,
-                    n_passes=1,
+                    n_passes=self.turns,
                     n_indices=1,
                     reset_rf_for_each_step=0,
                     first_is_fiducial=1,
@@ -454,20 +455,21 @@ class elegantLattice(frameworkLattice):
                 # print('run_control for standard runs with no jitter')
                 self.commandFiles["run_control"] = elegant_run_control_command(
                     # lattice=self,
-                    n_steps=1, n_passes=1
+                    n_steps=1, n_passes=self.turns
                 )
 
             # print('twiss_output')
-            self.commandFiles["twiss_output"] = elegant_twiss_output_command(
-                # lattice=self,
-                beam=self.global_parameters["beam"],
-                beta_x=self.global_parameters["beam"].twiss.beta_x_corrected,
-                beta_y=self.global_parameters["beam"].twiss.beta_y_corrected,
-                alpha_x=self.global_parameters["beam"].twiss.alpha_x_corrected,
-                alpha_y=self.global_parameters["beam"].twiss.alpha_y_corrected,
-                # eta_x=self.global_parameters["beam"].twiss.eta_x,
-                # eta_xp=self.global_parameters["beam"].twiss.eta_xp,
-            )
+            if not self.lsc_in_use:
+                self.commandFiles["twiss_output"] = elegant_twiss_output_command(
+                    # lattice=self,
+                    beam=self.global_parameters["beam"],
+                    beta_x=self.global_parameters["beam"].twiss.beta_x_corrected,
+                    beta_y=self.global_parameters["beam"].twiss.beta_y_corrected,
+                    alpha_x=self.global_parameters["beam"].twiss.alpha_x_corrected,
+                    alpha_y=self.global_parameters["beam"].twiss.alpha_y_corrected,
+                    # eta_x=self.global_parameters["beam"].twiss.eta_x,
+                    # eta_xp=self.global_parameters["beam"].twiss.eta_xp,
+                )
             # print('floor_coordinates')
             self.commandFiles["floor_coordinates"] = elegant_floor_coordinates_command(
                 # lattice=self,
@@ -476,9 +478,17 @@ class elegantLattice(frameworkLattice):
                 Z0=self.startObject.physical.start.z,
             )
             # print('matrix_output')
-            self.commandFiles["matrix_output"] = elegant_matrix_output_command(
-                # lattice=self,
-            )
+            if not self.lsc_in_use:
+                self.commandFiles["matrix_output"] = elegant_matrix_output_command(
+                    # lattice=self,
+                )
+            else:
+                warn(
+                    f"{self.objectname}: no twiss or matrix output -- elegant builds those "
+                    "matrices before any beam exists, and an element doing LSC has no "
+                    "matrix without a charge ('No charge defined for LSC'). Tracking is "
+                    "unaffected; set lsc_enable = False on the lattice to get the optics."
+                )
             # print('sdds_beam')
             self.commandFiles["sdds_beam"] = elegant_sdds_beam_command(
                 lattice=self,
@@ -585,7 +595,6 @@ class elegantLattice(frameworkLattice):
             rbf.sdds.write_SDDS_file(
                 self.global_parameters["beam"],
                 self.global_parameters["master_subdir"] + "/" + sddsbeamfilename,
-                xyzoffset=list(self.startObject.physical.start.model_dump().values()),
             )
             self.files.append(self.global_parameters["master_subdir"] + "/" + sddsbeamfilename)
 
@@ -609,17 +618,31 @@ class elegantLattice(frameworkLattice):
         ref_index: int, optional
             Reference particle index
         """
-        beam = rbf.beam()
         rootname = f"{self.global_parameters['master_subdir']}/{screen.name}"
         elegantbeamfilename = f"{rootname}.SDDS"
-        rbf.sdds.read_SDDS_beam_file(
-            beam,
-            elegantbeamfilename,
-            xyzoffset=list(self.elementObjects[screen.name].physical.start.model_dump().values()),
-            ref_index=ref_index
-        )
-        HDF5filename = f"{rootname}.openpmd.hdf5"
-        rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+        if not os.path.isfile(elegantbeamfilename):
+            if screen.hardware_type != "Beam_Position_Monitor":
+                warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
+            return
+        xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
+        pages = [-1]
+        if self.turns > 1:
+            pages = list(range(rbf.sdds.count_SDDS_pages(elegantbeamfilename)))
+        for index, page in enumerate(pages, start=1):
+            beam = rbf.beam()
+            rbf.sdds.read_SDDS_beam_file(
+                beam,
+                elegantbeamfilename,
+                page=page,
+                xyzoffset=xyzoffset,
+                ref_index=ref_index,
+            )
+            turn = None if self.turns <= 1 else index
+            HDF5filename = (
+                f"{self.global_parameters['master_subdir']}/"
+                f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"
+            )
+            rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 
@@ -628,6 +651,7 @@ class elegantLattice(frameworkLattice):
         command = self.executables[self.code] + [self.objectname + ".ele"]
         workdir = os.path.abspath(self.global_parameters["master_subdir"])
         command = self.executables.build_command(command, workdir)
+        logfile = os.path.join(workdir, self.objectname + ".log")
         if self.remote_setup:
             super().run_remote()
         elif not os.name == "nt":
@@ -640,21 +664,12 @@ class elegantLattice(frameworkLattice):
                 )
                 if os.path.isfile(rpn_defns):
                     my_env["RPN_DEFNS"] = rpn_defns
-            with open(
-                os.path.abspath(
-                    self.global_parameters["master_subdir"]
-                    + "/"
-                    + self.objectname
-                    + ".log"
-                ),
-                "w",
-            ) as f:
-                subprocess.call(
-                    command,
-                    stdout=f,
-                    cwd=self.global_parameters["master_subdir"],
-                    env=my_env,
-                )
+            self.run_command(
+                command,
+                logfile,
+                cwd=self.global_parameters["master_subdir"],
+                env=my_env,
+            )
         else:
             code_string = " ".join(self.executables[self.code]).lower()
             # a container command (docker/apptainer/wsl) stays POSIX-style; only a
@@ -675,18 +690,9 @@ class elegantLattice(frameworkLattice):
                     )
                 if not is_container_command:
                     command = [c.replace("/", "\\") for c in command]
-                with open(
-                    os.path.abspath(
-                        self.global_parameters["master_subdir"]
-                        + "/"
-                        + self.objectname
-                        + ".log"
-                    ),
-                    "w",
-                ) as f:
-                    subprocess.call(
-                        command, stdout=f, cwd=self.global_parameters["master_subdir"]
-                    )
+                self.run_command(
+                    command, logfile, cwd=self.global_parameters["master_subdir"]
+                )
             else:
                 if not is_container_command:
                     command = [c.replace("/", "\\") for c in command]
@@ -696,21 +702,12 @@ class elegantLattice(frameworkLattice):
                 )
                 if not is_container_command:
                     rpn_defns = rpn_defns.replace("/", "\\")
-                with open(
-                    os.path.abspath(
-                        self.global_parameters["master_subdir"]
-                        + "/"
-                        + self.objectname
-                        + ".log"
-                    ),
-                    "w",
-                ) as f:
-                    subprocess.call(
-                        command,
-                        stdout=f,
-                        cwd=self.global_parameters["master_subdir"],
-                        env={"RPN_DEFNS": rpn_defns},
-                    )
+                self.run_command(
+                    command,
+                    logfile,
+                    cwd=self.global_parameters["master_subdir"],
+                    env={"RPN_DEFNS": rpn_defns},
+                )
 
     def elegantCommandFile(self, *args, **kwargs):
         return elegantCommandFile(*args, **kwargs)
