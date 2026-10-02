@@ -1314,6 +1314,7 @@ class frameworkLattice(BaseModel):
             slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
             return slt
+        self._section.directory = self.global_parameters["master_subdir"]
         return self._section
 
     @property
