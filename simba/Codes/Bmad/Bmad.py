@@ -19,7 +19,7 @@ Classes:
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from laura.models.simulation import TwissMatchSimulationElement
@@ -103,6 +103,19 @@ class bmadLattice(frameworkLattice):
 
     code: str = "bmad"
     """String indicating the lattice type"""
+
+    supports_periodic: ClassVar[bool] = True
+    """``parameter[geometry] = closed``, which LAURA writes from the section's
+    own ``geometry``; Bmad then takes the Twiss from the one-turn map."""
+
+    otm_convention: ClassVar[str] = "x, px, y, py, z, pz"
+    """One-turn map convention."""
+
+    otm_longitudinal_sign: ClassVar[int] = 1
+    """One-turn map longitudinal sign (i.e. R56)"""
+
+    otm_longitudinal_scale: ClassVar[int | None] = 0
+    """Canonical by definition: this is the convention the others convert to."""
 
     particle_definition: str | None = None
     """Initial particle distribution as a string"""
@@ -219,15 +232,20 @@ class bmadLattice(frameworkLattice):
         """
         return self._reference_value(self.global_parameters["beam"].energy.val)
 
-    def _bmad_initial_twiss(self) -> TwissMatchSimulationElement:
+    def _bmad_initial_twiss(self) -> TwissMatchSimulationElement | None:
         """
         Get the initial Twiss from the incoming beam.
 
         Returns
         -------
-        TwissMatchSimulationElement
-            Section initial twiss object
+        TwissMatchSimulationElement | None
+            Section initial twiss object, or None for a periodic line: Bmad
+            computes the Twiss of a ``geometry = closed`` lattice from its
+            one-turn map, so writing ``beginning[beta_a]`` would be stating an
+            answer the lattice already determines.
         """
+        if self.periodic:
+            return None
         twiss = self.global_parameters["beam"].twiss
         return TwissMatchSimulationElement(
             beta_x=float(twiss.beta_x.val),
@@ -406,6 +424,31 @@ class bmadLattice(frameworkLattice):
         z_values = [z[-1] for z in self.getZValues()]
         twiss["z"] = np.interp(twiss["s"], s_values, z_values)
         return twiss
+
+    def read_one_turn_map(self):
+        """Tao's ``matrix`` with the same element at both ends.
+
+        Tao documents that as the one-turn map, which only means anything on
+        a ``geometry = closed`` lattice -- the condition
+        :meth:`~simba.Framework_objects.frameworkLattice.periodic` already
+        gates on.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 ``mat6``, or None if Tao gave nothing back.
+        """
+        if self.tao is None:
+            return None
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        try:
+            os.chdir(working_directory)
+            result = self.tao.matrix("BEGINNING", "BEGINNING")
+        finally:
+            os.chdir(previous_directory)
+        mat6 = (result or {}).get("mat6")
+        return None if mat6 is None else np.asarray(mat6, dtype=float)
 
     def postProcess(self) -> None:
         """

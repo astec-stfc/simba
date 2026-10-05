@@ -14,11 +14,10 @@ Classes:
 """
 
 from ...Framework_objects import frameworkLattice, getGrids
-from ...Modules import Beams as rbf
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from copy import deepcopy
-from numpy import array, savez_compressed, linspace, save, interp, searchsorted, clip
+from numpy import array, linspace, save, interp, searchsorted, clip, mean
 import os
 from yaml import safe_load
 
@@ -29,6 +28,7 @@ with open(
     oceglobal = safe_load(infile)
 from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar
+from warnings import warn
 
 
 class ocelotLattice(frameworkLattice):
@@ -52,8 +52,22 @@ class ocelotLattice(frameworkLattice):
     """By looping ``cpbd.track.track`` and feeding the bunch back in.
 
     **Not** ``track_nturns``, despite the name: we need to track a ``ParticleArray``
-    via a ``Navigator``.
+    via a ``Navigator``. ``track_nturns`` takes a list of single particles and is
+    the right tool for dynamic aperture, which is a different job.
     """
+
+    supports_periodic: ClassVar[bool] = True
+    """``cpbd.optics.twiss`` with ``tws0=None``, which defers to
+    ``lattice.periodic_twiss``."""
+
+    otm_convention: ClassVar[str] = "x, xp, y, yp, tau, p"
+    """One-turn map convention"""
+
+    otm_longitudinal_sign: ClassVar[int] = -1
+    """``tau`` runs the other way"""
+
+    otm_longitudinal_scale: ClassVar[int | None] = 2
+    """Magnitude follows MAD-X (scales with beta**2)."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -242,6 +256,51 @@ class ocelotLattice(frameworkLattice):
                 twiss_disp_correction=False,
             )
             pin = self.pout
+        if self.periodic:
+            self.tws = self._periodic_twiss()
+
+    def _periodic_twiss(self) -> List:
+        """
+        The lattice's closed solution, replacing the tracked beam's Twiss;
+        based on ``optics.twiss`` with ``tws0=None``.
+
+        Returns
+        -------
+        List
+            The periodic Twiss, or the tracked Twiss if no periodic solution
+            exists.
+
+        Raises
+        ------
+        warning
+            If no periodic solution exists.
+        """
+        from ocelot.cpbd.optics import twiss
+        periodic = twiss(self.lat_obj, tws0=None)
+        if periodic is None:
+            warn(
+                f"Line '{self.objectname}' asks for the periodic solution, but "
+                "Ocelot found none: the one-turn map is unstable, so the ring "
+                "has no matched optics. Falling back to the tracked beam's "
+                "Twiss, which is not the ring's."
+            )
+            return self.tws
+        return periodic
+
+    def read_one_turn_map(self):
+        """
+        ``cpbd.optics.lattice_transfer_map``, which composes the element
+        maps analytically rather than tracking anything.
+
+        Returns
+        -------
+        numpy.ndarray
+            The 6x6 map.
+        """
+        from ocelot.cpbd.optics import lattice_transfer_map
+
+        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        return array(lattice_transfer_map(self.lat_obj, energy_gev), dtype=float)
 
     def postProcess(self) -> None:
         """

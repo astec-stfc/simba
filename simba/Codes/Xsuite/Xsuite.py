@@ -25,6 +25,7 @@ import numpy as np
 import json
 
 from typing import Dict, List, Any, ClassVar, Literal
+from warnings import warn
 
 
 def _select_turn(data: Dict, turn: int) -> Dict:
@@ -63,6 +64,18 @@ class xsuiteLattice(frameworkLattice):
 
     supports_turns: ClassVar[bool] = True
     """``line.track(num_turns=...)``."""
+
+    supports_periodic: ClassVar[bool] = True
+    """``line.twiss()`` with no initial conditions."""
+
+    otm_convention: ClassVar[str] = "x, px, y, py, zeta, delta"
+    """One-turn-map convention"""
+
+    otm_longitudinal_sign: ClassVar[int] = 1
+    """One-turn-map longitudinal sign (R56)"""
+
+    otm_longitudinal_scale: ClassVar[int | None] = 0
+    """Canonical by definition: this is the convention the others convert to."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam.
@@ -320,16 +333,53 @@ class xsuiteLattice(frameworkLattice):
         self.tws = self._twiss()
 
     def _twiss(self):
-        """Twiss the line from the incoming beam's parameters."""
+        """
+        Twiss the line: the periodic solution if asked for, else the beam's.
+
+        ``line.twiss()`` with no initial conditions is Xsuite's closed
+        solution, so a ring is a matter of not passing them.
+
+        Returns
+        -------
+        xt.Line.twiss
+            Xtrack's twiss object
+        """
+        kwargs = dict(
+            compute_R_element_by_element=False,
+            method="6d",
+            freeze_energy=False,
+        )
+        if self.periodic:
+            return self.line.twiss(**kwargs)
         return self.line.twiss(
             betx=self.global_parameters["beam"].twiss.beta_x.val,
             alfx=self.global_parameters["beam"].twiss.alpha_x.val,
             bety=self.global_parameters["beam"].twiss.beta_y.val,
             alfy=self.global_parameters["beam"].twiss.alpha_y.val,
-            compute_R_element_by_element=False,
-            method="6d",
-            freeze_energy=False,
+            **kwargs,
         )
+
+    def read_one_turn_map(self):
+        """
+        ``line.compute_R_matrix()``, which finite-differences about the
+        closed orbit.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 map, or None if Xsuite could not find a closed orbit.
+        """
+        try:
+            closed_orbit = self.line.find_closed_orbit()
+            result = self.line.compute_R_matrix(particle_on_co=closed_orbit)
+            return np.asarray(result["R_matrix"], dtype=float)
+        except Exception as error:
+            warn(
+                f"Line '{self.objectname}': Xsuite could not compute a "
+                f"one-turn matrix ({error}). An unstable or unclosed lattice "
+                "has no one-turn map."
+            )
+            return None
 
     def compute_norm_emit(self, coord, mom, particles):
         cov = np.cov(coord, mom)

@@ -59,6 +59,7 @@ Classes:
 
 import os
 from copy import copy
+from pathlib import Path
 import numpy as np
 from warnings import warn
 try:
@@ -99,6 +100,19 @@ class elegantLattice(frameworkLattice):
 
     supports_turns: ClassVar[bool] = True
     """``run_control``'s ``n_passes``."""
+
+    supports_periodic: ClassVar[bool] = True
+    """``twiss_output``'s ``matched = 1``."""
+
+    otm_convention: ClassVar[str] = "x, xp, y, yp, s, delta"
+    """One-turn map convention."""
+
+    otm_longitudinal_sign: ClassVar[int] = -1
+    """One-turn map longitudinal sign (i.e. R56; opposite to MAD-X, Xsuite)."""
+
+    otm_longitudinal_scale: ClassVar[int | None] = None
+    """Not a rescale. ``s`` is geometric path length, so a drift measured
+    ``R56 = 0`` as opposed to ``L/(beta0.gamma0)**2``."""
 
     allow_negative_drifts: bool = False
     """Flag to indicate whether negative drifts are allowed"""
@@ -460,13 +474,15 @@ class elegantLattice(frameworkLattice):
 
             # print('twiss_output')
             if not self.lsc_in_use:
+                beamtwiss = self.global_parameters["beam"].twiss
                 self.commandFiles["twiss_output"] = elegant_twiss_output_command(
                     # lattice=self,
                     beam=self.global_parameters["beam"],
-                    beta_x=self.global_parameters["beam"].twiss.beta_x_corrected,
-                    beta_y=self.global_parameters["beam"].twiss.beta_y_corrected,
-                    alpha_x=self.global_parameters["beam"].twiss.alpha_x_corrected,
-                    alpha_y=self.global_parameters["beam"].twiss.alpha_y_corrected,
+                    matched=int(self.periodic),
+                    beta_x=None if self.periodic else beamtwiss.beta_x_corrected,
+                    beta_y=None if self.periodic else beamtwiss.beta_y_corrected,
+                    alpha_x=None if self.periodic else beamtwiss.alpha_x_corrected,
+                    alpha_y=None if self.periodic else beamtwiss.alpha_y_corrected,
                     # eta_x=self.global_parameters["beam"].twiss.eta_x,
                     # eta_xp=self.global_parameters["beam"].twiss.eta_xp,
                 )
@@ -548,6 +564,33 @@ class elegantLattice(frameworkLattice):
         # except Exception as e:
         #     print(f"Screen error {scr.name}, {e}")
         #     return None
+
+    def read_one_turn_map(self):
+        """
+        The last cumulative matrix in elegant's ``%s.mat``.
+
+        ``matrix_output`` is written on every run already.
+        The matrices are cumulative from the start of the
+        line, so the one covering the whole line -- the one turn -- is the
+        last.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 map, or None if elegant wrote no matrix file (it writes
+            none when LSC is in use; see :func:`write`).
+        """
+        from ...Modules.Matrices import matrices
+
+        path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.mat"
+        if not path.is_file():
+            return None
+        matrix = matrices()
+        matrix.load(str(path), reset=True, cumulative=True)
+        cumulative = matrix.cumulativeR()
+        if not len(cumulative) or not len(cumulative[0]):
+            return None
+        return np.asarray(cumulative[0][-1], dtype=float)
 
     def postProcess(self) -> None:
         """

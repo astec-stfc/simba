@@ -135,7 +135,7 @@ from laura.models.element import Dipole, Drift
 from laura.models.elementList import MachineModel
 
 
-def ring(nbend, angle, turns=1000):
+def ring(nbend, angle, turns=1000, periodic=False):
     """A line of `nbend` bends of `angle`, each followed by a 1 m drift."""
     elements, order = {}, []
     for i in range(nbend):
@@ -162,21 +162,26 @@ def ring(nbend, angle, turns=1000):
             section={"sections": {"RING": order}},
             layout={"layouts": {"M": ["RING"]}, "default_layout": "M"},
         )
-    return ClosureLine(model, order, turns)
+    return ClosureLine(model, order, turns, periodic)
 
 
 class ClosureLine:
     """A stub exposing what `check_turns_closed` reads off real geometry."""
 
-    def __init__(self, model, order, turns):
+    def __init__(self, model, order, turns, periodic=False):
         self.startObject = model[order[0]]
         self.endObject = model[order[-1]]
         self.elements = {name: model[name] for name in order}
-        self.file_block = {"tracking": {"turns": turns}}
+        self.file_block = {"tracking": {"turns": turns, "periodic": periodic}}
         self.objectname = "RING"
         self.code = "elegant"
 
+    def _machine_geometry(self):
+        """No layout behind this stub; `periodic` is set explicitly above."""
+        return None
+
     turns = frameworkLattice.turns
+    periodic = frameworkLattice.periodic
     net_bend_angle = frameworkLattice.net_bend_angle
     check_turns_closed = frameworkLattice.check_turns_closed
 
@@ -203,6 +208,19 @@ def test_one_turn_never_checks_closure():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         ring(4, 0.0, turns=1).check_turns_closed()
+
+
+def test_the_periodic_solution_checks_closure_on_a_single_turn():
+    """`periodic` makes the same claim a turn count does, and gets the same
+    check: one pass is fine, one pass of a *ring* is not."""
+    with pytest.warns(UserWarning, match="asks for the periodic solution"):
+        ring(4, 0.0, turns=1, periodic=True).check_turns_closed()
+
+
+def test_a_closed_ring_is_silent_when_periodic():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        ring(4, math.pi / 2, turns=1, periodic=True).check_turns_closed()
 
 
 def test_a_superperiod_is_named_as_such():

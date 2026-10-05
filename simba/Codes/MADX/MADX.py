@@ -70,7 +70,7 @@ from laura.translator.utils.functions import (
     madx_functional_definitions,
 )
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, ClassVar
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/madx_defaults.yaml",
@@ -117,6 +117,19 @@ class madxLattice(frameworkLattice):
 
     code: str = "madx"
     """String indicating the lattice object type"""
+
+    supports_periodic: ClassVar[bool] = True
+    """``TWISS`` with no initial conditions is MAD-X's periodic solution."""
+
+    otm_convention: ClassVar[str] = "x, px, y, py, t, pt"
+    """One-turn map convention."""
+
+    otm_longitudinal_sign: ClassVar[int] = 1
+    """One-turn map longitudinal sign (i.e. R56)"""
+
+    otm_longitudinal_scale: ClassVar[int | None] = 2
+    """``zeta = beta0 * t`` and ``delta = pt / beta0``, so ``R56`` picks up
+    ``beta0**2``."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -196,6 +209,10 @@ class madxLattice(frameworkLattice):
     seqstrings: List = []
     """MAD-X SEQUENCE definitions for each segment"""
 
+    sector_maps: List = []
+    """Per-element 6x6 sector maps, in sequence order, accumulated across
+    segments on a periodic line; see :func:`read_one_turn_map`"""
+
     pin: Any = None
     """Initial particle distribution as a :class:`~simba.Modules.Beams.beam`"""
 
@@ -259,6 +276,7 @@ class madxLattice(frameworkLattice):
             self.particle_definition = self.start
         self.segments = []
         self.seqstrings = []
+        self.sector_maps = []
         self.beam_data = {}
         self.model_twiss = {}
         self.segment_p0c = {}
@@ -757,6 +775,54 @@ class madxLattice(frameworkLattice):
         _, uidx = np.unique(out["number"], return_index=True)
         return {k: out[k][uidx] for k in out}
 
+    def _collect_sector_maps(self, madx: Any, table: str) -> None:
+        """
+        Append this segment's per-element sector maps to
+        :attr:`~sector_maps`, in sequence order.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        table: str
+            Name of the ``sectortable`` just written
+        """
+        try:
+            smap = madx.table[table]
+            rows = len(smap["r11"])
+        except (KeyError, AttributeError, TypeError) as e:
+            warn(f"MAD-X sectormap unavailable for {table}: {e}")
+            return
+        for row in range(rows):
+            self.sector_maps.append(
+                np.array(
+                    [[smap[f"r{i}{j}"][row] for j in range(1, 7)] for i in range(1, 7)]
+                )
+            )
+
+    def read_one_turn_map(self):
+        """
+        The ordered product of MAD-X's per-element sector maps.
+        The map of the whole line is the product in
+        sequence order, ``R_n @ ... @ R_1``.
+
+        The maps are accumulated across segments by
+        :func:`_collect_sector_maps`. Segments are split at RF cavities, so
+        multiplying them together assumes one reference momentum for the whole
+        line.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 map, or None if no sector maps were collected.
+        """
+        if not self.sector_maps:
+            return None
+        total = np.eye(6)
+        for matrix in self.sector_maps:
+            total = matrix @ total
+        return total
+
     def model_twiss_segment(
         self,
         madx: Any,
@@ -785,11 +851,19 @@ class madxLattice(frameworkLattice):
             data are accumulated into :attr:`~model_twiss`
         """
         try:
-            madx.input(
-                f"twiss, sequence={seqname}, betx={init['betx']}, alfx={init['alfx']}, "
-                f"bety={init['bety']}, alfy={init['alfy']}, dx={init['dx']}, "
-                f"dpx={init['dpx']}, dy={init['dy']}, dpy={init['dpy']};"
-            )
+            if self.periodic:
+                table = f"smap_{seqname}"
+                madx.input(
+                    "select, flag=sectormap, full;\n"
+                    f"twiss, sequence={seqname}, sectormap, sectortable={table};"
+                )
+                self._collect_sector_maps(madx, table)
+            else:
+                madx.input(
+                    f"twiss, sequence={seqname}, betx={init['betx']}, alfx={init['alfx']}, "
+                    f"bety={init['bety']}, alfy={init['alfy']}, dx={init['dx']}, "
+                    f"dpx={init['dpx']}, dy={init['dy']}, dpy={init['dpy']};"
+                )
             tw = madx.table.twiss
             names = [str(n).split(":")[0].lower() for n in tw["name"]]
             if len(names) == 0 or not names[0].startswith(seqname.lower()):
@@ -945,6 +1019,7 @@ class madxLattice(frameworkLattice):
         self.beam_data = {}
         self.model_twiss = {}
         self.output_beams = {}
+        self.sector_maps = []
         madx = self.start_madx()
         try:
             self.run_segments(madx)

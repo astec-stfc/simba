@@ -593,6 +593,35 @@ class frameworkLattice(BaseModel):
     """Whether this code can track a line more than once. Set on those that can:
     currently elegant, Xsuite and Ocelot."""
 
+    supports_periodic: ClassVar[bool] = False
+    """Whether this code can be asked for the *periodic* (closed) optics solution
+    rather than propagating the incoming beam's Twiss."""
+
+    otm_convention: ClassVar[str] = ""
+    """The coordinate order :attr:`one_turn_map` is written in, as this code
+    writes it. :meth:`one_turn_map_canonical` converts it.
+
+    * The transverse blocks need no conversion at all.
+    * **The longitudinal block is three different problems.** Ocelot differs
+      from MAD-X by a sign, Xsuite by a factor ``beta0**2``, and elegant by an
+      *additive* term -- its fifth coordinate is geometric path length, so a
+      drift has ``R56 = 0``.
+    """
+
+    otm_longitudinal_sign: ClassVar[int] = 1
+    """Sign of this code's fifth coordinate against the canonical one (Xsuite, Bmad)."""
+
+    otm_longitudinal_scale: ClassVar[int | None] = None
+    """Power of ``beta0`` in the magnitude of the longitudinal conversion; see
+    :meth:`one_turn_map_canonical`. ``None`` means the conversion is not a rescale (elegant)."""
+
+    one_turn_map: Any = None
+    """The 6x6 linear map of one turn, in :attr:`otm_convention` coordinates.
+
+    ``None`` unless the line is :meth:`periodic` and the code can produce one.
+    Read after the run by :meth:`read_one_turn_map`.
+    """
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
@@ -823,6 +852,46 @@ class frameworkLattice(BaseModel):
         tracking = self.file_block.get("tracking") or {}
         return int(tracking.get("turns", 1))
 
+    @property
+    def periodic(self) -> bool:
+        """
+        Whether to ask the code for the closed (periodic) optics solution.
+
+        Unlike :meth:`turns`, this is **not** primarily a tracking setting:
+        whether the reference orbit closes is a fact about the lattice, and
+        LAURA already records it as section ``geometry``
+        (:meth:`_machine_geometry`).
+
+        The ``tracking`` block overrides that either way, which is what an
+        injection-mismatch study on a real ring needs::
+
+            files:
+              RING:
+                code: elegant
+                tracking: {turns: 1000, periodic: false}
+
+        Returns
+        -------
+        bool
+            True if section geometry is closed
+        """
+        tracking = self.file_block.get("tracking") or {}
+        if "periodic" in tracking:
+            return bool(tracking["periodic"])
+        geometry = self._machine_geometry()
+        return getattr(geometry, "value", geometry) == "closed"
+
+    def check_periodic_supported(self) -> None:
+        """Warn when the periodic solution was asked for and this code cannot."""
+        if self.periodic and not self.supports_periodic:
+            warn(
+                f"Line '{self.objectname}' asks for the periodic solution, but "
+                f"{self.code} is given the incoming beam's Twiss and has no "
+                "closed-solution mode here. The open solution will be used, "
+                "and its tune and beta functions are not the ring's. elegant, "
+                "Xsuite, Ocelot and Bmad are the codes that can."
+            )
+
     def check_turns_supported(self) -> None:
         """Warn when turns were asked for and this code cannot do them."""
         if self.turns > 1 and not self.supports_turns:
@@ -834,7 +903,7 @@ class frameworkLattice(BaseModel):
             )
 
     def check_turns_closed(self, tolerance: float = 1e-4) -> None:
-        """Warn when more than one turn is asked of a line that does not close.
+        """Warn when a line that does not close is treated as though it did.
 
         Closure is tested on LAURA's geometry: the first
         element's entrance against the last element's exit, to ``tolerance``
@@ -843,7 +912,7 @@ class frameworkLattice(BaseModel):
         A **superperiod** is the legitimate exception -- one sector of an
         N-fold-symmetric ring is open on its own and closes after N of them.
         """
-        if self.turns <= 1:
+        if self.turns <= 1 and not self.periodic:
             return
         try:
             entrance = self.startObject.physical.start
@@ -860,8 +929,13 @@ class frameworkLattice(BaseModel):
         )
         if not length or gap <= tolerance * length:
             return
+        claim = (
+            f"is tracked for {self.turns} turns"
+            if self.turns > 1
+            else "asks for the periodic solution"
+        )
         message = (
-            f"Line '{self.objectname}' is tracked for {self.turns} turns, but "
+            f"Line '{self.objectname}' {claim}, but "
             f"its geometry does not close: it ends {gap:.4g} m from where it "
             f"starts, over {length:.4g} m."
         )
@@ -1476,6 +1550,25 @@ class frameworkLattice(BaseModel):
                 return section.space_charge
         return None
 
+    def _machine_geometry(self):
+        """
+        Whether LAURA says the reference orbit of this lattice's section closes.
+
+        ``geometry`` is section metadata in LAURA (``open``/``closed``, mirroring
+        Bmad's ``parameter[geometry]``), so a ring already says so in the layout
+        and does not need saying again here. Bmad is the backend that reads it
+        straight through; see :meth:`periodic`.
+
+        Returns
+        -------
+        LatticeGeometryEnum | None
+            The section's geometry, or None when the layout does not say.
+        """
+        for section in (getattr(self.machine, "sections", None) or {}).values():
+            if self.start in getattr(section, "order", ()):
+                return getattr(section, "geometry", None)
+        return None
+
     @computed_field
     @property
     def section(self) -> SectionLatticeTranslator:
@@ -1508,6 +1601,7 @@ class frameworkLattice(BaseModel):
                 functional_definitions=self.settings["functional_definitions"],
                 resolve_functional=self.settings["resolve_functional"],
                 space_charge=self._machine_space_charge(),
+                geometry=self._machine_geometry(),
             )
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
@@ -1885,6 +1979,7 @@ class frameworkLattice(BaseModel):
         None
         """
         self.check_turns_supported()
+        self.check_periodic_supported()
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
@@ -1901,8 +1996,110 @@ class frameworkLattice(BaseModel):
             self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
 
+    def read_one_turn_map(self):
+        """This code's 6x6 one-turn map, or None if it has none to give.
+
+        Overridden by the backends that can; every ring code has a native call
+        for this, so none of them need the map rebuilding by hand.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            A 6x6 matrix in :attr:`otm_convention` coordinates.
+        """
+        return None
+
+    def one_turn_map_canonical(
+        self, beta0: float | None = None, magnitude: bool = True
+    ):
+        """
+        :attr:`one_turn_map` in one common convention, so codes compare.
+
+        Canonical here is Xsuite's ``(x, px, y, py, zeta, delta)``. The
+        conversion is a *diagonal similarity* ``D R D^-1`` with
+        ``D = diag(1, 1, 1, 1, d5, d6)``. Normalising cannot invent or
+        destroy a tune; it can only fix the longitudinal block.
+
+        With ``magnitude=True`` (the default) it returns ``None`` where the
+        conversion is not a rescale. Elegant's
+        fifth coordinate is geometric path length, not time of flight, so a
+        drift has ``R56 = 0`` where the other codes have
+        ``L / (beta0 * gamma0)**2``.
+
+        ``magnitude=False`` applies :attr:`otm_longitudinal_sign` alone.
+
+        Parameters
+        ----------
+        beta0: float | None
+            Reference ``v/c``. Read from the tracked beam when not given, and
+            not needed at all when ``magnitude`` is False.
+        magnitude: bool
+            Convert sizes as well as signs.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 map in canonical coordinates, or None when ``magnitude``
+            was asked for and this code's conversion is not a rescale.
+        """
+        matrix = self.one_turn_map
+        if matrix is None or np is None:
+            return None
+        ratio = float(self.otm_longitudinal_sign)
+        if magnitude:
+            if self.otm_longitudinal_scale is None:
+                return None
+            if beta0 is None:
+                try:
+                    betagamma = float(
+                        np.mean(self.global_parameters["beam"].BetaGamma)
+                    )
+                    beta0 = betagamma / math.sqrt(1.0 + betagamma**2)
+                except (KeyError, TypeError, AttributeError, ValueError):
+                    return None
+            if not beta0:
+                return None
+            ratio *= beta0**self.otm_longitudinal_scale
+        matrix = np.asarray(matrix, dtype=float)
+        diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, 1.0])
+        return (diagonal[:, None] * matrix) / diagonal[None, :]
+
+    def check_one_turn_map(self, tolerance: float = 1e-3) -> None:
+        """
+        Warn when the map that came back cannot be a one-turn map.
+
+        ``det(R) == 1`` for a linear map that neither creates nor destroys
+        phase-space volume.
+        """
+        matrix = self.one_turn_map
+        if matrix is None or np is None:
+            return
+        matrix = np.asarray(matrix, dtype=float)
+        if matrix.shape != (6, 6):
+            warn(
+                f"Line '{self.objectname}': {self.code} returned a one-turn "
+                f"map of shape {matrix.shape}, not 6x6."
+            )
+            return
+        determinant = float(np.linalg.det(matrix))
+        if abs(determinant - 1.0) > tolerance:
+            warn(
+                f"Line '{self.objectname}': the one-turn map from {self.code} "
+                f"has determinant {determinant:.6g}, not 1. It is not a "
+                "volume-preserving linear map, so whatever is derived from it "
+                "-- tune, beta, momentum compaction -- is not trustworthy."
+            )
+
     def postProcess(self):
-        pass
+        """
+        Read back whatever the run produced that is not a beam file.
+
+        For a ring that means the one-turn map, which every capable code
+        offers natively; see :attr:`supports_periodic`.
+        """
+        if self.periodic and self.supports_periodic:
+            self.one_turn_map = self.read_one_turn_map()
+            self.check_one_turn_map()
 
     def __repr__(self):
         return self.elements
