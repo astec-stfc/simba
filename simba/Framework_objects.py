@@ -597,6 +597,20 @@ class frameworkLattice(BaseModel):
     """Whether this code can be asked for the *periodic* (closed) optics solution
     rather than propagating the incoming beam's Twiss."""
 
+    supports_frequency_map: ClassVar[bool] = False
+    """Whether this code can produce a tune footprint. Ocelot only, via
+    ``freq_analysis`` over a tracked grid."""
+
+    supports_single_particle: ClassVar[bool] = False
+    """Whether this code can run in :meth:`single_particle` mode -- tracking
+    13 probes and carrying the distribution through the map they measure,
+    rather than tracking every macroparticle."""
+
+    supports_dynamic_aperture: ClassVar[bool] = False
+    """Whether this code can run a dynamic-aperture scan. Ocelot only:
+    ``track_nturns`` takes a list of single particles and records the turn
+    each was lost on, which is exactly the shape of the study."""
+
     radiates_by_default: ClassVar[bool] = False
     """Whether this code radiates with no asking."""
 
@@ -624,6 +638,13 @@ class frameworkLattice(BaseModel):
 
     optics_summary: Any = None
     """The code's own tune and chromaticity; see :meth:`read_optics_summary`."""
+
+    dynamic_aperture: Any = None
+    """Last :meth:`run_dynamic_aperture` result, so a scan survives the call
+    that produced it the way :attr:`one_turn_map` does."""
+
+    frequency_map: Any = None
+    """Last :meth:`run_frequency_map` result."""
 
     closed_orbit: Any = None
     """The periodic orbit at the start of the line, as a 6-vector in this
@@ -1006,6 +1027,210 @@ class frameworkLattice(BaseModel):
         if self.write_turns:
             return [(turn, turn) for turn in range(1, self.turns + 1)]
         return [(self.turns, None)]
+
+    @property
+    def da_settings(self) -> dict:
+        """
+        Grid for a dynamic-aperture scan, from the ``tracking`` block::
+
+            files:
+              RING:
+                code: ocelot
+                tracking:
+                  turns: 1000
+                  dynamic_aperture: {nx: 20, ny: 10, x_max: 0.02, y_max: 0.01}
+
+        Returns
+        -------
+        dict
+            Dictionary containing `dynamic_aperture` settings from the `tracking`
+            block for this section.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return tracking.get("dynamic_aperture") or {}
+
+    def da_grid(self):
+        """
+        ``(xs, ys)`` starting amplitudes for a dynamic-aperture scan.
+
+        Both start one step off zero rather than at it; see :meth:`da_settings`.
+
+        Returns
+        -------
+        list
+            Two numpy `linspace` with grid settings for the DA scan.
+        """
+        settings = self.da_settings
+        nx = max(1, int(settings.get("nx", 10)))
+        ny = max(1, int(settings.get("ny", 1)))
+        x_max = float(settings.get("x_max", 0.01))
+        y_max = float(settings.get("y_max", 0.001))
+        return (
+            np.linspace(x_max / nx, x_max, nx),
+            np.linspace(y_max / ny, y_max, ny),
+        )
+
+    def dynamic_aperture_boundary(self, results) -> list:
+        """
+        Largest surviving ``x`` at each ``y``, from :meth:`run_dynamic_aperture`.
+
+        A particle counts as surviving if it reached the last turn. Note the
+        off-by-one.
+
+        Parameters
+        ----------
+        results : list
+            Results produced by :meth:`run_dynamic_aperture`.
+
+        Returns
+        -------
+        list
+            ``(y, x_max_surviving)`` pairs, ascending in ``y``. A ``y`` row
+            where nothing survived is absent rather than zero.
+        """
+        survived = {}
+        for x, y, turn in results:
+            if turn >= self.turns - 1:
+                survived[y] = max(survived.get(y, 0.0), x)
+        return sorted(survived.items())
+
+    @staticmethod
+    def tune_from_harmonic(line_position: float, reference_tune: float) -> float:
+        """
+        Rebuild a tune from the harmonic position.
+
+        ``freq_analysis`` reports ``|nearest integer - Q|``, not the
+        fractional tune. The reference tune says which side of the
+        integer to come back on.
+
+        Parameters
+        ----------
+        line_position : float
+            The harmonic position reported by `freq_analysis`, which is the
+            absolute difference between the nearest integer and the tune.
+        reference_tune : float
+            The reference tune, which indicates which side of the nearest integer
+            the tune should be reconstructed from.
+
+        Returns
+        -------
+        float
+            The reconstructed tune, taking into account the harmonic position
+            and the reference tune.
+        """
+        nearest = round(reference_tune)
+        return (
+            nearest - line_position
+            if reference_tune < nearest
+            else nearest + line_position
+        )
+
+    @property
+    def single_particle(self) -> bool:
+        """
+        Track 13 probes instead of the whole bunch, and carry the
+        distribution through the map they measure.
+
+        A tracking setting, like :meth:`turns`::
+
+            files:
+              RING:
+                code: madx
+                tracking: {single_particle: true}
+
+        A linear reconstruction, buying a speed-up on some codes.
+
+        Returns
+        -------
+        bool
+            True if `single_particle` was asked, False otherwise.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return bool(tracking.get("single_particle", False))
+
+    def check_single_particle_supported(self) -> None:
+        """Warn when single-particle mode was asked for and cannot be given."""
+        if self.single_particle and not self.supports_single_particle:
+            warn(
+                f"Line '{self.objectname}' asks for single-particle mode, but "
+                f"{self.code} has no implementation of it. The full "
+                "distribution will be tracked, which is slower but not "
+                "wrong -- the results stand."
+            )
+
+    def track_reference_particle(self) -> dict:
+        """
+        The reference particle's trajectory, turn by turn.
+
+        What a ring study usually wants and bunch tracking does not give:
+        not a distribution at each screen, but where one particle is on
+        every turn.
+
+        Returns
+        -------
+        dict
+            ``x``/``px``/``y``/``py`` arrays of length :meth:`turns`, or
+            ``{}`` if this code cannot produce one.
+        """
+        return {}
+
+    def normalisation_twiss(self) -> dict:
+        """
+        Periodic Twiss and closed orbit for Courant-Snyder normalisation.
+
+        Handed to :func:`~simba.Modules.Matrices.tune_diffusion` so a
+        frequency map works in normalised coordinates.
+
+        Returns
+        -------
+        dict
+            Empty if the lattice has no one-turn map, in which case the
+            tunes are taken from raw coordinates instead.
+        """
+        parameters = self.ring_parameters()
+        wanted = (
+            "beta_x",
+            "alpha_x",
+            "beta_y",
+            "alpha_y",
+            "closed_orbit_x",
+            "closed_orbit_px",
+            "closed_orbit_y",
+            "closed_orbit_py",
+        )
+        twiss = {k: parameters[k] for k in wanted if k in parameters}
+        if not all(k in twiss for k in ("beta_x", "alpha_x", "beta_y", "alpha_y")):
+            return {}
+        return twiss
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune per starting amplitude, over the same grid as the aperture scan.
+
+        This asks at what tune particles survive.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y)`` per surviving grid point. Lost
+            particles are absent.
+        """
+        return []
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        Track a grid of single particles and see which survive.
+
+        The standard nonlinear ring study:
+        one particle per grid point, each tracked for :meth:`turns`.
+
+        Returns
+        -------
+        list
+            ``(x, y, turns_survived)`` per grid point, empty if this code
+            cannot do it.
+        """
+        return []
 
     def check_turns_supported(self) -> None:
         """Warn when turns were asked for and this code cannot do them."""
@@ -2096,6 +2321,7 @@ class frameworkLattice(BaseModel):
         self.check_turns_supported()
         self.check_periodic_supported()
         self.check_radiation()
+        self.check_single_particle_supported()
         self._apply_radiation_to_section()
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()

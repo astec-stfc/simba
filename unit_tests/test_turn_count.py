@@ -479,9 +479,15 @@ def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
 
 
 def test_elegant_no_longer_hardcodes_one_pass():
-    """All three ``run_control`` sites used to pass the literal 1."""
+    """Every ``run_control`` site used to pass the literal 1.
+
+    Counted against ``n_passes=`` rather than a fixed number of sites: the
+    invariant is that none of them hardcodes a pass count, and pinning the
+    count instead just breaks whenever a new command is added.
+    """
     import inspect
 
     source = inspect.getsource(elegantLattice)
     assert "n_passes=1" not in source
-    assert source.count("n_passes=self.turns") == 3
+    assert source.count("n_passes=") == source.count("n_passes=self.turns")
+    assert source.count("n_passes=self.turns") >= 3

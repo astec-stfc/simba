@@ -57,7 +57,9 @@ Classes:
     saving SDDS files.
 """
 
+import math
 import os
+import subprocess
 from copy import copy
 from pathlib import Path
 import numpy as np
@@ -107,6 +109,13 @@ class elegantLattice(frameworkLattice):
 
     radiates_by_default: ClassVar[bool] = True
     """Flag to state that Elegant radiates by default (based on LAURA)."""
+
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """``&find_aperture``, elegant's own search."""
+
+    supports_frequency_map: ClassVar[bool] = True
+    """``&frequency_map``, which also writes the tune *diffusion* between
+    the two halves of the run."""
 
     supports_periodic: ClassVar[bool] = True
     """``twiss_output``'s ``matched = 1``."""
@@ -571,6 +580,216 @@ class elegantLattice(frameworkLattice):
         # except Exception as e:
         #     print(f"Screen error {scr.name}, {e}")
         #     return None
+
+    def _ring_study_deck(self, suffix: str, *commands) -> str | None:
+        """
+        Write a second, focused ``.ele`` for a ring study and run it.
+
+        It also gets its own directory: LAURA writes each screen's
+        ``WATCH`` filename literally as ``./<name>.SDDS``, so a second run
+        over the same lattice silently overwrites every screen file the
+        tracking run produced.
+
+        Returns
+        -------
+        str | None
+            Stem of the run, or None if elegant was not run.
+        """
+        parent = self.global_parameters["master_subdir"]
+        lattice = os.path.join(parent, f"{self.objectname}.lte")
+        if not os.path.isfile(lattice):
+            saveFile(lattice, self.writeElements())
+        stem = f"{self.objectname}_{suffix}"
+        workdir = os.path.join(parent, stem)
+        os.makedirs(workdir, exist_ok=True)
+        setup = elegant_run_setup_command(
+            lattice=os.path.join("..", f"{self.objectname}.lte"),
+            p_central=np.mean(self.global_parameters["beam"].BetaGamma),
+            use_beamline=self.objectname,
+        )
+        twiss = elegant_twiss_output_command(
+            beam=self.global_parameters["beam"], matched=1
+        )
+        deck = os.path.join(workdir, f"{stem}.ele")
+        saveFile(deck, "", "w")
+        for part in (setup, twiss, *commands):
+            saveFile(deck, part.write_Elegant(), "a")
+        self.files.append(deck)
+        subdir = workdir
+        command_line = self.executables.build_command(
+            self.executables[self.code] + [f"{stem}.ele"], os.path.abspath(subdir)
+        )
+        try:
+            subprocess.run(
+                command_line, cwd=os.path.abspath(subdir), check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError) as error:
+            warn(f"elegant {suffix} run failed for {self.objectname}: {error}")
+            return None
+        return stem
+
+    def track_reference_particle(self) -> dict:
+        """
+        One particle, recorded every turn, from a screen's ``WATCH`` file.
+        Uses ``&bunched_beam`` with ``n_particles_per_bunch = 1``.
+
+        Returns
+        -------
+        dict
+            ``x``/``px``/``y``/``py`` per turn, or ``{}`` if elegant wrote
+            no watch file.
+        """
+        screens = self.screens_and_markers_and_bpms
+        if not screens:
+            warn(
+                f"Line '{self.objectname}' has no screen, so elegant has "
+                "nowhere to record a trajectory."
+            )
+            return {}
+        nudge = float((self.da_settings or {}).get("x_max", 1e-3)) / 100.0
+        stem = self._ring_study_deck(
+            "reference",
+            elegant_run_control_command(n_steps=1, n_passes=self.turns),
+            elegant_bunched_beam_command(
+                n_particles_per_bunch=1,
+                centroid_x=nudge,
+                centroid_y=nudge,
+            ),
+            elegant_track_command(),
+        )
+        if stem is None:
+            return {}
+        path = (
+            Path(self.global_parameters["master_subdir"])
+            / stem
+            / f"{screens[0].name}.SDDS"
+        )
+        if not path.is_file():
+            warn(f"elegant wrote no watch file for {self.objectname}")
+            return {}
+        from ...Modules.SDDSFile import SDDSFile
+
+        trajectory = {name: [] for name in ("x", "px", "y", "py")}
+        columns = {"x": "x", "px": "xp", "y": "y", "py": "yp"}
+        try:
+            pages = rbf.sdds.count_SDDS_pages(str(path))
+            for page in range(pages):
+                sdds = SDDSFile(index=1)
+                sdds.read_file(str(path), page=page)
+                data = sdds.columns()
+                for name, column in columns.items():
+                    trajectory[name].append(float(np.atleast_1d(data[column].data)[0]))
+        except Exception as error:
+            warn(f"elegant watch file unreadable for {self.objectname}: {error}")
+            return {}
+        return {name: np.asarray(values) for name, values in trajectory.items()}
+
+    def _da_bounds(self) -> dict:
+        """``xmin``/``xmax``/``ymin``/``ymax``/``nx``/``ny`` from
+        :meth:`da_grid`, which elegant takes as a box rather than a list."""
+        xs, ys = self.da_grid()
+        return {
+            "xmin": -float(xs[-1]),
+            "xmax": float(xs[-1]),
+            "ymin": 0.0,
+            "ymax": float(ys[-1]),
+            "nx": int(len(xs)),
+            "ny": int(len(ys)),
+        }
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        ``&find_aperture``: elegant searches for the boundary itself.
+        A boundary, not a survival grid.
+
+        Returns
+        -------
+        list
+            ``(x, y, turns_survived)`` along the aperture boundary.
+        """
+        stem = self._ring_study_deck(
+            "aperture",
+            elegant_find_aperture_command(
+                output=f"{self.objectname}_aperture.aper", **self._da_bounds()
+            ),
+        )
+        if stem is None:
+            return []
+        path = Path(self.global_parameters["master_subdir"]) / stem / f"{stem}.aper"
+        if not path.is_file():
+            warn(f"elegant wrote no aperture file for {self.objectname}")
+            return []
+        try:
+            from ...Modules.SDDSFile import SDDSFile
+
+            sdds = SDDSFile(index=1)
+            sdds.read_file(str(path))
+            columns = sdds.columns()
+            xs = np.atleast_1d(columns["x"].data)
+            ys = np.atleast_1d(columns["y"].data)
+        except Exception as error:
+            warn(f"elegant aperture file unreadable for {self.objectname}: {error}")
+            return []
+        self.dynamic_aperture = [
+            (float(x), float(y), self.turns) for x, y in zip(xs, ys)
+        ]
+        return self.dynamic_aperture
+
+    def run_frequency_map(self) -> list:
+        """
+        ``&frequency_map``, which computes the tunes itself.
+        This does not go through
+        :func:`~simba.Modules.Matrices.tune_from_trajectory`, so it is an
+        independent check on that function rather than a repeat of it.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y)`` per grid point.
+        """
+        bounds = self._da_bounds()
+        stem = self._ring_study_deck(
+            "fma",
+            elegant_frequency_map_command(
+                output=f"{self.objectname}_fma.fma", **bounds
+            ),
+        )
+        if stem is None:
+            return []
+        path = Path(self.global_parameters["master_subdir"]) / stem / f"{stem}.fma"
+        if not path.is_file():
+            warn(f"elegant wrote no frequency map for {self.objectname}")
+            return []
+        try:
+            from ...Modules.SDDSFile import SDDSFile
+
+            sdds = SDDSFile(index=1)
+            sdds.read_file(str(path))
+            columns = sdds.columns()
+            xs = np.atleast_1d(columns["x"].data)
+            ys = np.atleast_1d(columns["y"].data)
+            qxs = np.atleast_1d(columns["nux"].data)
+            qys = np.atleast_1d(columns["nuy"].data)
+            # `include_changes` writes the tune drift between the halves of
+            # the run, which is the diffusion the other codes report.
+            dxs = np.atleast_1d(columns["dnux"].data) if "dnux" in columns else None
+            dys = np.atleast_1d(columns["dnuy"].data) if "dnuy" in columns else None
+        except Exception as error:
+            warn(f"elegant frequency map unreadable for {self.objectname}: {error}")
+            return []
+        self.frequency_map = []
+        for index, (x, y, qx, qy) in enumerate(zip(xs, ys, qxs, qys)):
+            if dxs is None or dys is None:
+                diffusion = float("nan")
+            else:
+                diffusion = math.log10(
+                    max(math.hypot(float(dxs[index]), float(dys[index])), 1e-16)
+                )
+            self.frequency_map.append(
+                (float(x), float(y), float(qx), float(qy), diffusion)
+            )
+        return self.frequency_map
 
     def read_optics_summary(self) -> dict:
         """elegant writes the lot into the ``%s.twi`` parameters;
@@ -1079,6 +1298,146 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     @property
     def z0(self) -> float:
         return self.Z0
+
+
+class elegant_bunched_beam_command(elegantCommandFile):
+    """
+    Bunch generation for an ELEGANT input file; see `Elegant bunched beam`_
+
+    .. _Elegant bunched beam: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu19.html
+    """
+
+    n_particles_per_bunch: int = 1
+    """Particles generated. ``1`` is the reference-particle case."""
+
+    one_random_bunch: int = 1
+    """Reuse one bunch rather than regenerating it per step."""
+
+    centroid_x: float | None = None
+    """Launch offset in ``x``; written as ``centroid[0]``."""
+
+    centroid_y: float | None = None
+    """Launch offset in ``y``; written as ``centroid[2]``."""
+
+    objectname: str = "bunched_beam"
+    """Name of object"""
+
+    objecttype: str = "bunched_beam"
+    """Type of object"""
+
+    def write_Elegant(self) -> str:
+        """``centroid`` is an *array* keyword, so the generic writer cannot
+        reach it -- ``centroid[6]`` is the declaration, and elegant wants
+        the components addressed individually as ``centroid[0]`` and
+        ``centroid[2]``."""
+        text = super().write_Elegant()
+        offsets = "".join(
+            f"\t{name} = {value}\n"
+            for name, value in (
+                ("centroid[0]", self.centroid_x),
+                ("centroid[2]", self.centroid_y),
+            )
+            if value is not None
+        )
+        return text.replace("&end\n", offsets + "&end\n") if offsets else text
+
+
+class elegant_find_aperture_command(elegantCommandFile):
+    """
+    Dynamic-aperture search for an ELEGANT input file; see `Elegant find aperture`_
+
+    .. _Elegant find aperture: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu40.html
+    """
+
+    output: str = "%s.aper"
+    """File the aperture boundary is written to"""
+
+    mode: str = "n-line"
+    """Search mode; ``n-line`` scans along rays from the origin"""
+
+    xmin: float = -0.01
+    """Smallest horizontal amplitude searched"""
+
+    xmax: float = 0.01
+    """Largest horizontal amplitude searched"""
+
+    ymin: float = 0.0
+    """Smallest vertical amplitude searched"""
+
+    ymax: float = 0.01
+    """Largest vertical amplitude searched"""
+
+    nx: int = 21
+    """Horizontal grid points"""
+
+    ny: int = 11
+    """Vertical grid points"""
+
+    n_lines: int = 11
+    """Rays searched in ``n-line`` mode"""
+
+    verbosity: int = 0
+    """Chatter level"""
+
+    objectname: str = "find_aperture"
+    """Name of object"""
+
+    objecttype: str = "find_aperture"
+    """Type of object"""
+
+
+class elegant_frequency_map_command(elegantCommandFile):
+    """
+    Frequency map for an ELEGANT input file; see `Elegant frequency map`_
+
+    .. _Elegant frequency map: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu41.html
+    """
+
+    output: str = "%s.fma"
+    """File the map is written to"""
+
+    xmin: float = -0.01
+    """Smallest horizontal amplitude scanned"""
+
+    xmax: float = 0.01
+    """Largest horizontal amplitude scanned"""
+
+    ymin: float = 0.0
+    """Smallest vertical amplitude scanned"""
+
+    ymax: float = 0.01
+    """Largest vertical amplitude scanned"""
+
+    delta_min: float = 0.0
+    """Smallest momentum deviation scanned"""
+
+    delta_max: float = 0.0
+    """Largest momentum deviation scanned"""
+
+    nx: int = 21
+    """Horizontal grid points"""
+
+    ny: int = 11
+    """Vertical grid points"""
+
+    ndelta: int = 1
+    """Momentum grid points"""
+
+    include_changes: int = 1
+    """Write the tune *change* between the two halves of the run -- the
+    diffusion that makes a frequency map more than a tune footprint"""
+
+    full_grid_output: int = 1
+    """Write every grid point, not only the surviving ones"""
+
+    verbosity: int = 0
+    """Chatter level"""
+
+    objectname: str = "frequency_map"
+    """Name of object"""
+
+    objecttype: str = "frequency_map"
+    """Type of object"""
 
 
 class elegant_matrix_output_command(elegantCommandFile):

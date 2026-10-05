@@ -10,6 +10,12 @@ try:
     use_interpolate = True
 except ImportError:
     use_interpolate = False
+try:
+    import nafflib
+
+    use_naff = True
+except ImportError:  # optional: `tune_from_trajectory` falls back to an FFT
+    use_naff = False
 from .. import constants
 import munch
 import glob
@@ -25,6 +31,214 @@ PLANES = {"x": 0, "y": 2}
 def _block(matrix, plane):
     index = PLANES[plane]
     return np.asarray(matrix, dtype=float)[index : index + 2, index : index + 2]
+
+
+def tune_from_trajectory(positions, momenta=None) -> float:
+    """
+    Fractional tune from one particle's turn-by-turn motion.
+
+    The code-independent half of a frequency map: any backend that can hand
+    back a trajectory gets a tune from the same arithmetic, which is what
+    makes a footprint comparable across codes.
+
+    Uses NAFF (``nafflib``) when it is installed and momenta are given, and
+    an interpolated FFT peak otherwise.
+
+    With positions alone the spectrum of a real signal
+    is symmetric. The analytic signal
+    ``x - i*px`` breaks the degeneracy and gives the full ``[0, 1)``.
+
+    Returns
+    -------
+    float
+        The tune, in ``[0, 1)`` with momenta and ``[0, 0.5]`` without, or
+        NaN for a trajectory too short, flat or not finite.
+    """
+    values = np.asarray(positions, dtype=float)
+    if len(values) < 8 or not np.all(np.isfinite(values)):
+        return float("nan")
+    values = values - values.mean()
+    if not np.any(values):
+        return float("nan")
+    slopes = None
+    if momenta is not None:
+        slopes = np.asarray(momenta, dtype=float)
+        if len(slopes) != len(values) or not np.all(np.isfinite(slopes)):
+            return float("nan")
+        slopes = slopes - slopes.mean()
+    if use_naff and slopes is not None:
+        try:
+            return float(nafflib.tune(values, slopes)) % 1.0
+        except Exception:
+            pass  # fall through to the FFT, which needs nothing installed
+    window = np.hanning(len(values))
+    if slopes is None:
+        spectrum = np.abs(np.fft.rfft(values * window))
+        spectrum[0] = 0.0
+    else:
+        spectrum = np.abs(np.fft.fft((values - 1j * slopes) * window))
+    peak = int(np.argmax(spectrum))
+    size = len(spectrum)
+    left = spectrum[(peak - 1) % size]
+    right = spectrum[(peak + 1) % size]
+    denominator = left - 2 * spectrum[peak] + right
+    refined = peak + (0.5 * (left - right) / denominator if denominator else 0.0)
+    return float(refined % len(values)) / len(values)
+
+
+def probe_grid(centroid, delta: float = 1e-6):
+    """
+    The 13 particles a single-particle run tracks instead of a bunch.
+
+    The centroid, plus a pair straddling it along each of the six
+    coordinates. Linear map is created by finite differences
+    (:func:`map_from_probes`).
+
+    Parameters
+    ----------
+    centroid: array-like
+        Six coordinates of the reference particle.
+    delta: float
+        Finite-difference step.
+
+    Returns
+    -------
+    numpy.ndarray
+        ``6 x 13``, the centroid first.
+    """
+    centre = np.asarray(centroid, dtype=float)
+    step = abs(float(delta))
+    probes = [centre]
+    for index in range(6):
+        for sign in (1, -1):
+            probe = centre.copy()
+            probe[index] += sign * step
+            probes.append(probe)
+    return np.array(probes).T
+
+
+def map_from_probes(tracked, delta: float = 1e-6):
+    """
+    Centroid and 6x6 map recovered from a tracked :func:`probe_grid`.
+
+    Parameters
+    ----------
+    tracked: array-like
+        ``6 x 13`` of the probes' coordinates at the observation point, in
+        the order :func:`probe_grid` produced them.
+    delta: float
+        The same step the probes were built with.
+
+    Returns
+    -------
+    tuple
+        ``(centroid, R)``, or ``(None, None)`` if any probe is missing.
+    """
+    values = np.asarray(tracked, dtype=float)
+    if values.shape != (6, 13) or not np.all(np.isfinite(values)):
+        return (None, None)
+    step = abs(float(delta))
+    matrix = np.zeros((6, 6))
+    for index in range(6):
+        matrix[:, index] = (
+            values[:, 1 + 2 * index] - values[:, 2 + 2 * index]
+        ) / (2 * step)
+    return (values[:, 0], matrix)
+
+
+def transform_distribution(coordinates, centroid_in, centroid_out, matrix):
+    """Push a full distribution through a map without tracking it.
+
+    ``z_out = c_out + R (z_in - c_in)``.
+    """
+    values = np.asarray(coordinates, dtype=float)
+    return np.asarray(centroid_out, dtype=float)[:, np.newaxis] + np.asarray(
+        matrix, dtype=float
+    ) @ (values - np.asarray(centroid_in, dtype=float)[:, np.newaxis])
+
+
+def normalise_coordinates(positions, momenta, beta, alpha, orbit=(0.0, 0.0)):
+    """
+    Courant-Snyder normalisation of one plane's turn-by-turn motion.
+
+    ``X = (x - x_co) / sqrt(beta)`` and
+    ``PX = (alpha * (x - x_co) + beta * (px - px_co)) / sqrt(beta)``.
+
+    Normalising turns the betatron ellipse into a circle, leaving a single
+    line. Subtracting the closed orbit is the other half: on a ring with errors
+    an amplitude measured from the axis is measured from the wrong centre.
+    """
+    offsets = np.asarray(positions, dtype=float) - orbit[0]
+    slopes = np.asarray(momenta, dtype=float) - orbit[1]
+    root = math.sqrt(abs(float(beta))) or 1.0
+    return offsets / root, (float(alpha) * offsets + float(beta) * slopes) / root
+
+
+def tune_diffusion(x, px, y, py, twiss=None) -> tuple:
+    """
+    Tunes and a diffusion index from one particle's turn-by-turn motion. The
+    record is split into two consecutive halves and a tune taken from each;
+    a particle on regular motion gives the same tune twice, one near a
+    resonance does not. The index is
+
+    ``D = log10(sqrt(dQx**2 + dQy**2))``
+
+    so more negative is more regular. The tune difference is taken
+    *circularly* -- ``(q2 - q1 + 0.5) % 1 - 0.5``
+    Needs the momenta, and really wants NAFF.
+
+    Parameters
+    ----------
+    twiss: dict | None
+        ``beta_x``/``alpha_x``/``beta_y``/``alpha_y``, and optionally
+        ``closed_orbit_x``/``_px``/``_y``/``_py``. Given these the motion is
+        Courant-Snyder normalised first; see :func:`normalise_coordinates`
+        for why that sharpens the line.
+
+    Returns
+    -------
+    tuple
+        ``(tune_x, tune_y, D)`` from the **first** window, or NaNs if either
+        window has no usable tune.
+    """
+    arrays = [np.asarray(a, dtype=float) for a in (x, px, y, py)]
+    if twiss:
+        try:
+            arrays[0], arrays[1] = normalise_coordinates(
+                arrays[0],
+                arrays[1],
+                twiss["beta_x"],
+                twiss["alpha_x"],
+                (twiss.get("closed_orbit_x", 0.0), twiss.get("closed_orbit_px", 0.0)),
+            )
+            arrays[2], arrays[3] = normalise_coordinates(
+                arrays[2],
+                arrays[3],
+                twiss["beta_y"],
+                twiss["alpha_y"],
+                (twiss.get("closed_orbit_y", 0.0), twiss.get("closed_orbit_py", 0.0)),
+            )
+        except (KeyError, TypeError, ValueError):
+            pass  # un-normalised still gives a tune, just a blunter line
+    half = len(arrays[0]) // 2
+    if half < 8:
+        return (float("nan"), float("nan"), float("nan"))
+    first, second = slice(0, half), slice(half, 2 * half)
+    tunes = []
+    for window in (first, second):
+        tunes.append(
+            (
+                tune_from_trajectory(arrays[0][window], arrays[1][window]),
+                tune_from_trajectory(arrays[2][window], arrays[3][window]),
+            )
+        )
+    (qx1, qy1), (qx2, qy2) = tunes
+    if any(math.isnan(q) for q in (qx1, qy1, qx2, qy2)):
+        return (float("nan"), float("nan"), float("nan"))
+    shift_x = (qx2 - qx1 + 0.5) % 1.0 - 0.5
+    shift_y = (qy2 - qy1 + 0.5) % 1.0 - 0.5
+    drift = math.hypot(shift_x, shift_y)
+    return (qx1, qy1, math.log10(max(drift, 1e-16)))
 
 
 def is_stable(matrix, plane: str = "x") -> bool:

@@ -68,6 +68,14 @@ class xsuiteLattice(frameworkLattice):
     supports_radiation: ClassVar[bool] = True
     """``line.configure_radiation(model=...)``."""
 
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """A grid of single particles tracked for `turns`; `state` says who was
+    lost and `at_turn` says when."""
+
+    supports_frequency_map: ClassVar[bool] = True
+    """The same grid with a `ParticlesMonitor`, then the shared tune
+    extractor."""
+
     supports_periodic: ClassVar[bool] = True
     """``line.twiss()`` with no initial conditions."""
 
@@ -363,6 +371,123 @@ class xsuiteLattice(frameworkLattice):
             alfy=self.global_parameters["beam"].twiss.alpha_y.val,
             **kwargs,
         )
+
+    def track_reference_particle(self) -> dict:
+        """
+        One particle on the closed orbit, recorded every turn.
+        Launched a hair off the closed orbit rather than on it.
+        """
+        import xtrack as xt
+
+        orbit = self.read_closed_orbit()
+        if orbit is None:
+            orbit = np.zeros(6)
+        nudge = float((self.da_settings or {}).get("x_max", 1e-3)) / 100.0
+        particles = self.line.build_particles(
+            x=np.array([orbit[0] + nudge]),
+            px=np.array([orbit[1]]),
+            y=np.array([orbit[2] + nudge]),
+            py=np.array([orbit[3]]),
+        )
+        monitor = xt.ParticlesMonitor(
+            _context=self.context,
+            start_at_turn=0,
+            stop_at_turn=self.turns,
+            num_particles=1,
+        )
+        self.line.track(particles, num_turns=self.turns, turn_by_turn_monitor=monitor)
+        return {
+            name: np.asarray(getattr(monitor, name))[0]
+            for name in ("x", "px", "y", "py")
+        }
+
+    def _da_particles(self):
+        """One particle per grid point, at the requested amplitudes."""
+        xs, ys = self.da_grid()
+        grid_x, grid_y = np.meshgrid(xs, ys)
+        grid_x, grid_y = grid_x.ravel(), grid_y.ravel()
+        return grid_x, grid_y, self.line.build_particles(x=grid_x, y=grid_y)
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        Track a grid of single particles and record who survived.
+        Particles are tracked
+        together, so the whole grid costs one tracking call.
+
+        Note this relies on the line having apertures. Without them nothing
+        is ever lost and the scan reports an aperture larger than the grid.
+
+        Returns
+        -------
+        list
+            ``(x, y, turns_survived)`` per grid point.
+        """
+        grid_x, grid_y, particles = self._da_particles()
+        self.line.track(particles, num_turns=self.turns)
+        order = np.argsort(particles.particle_id)
+        turns = np.asarray(particles.at_turn)[order]
+        self.dynamic_aperture = [
+            (float(x), float(y), int(turn))
+            for x, y, turn in zip(grid_x, grid_y, turns)
+        ]
+        return self.dynamic_aperture
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune footprint over the aperture grid.
+
+        A `ParticlesMonitor` records every turn, and the tunes come from the
+        shared :func:`~simba.Modules.Matrices.tune_from_trajectory`.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y)`` per surviving grid point.
+        """
+        import xtrack as xt
+
+        import math
+
+        from ...Modules.Matrices import tune_diffusion
+
+        grid_x, grid_y, particles = self._da_particles()
+        monitor = xt.ParticlesMonitor(
+            _context=self.context,
+            start_at_turn=0,
+            stop_at_turn=self.turns,
+            num_particles=len(grid_x),
+        )
+        self.line.track(particles, num_turns=self.turns, turn_by_turn_monitor=monitor)
+        twiss = self.normalisation_twiss()
+        footprint = []
+        for index in range(len(grid_x)):
+            if int(np.asarray(particles.state)[index]) <= 0:
+                continue
+            tune_x, tune_y, diffusion = tune_diffusion(
+                np.asarray(monitor.x)[index],
+                np.asarray(monitor.px)[index],
+                np.asarray(monitor.y)[index],
+                np.asarray(monitor.py)[index],
+                twiss=twiss,
+            )
+            if math.isnan(tune_x):
+                continue
+            footprint.append(
+                (
+                    float(grid_x[index]),
+                    float(grid_y[index]),
+                    tune_x,
+                    tune_y,
+                    diffusion,
+                )
+            )
+        if not footprint:
+            warn(
+                f"Line '{self.objectname}': no particle survived the "
+                "frequency-map scan, so there is no footprint."
+            )
+        self.frequency_map = footprint
+        return footprint
 
     def read_closed_orbit(self):
         """``line.find_closed_orbit()``, already called for the one-turn map."""

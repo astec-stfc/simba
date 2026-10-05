@@ -55,6 +55,8 @@ import re
 from copy import deepcopy
 from warnings import warn
 
+import math
+
 import numpy as np
 from yaml import safe_load
 
@@ -118,6 +120,14 @@ class madxLattice(frameworkLattice):
     code: str = "madx"
     """String indicating the lattice object type"""
 
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """MAD-X ``DYNAP``, whose ``dynap`` table carries ``dktrturns`` -- the
+    turns each start survived."""
+
+    supports_frequency_map: ClassVar[bool] = True
+    """The same ``DYNAP`` call: its ``dynaptune`` table is a frequency map
+    outright, with ``tunx``, ``tuny`` and a tune diffusion ``dtune``."""
+
     supports_periodic: ClassVar[bool] = True
     """``TWISS`` with no initial conditions is MAD-X's periodic solution."""
 
@@ -134,11 +144,15 @@ class madxLattice(frameworkLattice):
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
-    single_particle: bool = False
-    """If True, perform standard (single particle) MAD-X tracking and only
-    generate the output beam at the end of the line based on a transformation
-    of the initial distribution. If False (default), track the full particle
-    distribution and output beam files at all diagnostics."""
+    supports_single_particle: ClassVar[bool] = True
+    """Tracks the 13 probes through MAD-X ``TRACK`` and carries the
+    distribution through the map they measure. The mode matters most here:
+    cpymad's cost is per particle, so the saving is roughly
+    ``n_macroparticles / 13``.
+
+    The flag itself lives on
+    :meth:`~simba.Framework_objects.frameworkLattice.single_particle` --
+    it was a MAD-X field until R1, and the concept is code-independent."""
 
     particle_definition: str = None
     """Initial particle distribution as a string"""
@@ -823,6 +837,116 @@ class madxLattice(frameworkLattice):
         except (KeyError, AttributeError, TypeError, IndexError) as e:
             warn(f"MAD-X summ table unavailable for {self.objectname}: {e}")
 
+    def _run_dynap(self) -> Any:
+        """
+        One ``DYNAP`` over the aperture grid, in its own MAD-X session.
+
+        MAD-X does both studies in a single command, so the aperture scan
+        and the frequency map share this.
+
+        Returns
+        -------
+        cpymad.madx.Madx | None
+            The session, with its ``dynap`` and ``dynaptune`` tables filled.
+        """
+        if len(self.seqstrings) == 0:
+            self.writeElements()
+        if not self.seqstrings:
+            return None
+        madx = self.start_madx()
+        try:
+            madx.input(self.seqstrings[0])
+            seqname = self.segment_name(0)
+            self.madx_beam_command(
+                madx, float(np.mean(self.global_parameters["beam"].cp.val)), seqname
+            )
+            madx.input(f"use, sequence={seqname};\ntwiss;")
+            xs, ys = self.da_grid()
+            starts = "".join(
+                f"start, x={x}, y={y};\n" for y in ys for x in xs
+            )
+            madx.input(
+                "track, onepass=false;\n"
+                + starts
+                + f"dynap, turns={self.turns}, fastune=true;\nendtrack;"
+            )
+        except Exception as error:
+            warn(f"MAD-X DYNAP failed for {self.objectname}: {error}")
+            try:
+                madx.exit()
+            except Exception:
+                pass
+            return None
+        return madx
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        Turns survived per starting amplitude, from ``DYNAP``.
+
+        ``dktrturns`` is MAD-X's count of turns tracked before loss.
+        """
+        madx = self._run_dynap()
+        if madx is None:
+            return []
+        try:
+            table = madx.table.dynap
+            xs, ys = self.da_grid()
+            starts = [(x, y) for y in ys for x in xs]
+            turns = list(table["dktrturns"])
+            self.dynamic_aperture = [
+                (float(x), float(y), int(turn))
+                for (x, y), turn in zip(starts, turns)
+            ]
+        except (KeyError, AttributeError, TypeError) as error:
+            warn(f"MAD-X dynap table unreadable for {self.objectname}: {error}")
+            self.dynamic_aperture = []
+        finally:
+            try:
+                madx.exit()
+            except Exception:
+                pass
+        return self.dynamic_aperture
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune footprint from ``DYNAP``'s ``dynaptune`` table.
+
+        MAD-X computes the tunes itself with ``fastune``, so this does not go through
+        :func:`~simba.Modules.Matrices.tune_from_trajectory`.
+        """
+        madx = self._run_dynap()
+        if madx is None:
+            return []
+        try:
+            table = madx.table.dynaptune
+            # `dtune` is MAD-X's own tune drift, so the diffusion index
+            # matches the other codes' log10 form without re-deriving it.
+            self.frequency_map = [
+                (
+                    float(x),
+                    float(y),
+                    float(qx),
+                    float(qy),
+                    math.log10(max(abs(float(dq)), 1e-16)),
+                )
+                for x, y, qx, qy, dq in zip(
+                    table["x"],
+                    table["y"],
+                    table["tunx"],
+                    table["tuny"],
+                    table["dtune"],
+                )
+            ]
+        except (KeyError, AttributeError, TypeError) as error:
+            warn(f"MAD-X dynaptune table unreadable for {self.objectname}: {error}")
+            self.frequency_map = []
+        finally:
+            try:
+                madx.exit()
+            except Exception:
+                pass
+        return self.frequency_map
+
     def _collect_closed_orbit(self, madx: Any) -> None:
         """
         Keep the first row of the periodic TWISS table; updates
@@ -1278,19 +1402,19 @@ class madxLattice(frameworkLattice):
         :class:`~simba.Modules.Beams.beam`
             The (transformed) beam at the end of the segment
         """
+        from ...Modules.Matrices import (
+            map_from_probes,
+            probe_grid,
+            transform_distribution,
+        )
+
         keys = ["x", "px", "y", "py", "t", "pt"]
         coords = current_beam.beam_to_madx_coords(p0c)
         tbar0 = coords["tbar"]
         zin = np.array([coords[k] for k in keys])
         centroid = np.mean(zin, axis=1)
         delta = abs(self.fd_delta)
-        probes = [centroid]
-        for k in range(6):
-            for sign in (1, -1):
-                probe = centroid.copy()
-                probe[k] += sign * delta
-                probes.append(probe)
-        probes = np.array(probes).T
+        probes = probe_grid(centroid, delta)
         probecoords = {k: probes[i] for i, k in enumerate(keys)}
         charge_total = abs(np.sum(np.array(current_beam.charge.val)))
         ref_index = current_beam.reference_particle_index
@@ -1304,14 +1428,13 @@ class madxLattice(frameworkLattice):
             data = self.extract_observation(trackdata, s_local)
             if len(data["x"]) != 13:
                 return None
-            zout = np.array([data[k] for k in keys])
-            centroid_out = zout[:, 0]
-            rmatrix = np.zeros((6, 6))
-            for k in range(6):
-                rmatrix[:, k] = (zout[:, 1 + 2 * k] - zout[:, 2 + 2 * k]) / (2 * delta)
-            # transform the full distribution: z_out = c_out + R (z_in - c_in)
-            transformed = centroid_out[:, np.newaxis] + rmatrix @ (
-                zin - centroid[:, np.newaxis]
+            centroid_out, rmatrix = map_from_probes(
+                np.array([data[k] for k in keys]), delta
+            )
+            if rmatrix is None:
+                return None
+            transformed = transform_distribution(
+                zin, centroid, centroid_out, rmatrix
             )
             newcoords = {k: transformed[i] for i, k in enumerate(keys)}
             return self.pin.madx_coords_to_beam(

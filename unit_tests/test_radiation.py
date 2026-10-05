@@ -162,24 +162,14 @@ def test_a_transfer_line_is_silent():
         FakeLine({"turns": 100000, "periodic": False}).check_radiation()
 
 
-def test_a_proton_ring_is_silent():
-    """A proton at these energies radiates negligibly, so switching it on
-    would be a waste and warning about it would be noise."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        FakeLine(RING, species="proton").check_radiation()
-
-
-def test_a_positron_ring_warns():
+@pytest.mark.parametrize("species", ["electron", "positron", "proton", ""])
+def test_the_warning_does_not_depend_on_species(species):
+    """The check is species-blind. A proton ring at these energies radiates
+    negligibly, so this is noise there -- but species came from matching on
+    a free-text string, and defaulting to silence is the wrong way round for
+    a check whose whole purpose is to catch a plausible wrong answer."""
     with pytest.warns(UserWarning):
-        FakeLine(RING, species="positron").check_radiation()
-
-
-def test_an_unknown_species_warns():
-    """Defaulting to silence would be the wrong way round for a check whose
-    whole purpose is to catch a plausible wrong answer."""
-    with pytest.warns(UserWarning):
-        FakeLine(RING, species="").check_radiation()
+        FakeLine(RING, species=species).check_radiation()
 
 
 # --- the measurement the warning is based on ----------------------------

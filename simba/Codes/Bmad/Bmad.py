@@ -106,7 +106,15 @@ class bmadLattice(frameworkLattice):
     """String indicating the lattice type"""
 
     radiates_by_default: ClassVar[bool] = True
-    """Flag to state that Elegant radiates by default (based on LAURA)."""
+    """Flag to state that Bmad radiates by default (based on LAURA)."""
+
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """Tao's own scan, configured by a ``&tao_dynamic_aperture`` namelist in
+    the init file; see :meth:`_tao_dynamic_aperture_namelist`."""
+
+    supports_frequency_map: ClassVar[bool] = True
+    """By tracking the grid a turn at a time and feeding the bunch back with
+    ``set beam beginning = END``; see :meth:`run_frequency_map`."""
 
     supports_radiation: ClassVar[bool] = True
     """``bmad_com[radiation_damping_on]`` and ``[radiation_fluctuations_on]``,
@@ -267,6 +275,246 @@ class bmadLattice(frameworkLattice):
             alpha_y=float(twiss.alpha_y.val),
         )
 
+    def _tao_dynamic_aperture_namelist(self) -> str:
+        """
+        The ``&tao_dynamic_aperture`` block for the Tao init file.
+        Written on every run, not only when a scan is wanted.
+
+        ``n_angle`` points are searched between ``min_angle`` and
+        ``max_angle``, so the result is a boundary in ``(x, y)`` rather than
+        a survival grid.
+        """
+        xs, ys = self.da_grid()
+        return (
+            "\n&tao_dynamic_aperture\n"
+            "  ix_universe = 1\n"
+            "  pz = 0.0\n"
+            "  da_param%min_angle = 0.0\n"
+            f"  da_param%max_angle = {np.pi}\n"
+            f"  da_param%n_angle = {max(3, int(self.da_settings.get('n_angle', 9)))}\n"
+            f"  da_param%n_turn = {self.turns}\n"
+            f"  da_param%x_init = {float(xs[-1])}\n"
+            f"  da_param%y_init = {float(ys[-1])}\n"
+            "/\n"
+        )
+
+    def _write_grid_beam_file(self, path: str) -> list:
+        """
+        One particle per frequency-map grid point, offset from the closed orbit.
+        A frequency map needs particles at chosen amplitudes, where
+        ``beam_init`` generates a random distribution.
+
+        Offsets are taken about the closed orbit rather than the axis.
+
+        Returns
+        -------
+        list
+            The ``(x, y)`` the particles were placed at, in file order.
+        """
+        orbit = self.read_closed_orbit()
+        if orbit is None:
+            orbit = np.zeros(6)
+        xs, ys = self.da_grid()
+        points = [(float(x), float(y)) for y in ys for x in xs]
+        p0c = self._reference_energy()
+        rows = np.array(
+            [
+                [
+                    orbit[0] + x,
+                    orbit[1],
+                    orbit[2] + y,
+                    orbit[3],
+                    0.0,
+                    0.0,
+                    1e-15,
+                    0.0,
+                ]
+                for x, y in points
+            ]
+        )
+        np.savetxt(
+            path,
+            rows,
+            header=(
+                f"# species = {self.global_parameters['beam'].species}\n"
+                "# state = alive\n"
+                f"# p0c = {p0c}\n"
+                f"# charge_tot = {1e-15 * len(points)}\n"
+                "#! x px y py z pz charge time"
+            ),
+            comments="",
+        )
+        return points
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune footprint by tracking the grid turn by turn through Tao.
+
+        Track one turn, read the bunch at ``END``, then
+        ``set beam beginning = END`` to feed the
+        distribution back and repeat.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y, diffusion)`` per surviving grid point.
+        """
+        from ...Modules.Matrices import tune_diffusion
+
+        points = self._grid_points()
+        tracks = self._track_grid_turn_by_turn()
+        if not tracks:
+            return []
+        twiss = self.normalisation_twiss()
+        footprint = []
+        for index, (x, y) in enumerate(points):
+            if index >= len(tracks["x"]):
+                continue
+            tune_x, tune_y, diffusion = tune_diffusion(
+                tracks["x"][index],
+                tracks["px"][index],
+                tracks["y"][index],
+                tracks["py"][index],
+                twiss=twiss,
+            )
+            if np.isnan(tune_x):
+                continue
+            footprint.append((x, y, tune_x, tune_y, diffusion))
+        if not footprint:
+            warn(
+                f"Line '{self.objectname}': no particle gave a tune in the "
+                "frequency-map scan."
+            )
+        self.frequency_map = footprint
+        return footprint
+
+    def _grid_points(self) -> list:
+        """``(x, y)`` of the scan grid, in the order the beam file holds."""
+        xs, ys = self.da_grid()
+        return [(float(x), float(y)) for y in ys for x in xs]
+
+    def _track_grid_turn_by_turn(self) -> dict:
+        """
+        Track the grid one turn at a time, recording every turn.
+
+        Track one turn, read the bunch at
+        ``END``, then ``set beam beginning = END`` to feed the distribution
+        back.
+
+        Returns
+        -------
+        dict
+            ``x``/``px``/``y``/``py``, each ``n_particles x turns``. Empty
+            if Tao could not be driven.
+        """
+        if self.tao is None:
+            warn(
+                f"Line '{self.objectname}': Tao must be run before the grid "
+                "can be tracked."
+            )
+            return {}
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        history = {name: [] for name in ("x", "px", "y", "py")}
+        try:
+            os.chdir(working_directory)
+            grid_file = str(Path(self.lattice_file).with_suffix(".fma.beam"))
+            self._write_grid_beam_file(grid_file)
+            self.tao.cmd(f"set beam beam_init_position_file = {grid_file}")
+            self.tao.cmd("set beam add_saved_at = END")
+            self.tao.cmd("set global track_type = beam", raises=False)
+            for _ in range(self.turns):
+                self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+                for name in history:
+                    history[name].append(
+                        list(
+                            self.tao.bunch1(
+                                "END", coordinate=name, which="model", ix_bunch=1
+                            )
+                        )
+                    )
+                self.tao.cmd("set beam beginning = END", raises=False)
+        except Exception as error:
+            warn(f"Tao turn-by-turn tracking failed for {self.objectname}: {error}")
+            return {}
+        finally:
+            os.chdir(previous_directory)
+        return {name: np.asarray(values).T for name, values in history.items()}
+
+    def track_reference_particle(self) -> dict:
+        """
+        One particle, recorded every turn, through the same beam loop the
+        frequency map uses.
+
+        Reuses :meth:`run_frequency_map`'s machinery with a one-point grid.
+        """
+        settings = dict(self.da_settings or {})
+        nudge = float(settings.get("x_max", 1e-3)) / 100.0
+        original = self.file_block.get("tracking")
+        tracking = dict(original or {})
+        tracking["dynamic_aperture"] = {
+            "nx": 1, "ny": 1, "x_max": nudge, "y_max": nudge,
+        }
+        self.file_block["tracking"] = tracking
+        try:
+            trajectory = self._track_grid_turn_by_turn()
+        finally:
+            if original is None:
+                self.file_block.pop("tracking", None)
+            else:
+                self.file_block["tracking"] = original
+        if not trajectory:
+            return {}
+        return {name: values[0] for name, values in trajectory.items()}
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        Tao's dynamic-aperture scan, read back through the raw pipe.
+        Needs lattice apertures to work.
+
+        Returns
+        -------
+        list
+            ``(x, y, turns_survived)`` along the aperture boundary. As with
+            elegant this is a boundary rather than a survival grid, so the
+            turn count is :meth:`turns` for every point on it.
+        """
+        if self.tao is None:
+            warn(
+                f"Line '{self.objectname}': Tao must be run before a "
+                "dynamic-aperture scan can be read."
+            )
+            return []
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        try:
+            os.chdir(working_directory)
+            self.tao.cmd("set universe 1 dynamic_aperture_calc on")
+            rows = self.tao.cmd("pipe da_aperture")
+        except Exception as error:
+            warn(f"Tao dynamic aperture failed for {self.objectname}: {error}")
+            return []
+        finally:
+            os.chdir(previous_directory)
+        aperture = []
+        for row in rows:
+            fields = str(row).split(";")
+            if len(fields) < 4:
+                continue
+            try:
+                aperture.append(
+                    (float(fields[2]), float(fields[3]), self.turns)
+                )
+            except ValueError:
+                continue
+        if not aperture:
+            warn(
+                f"Line '{self.objectname}': Tao returned no aperture points. "
+                "Does the lattice have apertures?"
+            )
+        self.dynamic_aperture = aperture
+        return aperture
+
     def write(self) -> None:
         """
         Create the lattice file using the LAURA ``SectionLatticeTranslator``
@@ -284,7 +532,8 @@ class bmadLattice(frameworkLattice):
         self.lattice_file = str(path)
         tao_path = path.with_suffix(".tao.init")
         tao_path.write_text(
-            f'&tao_beam_init\n  beam_saved_at = "{self._saved_at(lattice)}"\n/\n',
+            f'&tao_beam_init\n  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
+            + self._tao_dynamic_aperture_namelist(),
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)

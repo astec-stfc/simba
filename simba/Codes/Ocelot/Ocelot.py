@@ -56,6 +56,12 @@ class ocelotLattice(frameworkLattice):
     the right tool for dynamic aperture, which is a different job.
     """
 
+    supports_frequency_map: ClassVar[bool] = True
+    """``cpbd.track.freq_analysis`` over the same tracked grid."""
+
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """Using ``cpbd.track.track_nturns``."""
+
     supports_radiation: ClassVar[bool] = True
     """``cpbd.physics_proc.SpontanRadEffects`` with ``type="dipole"``, one per
     bend; see :meth:`physproc_radiation`."""
@@ -383,6 +389,120 @@ class ocelotLattice(frameworkLattice):
                 f'{self.global_parameters["master_subdir"]}/{self.objectname}_mbi.dat',
                 self.mbi_navi.bf,
             )
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune footprint over the aperture grid.
+
+        Needs ``save_track=True``, unlike :meth:`run_dynamic_aperture`.
+
+        The tunes come from :func:`~simba.Modules.Matrices.tune_from_trajectory`
+        rather than Ocelot's ``freq_analysis``.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y)`` per surviving grid point.
+        """
+        from ocelot.cpbd.track import create_track_list, track_nturns
+
+        import math
+
+        from ...Modules.Matrices import tune_diffusion
+
+        xs, ys = self.da_grid()
+        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
+        track_list = track_nturns(
+            self.lat_obj,
+            self.turns,
+            track_list,
+            save_track=True,
+            print_progress=False,
+        )
+        twiss = self.normalisation_twiss()
+        footprint = []
+        for particle in track_list:
+            if particle.turn < self.turns - 1:
+                continue
+            tune_x, tune_y, diffusion = tune_diffusion(
+                [p[0] for p in particle.p_list],
+                [p[1] for p in particle.p_list],
+                [p[2] for p in particle.p_list],
+                [p[3] for p in particle.p_list],
+                twiss=twiss,
+            )
+            if math.isnan(tune_x):
+                continue
+            footprint.append(
+                (float(particle.x), float(particle.y), tune_x, tune_y, diffusion)
+            )
+        if not footprint:
+            warn(
+                f"Line '{self.objectname}': no particle survived the "
+                "frequency-map scan, so there is no footprint."
+            )
+        self.frequency_map = footprint
+        return footprint
+
+    def run_dynamic_aperture(self) -> list:
+        """
+        Dynamic aperture via ``track_nturns`` over a grid of single particles.
+        With no ``Aperture`` elements the aperture limit is
+        Ocelot's default of +/- 1 m.
+
+        Returns
+        -------
+        list
+            ``(x, y, turns_survived)`` per grid point.
+        """
+        from ocelot.cpbd.track import create_track_list, track_nturns
+
+        xs, ys = self.da_grid()
+        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
+        track_list = track_nturns(
+            self.lat_obj,
+            self.turns,
+            track_list,
+            save_track=False,
+            print_progress=False,
+        )
+        self.dynamic_aperture = [
+            (float(p.x), float(p.y), int(p.turn)) for p in track_list
+        ]
+        return self.dynamic_aperture
+
+    def track_reference_particle(self) -> dict:
+        """
+        One particle, recorded every turn, via ``track_nturns``.
+        Launched slightly off the closed
+        orbit, since a particle sitting on it has no oscillation to show.
+        """
+        from ocelot.cpbd.track import create_track_list, track_nturns
+
+        orbit = self.read_closed_orbit()
+        if orbit is None:
+            orbit = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        nudge = float((self.da_settings or {}).get("x_max", 1e-3)) / 100.0
+        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        track_list = create_track_list(
+            [orbit[0] + nudge], [orbit[2] + nudge], [0.0], energy=energy_gev
+        )
+        track_list = track_nturns(
+            self.lat_obj, self.turns, track_list, save_track=True, print_progress=False
+        )
+        if not len(track_list) or len(track_list[0].p_list) < 2:
+            warn(
+                f"Line '{self.objectname}': the reference particle did not "
+                "survive, so there is no trajectory."
+            )
+            return {}
+        record = track_list[0].p_list
+        return {
+            name: array([step[index] for step in record])
+            for index, name in enumerate(("x", "px", "y", "py"))
+        }
 
     def physproc_radiation(self) -> list:
         """
