@@ -47,7 +47,15 @@ class FakeLine:
         self.objectname = "RING"
         self.supports_periodic = supports
         self.one_turn_map = None
+        self.optics_summary = None
+        self.closed_orbit = None
         self._matrix = matrix
+
+    def read_optics_summary(self):
+        return {}
+
+    def read_closed_orbit(self):
+        return None
 
     def _machine_geometry(self):
         return None

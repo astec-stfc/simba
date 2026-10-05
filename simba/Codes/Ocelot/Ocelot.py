@@ -56,6 +56,10 @@ class ocelotLattice(frameworkLattice):
     the right tool for dynamic aperture, which is a different job.
     """
 
+    supports_radiation: ClassVar[bool] = True
+    """``cpbd.physics_proc.SpontanRadEffects`` with ``type="dipole"``, one per
+    bend; see :meth:`physproc_radiation`."""
+
     supports_periodic: ClassVar[bool] = True
     """``cpbd.optics.twiss`` with ``tws0=None``, which defers to
     ``lattice.periodic_twiss``."""
@@ -245,8 +249,12 @@ class ocelotLattice(frameworkLattice):
         pin = deepcopy(self.pin)
         if self.sample_interval > 1:
             pin = pin.thin_out(nth=self.sample_interval)
+        wanted = dict(self.output_turns())
         for turn in range(1, self.turns + 1):
-            navi = self.navi_setup(turn=turn if self.turns > 1 else None)
+            key = turn if self.turns > 1 else None
+            navi = self.navi_setup(
+                turn=wanted.get(key), write_beams=key in wanted
+            )
             navi.go_to_start()
             self.tws, self.pout = track(
                 self.lat_obj,
@@ -286,6 +294,43 @@ class ocelotLattice(frameworkLattice):
             )
             return self.tws
         return periodic
+
+    def read_closed_orbit(self):
+        """
+        Ocelot's periodic Twiss carries the orbit on its first element.
+        """
+        from ocelot.cpbd.optics import twiss as ocelot_twiss
+
+        periodic = ocelot_twiss(self.lat_obj, tws0=None)
+        if not periodic:
+            return None
+        first = periodic[0]
+        return array(
+            [first.x, first.xp, first.y, first.yp, 0.0, 0.0], dtype=float
+        )
+
+    def read_optics_summary(self) -> dict:
+        """
+        Ocelot keeps the phase advance on the Twiss objects and computes
+        chromaticity separately, from the periodic solution.
+        """
+        from ocelot.cpbd.chromaticity import chromaticity
+        from ocelot.cpbd.optics import twiss as ocelot_twiss
+
+        periodic = ocelot_twiss(self.lat_obj, tws0=None)
+        if not periodic:
+            return {}
+        summary = {
+            "tune_x_total": float(periodic[-1].mux) / (2 * pi),
+            "tune_y_total": float(periodic[-1].muy) / (2 * pi),
+        }
+        try:
+            chrom_x, chrom_y = chromaticity(self.lat_obj, periodic[0])[:2]
+            summary["chromaticity_x"] = float(chrom_x)
+            summary["chromaticity_y"] = float(chrom_y)
+        except Exception as error:
+            warn(f"Ocelot chromaticity unavailable for {self.objectname}: {error}")
+        return summary
 
     def read_one_turn_map(self):
         """
@@ -339,7 +384,55 @@ class ocelotLattice(frameworkLattice):
                 self.mbi_navi.bf,
             )
 
-    def navi_setup(self, turn: int | None = None) -> "Navigator":
+    def physproc_radiation(self) -> list:
+        """
+        One ``SpontanRadEffects`` per dipole, for :meth:`navi_setup`.
+
+        ``quant_diff`` separates the two models. ``mean`` gives the
+        energy loss and hence damping; only ``quantum`` adds the excitation,
+        and an equilibrium emittance needs both.
+
+        Returns
+        -------
+        list
+            ``(process, element, radius)`` triples, empty when
+            :meth:`radiation` is off.
+        """
+        model = self.radiation
+        if model in (None, "off"):
+            return []
+        from ocelot.cpbd.physics_proc import SpontanRadEffects
+
+        out = []
+        for name in self.names:
+            element = self.elementObjects.get(name)
+            magnetic = getattr(element, "magnetic", None)
+            if magnetic is None:
+                continue
+            try:
+                angle = float(magnetic.KnL(0))
+                length = float(element.physical.length or 0.0)
+            except (TypeError, ValueError, AttributeError, KeyError):
+                continue
+            if not angle or not length:
+                continue
+            out.append(
+                (
+                    SpontanRadEffects(
+                        type="dipole",
+                        radius=abs(length / angle),
+                        energy_loss=True,
+                        quant_diff=(model == "quantum"),
+                    ),
+                    self.lat_obj.sequence[self.names.index(name)],
+                    abs(length / angle),
+                )
+            )
+        return out
+
+    def navi_setup(
+        self, turn: int | None = None, write_beams: bool = True
+    ) -> "Navigator":
         """
         Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
 
@@ -443,7 +536,11 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
         sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
         sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
-        for w in self.screens_and_bpms + self.apertures:
+        for bend, loc, radius in self.physproc_radiation():
+            navi_processes += [bend]
+            navi_locations_start += [loc]
+            navi_locations_end += [loc]
+        for w in (self.screens_and_bpms + self.apertures) if write_beams else []:
             if w.name == self.start:
                 continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]
@@ -462,22 +559,24 @@ class ocelotLattice(frameworkLattice):
             ]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
-        loc = self.lat_obj.sequence[-1]
-        subdir = self.global_parameters["master_subdir"]
-        navi_processes += [
-            SaveBeamOpenPMD(
-                filename=(
-                    f"{subdir}/"
-                    f"{self.output_basename(self.names[-1], turn=turn)}.openpmd.hdf5"
-                ),
-                global_parameters=self.global_parameters,
-                zstart=self.endObject.physical.end.z,
-                sstart=self.entrance_s + sval_out[self.end],
-                ref_idx=self.ref_idx,
-            )
-        ]
-        navi_locations_start += [loc]
-        navi_locations_end += [loc]
+        if write_beams:
+            loc = self.lat_obj.sequence[-1]
+            subdir = self.global_parameters["master_subdir"]
+            navi_processes += [
+                SaveBeamOpenPMD(
+                    filename=(
+                        f"{subdir}/"
+                        f"{self.output_basename(self.names[-1], turn=turn)}"
+                        ".openpmd.hdf5"
+                    ),
+                    global_parameters=self.global_parameters,
+                    zstart=self.endObject.physical.end.z,
+                    sstart=self.entrance_s + sval_out[self.end],
+                    ref_idx=self.ref_idx,
+                )
+            ]
+            navi_locations_start += [loc]
+            navi_locations_end += [loc]
         navi.add_physics_processes(
             navi_processes, navi_locations_start, navi_locations_end
         )

@@ -20,6 +20,7 @@ import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar
+from warnings import warn
 
 import numpy as np
 from laura.models.simulation import TwissMatchSimulationElement
@@ -104,6 +105,13 @@ class bmadLattice(frameworkLattice):
     code: str = "bmad"
     """String indicating the lattice type"""
 
+    radiates_by_default: ClassVar[bool] = True
+    """Flag to state that Elegant radiates by default (based on LAURA)."""
+
+    supports_radiation: ClassVar[bool] = True
+    """``bmad_com[radiation_damping_on]`` and ``[radiation_fluctuations_on]``,
+    which LAURA writes from the section's own ``sr_enable``/``isr_enable``."""
+
     supports_periodic: ClassVar[bool] = True
     """``parameter[geometry] = closed``, which LAURA writes from the section's
     own ``geometry``; Bmad then takes the Twiss from the one-turn map."""
@@ -148,6 +156,11 @@ class bmadLattice(frameworkLattice):
     """Value of the Bmad/openPMD particle status flag for a live particle"""
 
     libtao: str | None = None
+    """Location of libtao.so"""
+
+    chromaticity_delta: float = 1e-4
+    """Momentum step for the Bmad chromaticity finite difference. Matches
+    Tao's own ``delta_e_chrom`` default."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -424,6 +437,82 @@ class bmadLattice(frameworkLattice):
         z_values = [z[-1] for z in self.getZValues()]
         twiss["z"] = np.interp(twiss["s"], s_values, z_values)
         return twiss
+
+    def _tao_tunes(self) -> dict:
+        """
+        Tune in both planes from Tao's accumulated phase advance.
+
+        ``ele.a.phi`` is the phase in radians at the end of the lattice, so
+        the tune is that over ``2*pi`` -- and unlike a one-turn map it keeps
+        the integer part.
+        """
+        tunes = {}
+        for name, attribute in (("x", "ele.a.phi"), ("y", "ele.b.phi")):
+            out = self.tao.cmd(f"pipe lat_list 1@0>>END|model {attribute}")
+            if out and str(out[0]).strip():
+                tunes[name] = float(str(out[0]).strip()) / (2 * np.pi)
+        return tunes
+
+    def read_closed_orbit(self):
+        """Tao's ``orbit.vec.N`` at the start of the lattice."""
+        if self.tao is None:
+            return None
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        try:
+            os.chdir(working_directory)
+            values = [
+                float(
+                    str(
+                        self.tao.cmd(
+                            f"pipe lat_list 1@0>>BEGINNING|model orbit.vec.{i}"
+                        )[0]
+                    ).strip()
+                )
+                for i in range(1, 7)
+            ]
+        except Exception as error:
+            warn(f"Tao closed orbit unavailable for {self.objectname}: {error}")
+            return None
+        finally:
+            os.chdir(previous_directory)
+        return np.array(values)
+
+    def read_optics_summary(self) -> dict:
+        """
+        Tune and chromaticity from Tao.
+
+        Chromaticity is ``dQ/ddelta``, so it is measured the way it is
+        defined: shift the closed orbit to ``+/- delta`` with
+        ``set particle_start pz`` and difference the tunes.
+        """
+        if self.tao is None:
+            return {}
+        working_directory = Path(self.lattice_file).parent
+        previous_directory = Path.cwd()
+        summary = {}
+        try:
+            os.chdir(working_directory)
+            for plane, tune in self._tao_tunes().items():
+                summary[f"tune_{plane}_total"] = tune
+            delta = self.chromaticity_delta
+            try:
+                self.tao.cmd(f"set particle_start pz = {delta}")
+                plus = self._tao_tunes()
+                self.tao.cmd(f"set particle_start pz = {-delta}")
+                minus = self._tao_tunes()
+            finally:
+                self.tao.cmd("set particle_start pz = 0")
+            for plane in ("x", "y"):
+                if plane in plus and plane in minus:
+                    summary[f"chromaticity_{plane}"] = (
+                        plus[plane] - minus[plane]
+                    ) / (2 * delta)
+        except Exception as error:
+            warn(f"Tao optics summary unavailable for {self.objectname}: {error}")
+        finally:
+            os.chdir(previous_directory)
+        return summary
 
     def read_one_turn_map(self):
         """Tao's ``matrix`` with the same element at both ends.

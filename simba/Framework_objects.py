@@ -597,6 +597,13 @@ class frameworkLattice(BaseModel):
     """Whether this code can be asked for the *periodic* (closed) optics solution
     rather than propagating the incoming beam's Twiss."""
 
+    radiates_by_default: ClassVar[bool] = False
+    """Whether this code radiates with no asking."""
+
+    supports_radiation: ClassVar[bool] = False
+    """Whether simba can switch synchrotron radiation on for this code.
+    Currently Xsuite only."""
+
     otm_convention: ClassVar[str] = ""
     """The coordinate order :attr:`one_turn_map` is written in, as this code
     writes it. :meth:`one_turn_map_canonical` converts it.
@@ -614,6 +621,13 @@ class frameworkLattice(BaseModel):
     otm_longitudinal_scale: ClassVar[int | None] = None
     """Power of ``beta0`` in the magnitude of the longitudinal conversion; see
     :meth:`one_turn_map_canonical`. ``None`` means the conversion is not a rescale (elegant)."""
+
+    optics_summary: Any = None
+    """The code's own tune and chromaticity; see :meth:`read_optics_summary`."""
+
+    closed_orbit: Any = None
+    """The periodic orbit at the start of the line, as a 6-vector in this
+    code's :attr:`otm_convention`; see :meth:`read_closed_orbit`."""
 
     one_turn_map: Any = None
     """The 6x6 linear map of one turn, in :attr:`otm_convention` coordinates.
@@ -720,6 +734,23 @@ class frameworkLattice(BaseModel):
             stated = self.file_block.get(flag)
             if stated is not None:
                 setattr(self, flag, bool(stated))
+
+    def _apply_radiation_to_section(self) -> None:
+        """Push :meth:`radiation` onto LAURA's ``sr_enable``/``isr_enable``."""
+        model = self.radiation
+        if model is None:
+            return
+        for element in self.elementObjects.values():
+            try:
+                element.simulation.sr_enable = model != "off"
+                element.simulation.isr_enable = model == "quantum"
+            except (AttributeError, ValueError):
+                pass
+        try:
+            self.section.sr_enable = model != "off"
+            self.section.isr_enable = model == "quantum"
+        except (AttributeError, ValueError):
+            pass
 
     @property
     def csr_enable(self) -> bool:
@@ -881,6 +912,56 @@ class frameworkLattice(BaseModel):
         geometry = self._machine_geometry()
         return getattr(geometry, "value", geometry) == "closed"
 
+    @property
+    def radiation(self) -> str | None:
+        """
+        Synchrotron-radiation model for this line, or None for none.
+
+        ``mean`` gives damping and the energy loss; ``quantum`` adds the
+        excitation, and only with both does an equilibrium emittance exist;
+        ``None`` means not stated, and leaves every
+        code on its own default -- which is not the same default everywhere.
+
+        A tracking setting, like :meth:`turns`::
+
+            files:
+              RING:
+                code: xsuite
+                tracking: {turns: 100000, radiation: quantum}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        if "radiation" not in tracking:
+            return None
+        model = tracking["radiation"]
+        if model in (None, False):
+            return "off"
+        return "mean" if model is True else str(model)
+
+    def check_radiation(self, turns_that_matter: int = 10000) -> None:
+        """
+        Warn when a long lepton ring is tracked with radiation switched off.
+
+        Parameters
+        ----------
+        turns_that_matter: int
+            How many turns are enough for the beam to reach equilibrium if
+            radiation is on
+        """
+        if self.radiation is not None or not self.periodic:
+            return
+        if self.radiates_by_default:
+            return
+        if self.turns < turns_that_matter:
+            return
+        warn(
+            f"Line '{self.objectname}' tracks a ring for "
+            f"{self.turns} turns with no synchrotron radiation. Without it "
+            "there is no damping and no quantum excitation, and the beam may never "
+            "reaches equilibrium: the emittance, energy spread and bunch "
+            "length at the end are the ones you started with, not the ring's. "
+            "Set tracking: {radiation: quantum} if you want the equilibrium."
+        )
+
     def check_periodic_supported(self) -> None:
         """Warn when the periodic solution was asked for and this code cannot."""
         if self.periodic and not self.supports_periodic:
@@ -891,6 +972,40 @@ class frameworkLattice(BaseModel):
                 "and its tune and beta functions are not the ring's. elegant, "
                 "Xsuite, Ocelot and Bmad are the codes that can."
             )
+
+    @property
+    def write_turns(self) -> bool:
+        """
+        Whether a multi-turn run writes a beam file per turn.
+        Off by default, and a multi-turn run writes what a single-turn run writes:
+        one file per screen, holding the last turn. Turn-resolved output
+        is then something you ask for::
+
+            files:
+              RING:
+                code: xsuite
+                tracking: {turns: 1000, write_turns: true}
+
+        Has no effect on a single-turn run, which was always one file per
+        screen.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return bool(tracking.get("write_turns", False))
+
+    def output_turns(self) -> list:
+        """
+        ``(data_turn, name_turn)`` for each beam file a run should write.
+
+        ``data_turn`` selects which turn's particles to write and
+        ``name_turn`` is handed to :meth:`output_basename`, so the
+        unsuffixed single-turn name survives when only the last turn is
+        being kept.
+        """
+        if self.turns <= 1:
+            return [(None, None)]
+        if self.write_turns:
+            return [(turn, turn) for turn in range(1, self.turns + 1)]
+        return [(self.turns, None)]
 
     def check_turns_supported(self) -> None:
         """Warn when turns were asked for and this code cannot do them."""
@@ -1980,6 +2095,8 @@ class frameworkLattice(BaseModel):
         """
         self.check_turns_supported()
         self.check_periodic_supported()
+        self.check_radiation()
+        self._apply_radiation_to_section()
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
@@ -1995,6 +2112,37 @@ class frameworkLattice(BaseModel):
         if "longitudinal_match" in self.file_block:
             self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
+
+    def read_closed_orbit(self):
+        """
+        The orbit that closes on itself, at the start of the line.
+
+        Everything else in a ring is defined about the closed orbit.
+        On a perfectly aligned lattice it is identically zero, which is why
+        a test of it needs a steering error to mean anything.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            6 components in this code's :attr:`otm_convention` order, or None
+            if the code did not give one.
+        """
+        return None
+
+    def read_optics_summary(self) -> dict:
+        """
+        The code's own tune and chromaticity, from its periodic solution.
+
+        Not derived here, instead read back from the code, giving the integer
+        part of the tune, and the chromaticity.
+
+        Returns
+        -------
+        dict
+            Any of ``tune_x_total``, ``tune_y_total``, ``chromaticity_x``,
+            ``chromaticity_y``. Empty when the code reports none of them.
+        """
+        return {}
 
     def read_one_turn_map(self):
         """This code's 6x6 one-turn map, or None if it has none to give.
@@ -2064,6 +2212,66 @@ class frameworkLattice(BaseModel):
         diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, 1.0])
         return (diagonal[:, None] * matrix) / diagonal[None, :]
 
+    def ring_parameters(self) -> dict:
+        """
+        Tune, periodic Twiss and momentum compaction, from the one-turn map.
+        The first two come from the raw map, and the latter comes from the
+        canonical map.
+
+        Chromaticity is deliberately absent: it is not in a single one-turn
+        map. It needs maps at two momenta, or the code's own periodic Twiss.
+
+        Returns
+        -------
+        dict
+            ``{}`` if there is no map. Otherwise ``tune_x``/``tune_y``
+            (fractional), ``beta_x``/``alpha_x``/``gamma_x`` and the ``y``
+            equivalents, ``stable_x``/``stable_y``, and ``slip_factor`` /
+            ``momentum_compaction`` where the convention allows.
+        """
+        from .Modules.Matrices import (
+            fractional_tune,
+            is_stable,
+            momentum_compaction,
+            periodic_twiss,
+            slip_factor,
+        )
+
+        matrix = self.one_turn_map
+        if matrix is None or np is None:
+            return {}
+        result = {}
+        for plane in ("x", "y"):
+            result[f"stable_{plane}"] = is_stable(matrix, plane)
+            result[f"tune_{plane}"] = fractional_tune(matrix, plane)
+            for key, value in periodic_twiss(matrix, plane).items():
+                result[f"{key}_{plane}"] = value
+        result.update(self.optics_summary or {})
+        if self.closed_orbit is not None:
+            orbit = np.asarray(self.closed_orbit, dtype=float)
+            for index, name in enumerate(
+                ("x", "px", "y", "py", "zeta", "delta")[: len(orbit)]
+            ):
+                result[f"closed_orbit_{name}"] = float(orbit[index])
+        canonical = self.one_turn_map_canonical()
+        circumference = sum(
+            e.physical.length or 0.0
+            for e in self.elements.values()
+            if getattr(e, "physical", None) is not None
+        )
+        if canonical is not None and circumference:
+            result["slip_factor"] = slip_factor(canonical, circumference)
+            try:
+                betagamma = float(np.mean(self.global_parameters["beam"].BetaGamma))
+                gamma0 = math.sqrt(1.0 + betagamma**2)
+            except (KeyError, TypeError, AttributeError, ValueError):
+                gamma0 = None
+            if gamma0:
+                result["momentum_compaction"] = momentum_compaction(
+                    canonical, circumference, gamma0
+                )
+        return result
+
     def check_one_turn_map(self, tolerance: float = 1e-3) -> None:
         """
         Warn when the map that came back cannot be a one-turn map.
@@ -2100,6 +2308,8 @@ class frameworkLattice(BaseModel):
         if self.periodic and self.supports_periodic:
             self.one_turn_map = self.read_one_turn_map()
             self.check_one_turn_map()
+            self.optics_summary = self.read_optics_summary()
+            self.closed_orbit = self.read_closed_orbit()
 
     def __repr__(self):
         return self.elements

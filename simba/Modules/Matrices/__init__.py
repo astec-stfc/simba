@@ -18,6 +18,165 @@ from . import elegant
 
 from ..units import UnitValue
 
+PLANES = {"x": 0, "y": 2}
+"""Row/column of the 6x6 map each transverse plane starts at."""
+
+
+def _block(matrix, plane):
+    index = PLANES[plane]
+    return np.asarray(matrix, dtype=float)[index : index + 2, index : index + 2]
+
+
+def is_stable(matrix, plane: str = "x") -> bool:
+    """
+    Whether motion in ``plane`` is bounded turn after turn.
+    ``|trace / 2| <= 1`` is the condition.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    plane: str
+        Plane to check
+
+    Returns
+    -------
+    bool
+        True is the plane is stable.
+    """
+    block = _block(matrix, plane)
+    return bool(abs((block[0, 0] + block[1, 1]) / 2.0) <= 1.0)
+
+
+def phase_advance(matrix, plane: str = "x") -> float:
+    """
+    One turn's phase advance in ``plane``, radians in ``[0, 2*pi)``.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    plane: str
+        Plane to check
+
+    Returns
+    -------
+    float
+        The phase advance in radians.
+    """
+    block = _block(matrix, plane)
+    if not is_stable(matrix, plane):
+        return float("nan")
+    mu = math.acos(min(1.0, max(-1.0, (block[0, 0] + block[1, 1]) / 2.0)))
+    return 2.0 * math.pi - mu if block[0, 1] < 0 else mu
+
+
+def fractional_tune(matrix, plane: str = "x") -> float:
+    """
+    The fractional tune in ``plane``.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    plane: str
+        Plane to check
+
+    Returns
+    -------
+    float
+        The fractional tune in ``plane``.
+    """
+    return phase_advance(matrix, plane) / (2.0 * math.pi)
+
+
+def periodic_twiss(matrix, plane: str = "x") -> dict:
+    """
+    The periodic ``beta``, ``alpha`` and ``gamma`` in ``plane``.
+
+    The Twiss the lattice itself determines, as opposed to whatever the
+    incoming beam happened to have.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    plane: str
+        Plane to check
+
+    Returns
+    -------
+    dict
+        ``beta``, ``alpha``, ``gamma``, all NaN if the plane is unstable.
+    """
+    block = _block(matrix, plane)
+    mu = phase_advance(matrix, plane)
+    if math.isnan(mu) or math.sin(mu) == 0.0:
+        return {"beta": float("nan"), "alpha": float("nan"), "gamma": float("nan")}
+    sin_mu = math.sin(mu)
+    beta = block[0, 1] / sin_mu
+    alpha = (block[0, 0] - block[1, 1]) / (2.0 * sin_mu)
+    return {"beta": beta, "alpha": alpha, "gamma": (1.0 + alpha**2) / beta}
+
+
+def slip_factor(matrix, circumference: float, step: float = 1e-3) -> float:
+    """
+    ``eta``, the fractional change in revolution period per unit ``delta``.
+
+    The map is in canonical coordinates, so pass
+    :meth:`~simba.Framework_objects.frameworkLattice.one_turn_map_canonical`,
+    not the raw map.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    circumference: float
+        Ring circumference
+    step: float, optional
+        Step size for finite difference, by default 1e-3
+
+    Returns
+    -------
+    float
+        The slip factor.
+    """
+    matrix = np.asarray(matrix, dtype=float)
+    solve_matrix = matrix - np.eye(6)
+    solve_matrix[4, :] = [0, 0, 0, 0, 1, 0]
+    solve_matrix[5, :] = [0, 0, 0, 0, 0, 1]
+    target = np.array([0.0, 0.0, 0.0, 0.0, 0.0, step])
+    orbit, *_ = np.linalg.lstsq(solve_matrix, target, rcond=None)
+    dzeta = (matrix @ orbit)[4] - orbit[4]
+    return -float(dzeta) / step / float(circumference)
+
+
+def momentum_compaction(
+    matrix, circumference: float, gamma0: float, step: float = 1e-3
+) -> float:
+    """
+    ``alpha_c``, the fractional change in path length per unit ``delta``.
+
+    ``alpha_c = eta + 1 / gamma0**2``; see :func:`slip_factor`.
+
+    Parameters
+    ----------
+    matrix: Any
+        Data containing matrix information
+    circumference: float
+        Ring circumference
+    step: float, optional
+        Step size for finite difference, by default 1e-3
+
+    Returns
+    -------
+    float
+        The momentum compaction factor.
+    """
+    return (
+        slip_factor(matrix, circumference, step) + 1.0 / float(gamma0) ** 2
+    )
+
 
 class matrices(munch.Munch):
     """Class for dealing with R-matrices produced by Elegant.

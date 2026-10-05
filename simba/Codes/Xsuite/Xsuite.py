@@ -65,6 +65,9 @@ class xsuiteLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """``line.track(num_turns=...)``."""
 
+    supports_radiation: ClassVar[bool] = True
+    """``line.configure_radiation(model=...)``."""
+
     supports_periodic: ClassVar[bool] = True
     """``line.twiss()`` with no initial conditions."""
 
@@ -295,6 +298,8 @@ class xsuiteLattice(frameworkLattice):
         """
         self.insert_reference_energy_increases()
         self.line.build_tracker(_context=self.context)
+        if self.radiation not in (None, "off"):
+            self.line.configure_radiation(model=self.radiation)
         self.line.freeze_longitudinal(state=False)
         self.line.freeze_energy(state=False, force=True)
         pin = deepcopy(self.pin)
@@ -358,6 +363,37 @@ class xsuiteLattice(frameworkLattice):
             alfy=self.global_parameters["beam"].twiss.alpha_y.val,
             **kwargs,
         )
+
+    def read_closed_orbit(self):
+        """``line.find_closed_orbit()``, already called for the one-turn map."""
+        try:
+            orbit = self.line.find_closed_orbit()
+        except Exception as error:
+            warn(f"Xsuite found no closed orbit for {self.objectname}: {error}")
+            return None
+        return np.array(
+            [
+                float(np.atleast_1d(getattr(orbit, name))[0])
+                for name in ("x", "px", "y", "py", "zeta", "delta")
+            ]
+        )
+
+    def read_optics_summary(self) -> dict:
+        """Xsuite reports all four off the periodic twiss directly."""
+        if self.tws is None:
+            return {}
+        keys = {
+            "tune_x_total": "qx",
+            "tune_y_total": "qy",
+            "chromaticity_x": "dqx",
+            "chromaticity_y": "dqy",
+        }
+        summary = {}
+        for name, attribute in keys.items():
+            value = getattr(self.tws, attribute, None)
+            if value is not None:
+                summary[name] = float(value)
+        return summary
 
     def read_one_turn_map(self):
         """
@@ -443,9 +479,11 @@ class xsuiteLattice(frameworkLattice):
         )
         for elem in self.screens_and_bpms:
             data = self.line[elem.name].data.to_dict()
-            for turn in range(1, self.turns + 1) if self.turns > 1 else [None]:
-                payload = data if turn is None else _select_turn(data, turn - 1)
-                stem = self.output_basename(elem.name, turn=turn)
+            for data_turn, name_turn in self.output_turns():
+                payload = (
+                    data if data_turn is None else _select_turn(data, data_turn - 1)
+                )
+                stem = self.output_basename(elem.name, turn=name_turn)
                 fname = (
                     f'{self.global_parameters["master_subdir"]}/{stem}.xsuite.json'
                 )

@@ -209,6 +209,10 @@ class madxLattice(frameworkLattice):
     seqstrings: List = []
     """MAD-X SEQUENCE definitions for each segment"""
 
+    model_twiss_orbit: Any = None
+    """Closed orbit at the start of the line, taken off the first row of the
+    periodic TWISS table; see :func:`read_closed_orbit`"""
+
     sector_maps: List = []
     """Per-element 6x6 sector maps, in sequence order, accumulated across
     segments on a periodic line; see :func:`read_one_turn_map`"""
@@ -800,6 +804,50 @@ class madxLattice(frameworkLattice):
                 )
             )
 
+    def _collect_optics_summary(self, madx: Any) -> None:
+        """
+        Take tune and chromaticity off MAD-X's ``summ`` table; updates
+        :attr:`optics_summary`, in sequence order.
+        """
+        keys = {
+            "tune_x_total": "q1",
+            "tune_y_total": "q2",
+            "chromaticity_x": "dq1",
+            "chromaticity_y": "dq2",
+        }
+        try:
+            summ = madx.table.summ
+            self.optics_summary = {
+                name: float(summ[key][-1]) for name, key in keys.items() if key in summ
+            }
+        except (KeyError, AttributeError, TypeError, IndexError) as e:
+            warn(f"MAD-X summ table unavailable for {self.objectname}: {e}")
+
+    def _collect_closed_orbit(self, madx: Any) -> None:
+        """
+        Keep the first row of the periodic TWISS table; updates
+        :attr:`model_twiss_orbit`, in sequence order.
+        """
+        if self.model_twiss_orbit is not None:
+            return
+        try:
+            tw = madx.table.twiss
+            self.model_twiss_orbit = [
+                float(tw[k][0]) for k in ("x", "px", "y", "py", "t", "pt")
+            ]
+        except (KeyError, AttributeError, TypeError, IndexError) as e:
+            warn(f"MAD-X closed orbit unavailable for {self.objectname}: {e}")
+
+    def read_closed_orbit(self):
+        """The first row of MAD-X's periodic ``TWISS`` table is the closed
+        orbit -- MAD-X solves for it rather than being asked."""
+        orbit = self.model_twiss_orbit
+        return None if orbit is None else np.asarray(orbit, dtype=float)
+
+    def read_optics_summary(self) -> dict:
+        """What :meth:`_collect_optics_summary` gathered during the run."""
+        return self.optics_summary or {}
+
     def read_one_turn_map(self):
         """
         The ordered product of MAD-X's per-element sector maps.
@@ -858,6 +906,8 @@ class madxLattice(frameworkLattice):
                     f"twiss, sequence={seqname}, sectormap, sectortable={table};"
                 )
                 self._collect_sector_maps(madx, table)
+                self._collect_optics_summary(madx)
+                self._collect_closed_orbit(madx)
             else:
                 madx.input(
                     f"twiss, sequence={seqname}, betx={init['betx']}, alfx={init['alfx']}, "
@@ -1020,6 +1070,7 @@ class madxLattice(frameworkLattice):
         self.model_twiss = {}
         self.output_beams = {}
         self.sector_maps = []
+        self.model_twiss_orbit = None
         madx = self.start_madx()
         try:
             self.run_segments(madx)

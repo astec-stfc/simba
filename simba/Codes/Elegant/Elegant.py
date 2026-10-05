@@ -101,6 +101,13 @@ class elegantLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """``run_control``'s ``n_passes``."""
 
+    supports_radiation: ClassVar[bool] = True
+    """``SYNCH_RAD`` and ``ISR`` on the bends, which LAURA writes from the
+    elements' own ``sr_enable``/``isr_enable``."""
+
+    radiates_by_default: ClassVar[bool] = True
+    """Flag to state that Elegant radiates by default (based on LAURA)."""
+
     supports_periodic: ClassVar[bool] = True
     """``twiss_output``'s ``matched = 1``."""
 
@@ -565,6 +572,33 @@ class elegantLattice(frameworkLattice):
         #     print(f"Screen error {scr.name}, {e}")
         #     return None
 
+    def read_optics_summary(self) -> dict:
+        """elegant writes the lot into the ``%s.twi`` parameters;
+        with ``matched = 1`` they are the ring's."""
+        path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.twi"
+        if not path.is_file():
+            return {}
+        try:
+            from ...Modules.SDDSFile import SDDSFile
+
+            sdds = SDDSFile(index=1)
+            sdds.read_file(str(path))
+            params = sdds.parameters()
+        except Exception as error:
+            warn(f"elegant twiss parameters unreadable for {self.objectname}: {error}")
+            return {}
+        keys = {
+            "tune_x_total": "nux",
+            "tune_y_total": "nuy",
+            "chromaticity_x": "dnux/dp",
+            "chromaticity_y": "dnuy/dp",
+        }
+        summary = {}
+        for name, key in keys.items():
+            if key in params:
+                summary[name] = float(np.atleast_1d(params[key].data)[-1])
+        return summary
+
     def read_one_turn_map(self):
         """
         The last cumulative matrix in elegant's ``%s.mat``.
@@ -668,10 +702,16 @@ class elegantLattice(frameworkLattice):
                 warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
             return
         xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
-        pages = [-1]
+        wanted = self.output_turns()
         if self.turns > 1:
-            pages = list(range(rbf.sdds.count_SDDS_pages(elegantbeamfilename)))
-        for index, page in enumerate(pages, start=1):
+            npages = rbf.sdds.count_SDDS_pages(elegantbeamfilename)
+            pages = [
+                (min(data_turn, npages) - 1, name_turn)
+                for data_turn, name_turn in wanted
+            ]
+        else:
+            pages = [(-1, None)]
+        for page, turn in pages:
             beam = rbf.beam()
             rbf.sdds.read_SDDS_beam_file(
                 beam,
@@ -680,7 +720,6 @@ class elegantLattice(frameworkLattice):
                 xyzoffset=xyzoffset,
                 ref_index=ref_index,
             )
-            turn = None if self.turns <= 1 else index
             HDF5filename = (
                 f"{self.global_parameters['master_subdir']}/"
                 f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"

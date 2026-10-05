@@ -468,7 +468,8 @@ def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
     from simba.Codes.Ocelot.Ocelot import ocelotLattice
 
     source = inspect.getsource(ocelotLattice.run)
-    assert "self.navi_setup(turn=" in source
+    assert "self.navi_setup(" in source
+    assert "turn=" in source
     # Called, not merely mentioned -- the comment above the loop names
     # `track_nturns` precisely to say why it is the wrong one.
     assert "track_nturns(" not in source

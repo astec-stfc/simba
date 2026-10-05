@@ -16,6 +16,7 @@ What it establishes:
   wrong if everything were normalised with a scale factor.
 """
 
+import tempfile
 from functools import lru_cache
 
 import numpy as np
@@ -78,7 +79,7 @@ def xsuite_drift(pc):
 @lru_cache(maxsize=None)
 def madx_drift(pc):
     madx_module = pytest.importorskip("cpymad.madx")
-    madx = madx_module.Madx(stdout=False)
+    madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
     madx.input(
         f"beam, particle=electron, pc={pc / 1e9};\n"
         f"seq: sequence, l={L}; d: drift, at={L / 2}, l={L}; endsequence;\n"
@@ -275,7 +276,7 @@ def test_a_rescale_of_elegant_would_have_been_silently_wrong():
 def madx_drift_and_dipole(pc):
     """Per-element sector maps for a 1.5 m drift followed by a 1 m bend."""
     madx_module = pytest.importorskip("cpymad.madx")
-    madx = madx_module.Madx(stdout=False)
+    madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
     madx.input(
         f"beam, particle=electron, pc={pc / 1e9};\n"
         f"seq: sequence, l={1.5 + 1.0};\n"
