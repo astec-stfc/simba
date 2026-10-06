@@ -45,6 +45,7 @@ class FakeLine:
         self.code = "xsuite"
         self.global_parameters = {"beam": FakeBeam(species)}
         self.radiates_by_default = False
+        self.supports_radiation = True
 
     def _machine_geometry(self):
         return None
@@ -53,6 +54,8 @@ class FakeLine:
     periodic = frameworkLattice.periodic
     turns = frameworkLattice.turns
     check_radiation = frameworkLattice.check_radiation
+    check_radiation_supported = frameworkLattice.check_radiation_supported
+    codes_that_can = frameworkLattice.codes_that_can
 
 
 RING = {"turns": 100000, "periodic": True}
@@ -118,6 +121,28 @@ def test_the_base_class_assumes_it_cannot():
     assert frameworkLattice.supports_radiation is False
 
 
+def test_asking_a_code_with_no_switch_warns():
+    """MAD-X writes SR off whatever is asked, so `radiation: quantum` there
+    was dropped without a word."""
+    line = FakeLine({"radiation": "quantum"})
+    line.code, line.supports_radiation = "madx", False
+    with pytest.warns(
+        UserWarning,
+        match="not applied.*bmad, elegant, ocelot and xsuite are the codes that can",
+    ):
+        line.check_radiation_supported()
+
+
+@pytest.mark.parametrize("tracking", [{}, {"radiation": "quantum"}], ids=["unstated", "switchable"])
+def test_nothing_to_say_otherwise(tracking):
+    line = FakeLine(tracking)
+    if not tracking:
+        line.supports_radiation = False
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        line.check_radiation_supported()
+
+
 # --- the warning --------------------------------------------------------
 
 
@@ -138,7 +163,7 @@ def test_a_code_that_already_radiates_is_silent():
 
 def test_the_warning_says_what_is_wrong_with_the_answer():
     """Not that something failed -- that the numbers mean something else."""
-    with pytest.warns(UserWarning, match="never reaches equilibrium"):
+    with pytest.warns(UserWarning, match="never reach equilibrium"):
         FakeLine(RING).check_radiation()
 
 

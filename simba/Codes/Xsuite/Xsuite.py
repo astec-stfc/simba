@@ -18,8 +18,10 @@ try:
 except ImportError:
     has_cupy = False
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules import Beams as rbf
+from ...Modules.constants import speed_of_light
 from copy import deepcopy
 import numpy as np
 import json
@@ -65,6 +67,9 @@ class xsuiteLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """``line.track(num_turns=...)``."""
 
+    native_time: ClassVar[tuple[str, str]] = ("zeta", "m")
+    """``zeta = s - beta0 c t``, measured from the reference."""
+
     supports_radiation: ClassVar[bool] = True
     """``line.configure_radiation(model=...)``."""
 
@@ -88,6 +93,17 @@ class xsuiteLattice(frameworkLattice):
     """Natively, and without simba looping: an element attribute bound to a
     ``FunctionPieceWiseLinear`` of ``t_turn_s`` varies inside a single
     ``line.track(num_turns=N)`` call."""
+
+    supports_ramp: ClassVar[bool] = True
+    """Natively, by ``xt.EnergyProgram``; see :meth:`bind_ramp`."""
+
+    native_rf: ClassVar[str] = "synchronous"
+    """Under a ramp, the gain per turn is what a cavity phased to
+    the reference every pass gives -- ``zeta`` is from the reference. Moved
+    by :meth:`bind_rf_phases`."""
+
+    rf_phase_sign: ClassVar[float] = 1.0
+    """``lag`` (degrees) moved by this times a phase the reference sees."""
 
     otm_convention: ClassVar[str] = "x, px, y, py, zeta, delta"
     """One-turn-map convention"""
@@ -127,6 +143,17 @@ class xsuiteLattice(frameworkLattice):
     tws: Any | None = None
     """Xsuite Twiss Table output"""
 
+    reference_at_start: Any | None = None
+    """The line's reference particle before tracking: a ramp moves it"""
+
+    end_monitor: Any | None = None
+    """The beam at the end of each pass but the last of a multi-pass run; the
+    last is :attr:`pout`"""
+
+    _closed_orbit: Any = None
+    """The run's ``find_closed_orbit()``, found once by whichever of
+    :meth:`read_one_turn_map` and :meth:`read_closed_orbit` asks first"""
+
     matrices: Dict | None = None
     """Dictionary of R-matrices produced by tracking"""
 
@@ -139,14 +166,18 @@ class xsuiteLattice(frameworkLattice):
     grids: getGrids = None
     """Class for calculating the required number of space charge grids"""
 
-    pic_solver: Literal['FFTSolver2p5DAveraged'] = 'FFTSolver2p5DAveraged'
-    """PIC solver to use for space charge calculations"""
+    pic_solver: Literal["FFTSolver3D", "FFTSolver2p5D", "FFTSolver2p5DAveraged"] = "FFTSolver3D"
+    """xfields' Poisson solver for space charge."""
 
-    ref_s: float = None
-    """Reference s position"""
+    space_charge_step: float = 0.1
+    """Metres between space-charge kicks, as Ocelot's ``unit_step``"""
 
-    ref_idx: int = None
-    """Reference particle index"""
+    space_charge_sigmas: ClassVar[tuple] = (8.0, 8.0, 5.0)
+    """Half-width of each space-charge grid in x, y and zeta, in rms beam
+    sizes beyond the beam's centre"""
+
+    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
+    """``charge: space_charge_mode`` values that mean no space charge"""
 
     program_attributes: ClassVar[dict] = {
         "Magnet": ("knl[0]", "ksl[0]"),
@@ -165,26 +196,17 @@ class xsuiteLattice(frameworkLattice):
     def model_post_init(self, __context):
         super().model_post_init(__context)
         import xobjects as xo
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
         if has_cupy:
             self.context = xo.ContextCupy()
         else:
             self.context = xo.ContextCpu()
         self.grids = getGrids()
+
+    @classmethod
+    def native_time_scale(cls, beta0: float) -> float:
+        """``zeta = -beta0 c (t - reference_time)``."""
+        return -beta0 * speed_of_light
 
 
     def writeElements(self) -> None:
@@ -196,9 +218,9 @@ class xsuiteLattice(frameworkLattice):
         import xtrack as xt
         self.env = xt.Environment()
         particle_ref = xt.Particles(
-            p0c=[self.global_parameters["beam"].centroids.mean_cp.val],
-            mass0=[self.global_parameters["beam"].particle_rest_energy_eV.val],
-            q0=-1,
+            p0c=[self.reference_p0c],
+            mass0=self.rest_energy,
+            q0=self.reference_charge,
             zeta=0.0,
         )
         beam_length = len(self.global_parameters["beam"].x.val)
@@ -209,48 +231,264 @@ class xsuiteLattice(frameworkLattice):
             save=True,
             turns=self.turns,
         )
+        self.install_monitors(beam_length)
         self.names = self.line.element_names
 
-    def setup_collective_effects(self) -> None:
+    def install_monitors(self, num_particles: int) -> None:
+        """
+        Add a ``ParticlesMonitor`` at every screen, marker and BPM, recording every pass.
+
+        Parameters
+        ----------
+        num_particles: int
+            Number of particles in the beam
+        """
+        import xtrack as xt
+        for elem in self.screens_and_markers_and_bpms:
+            if elem.name in self.line.element_dict:
+                self.line.element_dict[elem.name] = xt.ParticlesMonitor(
+                    num_particles=num_particles,
+                    start_at_turn=0,
+                    stop_at_turn=self.turns * self.passes_per_turn,
+                )
+
+    @property
+    def space_charge_mode(self) -> str:
+        """``charge: space_charge_mode``, lower-cased; ``""`` if not given."""
+        charge = self.file_block.get("charge") or {}
+        return str(charge.get("space_charge_mode", "")).lower()
+
+    @property
+    def space_charge(self) -> bool:
+        """
+        Whether the beam is tracked with space charge: ``3d``, as Ocelot reads it::
+
+            files:
+              LINE:
+                code: xsuite
+                charge: {space_charge_mode: 3d}
+
+        Any other mode but off is warned about in :meth:`preProcess`.
+        """
+        return self.space_charge_mode == "3d" and self.trackBeam
+
+    @property
+    def space_charge_resize(self) -> bool:
+        """
+        ``charge: space_charge_resize``: re-size every space-charge grid from a
+        pass *with* space charge, before tracking::
+
+            charge: {space_charge_mode: 3d, space_charge_resize: true}
+
+        The grids are otherwise sized from a pass without it
+        (:class:`~simba.exceptions.SpaceChargeOffGridWarning`). Off by default.
+        """
+        charge = self.file_block.get("charge") or {}
+        value = charge.get("space_charge_resize", False)
+        if isinstance(value, str):
+            return value.strip().lower() in ("true", "yes", "on", "1")
+        return bool(value)
+
+    @property
+    def single_particle_line(self):
+        """
+        :attr:`line` without its collective elements, for tracking particles
+        that are not a bunch: the reference orbit, dynamic aperture and the
+        frequency map.
+        """
+        if self.line.iscollective:
+            return self.line._get_non_collective_line()
+        return self.line
+
+    def install_space_charge(self) -> None:
+        """
+        Put a space-charge kick every :attr:`space_charge_step` metres of
+        :attr:`line`, before the tracker is built.
+        The grids are sized by walking
+        a sample of the beam once through the line, without space charge.
+        A beam that outgrows its grids on later passes is caught by
+        :meth:`check_space_charge_grids`. With :attr:`space_charge_resize`,
+        the sample walks the line again, and every grid is re-sized from that pass.
+        """
+        import xtrack as xt
+
+        length = self.line.get_length()
+        count = max(1, int(np.ceil(length / self.space_charge_step - 1e-9)))
+        step = length / count
+        names = [f"simba_space_charge_{i}" for i in range(count)]
+        env = self.line.env
+        for name in names:
+            env.new(name, xt.Marker)
+        self.line.insert(
+            [env.place(name, at=(i + 0.5) * step) for i, name in enumerate(names)]
+        )
+        self.names = self.line.element_names
+        half_widths = self.space_charge_half_widths(set(names))
+        self.line.build_tracker(_context=self.context, compile=False)
+        buffer = self.line._buffer
+        self.line.discard_tracker()
+        self._install_space_charge_grids(half_widths, step, buffer)
+        if self.space_charge_resize:
+            half_widths = self.space_charge_half_widths(
+                set(names), with_space_charge=True
+            )
+            self._install_space_charge_grids(half_widths, step, buffer)
+
+    def _install_space_charge_grids(
+        self, half_widths: dict, step: float, buffer: Any
+    ) -> None:
+        """
+        Put a ``SpaceCharge3D`` at every kick in ``half_widths``, replacing
+        whatever is there; see :meth:`install_space_charge`.
+
+        Parameters
+        ----------
+        half_widths: dict
+            ``{kick: (x, y, zeta)}``, from :meth:`space_charge_half_widths`
+        step: float
+            Length each kick stands for, in m
+        buffer: xobjects buffer
+            The line's
+        """
         import xfields as xf
-        if "charge" in list(self.file_block.keys()):
-            if (
-                "space_charge_mode" in list(self.file_block["charge"].keys())
-                and self.file_block["charge"]["space_charge_mode"].lower() == "3d"
-            ):
-                be = self.global_parameters["beam"]
-                gridsize = self.grids.getGridSizes(
-                    (len(be.x) / self.sample_interval)
-                )
-                sigma_z = be.sigmas.sigma_z.val
-                lprofile = xf.LongitudinalProfileQGaussian(
-                    number_of_particles=len(be.x),
-                    sigma_z=sigma_z,
-                )
-                xf.install_spacecharge_frozen(
-                    line=self.line,
-                    longitudinal_profile=lprofile,
-                    nemitt_x=be.emittance.normalized_horizontal_emittance.val,
-                    nemitt_y=be.emittance.normalized_horizontal_emittance.val,
-                    sigma_z=sigma_z,
-                    num_spacecharge_interactions=len(self.getNames())
-                )
-                pic_collection, all_pics = xf.replace_spacecharge_with_PIC(
-                    line=self.line,
-                    n_sigmas_range_pic_x=8,
-                    n_sigmas_range_pic_y=8,
-                    nx_grid=gridsize,
-                    ny_grid=gridsize,
-                    nz_grid=gridsize,
-                    n_lims_x=7,
-                    n_lims_y=3,
-                    z_range=(-3 * sigma_z, 3 * sigma_z),
-                    solver=self.pic_solver)
+        import xobjects as xo
+
+        n = self.grids.getGridSizes(len(self.pin.x))
+        hz = max((width[2] for width in half_widths.values()), default=0.0)
+        ladder = 1.25
+        buckets = {}
+        for name, (hx, hy, _) in half_widths.items():
+            # widths rounded up a rung of the ladder, so neighbours share a grid
+            key = tuple(
+                int(np.ceil(np.log(max(h, 1e-9)) / np.log(ladder))) for h in (hx, hy)
+            )
+            buckets.setdefault(key, []).append(name)
+        for (kx, ky), members in buckets.items():
+            hx, hy = ladder**kx, ladder**ky
+            pic = xf.SpaceCharge3D(
+                _buffer=buffer,
+                length=step,
+                update_on_track=True,
+                apply_z_kick=self.pic_solver == "FFTSolver3D",
+                x_range=(-hx, hx),
+                y_range=(-hy, hy),
+                z_range=(-max(hz, 1e-9), max(hz, 1e-9)),
+                nx=n,
+                ny=n,
+                nz=n,
+                solver=self.pic_solver,
+                gamma0=float(self.line.particle_ref.gamma0[0]),
+                fftplan=self._space_charge_fftplan(n) if isinstance(self.context, xo.ContextCpu) else None,
+            )
+            # the copies go in the same buffer, which cannot move once used
+            pic._buffer.grow(10 * 1024**2)
+            for name in members:
+                self.line.element_dict[name] = pic.copy(_buffer=buffer)
+
+    def _space_charge_fftplan(self, n: int):
+        """A numpy FFT plan for :attr:`pic_solver` on a grid of ``n`` cells a side."""
+        from xobjects.context_cpu import FFTCpu
+
+        shape, axes = {
+            "FFTSolver3D": ((2 * n, 2 * n, 2 * n), (0, 1, 2)),
+            "FFTSolver2p5D": ((2 * n, 2 * n, n), (0, 1)),
+            "FFTSolver2p5DAveraged": ((2 * n, 2 * n), (0, 1)),
+        }[self.pic_solver]
+        return FFTCpu(np.zeros(shape, dtype=complex, order="F"), axes=axes, threads=0)
+
+    def space_charge_half_widths(
+        self, kicks: set, sample: int = 10000, with_space_charge: bool = False
+    ) -> dict:
+        """
+        The half-widths of the beam at each space-charge kick, from one pass
+        of (at most ``sample`` particles of) :attr:`pin`: without space charge,
+        or through the kicks already installed.
+
+        Parameters
+        ----------
+        kicks: set
+            Names of the kicks
+        sample: int
+            Most particles to walk
+        with_space_charge: bool
+            Kick the sample at each kick, its weights scaled up to the whole
+            beam's charge
+
+        Returns
+        -------
+        dict
+            ``{kick: (x, y, zeta)}``: :attr:`space_charge_sigmas` rms sizes
+            beyond the beam's centre, from zero. A kick no particle reaches
+            alive has none.
+        """
+        import xtrack as xt
+
+        stride = max(1, int(np.ceil(len(self.pin.x) / sample)))
+        keep = np.zeros(len(self.pin.x), dtype=bool)
+        keep[::stride] = True
+        particles = self.pin.filter(keep)
+        if with_space_charge:
+            particles.weight *= float(np.sum(self.pin.weight)) / float(
+                np.sum(particles.weight)
+            )
+        recentre = self.turns * self.passes_per_turn == 1
+        self.line.build_tracker(_context=self.context)
+        widths = {}
+        try:
+            for element, name in zip(self.line.elements, self.line.element_names):
+                if recentre:
+                    # as run() does, one pass at a time
+                    particles.zeta -= np.mean(particles.zeta)
+                if name in kicks:
+                    alive = np.asarray(particles.state) > 0
+                    if alive.any():
+                        widths[name] = tuple(
+                            abs(np.mean(values)) + sigmas * np.std(values)
+                            for values, sigmas in zip(
+                                (np.asarray(getattr(particles, coord))[alive]
+                                 for coord in ("x", "y", "zeta")),
+                                self.space_charge_sigmas,
+                            )
+                        )
+                    if with_space_charge:
+                        self._track_element(element, particles)
+                elif not isinstance(element, xt.ParticlesMonitor):
+                    element.track(particles, increment_at_element=True)
+        finally:
+            self.line.discard_tracker()
+        return widths
+
+    def check_space_charge_grids(self, particles, tolerance: float = 1e-3) -> None:
+        """
+        Warn if more than ``tolerance`` of the beam leaving the line is outside
+        the last space-charge grid.
+
+        Parameters
+        ----------
+        particles: xtrack.Particles
+            The beam at the end of the line
+        tolerance: float
+            The fraction of the beam allowed off the grid
+        """
+        import xfields as xf
+
+        kicks = [e for e in self.line.elements if isinstance(e, xf.SpaceCharge3D)]
+        alive = np.asarray(particles.state) > 0
+        if not kicks or not alive.any():
+            return
+        fieldmap = kicks[-1].fieldmap
+        outside = np.zeros(int(alive.sum()), dtype=bool)
+        for coord, grid in (("x", fieldmap.x_grid), ("y", fieldmap.y_grid), ("zeta", fieldmap.z_grid)):
+            values = np.asarray(getattr(particles, coord))[alive]
+            outside |= (values < grid[0]) | (values > grid[-1])
+        fraction = float(np.mean(outside))
+        if fraction > tolerance:
+            warn(exceptions.SpaceChargeOffGridWarning(self.objectname, fraction))
 
     def write(self) -> None:
         """
         Create the lattice object via :func:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.writeElements`
-        and save it as a python file to `master_subdir`.
+        and save it to `master_subdir`.
         """
         self.writeElements()
 
@@ -261,18 +499,11 @@ class xsuiteLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.ref_s = self.global_parameters["beam"].s
-        self.read_input_file(prefix, self.particle_definition)
-        if self.initial_twiss["horizontal"]["beta"]:
-            self.global_parameters["beam"].beam.rematchXPlane(
-                **self.initial_twiss["horizontal"]
-            )
-        if self.initial_twiss["vertical"]["beta"]:
-            self.global_parameters["beam"].beam.rematchYPlane(
-                **self.initial_twiss["vertical"]
-            )
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_json(prefix)
+        mode = self.space_charge_mode
+        if mode not in self.space_charge_modes_off + ("3d",):
+            warn(exceptions.SpaceChargeModeWarning(self.objectname, "Xsuite", mode, "'3d'"))
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
         """
@@ -291,14 +522,15 @@ class xsuiteLattice(frameworkLattice):
             self.global_parameters["beam"],
             xsuitebeamfilename,
             write=write,
-            s_start=self.start_s,
+            s_start=self.entrance_s,
+            p0c=self.reference_p0c,
+            t0=self.reference_t0,
         )
 
     def insert_reference_energy_increases(self) -> None:
         """
         Insert an ``xtrack.ReferenceEnergyIncrease`` immediately ahead of every
-        cavity in :attr:`~line`, so that the reference momentum follows the
-        acceleration.
+        cavity in :attr:`~line`.
         """
         import xtrack as xt
         from xtrack import Cavity, ReferenceEnergyIncrease
@@ -306,16 +538,17 @@ class xsuiteLattice(frameworkLattice):
         if any(isinstance(e, ReferenceEnergyIncrease) for e in self.line.elements):
             return
         new_elements, new_names = [], []
+        mass0 = float(self.line.particle_ref.mass0)
+        p0c = float(self.line.particle_ref.p0c[0])
         for el, name in zip(self.line.elements, self.line.element_names):
             if isinstance(el, Cavity):
-                # `phase` (radians) is the current Xsuite field, `lag` (degrees)
-                # the deprecated one; Xsuite sums the two.
                 on_crest_phase = el.phase + el.lag * np.pi / 180
+                energy = np.hypot(p0c, mass0) + el.voltage * np.sin(on_crest_phase)
+                p0c_after = np.sqrt(energy**2 - mass0**2)
                 new_elements.append(
-                    xt.ReferenceEnergyIncrease(
-                        Delta_p0c=el.voltage * np.sin(on_crest_phase)
-                    )
+                    xt.ReferenceEnergyIncrease(Delta_p0c=p0c_after - p0c)
                 )
+                p0c = p0c_after
                 new_names.append(f"{name}_p0c")
             new_elements.append(el)
             new_names.append(name)
@@ -350,30 +583,17 @@ class xsuiteLattice(frameworkLattice):
         if not self.programs:
             return
         period = self.revolution_period
+        clock = self.ramp_clock(self.line.get_length())
         bound = False
         for program in self.programs:
-            if program.element not in self.line.element_names:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}', "
-                    "which is not in the Xsuite line. Nothing is varied."
-                )
-                continue
-            element = self.line.element_dict[program.element]
-            vertical = self.program_is_vertical(program.element)
-            attribute = program.parameter
+            element = self.line.element_dict.get(program.element)
+            attribute = self.program_attribute(
+                program, None if element is None else type(element).__name__
+            )
             if attribute is None:
-                planes = self.program_attributes.get(type(element).__name__)
-                attribute = planes[1] if vertical else planes[0] if planes else None
-            if attribute is None:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}', "
-                    f"an Xtrack {type(element).__name__}, and simba has no "
-                    "default attribute for that class. Name it with "
-                    "'parameter:' in the program."
-                )
                 continue
             sign = self.program_signs.get(attribute, 1.0) if not program.parameter else 1.0
-            times, values = program.time_knots(period)
+            times, values = program.time_knots(period, clock=clock)
             name = f"{program.element}_simba_program"
             self.line.functions[name] = xt.FunctionPieceWiseLinear(
                 x=times, y=[sign * value for value in values]
@@ -391,33 +611,116 @@ class xsuiteLattice(frameworkLattice):
         if bound:
             self.line.enable_time_dependent_vars = True
 
+    def bind_rf_phases(self) -> None:
+        """
+        Bind each cavity's ``lag`` to a staircase in ``t_turn_s``, one step a
+        pass, so Xsuite's cavities, phased to the reference every pass, run as
+        :attr:`rf_mode` asks; see
+        :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`.
+        """
+        import xtrack as xt
+
+        corrections = self.rf_phase_corrections()
+        if not corrections:
+            return
+        passes = self.turns * self.passes_per_turn
+        clock = self.ramp_clock(self.line.get_length())
+        if clock is not None:
+            starts = np.asarray(clock.times[:passes], dtype=float)
+        else:
+            starts = np.arange(passes) * self.revolution_period / self.passes_per_turn
+        for name, correction in corrections.items():
+            if name not in self.line.element_dict:
+                warn(
+                    f"Line '{self.objectname}' moves the RF phase of '{name}', "
+                    "which is not in the Xsuite line. It runs as given."
+                )
+                continue
+            lag = float(self.line.element_dict[name].lag)
+            times, lags = self.pass_staircase(
+                starts, lag + self.rf_phase_shifts(correction)
+            )
+            function = f"{name}_simba_rf_phase"
+            self.line.functions[function] = xt.FunctionPieceWiseLinear(
+                x=times, y=lags
+            )
+            self.line.element_refs[name].lag = self.line.functions[function](
+                self.line.vars["t_turn_s"]
+            )
+        self.line.enable_time_dependent_vars = True
+
+    def bind_ramp(self) -> None:
+        """
+        Give the line an ``xt.EnergyProgram`` holding :meth:`ramp`.
+        Done before the tracker is built.
+
+        One knot per pass, at the times of
+        :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock`.
+        """
+        import xtrack as xt
+
+        if not self.ramped:
+            return
+        clock = self.ramp_clock(self.line.get_length())
+        self.line.energy_program = xt.EnergyProgram(
+            t_s=np.asarray(clock.times),
+            p0c=self.ramp.p0c_per_pass(
+                self.turns, self.rest_energy, self.passes_per_turn
+            ),
+        )
+
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
-        self.insert_reference_energy_increases()
+        if not self.fixed_reference:
+            self.insert_reference_energy_increases()
+        self.bind_ramp()
+        if self.space_charge:
+            self.install_space_charge()
         self.line.build_tracker(_context=self.context)
         if self.radiation not in (None, "off"):
             self.line.configure_radiation(model=self.radiation)
-        self.line.freeze_longitudinal(state=False)
         self.line.freeze_energy(state=False, force=True)
+        self.line.config["FREEZE_VAR_zeta"] = False
         self.bind_programs()
+        self.bind_rf_phases()
+        if self.line.energy_program is not None:
+            self.line.enable_time_dependent_vars = True
+        self.reference_at_start = self.line.particle_ref.copy()
+        self._closed_orbit = None
         pin = deepcopy(self.pin)
 
-        if self.turns > 1:
-            self.line.track(pin, num_turns=self.turns * self.passes_per_turn)
+        passes = self.turns * self.passes_per_turn
+        if passes > 1:
+            import xtrack as xt
+            self.end_monitor = xt.ParticlesMonitor(
+                num_particles=len(pin.x), start_at_turn=0, stop_at_turn=passes
+            )
+            self.line.track(pin, num_turns=passes, turn_by_turn_monitor=self.end_monitor)
             self.pout = pin
+            self.check_space_charge_grids(pin)
             self.collect_beam_data(deepcopy(pin))
             self.tws = self._twiss()
             return
 
         for el, name in zip(self.line.elements, self.line.element_names):
             pin.zeta -= np.mean(pin.zeta)  # Center zeta
-            el.track(pin, increment_at_element=True)  # Track in-place
+            self._track_element(el, pin)  # Track in-place
             self.beam_data.update({name: self.bunch_statistics(pin)})
         self.beam_data.update({"_end_point": self.bunch_statistics(pin)})
         self.pout = pin
+        self.check_space_charge_grids(pin)
         self.tws = self._twiss()
+
+    @staticmethod
+    def _track_element(element, particles) -> None:
+        """Track ``particles`` through one element, in place. A collective
+        element (space charge) takes no ``increment_at_element``."""
+        if getattr(element, "iscollective", False):
+            element.track(particles)
+        else:
+            element.track(particles, increment_at_element=True)
 
     def bunch_statistics(self, particles) -> dict:
         """Per-element bunch statistics, as the twiss file wants them;
@@ -471,7 +774,7 @@ class xsuiteLattice(frameworkLattice):
         """
         stats = None
         for el, name in zip(self.line.elements, self.line.element_names):
-            el.track(particles, increment_at_element=True)
+            self._track_element(el, particles)
             stats = self.bunch_statistics(particles)
             self.beam_data.update({name: stats})
         if stats is not None:
@@ -483,18 +786,36 @@ class xsuiteLattice(frameworkLattice):
 
         ``line.twiss()`` with no initial conditions is Xsuite's closed
         solution, so a ring is a matter of not passing them.
+        Always the machine of turn 1.
 
         Returns
         -------
         xt.Line.twiss
             Xtrack's twiss object
         """
+        dependent = self.line.enable_time_dependent_vars
+        if not dependent:
+            return self._twiss_now()
+        self.line.enable_time_dependent_vars = False
+        self.line.vars["t_turn_s"] = 0.0
+        if self.reference_at_start is not None:
+            self.line.particle_ref = self.reference_at_start.copy()
+        try:
+            return self._twiss_now()
+        finally:
+            self.line.enable_time_dependent_vars = dependent
+
+    def _twiss_now(self):
+        """:meth:`_twiss`, on the line as it stands."""
         kwargs = dict(
             compute_R_element_by_element=False,
             method="6d",
             freeze_energy=False,
         )
         if self.periodic:
+            if not self.rf_voltage:
+                kwargs.update(method="4d")
+                kwargs.pop("freeze_energy")
             return self.line.twiss(**kwargs)
         return self.line.twiss(
             betx=self.global_parameters["beam"].twiss.beta_x.val,
@@ -534,7 +855,9 @@ class xsuiteLattice(frameworkLattice):
             stop_at_turn=passes,
             num_particles=1,
         )
-        self.line.track(particles, num_turns=passes, turn_by_turn_monitor=monitor)
+        self.single_particle_line.track(
+            particles, num_turns=passes, turn_by_turn_monitor=monitor
+        )
         stride = self.passes_per_turn
         return {
             name: np.append(
@@ -566,7 +889,9 @@ class xsuiteLattice(frameworkLattice):
             ``(x, y, turns_survived)`` per grid point.
         """
         grid_x, grid_y, particles = self._da_particles()
-        self.line.track(particles, num_turns=self.turns * self.passes_per_turn)
+        self.single_particle_line.track(
+            particles, num_turns=self.turns * self.passes_per_turn
+        )
         order = np.argsort(particles.particle_id)
         turns = np.asarray(particles.at_turn)[order] // self.passes_per_turn
         self.dynamic_aperture = [
@@ -601,7 +926,9 @@ class xsuiteLattice(frameworkLattice):
             stop_at_turn=passes,
             num_particles=len(grid_x),
         )
-        self.line.track(particles, num_turns=passes, turn_by_turn_monitor=monitor)
+        self.single_particle_line.track(
+            particles, num_turns=passes, turn_by_turn_monitor=monitor
+        )
         stride = self.passes_per_turn
         twiss = self.normalisation_twiss()
         footprint = []
@@ -634,10 +961,16 @@ class xsuiteLattice(frameworkLattice):
         self.frequency_map = footprint
         return footprint
 
+    def find_closed_orbit(self):
+        """``line.find_closed_orbit()``, once a run."""
+        if self._closed_orbit is None:
+            self._closed_orbit = self.line.find_closed_orbit()
+        return self._closed_orbit
+
     def read_closed_orbit(self):
-        """``line.find_closed_orbit()``, already called for the one-turn map."""
+        """:meth:`find_closed_orbit`, already called for the one-turn map."""
         try:
-            orbit = self.line.find_closed_orbit()
+            orbit = self.find_closed_orbit()
         except Exception as error:
             warn(f"Xsuite found no closed orbit for {self.objectname}: {error}")
             return None
@@ -676,7 +1009,7 @@ class xsuiteLattice(frameworkLattice):
             The 6x6 map, or None if Xsuite could not find a closed orbit.
         """
         try:
-            closed_orbit = self.line.find_closed_orbit()
+            closed_orbit = self.find_closed_orbit()
             result = self.line.compute_R_matrix(particle_on_co=closed_orbit)
             return np.asarray(result["R_matrix"], dtype=float)
         except Exception as error:
@@ -727,57 +1060,89 @@ class xsuiteLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
+        Convert the outputs from Xsuite to HDF5 format and save them to `master_subdir`.
+
+        A beam is written at every screen, marker and BPM (see
+        :meth:`install_monitors`) and at the end of the line, for each of
+        :meth:`output_turns`.
         """
-        import xobjects as xo
         super().postProcess()
-        bfname = f'{self.global_parameters["master_subdir"]}/{self.end}.xsuite.json'
-        with open(bfname, 'w') as fid:
-            json.dump(self.pout.to_dict(), fid, cls=xo.JEncoder)
-        beam = deepcopy(self.global_parameters["beam"])
-        svals = self.getSValues(as_dict=True)
-        beam.read_xsuite_beam_file(
-            bfname,
-            zstart=self.endObject.physical.middle.z,
-            s=svals[self.end],
-            ref_index=self.ref_idx
-        )
-        # the beam leaving the line is the last turn's, by definition
-        beam.turn = self.turns
-        rbf.openpmd.write_openpmd_beam_file(
-            beam,
-            f'{self.global_parameters["master_subdir"]}/'
-            f'{self.output_basename(self.end)}.openpmd.hdf5',
-        )
-        for elem in self.screens_and_bpms:
+        svals = {
+            name: value + self.entrance_s
+            for name, value in self.getSValues(as_dict=True).items()
+        }
+        ends = self.end_monitor.data.to_dict() if self.end_monitor is not None else None
+        for data_turn, name_turn in self.output_turns():
+            turn = self.beam_turn(data_turn)
+            if turn == self.turns or ends is None:
+                payload = self.pout.to_dict()
+            else:
+                # the end of turn k is the start of the pass after it
+                payload = _select_turn(ends, turn * self.passes_per_turn)
+            self._write_xsuite_beam(
+                payload, self.end, name_turn, turn,
+                self.endObject.physical.middle.z, svals[self.end],
+            )
+        for elem in self.screens_and_markers_and_bpms:
+            # the end's is written above
+            if elem.name == self.end or elem.name not in self.line.element_dict:
+                continue
             data = self.line[elem.name].data.to_dict()
             for data_turn, name_turn in self.output_turns():
-                payload = (
-                    data if data_turn is None else _select_turn(data, data_turn - 1)
+                if not self.writes_output(elem.name, name_turn):
+                    continue
+                turn = self.beam_turn(data_turn)
+                self._write_xsuite_beam(
+                    _select_turn(data, turn * self.passes_per_turn - 1),
+                    elem.name, name_turn, turn,
+                    elem.physical.middle.z, svals[elem.name],
                 )
-                stem = self.output_basename(elem.name, turn=name_turn)
-                fname = (
-                    f'{self.global_parameters["master_subdir"]}/{stem}.xsuite.json'
-                )
-                with open(fname, 'w') as fid:
-                    json.dump(payload, fid, cls=xo.JEncoder)
-                beam = deepcopy(self.global_parameters["beam"])
-                beam.read_xsuite_beam_file(
-                    fname,
-                    zstart=elem.physical.middle.z,
-                    s=svals[elem.name],
-                    ref_index=self.ref_idx,
-                )
-                beam.turn = self.beam_turn(data_turn)
-                rbf.openpmd.write_openpmd_beam_file(
-                    beam,
-                    f'{self.global_parameters["master_subdir"]}/'
-                    f'{stem}.openpmd.hdf5',
-                )
+        self._write_twiss_csv()
+
+    def _write_xsuite_beam(
+        self, payload: dict, name: str, name_turn: int | None, turn: int,
+        zstart: float, s: float,
+    ) -> None:
+        """
+        Write one beam as ``.xsuite.json`` and ``.openpmd.hdf5``.
+
+        Parameters
+        ----------
+        payload: dict
+            ``Particles.to_dict()``, or one turn of a monitor's
+        name: str
+            Element the beam is at
+        name_turn: int | None
+            Turn for the file name; see :meth:`output_basename`
+        turn: int
+            Turn the beam is from
+        zstart: float
+            z of the element
+        s: float
+            s of the element, in the machine
+        """
+        import xobjects as xo
+        stem = self.output_basename(name, turn=name_turn)
+        directory = self.global_parameters["master_subdir"]
+        fname = f"{directory}/{stem}.xsuite.json"
+        with open(fname, "w") as fid:
+            json.dump(payload, fid, cls=xo.JEncoder)
+        t_reference = None
+        if self.uses_reference_clock:
+            t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))
+        beam = deepcopy(self.global_parameters["beam"])
+        beam.read_xsuite_beam_file(
+            fname, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference
+        )
+        beam.turn = turn
+        rbf.openpmd.write_openpmd_beam_file(beam, f"{directory}/{stem}.openpmd.hdf5")
+
+    def _write_twiss_csv(self) -> None:
+        """The twiss table, with the tracked beam statistics beside it."""
         df = self.tws.to_pandas()
-        # Anchor s to the lattice start (not the incoming beam's accumulated s) to
-        # match Elegant/Ocelot/MAD-X.
-        df["s"] += self.start_s
+        # Anchor s to the lattice entrance (not the incoming beam's accumulated s),
+        # as every code does.
+        df["s"] += self.entrance_s
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         df["z"] = np.interp(df["s"], svals, zvals)

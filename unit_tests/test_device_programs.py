@@ -30,6 +30,7 @@ exports and tracks perfectly.
 
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -70,6 +71,7 @@ class FakeLine:
         self.code = code
         self.objectname = "RING"
         self.supports_programs = supports
+        self.supports_ramp = supports
         # no superperiods here: a turn is one pass, which is what every
         # program test below assumes. See ``test_superperiods.py``.
         self.supports_nsuperperiods = True
@@ -83,9 +85,14 @@ class FakeLine:
     nsuperperiods = frameworkLattice.nsuperperiods
     passes_per_turn = frameworkLattice.passes_per_turn
     programs = frameworkLattice.programs
+    ramp = frameworkLattice.ramp
+    ramped = frameworkLattice.ramped
+    ramp_clock = frameworkLattice.ramp_clock
     check_programs_supported = frameworkLattice.check_programs_supported
+    codes_that_can = frameworkLattice.codes_that_can
     check_programs_fit = frameworkLattice.check_programs_fit
     program_is_vertical = frameworkLattice.program_is_vertical
+    program_attribute = frameworkLattice.program_attribute
     apply_programs = frameworkLattice.apply_programs
 
 
@@ -429,7 +436,18 @@ class TestXsuite:
 
     def test_an_element_that_is_not_there_says_so(self):
         line = FakeXsuite({"programs": [{"element": "NOPE", **PULSE}]})
-        with pytest.warns(UserWarning, match="not in the Xsuite line"):
+        with pytest.warns(UserWarning, match="not in the xsuite lattice"):
+            line.bind_programs()
+
+    def test_a_vertical_element_with_no_default_says_so(self):
+        """Rather than ``TypeError: 'NoneType' object is not subscriptable``."""
+        xt = pytest.importorskip("xtrack")
+        line = FakeXsuite(
+            {"programs": [{"element": "KICK1", **PULSE}]},
+            element=xt.Cavity(voltage=0.0, frequency=1e6),
+        )
+        line._elements["KICK1"] = SimpleNamespace(hardware_type="Vertical_Corrector")
+        with pytest.warns(UserWarning, match="no default attribute"):
             line.bind_programs()
 
     def test_the_revolution_period_uses_beta0(self):
@@ -512,7 +530,7 @@ class TestOcelot:
 
     def test_an_element_that_is_not_there_says_so(self):
         line = FakeOcelot({"programs": [{"element": "NOPE", **PULSE}]})
-        with pytest.warns(UserWarning, match="not in the Ocelot lattice"):
+        with pytest.warns(UserWarning, match="not in the ocelot lattice"):
             line.apply_programs(4)
 
     def test_an_element_without_the_attribute_says_so(self):
@@ -530,31 +548,45 @@ class FakeMadx(FakeLine):
     """``madxLattice.apply_programs`` against a real, thin-sliced sequence."""
 
     apply_programs = madxLattice.apply_programs
+    bind_programs = madxLattice.bind_programs
+    check_programs_present = madxLattice.check_programs_present
+    program_variable = staticmethod(madxLattice.program_variable)
+    program_attribute = frameworkLattice.program_attribute
     program_attributes = madxLattice.program_attributes
 
-    def __init__(self, tracking, etype="HKICKER"):
+    def __init__(self, tracking, etype="HKICKER", length=0.0, attributes=""):
         super().__init__(tracking, code="madx", supports=True)
         cpymad = pytest.importorskip("cpymad.madx")
+        self.segments = [["D1", "KICK1", "D2"]]
         self._madx = cpymad.Madx(stdout=False)
+        # in `track_one_turn`'s order: turn 1 set before the sequence exists,
+        # then the sequence, the binding, and the slicing
+        self.apply_programs(1)
         self._madx.input(
             f"""
-            D1: DRIFT, L={LENGTH / 2};
-            KICK1: {etype}, L=0.0;
-            D2: DRIFT, L={LENGTH / 2};
+            D1: DRIFT, L={(LENGTH - length) / 2};
+            KICK1: {etype}, L={length}{attributes};
+            D2: DRIFT, L={(LENGTH - length) / 2};
             RING: SEQUENCE, L={LENGTH};
-              D1, AT={LENGTH / 4};
+              D1, AT={(LENGTH - length) / 4};
               KICK1, AT={LENGTH / 2};
-              D2, AT={3 * LENGTH / 4};
+              D2, AT={LENGTH - (LENGTH - length) / 4};
             ENDSEQUENCE;
             BEAM, PARTICLE=ELECTRON, PC=1.0;
+            """
+        )
+        self.bind_programs(self._madx, self.segments[0])
+        self._madx.input(
+            """
             USE, SEQUENCE=RING;
             SELECT, FLAG=MAKETHIN, CLEAR;
-            MAKETHIN, SEQUENCE=RING, STYLE=TEETH;
+            SELECT, FLAG=MAKETHIN, CLASS=QUADRUPOLE, SLICE=4;
+            MAKETHIN, SEQUENCE=RING, STYLE=TEAPOT;
             USE, SEQUENCE=RING;
             """
         )
 
-    def kicks(self, turns=7):
+    def kicks(self, turns=7, coordinate="px"):
         history = []
         for turn in range(1, turns + 1):
             self.apply_programs(turn)
@@ -568,7 +600,7 @@ class FakeMadx(FakeLine):
                 ENDTRACK;
                 """
             )
-            history.append(float(list(self._madx.table.trackone.px)[-1]))
+            history.append(float(list(getattr(self._madx.table.trackone, coordinate))[-1]))
         return history
 
     def close(self):
@@ -577,6 +609,13 @@ class FakeMadx(FakeLine):
 
 class TestMadx:
     """``name->attribute`` re-stated between turns of :func:`run_segments`."""
+
+    @pytest.fixture(autouse=True)
+    def _run_somewhere_disposable(self, tmp_path, monkeypatch):
+        """MAD-X ``TRACK`` drops ``checkpoint_restart.dat`` into its working
+        directory, which for :class:`FakeMadx` is this process's: the
+        repository's, unless moved."""
+        monkeypatch.chdir(tmp_path)
 
     @staticmethod
     def line(**overrides):
@@ -626,18 +665,99 @@ class TestMadx:
     def test_an_element_that_is_not_there_says_so(self):
         line = FakeMadx({"programs": [{"element": "NOPE", **PULSE}]})
         try:
-            with pytest.warns(UserWarning, match="MAD-X does not have"):
-                line.apply_programs(4)
+            with pytest.warns(UserWarning, match="not in the madx lattice"):
+                line.check_programs_present()
         finally:
             line.close()
 
     def test_a_type_with_no_default_attribute_says_so(self):
+        """When its segment is defined, which is when MAD-X can say."""
+        with pytest.warns(UserWarning, match="no default attribute"):
+            FakeMadx(
+                {"programs": [{"element": "KICK1", **PULSE}]}, etype="MARKER"
+            ).close()
+
+    def test_turn_one_is_set_before_the_element_exists(self):
+        """The turn loop sets turn 1 before the segment's first pass defines
+        the element, and that turn was tracked at the lattice's own value
+        with a warning that the element was not there."""
         line = FakeMadx(
-            {"programs": [{"element": "KICK1", **PULSE}]}, etype="MARKER"
+            {"programs": [{"element": "KICK1", "turns": [1, 2], "values": [5.0e-4, 0.0]}]}
         )
         try:
-            with pytest.warns(UserWarning, match="no default attribute"):
-                line.apply_programs(4)
+            assert float(line._madx.elements["kick1"].kick) == pytest.approx(5.0e-4)
+        finally:
+            line.close()
+
+    def test_a_sliced_element_follows_its_program(self):
+        """``MAKETHIN`` cuts a thick quadrupole into slices that keep the
+        strength they were cut with; ``QF->K1`` afterwards moved nothing."""
+        line = FakeMadx(
+            {"programs": [{"element": "KICK1", "parameter": "k1",
+                           "turns": [1, 2], "values": [1.0, 0.25]}]},
+            etype="QUADRUPOLE", length=1.0,
+        )
+        try:
+            slices = [name for name in line._madx.elements if name.startswith("kick1..")]
+            assert len(slices) == 4
+            line.apply_programs(2)
+            for name in slices:
+                assert float(line._madx.elements[name].knl[1]) == pytest.approx(0.25 / 4)
+        finally:
+            line.close()
+
+    def test_a_named_knl_follows_its_program_and_keeps_its_other_orders(self):
+        """``M->KNL = ...`` does nothing at all to a multipole."""
+        line = FakeMadx(
+            {"programs": [{"element": "KICK1", "parameter": "knl",
+                           "turns": [1, 2], "values": [0.0, 3.0e-4]}]},
+            etype="MULTIPOLE", attributes=", KNL={0.0, 0.5}",
+        )
+        try:
+            line.apply_programs(2)
+            knl = [float(value) for value in line._madx.elements["kick1"].knl]
+            assert knl[:2] == pytest.approx([3.0e-4, 0.5])
+        finally:
+            line.close()
+
+    @pytest.mark.parametrize("hardware, attribute", [
+        ("Horizontal_Kicker", "hkick"), ("Vertical_Kicker", "vkick"),
+    ])
+    def test_a_kicker_is_kicked_in_its_own_plane(self, hardware, attribute):
+        """A ``KICKER`` has both planes, and was always given ``hkick``."""
+        line = FakeMadx(
+            {"programs": [{"element": "KICK1", "turns": [1, 2], "values": [0.0, 2.0e-4]}]},
+            etype="KICKER",
+        )
+        try:
+            line._elements["KICK1"] = SimpleNamespace(hardware_type=hardware)
+            line.bind_programs(line._madx, line.segments[0])
+            line.apply_programs(2)
+            assert float(getattr(line._madx.elements["kick1"], attribute)) == pytest.approx(2.0e-4)
+        finally:
+            line.close()
+
+    @pytest.mark.parametrize("hardware, coordinate", [
+        ("Horizontal_Kicker", "px"), ("Vertical_Kicker", "py"),
+    ])
+    def test_a_multipole_cannot_be_kicked_and_says_so(self, hardware, coordinate):
+        """MAD-X kicks by ``-(KNL[0] - ANGLE)``, and ``ANGLE`` defaults to
+        ``KNL[0]``: a multipole's dipole order bends the reference, and
+        ``KSL[0]`` likewise. The program was bound to ``KNL`` and moved
+        nothing, in either plane, with no word said."""
+        with pytest.warns(UserWarning, match="kicks nothing"):
+            line = FakeMadx(
+                {"programs": [{"element": "KICK1", **PULSE}]},
+                etype="MULTIPOLE", attributes=", KNL={0.0, 0.0}, KSL={0.0, 0.0}",
+            )
+        try:
+            line._elements["KICK1"] = SimpleNamespace(hardware_type=hardware)
+            with pytest.warns(UserWarning, match="kicks nothing"):
+                line.bind_programs(line._madx, line.segments[0])
+            assert line.kicks(coordinate=coordinate) == [0.0] * 7
+            for attribute in ("knl", "ksl"):
+                line._madx.input(f"kick1, {attribute}:={{1.0e-3, 0.0}};")
+                assert line.kicks(coordinate=coordinate) == [0.0] * 7, attribute
         finally:
             line.close()
 
@@ -889,3 +1009,13 @@ class TestBmad:
         line.tao = None
         line.apply_programs(4)
         assert len(recwarn) == 0
+
+    def test_an_element_that_is_not_there_says_so(self):
+        """Even with the attribute named: Tao was sent ``set element`` with
+        ``raises=False``, so nothing varied and nothing said so."""
+        line = FakeBmad(
+            {"programs": [{"element": "NOPE", "parameter": "kick", **PULSE}]}
+        )
+        with pytest.warns(UserWarning, match="not in the bmad lattice"):
+            line.apply_programs(4)
+        assert line.tao.commands == []

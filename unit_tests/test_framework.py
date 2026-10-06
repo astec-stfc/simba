@@ -23,8 +23,10 @@ from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
 @pytest.fixture
-def simple_machine():
-    outdir = f"{os.path.dirname(os.path.abspath(__file__))}/framework"
+def simple_machine(tmp_path):
+    # not beside this file: under xdist, one test's rmtree raced another's
+    # writes, and left unit_tests/framework behind
+    outdir = str(tmp_path / "framework")
     m1 = Marker(
         name="M1",
         machine_area="FODO",
@@ -132,7 +134,6 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
     framework.set_lattice_prefix("FODO", f"{test_dir}/")
     framework.track = MagicMock()
     framework.track()
-    shutil.rmtree(f"{test_dir}/framework")
     os.remove(f"{test_dir}/M1.openpmd.hdf5")
     os.remove(f"{test_dir}/test.def")
     with pytest.raises(FileNotFoundError):
@@ -320,7 +321,6 @@ def test_change_lattice_code(framework_with_machine):
     assert isinstance(framework_with_machine.latticeObjects["FODO"], cheetahLattice)
     framework_with_machine.change_Lattice_Code(["FODO"], "astra")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], astraLattice)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 
 def test_modify_lattices(framework_with_machine):
@@ -328,7 +328,6 @@ def test_modify_lattices(framework_with_machine):
     assert not framework_with_machine.latticeObjects["FODO"].lsc_enable
     framework_with_machine.modifyLattices(["FODO"], "csr_enable", False)
     assert not framework_with_machine.latticeObjects["FODO"].csr_enable
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_change_generator(framework_with_machine):
     framework_with_machine.add_Generator(code="astra")
@@ -346,4 +345,3 @@ def test_change_generator(framework_with_machine):
             framework_with_machine.change_generator("none")
     framework_with_machine.change_generator("ASTRA")
     assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")

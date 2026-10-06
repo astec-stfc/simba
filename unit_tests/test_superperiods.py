@@ -56,6 +56,7 @@ class FakeLine:
     nsuperperiods = frameworkLattice.nsuperperiods
     passes_per_turn = frameworkLattice.passes_per_turn
     check_nsuperperiods_supported = frameworkLattice.check_nsuperperiods_supported
+    codes_that_can = frameworkLattice.codes_that_can
 
 
 # --- reading the count --------------------------------------------------
@@ -343,6 +344,7 @@ class PeriodLine:
 
     nsuperperiods = frameworkLattice.nsuperperiods
     passes_per_turn = frameworkLattice.passes_per_turn
+    pass_length = frameworkLattice.pass_length
     revolution_period = frameworkLattice.revolution_period
 
 
@@ -402,35 +404,93 @@ def test_ocelot_hands_the_count_to_track_nturns():
     assert source.count("nsuperperiods=self.nsuperperiods") == calls
 
 
-def test_ocelot_loops_the_sector_for_bunch_tracking():
-    """`track` does not take the argument, so the bunch path loops."""
+class TurnLine:
+    """Enough of a line for the shared turn loop, recording what it is asked
+    to do and in what order."""
+
+    def __init__(self, turns, nsuperperiods, write_turns=False):
+        self.turns = turns
+        self.passes_per_turn = nsuperperiods
+        self.write_turns = write_turns
+        self.calls = []
+        self._rf_corrections = None
+        self._rf_phase0 = None
+
+    def begin_rf_phases(self):
+        self.calls.append(("begin",))
+
+    def apply_rf_phases(self, pass_index):
+        self.calls.append(("rf", pass_index))
+
+    def apply_programs(self, turn):
+        self.calls.append(("programs", turn))
+
+    run_turns = frameworkLattice.run_turns
+    end_turns = frameworkLattice.end_turns
+    pass_index = frameworkLattice.pass_index
+    output_turns = frameworkLattice.output_turns
+
+
+def _passes(line):
+    passes = []
+    line.run_turns(lambda *args: passes.append(args))
+    return passes
+
+
+@pytest.mark.parametrize("cls", [ocelotLattice, madxLattice], ids=["ocelot", "madx"])
+def test_the_bunch_paths_loop_through_the_shared_turn_loop(cls):
+    """Ocelot's `track` does not take a superperiod count, and simba owns
+    MAD-X's turn loop, so both repeat the sector a pass at a time, in
+    `frameworkLattice.run_turns`."""
     import inspect
 
-    source = inspect.getsource(ocelotLattice.run)
-    assert "for sector in range(1, self.nsuperperiods + 1)" in source
+    source = inspect.getsource(cls.run if cls is ocelotLattice else cls.run_segments)
+    assert "self.run_turns(" in source
 
 
-def test_madx_loops_the_sector_inside_the_turn():
-    """simba owns the MAD-X turn loop, so a superperiod is an inner loop over
-    the same already-thin sequences."""
-    import inspect
+def test_the_turn_loop_tracks_every_pass_of_every_turn():
+    passes = _passes(TurnLine(turns=3, nsuperperiods=4))
+    assert [(turn, index) for turn, index, _, _ in passes] == [
+        (turn, (turn - 1) * 4 + sector)
+        for turn in range(1, 4)
+        for sector in range(4)
+    ]
 
-    source = inspect.getsource(madxLattice.run_segments)
-    assert "for sector in range(1, self.nsuperperiods + 1)" in source
 
-
-@pytest.mark.parametrize(
-    "method", [ocelotLattice.run, madxLattice.run_segments],
-    ids=["ocelot", "madx"],
-)
-def test_only_the_last_pass_of_a_turn_records(method):
+@pytest.mark.parametrize("write_turns", [False, True])
+def test_only_the_last_pass_of_a_turn_records(write_turns):
     """Output is counted per turn, so a screen gives one beam file per turn
-    rather than N. Both loops gate their writing on being the last sector --
-    without it a four-fold ring quadruples every file it writes."""
-    import inspect
+    rather than N; without this a four-fold ring quadruples every file it
+    writes."""
+    passes = _passes(TurnLine(turns=3, nsuperperiods=4, write_turns=write_turns))
+    recorded = [(turn, index, name) for turn, index, name, record in passes if record]
+    if write_turns:
+        assert recorded == [(1, 3, 1), (2, 7, 2), (3, 11, 3)]
+    else:
+        assert recorded == [(3, 11, None)]
 
-    source = inspect.getsource(method)
-    assert "sector == self.nsuperperiods" in source
+
+def test_programs_are_set_per_turn_and_rf_per_pass():
+    line = TurnLine(turns=2, nsuperperiods=2)
+    _passes(line)
+    assert line.calls == [
+        ("begin",),
+        ("programs", 1), ("rf", 0), ("rf", 1),
+        ("programs", 2), ("rf", 2), ("rf", 3),
+        # put back as turn 1 had it, for the optics
+        ("rf", None), ("programs", 1),
+    ]
+
+
+def test_the_line_is_put_back_even_if_a_pass_fails():
+    line = TurnLine(turns=2, nsuperperiods=1)
+
+    def fail(*args):
+        raise RuntimeError("tracking failed")
+
+    with pytest.raises(RuntimeError):
+        line.run_turns(fail)
+    assert line.calls[-2:] == [("rf", None), ("programs", 1)]
 
 
 def test_xsuite_multiplies_num_turns_rather_than_looping():
@@ -634,6 +694,7 @@ class FakeXsuiteRing:
     """
 
     track_reference_particle = xsuiteLattice.track_reference_particle
+    single_particle_line = xsuiteLattice.single_particle_line
 
     def __init__(self, copies=1, nsuperperiods=1, turns=20):
         self.line = _xtrack_sector(copies)

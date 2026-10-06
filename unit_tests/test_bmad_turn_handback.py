@@ -162,6 +162,9 @@ class FakeBmad:
     def _reference_energy(self):
         return PC
 
+    def _reference_p0c(self):
+        return PC
+
 
 @pytest.fixture(scope="module")
 def directory():

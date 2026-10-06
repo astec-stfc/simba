@@ -216,7 +216,6 @@ python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must b
     )
     framework.loadSettings(settings=settings)
     framework.global_parameters["beam"] = beam
-    framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
     framework.set_lattice_prefix("FODO", "../")
 

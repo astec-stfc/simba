@@ -60,6 +60,21 @@ def test_generate_longitudinal_distribution(simple_generator):
     assert isinstance(samples, np.ndarray)
     assert samples.shape == (gen.particles, 2)
 
+def test_t_is_the_same_bunch_as_z(simple_generator):
+    """t was ``abs(-z / c)``: the bunch folded in half, an rms 0.60 of
+    sigma_z and every particle behind the reference, for any code that
+    tracks t (Xsuite's space charge saw 1.65 times the peak current)."""
+    from simba.Modules import constants
+
+    beam = simple_generator.generate()
+    z, t = beam.z.val, beam.t.val
+    np.testing.assert_allclose(
+        t, -z / (beam.Bz.val * constants.speed_of_light), rtol=1e-12
+    )
+    assert np.std(t) * constants.speed_of_light == pytest.approx(np.std(z), rel=0.01)
+    assert np.any(t > 0) and np.any(t < 0)
+
+
 def test_load_defaults_dict(simple_generator):
     gen = simple_generator
     defaults = {"sigma_x": 2e-4, "sigma_y": 2e-4}

@@ -103,6 +103,10 @@ class elegantLattice(frameworkLattice):
     code: str = "elegant"
     """String indicating the lattice object type"""
 
+    electrons_only: ClassVar[bool] = True
+    """elegant can track other species with ``&change_particle``, but simba
+    does not write it, so anything else would be tracked as electrons."""
+
     supports_turns: ClassVar[bool] = True
     """``run_control``'s ``n_passes``."""
 
@@ -126,6 +130,17 @@ class elegantLattice(frameworkLattice):
     supports_programs: ClassVar[bool] = True
     """For a ``BUMPER``/``MBUMPER``, and only for one -- see
     :meth:`program_commands`."""
+
+    supports_ramp: ClassVar[bool] = True
+    """By a ``RAMPP`` element at the head of the line; see :meth:`insert_ramp`."""
+
+    ramp_element: ClassVar[str] = "SIMBA_RAMP"
+    """Name of the ``RAMPP`` simba puts at the head of a ramped line."""
+
+    native_rf: ClassVar[str] = "fixed"
+    """Measured: an ``RFCA`` gains the same, turn by turn, ramped or not --
+    on absolute time, a free-running oscillator. ``follow`` is
+    ``&modulate_elements`` on its ``PHASE``; see :meth:`rf_phase_commands`."""
 
     otm_convention: ClassVar[str] = "x, xp, y, yp, s, delta"
     """One-turn map convention."""
@@ -174,9 +189,6 @@ class elegantLattice(frameworkLattice):
     commandFilesOrder: List = []
     """Order in which commands are to be written in the ELEGANT input file"""
 
-    ref_idx: int = None
-    """Reference particle index"""
-
     program_elements: ClassVar[tuple] = ("bumper", "mbumper")
     """The elegant element types a device program can be written onto.
     The only ones with a ``WAVEFORM``, and so the only ones whose strength
@@ -185,7 +197,7 @@ class elegantLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        self.particle_definition = self.elementObjects[self.start].name
+        self.particle_definition = self.input_particle_definition
 
     def writeElements(self) -> str:
         """
@@ -201,7 +213,128 @@ class elegantLattice(frameworkLattice):
             q = abs(self.bunch_charge)
         else:
             q = abs(self.global_parameters["beam"].Q)
-        return self.section.to_elegant(charge=q)
+        return self.insert_ramp(self.section.to_elegant(charge=q))
+
+    def write_ramp_waveform(self) -> str:
+        """
+        Write :meth:`ramp` as a ``RAMPP`` waveform beside the lattice.
+
+        ``RAMPP`` reads its waveform at the **bunch's mean arrival time**;
+        the shared
+        :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock` plus the
+        input bunch's mean ``t``. It is a staircase, flat for a quarter turn
+        either side of each turn's start.
+
+        The ratio is to ``run_setup``'s ``p_central``.
+
+        Returns
+        -------
+        str
+            Basename of the SDDS ``WAVEFORM`` file
+        """
+        from ...Modules.SDDSFile import SDDSFile
+
+        rest_energy = self.rest_energy
+        p0c = self.ramp.p0c_per_pass(self.turns, rest_energy)
+        p_central = self.reference_p0c
+        starts = np.asarray(self.ramp_clock().times) + self.reference_t0
+        times, ratios = self.pass_staircase(starts, p0c / p_central)
+        basename = f"{self.objectname}_ramp.sdds"
+        sdds = SDDSFile(index=1, ascii=True)
+        sdds.add_columns(
+            ["t", "ratio"],
+            [times, ratios],
+            [SDDS_Types.SDDS_DOUBLE, SDDS_Types.SDDS_DOUBLE],
+            ["s", ""],
+            ["", ""],
+        )
+        path = os.path.join(self.global_parameters["master_subdir"], basename)
+        sdds.write_file(path)
+        self.files.append(path)
+        return basename
+
+    def rf_phase_commands(self) -> dict:
+        """
+        ``&modulate_elements`` commands moving each cavity's ``PHASE`` pass by
+        pass, so that elegant's fixed oscillators run as :attr:`rf_mode` asks;
+        see :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`.
+
+        * ``modulate_elements`` reads its table at the **bunch's** time, as
+          ``RAMPP`` does;
+        * a ``PHASE`` larger by the correction is the phase the reference
+          sees moved by it, as for ``RFCA``'s ``PHASE`` itself.
+
+        Returns
+        -------
+        dict
+            Command files to insert, keyed for ``commandFiles``. Empty unless
+            a correction is needed
+        """
+        from ...Modules.SDDSFile import SDDSFile
+
+        corrections = self.rf_phase_corrections()
+        if not corrections:
+            return {}
+        starts = self.pass_start_times()
+        commands = {}
+        for element, correction in corrections.items():
+            name = sanitize_string(element)
+            times, degrees = self.pass_staircase(starts, self.rf_phase_shifts(correction))
+            basename = f"{name}_rf_phase.sdds"
+            sdds = SDDSFile(index=1, ascii=True)
+            sdds.add_columns(
+                ["t", "phase"],
+                [times, degrees],
+                [SDDS_Types.SDDS_DOUBLE, SDDS_Types.SDDS_DOUBLE],
+                ["s", "deg"],
+                ["", ""],
+            )
+            path = os.path.join(self.global_parameters["master_subdir"], basename)
+            sdds.write_file(path)
+            self.files.append(path)
+            key = f"rf_phase_{name}"
+            command = elegantCommandFile(objectname=key, objecttype="modulate_elements")
+            for prop, value in (
+                ("name", name),
+                ("item", "PHASE"),
+                ("filename", f'"{basename}"'),
+                ("time_column", '"t"'),
+                ("amplitude_column", '"phase"'),
+                ("differential", 1),
+                ("multiplicative", 0),
+                ("refresh_matrix", 1),
+            ):
+                command.add_property(prop, value)
+            commands[key] = command
+        return commands
+
+    def insert_ramp(self, lattice: str) -> str:
+        """
+        Put a ``RAMPP`` at the head of the beamline, if :meth:`ramp` asks for one.
+
+        Parameters
+        ----------
+        lattice: str
+            The lattice file LAURA wrote
+
+        Returns
+        -------
+        str
+            `lattice`, with the ``RAMPP`` defined and first in the line
+        """
+        if not self.ramped:
+            return lattice
+        head = f"{self.objectname}: LINE = ("
+        if head not in lattice:
+            warn(
+                f"Line '{self.objectname}' is ramped, but simba could not find "
+                "its LINE in the elegant lattice to put the RAMPP in. The run "
+                "is tracked at a fixed energy."
+            )
+            return lattice
+        waveform = self.write_ramp_waveform()
+        element = f'{self.ramp_element}: RAMPP, WAVEFORM="{waveform}=t+ratio"\n'
+        return lattice.replace(head, f"{element}{head}{self.ramp_element}, ", 1)
 
     def processRunSettings(self) -> tuple:
         """
@@ -467,7 +600,9 @@ class elegantLattice(frameworkLattice):
         from ...Modules.SDDSFile import SDDSFile
 
         times, factors = program.factor_knots(
-            self.revolution_period, origin_turn=program.first_turn
+            self.revolution_period,
+            origin_turn=program.first_turn,
+            clock=self.ramp_clock(),
         )
         basename = f"{sanitize_string(program.element)}_program.sdds"
         sdds = SDDSFile(index=1, ascii=True)
@@ -546,14 +681,17 @@ class elegantLattice(frameworkLattice):
             # print('run_setup')
             self.commandFiles["run_setup"] = elegant_run_setup_command(
                 lattice=self.objectname + ".lte",
-                p_central=np.mean(self.global_parameters["beam"].BetaGamma),
+                p_central=self.reference_p0c / self.rest_energy,
                 seed=seed,
                 # losses="%s.loss",
-                s_start=self.start_s,
+                s_start=self.entrance_s,
                 use_beamline=self.objectname,
+                **({"always_change_p0": 0} if self.fixed_reference else {}),
             )
 
             for key, command in self.program_commands().items():
+                self.commandFiles[key] = command
+            for key, command in self.rf_phase_commands().items():
                 self.commandFiles[key] = command
 
             # print('generate commands for monte carlo jitter runs')
@@ -643,7 +781,6 @@ class elegantLattice(frameworkLattice):
             self.commandFiles["sdds_beam"] = elegant_sdds_beam_command(
                 lattice=self,
                 input=self.objectname + "_input.sdds",
-                sample_interval=self.sample_interval,
                 reuse_bunch=1,
                 fiducialization_bunch=0,
                 center_arrival_time=0,
@@ -664,14 +801,7 @@ class elegantLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        self.read_input_file(prefix, self.particle_definition)
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
-        self.global_parameters["beam"].beam.rematchXPlane(
-            **self.initial_twiss["horizontal"]
-        )
-        self.global_parameters["beam"].beam.rematchYPlane(
-            **self.initial_twiss["vertical"]
-        )
+        self.load_input_beam(prefix, self.particle_definition)
         if self.trackBeam:
             self.hdf5_to_sdds()
         self.createCommandFiles()
@@ -722,7 +852,7 @@ class elegantLattice(frameworkLattice):
         os.makedirs(workdir, exist_ok=True)
         setup = elegant_run_setup_command(
             lattice=os.path.join("..", f"{self.objectname}.lte"),
-            p_central=np.mean(self.global_parameters["beam"].BetaGamma),
+            p_central=self.reference_p0c / self.rest_energy,
             use_beamline=self.objectname,
         )
         twiss = elegant_twiss_output_command(
@@ -1049,6 +1179,8 @@ class elegantLattice(frameworkLattice):
         else:
             pages = [(-1, None)]
         for page, turn in pages:
+            if not self.writes_output(screen.name, turn):
+                continue
             beam = rbf.beam()
             rbf.sdds.read_SDDS_beam_file(
                 beam,

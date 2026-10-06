@@ -39,11 +39,14 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
     # self._beam["p"] = parray.energies.numpy()
     cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
-    self._beam.px = UnitValue(parray.px.numpy() * cp * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(parray.py.numpy() * cp * self.q_over_c, "kg*m/s")
-    self._beam.pz = UnitValue((
-        self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
-    ), "kg*m/s")
+    p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
+    cpx = parray.px.numpy() * p0c
+    cpy = parray.py.numpy() * p0c
+    self._beam.px = UnitValue(cpx * self.q_over_c, "kg*m/s")
+    self._beam.py = UnitValue(cpy * self.q_over_c, "kg*m/s")
+    self._beam.pz = UnitValue(
+        self.q_over_c * np.sqrt(cp**2 - cpx**2 - cpy**2), "kg*m/s"
+    )
     self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
@@ -72,18 +75,26 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.s = UnitValue(s, units="m")
 
 
-def write_cheetah_beam_file(self, filename=None, write=True):
-    """Save an openpmd file for cheetah."""
+def write_cheetah_beam_file(self, filename=None, write=True, energy=None, t0=None):
+    """Save an openpmd file for cheetah.
+
+    ``energy`` (eV) and ``t0`` (s) are the reference energy and the time tau
+    is measured from; the beam's own means if not given.
+    """
     # {x, xp, y, yp, t, p, particleID}
     from cheetah import ParticleBeam
     from cheetah.particles.species import Species
-    E = self.energy.mean().val
+    E = self.energy.mean().val if energy is None else energy
+    if t0 is None:
+        t0 = np.mean(self.t.val)
+    p0c = np.sqrt(E**2 - self.E0_eV**2)
     x = self.x.val
     y = self.y.val
-    xp = self.cpx.val / self.cpz.val
-    yp = self.cpy.val / self.cpz.val
-    p = (self.energy.val - E) / E
-    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    # p_x / p0c, not the slope p_x / p_z; see interpret_cheetah_ParticleBeam
+    xp = self.cpx.val / p0c
+    yp = self.cpy.val / p0c
+    p = (self.energy.val - E) / p0c
+    tau = (self.t.val - t0) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])

@@ -137,21 +137,7 @@ class gptLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
         self.headers["setfile"] = GptSetFile(
             set='"beam"', filename='"' + self.name + '.gdf"'
         )
@@ -222,7 +208,6 @@ class gptLattice(frameworkLattice):
         self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
         if self.particle_definition == "laser" and self.space_charge_mode is not None:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
-            self.headers["spacecharge"].sample_interval = self.sample_interval
             # self.headers["spacecharge"].space_charge_mode = "cathode"
         if (
             self.csr_enable
@@ -653,7 +638,7 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
+        svals = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
@@ -686,7 +671,6 @@ class gptLattice(frameworkLattice):
         Convert the HDF5 beam distribution to GDF format.
 
         Certain properties of this class, including
-        :attr:`~simba.Codes.GPT.GPT.gptLattice.sample_interval`,
         :attr:`~simba.Codes.GPT.GPT.gptLattice.override_meanBz`,
         :attr:`~simba.Codes.GPT.GPT.gptLattice.override_tout` are also
         used to update
@@ -697,17 +681,10 @@ class gptLattice(frameworkLattice):
         prefix: str
             HDF5 file prefix
         """
-        self.read_input_file(prefix, self.particle_definition)
+        self.load_input_beam(prefix, self.particle_definition)
         if self.particle_definition == "laser":
             self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].t, units="m")
         self.headers["setfile"].time = np.mean(self.global_parameters["beam"].t)
-        if self.sample_interval > 1:
-            self.headers["setreduce"] = GptSetReduce(
-                set='"beam"',
-                setreduce=int(
-                    len(self.global_parameters["beam"].x) / self.sample_interval
-                ),
-            )
         if self.override_meanBz is not None and isinstance(
             self.override_meanBz, (int, float)
         ):

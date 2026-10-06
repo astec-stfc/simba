@@ -38,7 +38,9 @@ class FakeLine:
     def __init__(self, tracking=None):
         self.file_block = {"tracking": tracking or {}}
         self.objectname = "RING"
+        self.code = "astra"
 
+    codes_that_can = frameworkLattice.codes_that_can
     turns = frameworkLattice.turns
     da_settings = frameworkLattice.da_settings
     da_grid = frameworkLattice.da_grid
@@ -106,7 +108,9 @@ def test_the_base_class_cannot():
 
 
 def test_the_base_class_returns_no_scan():
-    assert FakeLine().run_dynamic_aperture() == []
+    """And says so, naming the codes that can: it returned [] in silence."""
+    with pytest.warns(UserWarning, match="bmad, elegant, madx, ocelot and xsuite are the codes that can"):
+        assert FakeLine().run_dynamic_aperture() == []
 
 
 # --- the grid -----------------------------------------------------------

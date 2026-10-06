@@ -4,17 +4,17 @@ from ocelot.cpbd.physics_proc import PhysProc, SaveBeam, _logger
 class SaveBeamOpenPMD(SaveBeam):
 
     def __init__(self, filename: str, global_parameters: dict = {}, zstart: float = 0,
-                 sstart: float = None, ref_idx: int = 0, beam_turn: int | None = None):
+                 sstart: float = None, ref_idx: int = 0, beam_turn: int | None = None,
+                 t_reference: float | None = None):
         PhysProc.__init__(self)
         self.energy = None
         self.global_parameters = global_parameters
         self.filename = filename
         self.beam_turn = beam_turn
         self.zstart = zstart
-        # zstart is a lab z (used for the particle z/t); s is measured along the
-        # reference trajectory, which is longer wherever anything upstream bends
         self.s = zstart if sstart is None else sstart
         self.ref_idx = ref_idx
+        self.t_reference = t_reference
 
     def apply(self, p_array, dz):
         self.s += dz
@@ -25,6 +25,7 @@ class SaveBeamOpenPMD(SaveBeam):
             zstart=self.zstart,
             s=self.s,
             ref_index=self.ref_idx,
+            t_reference=self.t_reference,
         )
         self.global_parameters["beam"].turn = self.beam_turn
         rbf.openpmd.write_openpmd_beam_file(

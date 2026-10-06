@@ -7,30 +7,33 @@ speed_of_light = constants.speed_of_light
 elementary_charge = constants.elementary_charge
 
 
-def beam_to_madx_coords(self, p0c: float) -> dict:
+def beam_to_madx_coords(self, p0c: float, tbar: float | None = None) -> dict:
     """
     Convert this :class:`~simba.Modules.Beams.beam` object into MAD-X
     canonical coordinates (X, PX, Y, PY, T, PT) for a given reference
     momentum. The momenta are normalised to `p0c`, ``PT`` is the energy
-    deviation ``(E - E0)/(p0*c)``, and ``T = -c(t - <t>)`` (T > 0 = bunch
+    deviation ``(E - E0)/(p0*c)``, and ``T = -c(t - tbar)`` (T > 0 = bunch
     head), following the conventions in Chapter 1 of the MAD-X manual.
 
     Parameters
     ----------
     p0c: float
         Reference momentum in eV/c
+    tbar: float | None
+        The reference particle's time [s]; the bunch's mean time if not
+        given. A ring passes its own
 
     Returns
     -------
     Dict
-        Dictionary with the canonical coordinate arrays, the mean time
+        Dictionary with the canonical coordinate arrays, the reference time
         `tbar` and the reference beta/energy
     """
     m0 = np.mean(self.particle_rest_energy_eV.val)
     E0ref = np.sqrt(p0c**2 + m0**2)
     beta0 = p0c / E0ref
     tarr = np.array(self.t.val)
-    tbar = float(np.mean(tarr))
+    tbar = float(np.mean(tarr)) if tbar is None else float(tbar)
     return {
         "x": np.array(self.x.val),
         "px": np.array(self.cpx.val) / p0c,

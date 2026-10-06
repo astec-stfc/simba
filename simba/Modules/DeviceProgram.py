@@ -260,7 +260,9 @@ class DeviceProgram:
         values.append(self.values[-1])
         return (turns, values)
 
-    def time_knots(self, revolution_period: float, origin_turn: int = 1) -> tuple:
+    def time_knots(
+        self, revolution_period: float, origin_turn: int = 1, clock=None
+    ) -> tuple:
         """
         :meth:`linear_knots` on a time axis, for the codes that have one.
 
@@ -273,6 +275,9 @@ class DeviceProgram:
             The turn sitting at ``t = 0``. 1 for Xsuite, whose ``t_turn_s``
             is counted from the start of the run; the firing pass for
             elegant, whose ``WAVEFORM`` is counted from there
+        clock: :class:`~simba.Modules.EnergyRamp.RampClock` | None
+            Seconds at the start of a turn, for a ramped run.
+            Replaces `revolution_period` when given
 
         Returns
         -------
@@ -280,9 +285,14 @@ class DeviceProgram:
             ``(times, values)``, times in seconds
         """
         turns, values = self.linear_knots()
+        if clock is not None:
+            origin = clock(origin_turn)
+            return ([clock(t) - origin for t in turns], values)
         return ([(t - origin_turn) * revolution_period for t in turns], values)
 
-    def factor_knots(self, revolution_period: float, origin_turn: int = 1) -> tuple:
+    def factor_knots(
+        self, revolution_period: float, origin_turn: int = 1, clock=None
+    ) -> tuple:
         """
         :meth:`time_knots` with the values divided through by :attr:`peak`.
 
@@ -294,7 +304,7 @@ class DeviceProgram:
         tuple
             ``(times, factors)``, factors in ``[-1, 1]``
         """
-        times, values = self.time_knots(revolution_period, origin_turn)
+        times, values = self.time_knots(revolution_period, origin_turn, clock)
         peak = self.peak
         if not peak:
             return (times, [0.0 for _ in values])

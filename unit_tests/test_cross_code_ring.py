@@ -376,8 +376,12 @@ def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
 
     class FakeOcelot:
         read_optics_summary = ocelotLattice.read_optics_summary
+        _ocelot_periodic = ocelotLattice._ocelot_periodic
         objectname = "ring"
         lat_obj = lattice
+        _periodic = None
+        # the periodic solution is seeded with the reference energy, in eV
+        reference_energy = math.hypot(PC, MC2)
 
     summary = FakeOcelot().read_optics_summary()
     assert summary["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-4)

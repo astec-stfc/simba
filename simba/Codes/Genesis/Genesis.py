@@ -123,7 +123,7 @@ from ...Framework_objects import (
 )
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, ClassVar
 import h5py
 
 command_files_order = [
@@ -278,6 +278,9 @@ class genesisLattice(frameworkLattice):
     Only one split is currently allowed. Harmonic conversion is based on the strength of the 
     first undulator after the split."""
 
+    electrons_only: ClassVar[bool] = True
+    """FELs are electrons only."""
+
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -288,7 +291,7 @@ class genesisLattice(frameworkLattice):
                     setattr(self, f, self.file_block["fel"][f])
             elif f in self.file_block:
                 setattr(self, f, self.file_block[f])
-        self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
 
     def writeElements(self) -> str:
         """
@@ -357,13 +360,7 @@ class genesisLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        self.read_input_file(prefix, self.particle_definition)
-        self.global_parameters["beam"].beam.rematchXPlane(
-            **self.initial_twiss["horizontal"]
-        )
-        self.global_parameters["beam"].beam.rematchYPlane(
-            **self.initial_twiss["vertical"]
-        )
+        self.load_input_beam(prefix, self.particle_definition)
         if not self.npart:
             beamlen = len(self.global_parameters["beam"].x.val)
             # parts_per_lambda = int(np.std(self.global_parameters["beam"].z.val) / self.fundamental_wavelength)

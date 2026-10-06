@@ -651,9 +651,11 @@ class frameworkGenerator(BaseModel):
         beam.Particles.py = UnitValue(py, units="kg*m/s")
         beam.Particles.pz = UnitValue(pz, units="kg*m/s")
         beam.Particles.status = UnitValue(np.full(len(x), 5), units="")
-        beam.Particles.t = UnitValue(abs(-z / constants.speed_of_light), units="s")
         beam.Particles.set_total_charge(self.charge)
         beam.set_species(self.species)
+        beam.Particles.t = UnitValue(
+            -z / (beam.Particles.Bz.val * constants.speed_of_light), units="s"
+        )
         return beam
 
     def write(self, beam=None):

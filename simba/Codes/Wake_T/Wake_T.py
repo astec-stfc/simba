@@ -65,21 +65,7 @@ class waketLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
 
     def write(self) -> None:
         """
@@ -122,9 +108,7 @@ class waketLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        self.read_input_file(prefix, self.particle_definition)
-        self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
-        self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
+        self.load_input_beam(prefix, self.particle_definition)
         self.pin = beam_to_particle_bunch(
             self.global_parameters["beam"],
             zstart=mean(self.global_parameters["beam"].z.val),

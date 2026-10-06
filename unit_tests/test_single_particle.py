@@ -42,6 +42,7 @@ class FakeLine:
 
     single_particle = frameworkLattice.single_particle
     check_single_particle_supported = frameworkLattice.check_single_particle_supported
+    codes_that_can = frameworkLattice.codes_that_can
 
 
 # --- the flag -----------------------------------------------------------

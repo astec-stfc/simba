@@ -45,6 +45,7 @@ class FakeLine:
 
     turns = frameworkLattice.turns
     check_turns_supported = frameworkLattice.check_turns_supported
+    codes_that_can = frameworkLattice.codes_that_can
 
 
 # --- reading the count --------------------------------------------------

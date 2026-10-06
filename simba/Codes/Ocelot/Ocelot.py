@@ -16,8 +16,9 @@ Classes:
 from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
+from ...Modules.constants import speed_of_light
 from copy import deepcopy
-from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi
+from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi, sqrt
 import os
 from yaml import safe_load
 
@@ -54,6 +55,9 @@ class ocelotLattice(frameworkLattice):
     code: str = "ocelot"
     """String indicating the lattice object type"""
 
+    electrons_only: ClassVar[bool] = True
+    """Ocelot's physics processes, and simba's beam conversion, assume electrons."""
+
     supports_turns: ClassVar[bool] = True
     """By looping ``cpbd.track.track`` and feeding the bunch back in.
 
@@ -61,6 +65,9 @@ class ocelotLattice(frameworkLattice):
     via a ``Navigator``. ``track_nturns`` takes a list of single particles and is
     the right tool for dynamic aperture, which is a different job.
     """
+
+    native_time: ClassVar[tuple[str, str]] = ("tau", "m")
+    """``tau = c t``, measured from the reference: positive behind it."""
 
     supports_frequency_map: ClassVar[bool] = True
     """``cpbd.track.freq_analysis`` over the same tracked grid."""
@@ -82,6 +89,18 @@ class ocelotLattice(frameworkLattice):
 
     supports_programs: ClassVar[bool] = True
     """By setting the attribute on the sequence element between turns."""
+
+    supports_ramp: ClassVar[bool] = True
+    """By re-referencing the particle array between turns; see
+    :meth:`apply_ramp`."""
+
+    native_rf: ClassVar[str] = "synchronous"
+    """The cavity map's phase is ``phi - k tau``, with ``tau`` measured from
+    the reference, so the reference sees ``phi`` every pass. Moved by
+    :meth:`apply_rf_phases`."""
+
+    rf_phase_sign: ClassVar[float] = -1.0
+    """``phi`` (degrees) moved by this times a phase the reference sees."""
 
     otm_convention: ClassVar[str] = "x, xp, y, yp, tau, p"
     """One-turn map convention"""
@@ -170,18 +189,16 @@ class ocelotLattice(frameworkLattice):
     mbi: Dict = {}
     """Dictionary containing settings for microbunching gain calculation"""
 
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
-
     _s_values: Dict | None = None
     """Cached :meth:`section.get_s_values`, both ends, for
     :attr:`_s_values_section`. See :meth:`section_s_values`."""
 
     _s_values_section: Any = None
     """The section :attr:`_s_values` was computed for."""
+
+    _periodic: Any = None
+    """The run's periodic Twiss (``[]`` if there is none), solved once by
+    :meth:`_periodic_twiss` for the closed orbit and optics summary too."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -196,22 +213,13 @@ class ocelotLattice(frameworkLattice):
                 setattr(self, f, self.oceglobal[f])
             elif f in self.file_block:
                 setattr(self, f, self.file_block[f])
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
         self.grids = getGrids()
+
+    @classmethod
+    def native_time_scale(cls, beta0: float) -> float:
+        """``tau = c (t - reference_time)``."""
+        return speed_of_light
 
     def section_s_values(self, at_entrance: bool) -> Dict:
         """
@@ -249,6 +257,7 @@ class ocelotLattice(frameworkLattice):
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
         """
         self.lat_obj = self.section.to_ocelot(save=True)
+        self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
 
     def write(self) -> None:
@@ -265,17 +274,7 @@ class ocelotLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.read_input_file(prefix, self.particle_definition)
-        if self.initial_twiss["horizontal"]["beta"]:
-            self.global_parameters["beam"].beam.rematchXPlane(
-                **self.initial_twiss["horizontal"]
-            )
-        if self.initial_twiss["vertical"]["beta"]:
-            self.global_parameters["beam"].beam.rematchYPlane(
-                **self.initial_twiss["vertical"]
-            )
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -293,7 +292,9 @@ class ocelotLattice(frameworkLattice):
         from ...Modules.Beams import ocelot as rbf_ocelot
         self.pin = rbf_ocelot.particle_group_to_parray(
             self.global_parameters["beam"],
-            s_start=self.ref_s
+            s_start=self.entrance_s,
+            energy=self.reference_energy,
+            t0=self.reference_t0,
         )
 
     def apply_programs(self, turn: int) -> None:
@@ -311,10 +312,7 @@ class ocelotLattice(frameworkLattice):
         for program in self.programs:
             matches = [e for e in self.lat_obj.sequence if str(e.id) == program.element]
             if not matches:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}', "
-                    "which is not in the Ocelot lattice. Nothing is varied."
-                )
+                self.program_attribute(program, None)
                 continue
             value = program.value_at(turn)
             for element in matches:
@@ -329,33 +327,77 @@ class ocelotLattice(frameworkLattice):
                     continue
                 setattr(element, attribute, value)
 
+    def _cavities(self, name: str) -> list:
+        return [e for e in self.lat_obj.sequence if str(e.id) == name]
+
+    def cavity_phase(self, name: str) -> float | None:
+        """A cavity's ``phi``, in degrees; see
+        :meth:`~simba.Framework_objects.frameworkLattice.apply_rf_phases`."""
+        cavities = self._cavities(name)
+        return float(cavities[0].phi) if cavities else None
+
+    def set_cavity_phase(self, name: str, phase: float) -> None:
+        """
+        Set a cavity's ``phi``, in degrees. Setting it clears the cavity's
+        cached transfer map, and the ``Navigator`` is built afresh each pass,
+        so the next pass sees it.
+        """
+        for element in self._cavities(name):
+            element.phi = phase
+
+    def apply_ramp(self, particles: Any, turn: int) -> Any:
+        """
+        Re-reference `particles` to the ramp's momentum for `turn`, keeping
+        every particle as it was; the model in :mod:`simba.Modules.EnergyRamp`.
+        :func:`~simba.Codes.Ocelot.fixedreference.rereference` does this.
+
+        Parameters
+        ----------
+        particles: ParticleArray
+            The beam entering `turn`; changed in place
+        turn: int
+            Turn number, 1-based
+
+        Returns
+        -------
+        ParticleArray
+            `particles`
+        """
+        from .fixedreference import rereference
+        p0c_new = self.ramp_p0c(turn)
+        if p0c_new is None:
+            return particles
+        return rereference(particles, p0c_new, self.rest_energy)
+
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
         from ocelot.cpbd.track import track
-        pin = deepcopy(self.pin)
-        if self.sample_interval > 1:
-            pin = pin.thin_out(nth=self.sample_interval)
-        wanted = dict(self.output_turns())
-        for turn in range(1, self.turns + 1):
-            key = turn if self.turns > 1 else None
-            self.apply_programs(turn)
-            for sector in range(1, self.nsuperperiods + 1):
-                navi = self.navi_setup(
-                    turn=wanted.get(key),
-                    write_beams=sector == self.nsuperperiods and key in wanted,
-                    beam_turn=turn,
-                )
-                navi.go_to_start()
-                self.tws, self.pout = track(
-                    self.lat_obj,
-                    pin,
-                    navi=navi,
-                    calc_tws=True,
-                    twiss_disp_correction=False,
-                )
-                pin = self.pout
+        self.pout = deepcopy(self.pin)
+
+        def start_turn(turn):
+            self.pout = self.apply_ramp(self.pout, turn)
+
+        def track_pass(turn, pass_index, name_turn, record):
+            navi = self.navi_setup(
+                turn=name_turn,
+                write_beams=record,
+                beam_turn=turn,
+                reference_energy=self.pout.E if self.fixed_reference else None,
+                pass_index=pass_index if self.uses_reference_clock else None,
+            )
+            navi.go_to_start()
+            self.tws, self.pout = track(
+                self.lat_obj,
+                self.pout,
+                navi=navi,
+                calc_tws=True,
+                twiss_disp_correction=False,
+            )
+
+        self._periodic = None
+        self.run_turns(track_pass, start_turn)
         if self.periodic:
             self.tws = self._periodic_twiss()
 
@@ -375,9 +417,8 @@ class ocelotLattice(frameworkLattice):
         warning
             If no periodic solution exists.
         """
-        from ocelot.cpbd.optics import twiss
-        periodic = twiss(self.lat_obj, tws0=None)
-        if periodic is None:
+        periodic = self._ocelot_periodic()
+        if not periodic:
             warn(
                 f"Line '{self.objectname}' asks for the periodic solution, but "
                 "Ocelot found none: the one-turn map is unstable, so the ring "
@@ -387,13 +428,35 @@ class ocelotLattice(frameworkLattice):
             return self.tws
         return periodic
 
+    def _ocelot_periodic(self) -> List:
+        """
+        ``optics.twiss`` for the closed solution, seeded with the reference energy.
+        ``tws0=None`` is how Ocelot is asked for the periodic solution, but with a
+        cavity in the lattice it refuses outright.
+
+        Solved once a run: the run puts the lattice back as it found it, so
+        every later ask is the same question.
+
+        Returns
+        -------
+        List
+            The periodic Twiss, empty if there is no periodic solution
+        """
+        if self._periodic is not None:
+            return self._periodic
+        from ocelot.cpbd.beam import Twiss
+        from ocelot.cpbd.optics import twiss as ocelot_twiss
+
+        tws0 = Twiss()
+        tws0.E = self.reference_energy / 1e9
+        self._periodic = ocelot_twiss(self.lat_obj, tws0=tws0) or []
+        return self._periodic
+
     def read_closed_orbit(self):
         """
         Ocelot's periodic Twiss carries the orbit on its first element.
         """
-        from ocelot.cpbd.optics import twiss as ocelot_twiss
-
-        periodic = ocelot_twiss(self.lat_obj, tws0=None)
+        periodic = self._ocelot_periodic()
         if not periodic:
             return None
         first = periodic[0]
@@ -407,9 +470,8 @@ class ocelotLattice(frameworkLattice):
         chromaticity separately, from the periodic solution.
         """
         from ocelot.cpbd.chromaticity import chromaticity
-        from ocelot.cpbd.optics import twiss as ocelot_twiss
 
-        periodic = ocelot_twiss(self.lat_obj, tws0=None)
+        periodic = self._ocelot_periodic()
         if not periodic:
             return {}
         summary = {
@@ -436,7 +498,7 @@ class ocelotLattice(frameworkLattice):
         """
         from ocelot.cpbd.optics import lattice_transfer_map
 
-        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        energy_gev = self.reference_energy / 1e9
         return array(lattice_transfer_map(self.lat_obj, energy_gev), dtype=float)
 
     def postProcess(self) -> None:
@@ -497,7 +559,7 @@ class ocelotLattice(frameworkLattice):
         from ...Modules.Matrices import tune_diffusion
 
         xs, ys = self.da_grid()
-        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
         track_list = track_nturns(
             self.lat_obj,
@@ -546,7 +608,7 @@ class ocelotLattice(frameworkLattice):
         from ocelot.cpbd.track import create_track_list, track_nturns
 
         xs, ys = self.da_grid()
-        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
         track_list = track_nturns(
             self.lat_obj,
@@ -573,7 +635,7 @@ class ocelotLattice(frameworkLattice):
         if orbit is None:
             orbit = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         nudge = float((self.da_settings or {}).get("x_max", 1e-3)) / 100.0
-        energy_gev = float(mean(self.global_parameters["beam"].energy.val)) / 1e9
+        energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(
             [orbit[0] + nudge], [orbit[2] + nudge], [0.0], energy=energy_gev
         )
@@ -648,6 +710,8 @@ class ocelotLattice(frameworkLattice):
         turn: int | None = None,
         write_beams: bool = True,
         beam_turn: int | None = None,
+        reference_energy: float | None = None,
+        pass_index: int | None = None,
     ) -> "Navigator":
         """
         Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
@@ -662,6 +726,13 @@ class ocelotLattice(frameworkLattice):
             Whether to write beam files at each turn
         beam_turn: int, optional
             The turn the beam is on
+        reference_energy: float, optional
+            The line's reference energy for this pass [GeV], to be restored
+            after every cavity; see
+            :class:`~simba.Codes.Ocelot.fixedreference.FixedReference`.
+        pass_index: int, optional
+            The 0-based pass the beams are written on, for their ``t``; see
+            :meth:`reference_time`. None leaves Ocelot's own clock, as in a linac.
 
         Returns
         -------
@@ -677,6 +748,12 @@ class ocelotLattice(frameworkLattice):
         navi_locations_end = []
         # settings = self.settings
         navi = Navigator(self.lat_obj, unit_step=self.unit_step)
+        if reference_energy is not None:
+            # first, so anything else at a cavity's exit sees the line's reference
+            for proc, loc in self.physproc_fixed_reference(reference_energy):
+                navi_processes += [proc]
+                navi_locations_start += [loc]
+                navi_locations_end += [loc]
         if self.lsc and self.lsc_enable:
             lsc = self.physproc_lsc()
             navi_processes += [lsc]
@@ -689,9 +766,7 @@ class ocelotLattice(frameworkLattice):
                 "space_charge_mode" in list(self.file_block["charge"].keys())
                 and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
             ):
-                gridsize = self.grids.getGridSizes(
-                    (len(self.global_parameters["beam"].x) / self.sample_interval)
-                )
+                gridsize = self.grids.getGridSizes(len(self.global_parameters["beam"].x))
                 g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
                 grids = [g1 for _ in range(3)]
                 sc = self.physproc_sc(grids)
@@ -761,8 +836,15 @@ class ocelotLattice(frameworkLattice):
             navi_processes += [bend]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
-        for w in (self.screens_and_bpms + self.apertures) if write_beams else []:
-            if w.name == self.start:
+        recorded = self.screens_and_markers_and_bpms + self.apertures
+
+        def t_reference(s):
+            if pass_index is None:
+                return None
+            return self.reference_time(s, pass_index)
+
+        for w in recorded if write_beams else []:
+            if w.name == self.names[-1] or not self.writes_output(w.name, turn):
                 continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]
             subdir = self.global_parameters["master_subdir"]
@@ -777,6 +859,7 @@ class ocelotLattice(frameworkLattice):
                     sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
+                    t_reference=t_reference(sval_in[w.name]),
                 )
             ]
             navi_locations_start += [loc]
@@ -796,6 +879,7 @@ class ocelotLattice(frameworkLattice):
                     sstart=self.entrance_s + sval_out[self.end],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
+                    t_reference=t_reference(sval_out[self.end]),
                 )
             ]
             navi_locations_start += [loc]
@@ -804,6 +888,45 @@ class ocelotLattice(frameworkLattice):
             navi_processes, navi_locations_start, navi_locations_end
         )
         return navi
+
+    def physproc_fixed_reference(self, reference_energy: float) -> List:
+        """
+        A :class:`~simba.Codes.Ocelot.fixedreference.FixedReference` at the exit
+        of every cavity that changes the energy.
+
+        Parameters
+        ----------
+        reference_energy: float
+            The reference total energy to restore [GeV]
+
+        Returns
+        -------
+        List
+            ``(process, element)`` pairs
+
+        Raises
+        ------
+        warning
+            If a cavity is the last element, so has no exit to put it on.
+        """
+        from ocelot.cpbd.elements import Cavity, TWCavity
+        from .fixedreference import FixedReference
+        sequence = self.lat_obj.sequence
+        processes = []
+        for index, element in enumerate(sequence):
+            if not isinstance(element, (Cavity, TWCavity)):
+                continue
+            if index + 1 == len(sequence):
+                warn(
+                    f"Line '{self.objectname}' ends on cavity '{element.id}', so "
+                    "Ocelot's move of the reference energy there cannot be undone "
+                    "until the next pass. End the line on a marker."
+                )
+                continue
+            processes.append(
+                (FixedReference(reference_energy, self.rest_energy), sequence[index + 1])
+            )
+        return processes
 
     def physproc_lsc(self) -> "LSC":
         """

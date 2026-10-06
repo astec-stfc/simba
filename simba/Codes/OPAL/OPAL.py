@@ -203,12 +203,6 @@ class opalLattice(frameworkLattice):
     headers: Dict = {}
     """Section headers for OPAL input file"""
 
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
-
     space_charge_grid: int | tuple[int, int, int] | list | None = None
     """Explicit space-charge mesh size. A single value is used for all three
     dimensions; a ``(MX, MY, MT)`` triple sets them independently, which is
@@ -238,21 +232,7 @@ class opalLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
 
 
     @property
@@ -447,18 +427,14 @@ class opalLattice(frameworkLattice):
     def preProcess(self):
         super().preProcess()
         prefix = self.get_prefix()
-        fpath = self.read_input_file(prefix, self.particle_definition)
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        fpath = self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_opal()
         beamlen = len(self.global_parameters["beam"].x)
         pc = np.mean(self.global_parameters["beam"].cpz.val) / 1e9
         bcurrent = abs(self.global_parameters["beam"].total_charge * 1e6)
         chargesign = int(self.global_parameters["beam"].chargesign[0])
-        if "particle_definition" in list(self.file_block["input"].keys()):
-            initobj = "laser" if self.file_block["input"]["particle_definition"] == "initial_distribution" else self.start
-        else:
-            initobj = self.start
+        # the file hdf5_to_opal wrote
+        initobj = self.particle_definition
         self.headers["option"] = OpalOption(**self.option_settings())
         native = self.native_distribution_block()
         self.headers["distribution"] = OpalDistribution(
@@ -468,7 +444,6 @@ class opalLattice(frameworkLattice):
         )
         self.headers["fieldsolver"] = OpalFieldSolver(
             npart=beamlen,
-            sample_interval=self.sample_interval,
             space_charge_mode=str(self.space_charge_mode),
             grid_size_override=self.space_charge_grid,
             BBOXINCR=self.bbox_increase,
@@ -559,9 +534,7 @@ class opalLattice(frameworkLattice):
             if abs(svals_stat[idx] - spos) < 1e-6:
                 for name, value in zip(DISPERSION_COLUMNS, values):
                     opalData[name][idx] = value
-        # OPAL tracks from zero, so anchor s to the lattice start (not the incoming
-        # beam's accumulated s) to match Elegant/Ocelot/MAD-X.
-        opalData["s"] += self.start_s
+        opalData["s"] += self.entrance_s
         import h5py
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
             for k, v in opalData.items():

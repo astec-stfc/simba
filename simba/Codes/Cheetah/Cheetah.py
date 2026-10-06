@@ -72,6 +72,9 @@ class cheetahLattice(frameworkLattice):
     code: str = "cheetah"
     """String indicating the lattice object type"""
 
+    electrons_only: ClassVar[bool] = True
+    """simba's Cheetah beam conversion assumes electrons."""
+
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
@@ -100,12 +103,6 @@ class cheetahLattice(frameworkLattice):
     particle_definition: str = None
     """Initial particle distribution as a string"""
 
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
-
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.cheetahglobal = deepcopy(cheetahglobal)
@@ -116,21 +113,7 @@ class cheetahLattice(frameworkLattice):
                         self.cheetahglobal[k].update({k1: v1})
                 else:
                     self.cheetahglobal.update({k: v})
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
 
 
     def writeElements(self) -> bool:
@@ -164,9 +147,7 @@ class cheetahLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.read_input_file(prefix, self.particle_definition)
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_openpmd()
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
@@ -188,7 +169,9 @@ class cheetahLattice(frameworkLattice):
         self.pin = rbf.beam.write_cheetah_beam_file(
             self.global_parameters["beam"],
             cheetahbeamfilename,
-            write=write
+            write=write,
+            energy=self.reference_energy,
+            t0=self.reference_t0,
         )
 
     def run(self) -> None:
@@ -197,8 +180,6 @@ class cheetahLattice(frameworkLattice):
         """
         # navi = self.navi_setup()
         pin = deepcopy(self.pin)
-        # if self.sample_interval > 1:
-        #     pin = pin.thin_out(nth=self.sample_interval)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
@@ -269,7 +250,7 @@ class cheetahLattice(frameworkLattice):
                     data = val.numpy()
                     if key == "s":
                         svals = data - data[0]
-                        data = svals + self.start_s
+                        data = svals + self.entrance_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
                     lat_s = np.array(self.getSValues(at_entrance=False))

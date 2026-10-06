@@ -47,13 +47,22 @@ from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
 
+from . import exceptions
 from .Modules.DeviceProgram import DeviceProgram
+from .Modules.EnergyRamp import (
+    RF_MODES,
+    EnergyRamp,
+    beta_from_p0c,
+    rf_phase_slip,
+    wrap_phase,
+)
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution
 from .Modules.Fields import field
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
+from .Modules import constants
 from .Modules.constants import speed_of_light
 
 try:
@@ -528,8 +537,10 @@ class frameworkLattice(BaseModel):
     allow_negative_drifts: bool = False
     """If True, allows negative drifts in the lattice."""
 
-    _lsc_enable: bool = True
-    """Flag to enable LSC drifts in the lattice."""
+    _lsc_enable: bool = False
+    """Flag to enable LSC drifts in the lattice. Off by default, as in LAURA, so
+    that every code models the same physics unless asked for more; set
+    ``lsc_enable: true`` on the line to turn it on."""
 
     _csr_enable: bool = True
     """Flag to enable CSR drifts in the lattice."""
@@ -559,7 +570,9 @@ class frameworkLattice(BaseModel):
     """Lowest spatial frequency at which low-frequency cutoff filter is 1. See `Elegant manual LSC drift`_"""
 
     sample_interval: int = 1
-    """Sample interval for downsampling particles, in units of 2**(3*sample_interval)"""
+    """Downsampling of the incoming beam: every code tracks every
+    ``sample_interval``-th particle, with the total charge kept. The beam is
+    sampled once, as it is read (:meth:`load_input_beam`)."""
 
     globalSettings: Dict = {"charge": None}
     """Global settings for the lattice, including charge and other parameters."""
@@ -572,6 +585,19 @@ class frameworkLattice(BaseModel):
 
     initial_twiss: Dict = {}
     """Initial Twiss parameters for the lattice, used for tracking and analysis."""
+
+    ref_idx: int | None = None
+    """Index of the incoming beam's reference particle; see :func:`load_input_beam`."""
+
+    native_time: ClassVar[tuple[str, str]] = ("t", "s")
+    """The code's own longitudinal time coordinate, as ``(name, units)``; see
+    :meth:`native_time_scale`."""
+
+    _reference_clock: tuple | None = None
+    """Fixed when the input beam is read; see :attr:`reference_clock`."""
+
+    _input_reference: dict | None = None
+    """The incoming beam's means, before sampling; see :attr:`reference_p0c`."""
 
     _section: SectionLatticeTranslator = None
     """LAURA SectionLatticeTranslator object"""
@@ -589,16 +615,16 @@ class frameworkLattice(BaseModel):
     """Code to run the lattice."""
 
     supports_turns: ClassVar[bool] = False
-    """Whether this code can track a line more than once. Set on those that can:
-    currently elegant, Xsuite and Ocelot."""
+    """Whether this code can track a line more than once. Which codes can is
+    :meth:`codes_that_can` ``("supports_turns")``, as for every flag here."""
 
     supports_periodic: ClassVar[bool] = False
     """Whether this code can be asked for the *periodic* (closed) optics solution
     rather than propagating the incoming beam's Twiss."""
 
     supports_frequency_map: ClassVar[bool] = False
-    """Whether this code can produce a tune footprint. Ocelot only, via
-    ``freq_analysis`` over a tracked grid."""
+    """Whether this code can produce a tune footprint over a tracked grid; see
+    :meth:`run_frequency_map`."""
 
     supports_single_particle: ClassVar[bool] = False
     """Whether this code can run in :meth:`single_particle` mode -- tracking
@@ -606,9 +632,8 @@ class frameworkLattice(BaseModel):
     rather than tracking every macroparticle."""
 
     supports_dynamic_aperture: ClassVar[bool] = False
-    """Whether this code can run a dynamic-aperture scan. Ocelot only:
-    ``track_nturns`` takes a list of single particles and records the turn
-    each was lost on, which is exactly the shape of the study."""
+    """Whether this code can run a dynamic-aperture scan; see
+    :meth:`run_dynamic_aperture`."""
 
     supports_nsuperperiods: ClassVar[bool] = False
     """Whether this code can track one sector of an N-fold-symmetric ring N
@@ -618,13 +643,42 @@ class frameworkLattice(BaseModel):
     """Whether this code radiates with no asking."""
 
     supports_radiation: ClassVar[bool] = False
-    """Whether simba can switch synchrotron radiation on for this code.
-    Currently Xsuite only."""
+    """Whether simba can switch synchrotron radiation on for this code; see
+    :meth:`check_radiation_supported`."""
 
     supports_programs: ClassVar[bool] = False
     """Whether this code can vary an element's strength from turn to turn;
     see :class:`~simba.Modules.DeviceProgram.DeviceProgram`. Any code with a
     per-turn loop of its own can, which is most of the ring codes."""
+
+    supports_ramp: ClassVar[bool] = False
+    """Whether this code can track an energy ramp, the reference momentum
+    changing from turn to turn; see :class:`~simba.Modules.EnergyRamp.EnergyRamp`."""
+
+    electrons_only: ClassVar[bool] = False
+    """Whether this code tracks electrons and nothing else; any other beam is
+    refused as it is read, see :meth:`check_species`."""
+
+    native_rf: ClassVar[str | None] = None
+    """How this code's cavities keep time over many passes left to themselves,
+    for :meth:`rf_phase_corrections` to subtract: ``fixed`` or ``synchronous``. 
+    ``None`` where simba cannot move a cavity's phase pass
+    by pass, so cannot impose :attr:`rf_mode`."""
+
+    rf_phase_sign: ClassVar[float] = 1.0
+    """The code's cavity phase moves by this times a phase the reference
+    sees; measured per code. See :meth:`rf_phase_shifts`."""
+
+    rf_phase_per_radian: ClassVar[float] = 180 / math.pi
+    """The code's cavity phase units per radian: degrees, unless the code
+    says otherwise."""
+
+    _rf_corrections: dict | None = None
+    """This run's :meth:`rf_phase_corrections`; see :meth:`begin_rf_phases`."""
+
+    _rf_phase0: dict | None = None
+    """Each moved cavity's phase as the code was given it this run, by name;
+    see :meth:`apply_rf_phases`."""
 
     otm_convention: ClassVar[str] = ""
     """The coordinate order :attr:`one_turn_map` is written in, as this code
@@ -665,6 +719,10 @@ class frameworkLattice(BaseModel):
     Read after the run by :meth:`read_one_turn_map`.
     """
 
+    program_attributes: ClassVar[dict] = {}
+    """``(horizontal, vertical)`` attribute an unqualified program sets, per
+    element type as this code names it; see :meth:`program_attribute`."""
+
     def model_post_init(self, __context):
         # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
@@ -689,48 +747,6 @@ class frameworkLattice(BaseModel):
         self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
-
-    # @field_validator("file_block", mode="before")
-    # @classmethod
-    # def validate_file_block(cls, value: Dict) -> Dict:
-    #     """
-    #     Validate the file_block dictionary to ensure it has the required structure.
-    #     This method checks if the file_block is a dictionary and contains the necessary keys.
-    #
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If the file_block is not a dictionary or does not contain the required keys.
-    #     """
-    #     if not isinstance(value, dict):
-    #         raise ValueError("file_block must be a dictionary.")
-    #     if "groups" in value:
-    #         if value["groups"] is not None:
-    #             cls.groupSettings = value["groups"]
-    #     if "input" in value:
-    #         if "sample_interval" in value["input"]:
-    #             cls.sample_interval = value["input"]["sample_interval"]
-    #     return value
-    #
-    # @field_validator("settings", mode="before")
-    # @classmethod
-    # def validate_settings(cls, value: Dict) -> Dict:
-    #     """
-    #     Validate the settings dictionary to ensure it has the required structure.
-    #     This method checks if the settings is a dictionary and contains the necessary keys.
-    #
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If the settings is not a dictionary or does not contain the required keys.
-    #
-    #     """
-    #     if not isinstance(value, dict):
-    #         raise ValueError("settings must be a dictionary.")
-    #     if "global" in value:
-    #         if value["global"] is not None:
-    #             cls.globalSettings = value["global"]
-    #     return value
 
     def __setattr__(self, name, value):
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
@@ -845,12 +861,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def lsc_in_use(self) -> bool:
-        """
-        Whether any element in this lattice actually asks the code for LSC.
-
-        Not the same as :attr:`lsc_enable`, which is on by default: a lattice of
-        drifts and quadrupoles has nothing to do LSC in even with the flag set.
-        """
+        """Whether any element in this lattice actually asks the code for LSC."""
         return any(
             getattr(getattr(elem, "simulation", None), "lsc_enable", False)
             for elem in self.elementObjects.values()
@@ -996,25 +1007,59 @@ class frameworkLattice(BaseModel):
             return
         if self.turns < turns_that_matter:
             return
-        warn(
-            f"Line '{self.objectname}' tracks a ring for "
-            f"{self.turns} turns with no synchrotron radiation. Without it "
-            "there is no damping and no quantum excitation, and the beam may never "
-            "reaches equilibrium: the emittance, energy spread and bunch "
-            "length at the end are the ones you started with, not the ring's. "
-            "Set tracking: {radiation: quantum} if you want the equilibrium."
-        )
+        warn(exceptions.NoRadiationWarning(self.objectname, self.turns))
+
+    @classmethod
+    def codes_that_can(cls, flag: str) -> str:
+        """
+        The codes with `flag` set, as the sentence a warning that this one
+        cannot ends on.
+
+        Parameters
+        ----------
+        flag: str
+            A ``supports_*`` class flag
+
+        Returns
+        -------
+        str
+        """
+        from . import Framework_lattices  # noqa: F401 -- defines every code's class
+
+        def subclasses(klass):
+            for sub in klass.__subclasses__():
+                yield sub
+                yield from subclasses(sub)
+
+        names = sorted({
+            sub.model_fields["code"].default
+            for sub in subclasses(frameworkLattice)
+            if sub.__module__.startswith("simba.Codes.")
+            and getattr(sub, flag, False)
+            and sub.model_fields["code"].default
+        })
+        if not names:
+            return "No code can."
+        if len(names) == 1:
+            return f"{names[0]} is the code that can."
+        return f"{', '.join(names[:-1])} and {names[-1]} are the codes that can."
 
     def check_periodic_supported(self) -> None:
         """Warn when the periodic solution was asked for and this code cannot."""
         if self.periodic and not self.supports_periodic:
-            warn(
-                f"Line '{self.objectname}' asks for the periodic solution, but "
-                f"{self.code} is given the incoming beam's Twiss and has no "
-                "closed-solution mode here. The open solution will be used, "
-                "and its tune and beta functions are not the ring's. elegant, "
-                "Xsuite, Ocelot and Bmad are the codes that can."
-            )
+            warn(exceptions.PeriodicUnsupportedWarning(
+                self.objectname, self.code, self.codes_that_can("supports_periodic")
+            ))
+
+    def check_radiation_supported(self) -> None:
+        """Warn when a radiation model was asked for and this code has no switch
+        for it; :meth:`radiation` is then not applied at all."""
+        if self.radiation is None or self.supports_radiation:
+            return
+        warn(exceptions.RadiationUnsupportedWarning(
+            self.objectname, self.code, self.radiation, self.radiates_by_default,
+            self.codes_that_can("supports_radiation"),
+        ))
 
     @property
     def write_turns(self) -> bool:
@@ -1076,18 +1121,17 @@ class frameworkLattice(BaseModel):
             try:
                 programs.append(DeviceProgram.from_dict(entry))
             except ValueError as error:
-                warn(f"Line '{self.objectname}': {error}")
+                warn(exceptions.UnreadableSettingWarning(self.objectname, error))
         return programs
 
     def check_programs_supported(self) -> None:
         """Warn when a device program was asked for and this code cannot run one."""
         if not self.programs or self.supports_programs:
             return
-        warn(
-            f"Line '{self.objectname}' programs "
-            f"{', '.join(p.element for p in self.programs)} over turns, but "
-            f"{self.code} has no way to change an element between turns here."
-        )
+        warn(exceptions.ProgramsUnsupportedWarning(
+            self.objectname, self.code, [p.element for p in self.programs],
+            self.codes_that_can("supports_programs"),
+        ))
 
     def check_programs_fit(self) -> None:
         """
@@ -1099,20 +1143,735 @@ class frameworkLattice(BaseModel):
         """
         for program in self.programs:
             if program.last_turn > self.turns:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}' "
-                    f"out to turn {program.last_turn}, but only {self.turns} "
-                    "turns are tracked, so the run ends part-way through the "
-                    "program."
-                )
+                warn(exceptions.ProgramOverrunWarning(
+                    self.objectname, program.element, program.last_turn, self.turns
+                ))
             elif program.last_turn < self.turns and program.values[-1]:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}' "
-                    f"up to turn {program.last_turn} and ends at "
-                    f"{program.values[-1]:.4g}, which it then holds for the "
-                    f"remaining {self.turns - program.last_turn} turns of "
-                    "the run. Add a final knot if it should come back down."
-                )
+                warn(exceptions.ProgramHeldWarning(
+                    self.objectname, program.element, program.last_turn,
+                    program.values[-1], self.turns - program.last_turn,
+                ))
+
+    @property
+    def ramp(self) -> EnergyRamp | None:
+        """
+        The reference momentum as a program over turn number, if there is one.
+
+        A tracking setting, like :meth:`programs`::
+
+            files:
+              RING:
+                code: xsuite
+                tracking:
+                  turns: 2000
+                  ramp:
+                    turns: [1, 1000]
+                    momentum: [1.0e9, 2.0e9]
+
+        :mod:`simba.Modules.EnergyRamp` sets out the model every backend
+        follows.
+
+        Returns
+        -------
+        :class:`~simba.Modules.EnergyRamp.EnergyRamp` | None
+            The ramp, or None if there is none. A ramp simba cannot read
+            warns and is ignored
+        """
+        tracking = self.file_block.get("tracking") or {}
+        entry = tracking.get("ramp")
+        if not entry:
+            return None
+        try:
+            return EnergyRamp.from_dict(entry)
+        except ValueError as error:
+            warn(exceptions.UnreadableSettingWarning(self.objectname, error))
+            return None
+
+    @property
+    def ramped(self) -> bool:
+        """Whether this run changes the reference momentum turn by turn: a
+        :meth:`ramp`, a code that can follow one, and more than one turn."""
+        return self.supports_ramp and self.turns > 1 and self.ramp is not None
+
+    @property
+    def fixed_reference(self) -> bool:
+        """
+        Whether the reference momentum is the line's own rather than the beam's:
+        under a :meth:`ramp`, which owns it, and in a ring, whose reference is the
+        design momentum.
+        Then a cavity accelerates particles and leaves the reference alone -- an
+        off-crest ring cavity drives synchrotron motion about the reference, it
+        does not carry the reference with it.
+        """
+        return self.ramped or self.periodic or self.closed_geometry
+
+    def _apply_fixed_reference_to_section(self) -> None:
+        """Push :attr:`fixed_reference` onto LAURA's cavity ``change_p0``."""
+        if not self.fixed_reference:
+            return
+        for element in self.elementObjects.values():
+            simulation = getattr(element, "simulation", None)
+            if simulation is not None and "change_p0" in type(simulation).model_fields:
+                simulation.change_p0 = 0
+
+    @property
+    def rest_energy(self) -> float:
+        """The beam's rest energy in eV."""
+        beam = (self.global_parameters or {}).get("beam")
+        for name, scale in (
+            ("particle_rest_energy_eV", 1.0),
+            ("particle_mass", constants.speed_of_light**2 / constants.elementary_charge),
+        ):
+            value = getattr(beam, name, None) if beam is not None else None
+            value = getattr(value, "val", value)
+            if value is not None and np.size(value):
+                return float(np.mean(value)) * scale
+        return constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
+
+    @property
+    def reference_charge(self) -> int:
+        """The tracked species' charge, in units of e."""
+        beam = (self.global_parameters or {}).get("beam")
+        charge = getattr(getattr(beam, "particle_charge", None), "val", None)
+        if charge is not None and np.size(charge):
+            sign = int(np.sign(np.mean(charge)))
+            if sign:
+                return sign
+        return -1
+
+    def check_species(self) -> None:
+        """
+        Refuse a beam if :attr:`electrons_only`.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.WrongSpeciesError`
+            A ``ValueError``, if the beam's rest energy is not an electron's,
+            or its charge is not negative.
+        """
+        if not self.electrons_only:
+            return
+        electron = constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
+        if self.reference_charge != -1 or not np.isclose(self.rest_energy, electron, rtol=1e-6):
+            raise exceptions.WrongSpeciesError(
+                self.objectname, self.code, self.rest_energy, self.reference_charge
+            )
+
+    def ramp_p0c(self, turn: int) -> float | None:
+        """
+        The reference momentum on `turn` under :meth:`ramp`.
+
+        Parameters
+        ----------
+        turn: int
+            Turn number, 1-based
+
+        Returns
+        -------
+        float | None
+            ``p0c`` in eV, or None unless this run is :meth:`ramped`
+        """
+        if not self.ramped:
+            return None
+        return self.ramp.p0c_at(turn, self.rest_energy)
+
+    def ramp_clock(self, pass_length: float | None = None):
+        """
+        Seconds at the start of each turn of a ramped run.
+
+        Parameters
+        ----------
+        pass_length: float | None
+            Length of one pass in metres; this line's length if not given.
+
+        Returns
+        -------
+        :class:`~simba.Modules.EnergyRamp.RampClock` | None
+            The clock, or None unless this run is :meth:`ramped`
+        """
+        if not self.ramped:
+            return None
+        if pass_length is None:
+            pass_length = self.pass_length
+        return self.ramp.clock(
+            self.turns, pass_length, self.rest_energy, self.passes_per_turn
+        )
+
+    @property
+    def rf_mode(self) -> str:
+        """
+        How the RF keeps time from pass to pass, the same in every code::
+
+            files:
+              RING:
+                code: madx
+                tracking:
+                  turns: 1000
+                  rf: follow    # or fixed
+
+        * ``follow``, the default: each cavity's frequency scales with the
+          reference speed, as a booster's RF programme tracks the revolution
+          frequency up a ramp;
+        * ``fixed``: each cavity runs at its own frequency throughout.
+
+        :func:`~simba.Modules.EnergyRamp.rf_phase_slip`
+        has the detail, and :meth:`rf_phase_corrections` what each code needs.
+
+        Returns
+        -------
+        str
+            ``follow`` or ``fixed``; anything else warns and is ``follow``
+        """
+        tracking = self.file_block.get("tracking") or {}
+        mode = str(tracking.get("rf", "follow")).lower()
+        if mode not in RF_MODES:
+            warn(exceptions.UnknownRFModeWarning(self.objectname, mode, RF_MODES))
+            return "follow"
+        return mode
+
+    def pass_p0c(self) -> np.ndarray:
+        """
+        The reference momentum on every pass of the run: the :meth:`ramp`'s,
+        or else the entering beam's mean throughout; see :attr:`reference_clock`.
+
+        Returns
+        -------
+        np.ndarray
+            ``turns * passes_per_turn`` values of ``p0c``, in eV
+        """
+        clock = getattr(self, "_reference_clock", None)
+        if clock is not None:
+            return clock[3]
+        passes = self.turns * self.passes_per_turn
+        if self.ramped:
+            return self.ramp.p0c_per_pass(
+                self.turns, self.rest_energy, self.passes_per_turn
+            )[:passes]
+        return np.full(passes, self.reference_p0c)
+
+    def _input_mean(self, coord: str) -> float:
+        """The incoming beam's mean ``coord``, as :meth:`load_input_beam` read
+        it; else the current beam's."""
+        if self._input_reference is not None and coord in self._input_reference:
+            return self._input_reference[coord]
+        beam = self.global_parameters["beam"]
+        return float(np.mean(getattr(beam, coord).val))
+
+    @property
+    def reference_p0c(self) -> float:
+        """
+        The incoming beam's reference momentum, in eV/c: its mean ``cp``,
+        taken before :meth:`sample_beam`.
+
+        Every code takes its reference from here rather than from the beam it
+        is handed. A sampled beam's mean is a different number, by about
+        :math:`\\sigma_\\delta/\\sqrt{N}`, and a magnet's field is its
+        strength times the reference rigidity. So a sampled run used to track
+        every particle it kept through slightly different magnets.
+
+        Returns
+        -------
+        float
+            ``p0c`` in eV
+        """
+        return self._input_mean("cp")
+
+    @property
+    def reference_energy(self) -> float:
+        """Total energy of a particle at :attr:`reference_p0c`, in eV."""
+        return float(np.hypot(self.reference_p0c, self.rest_energy))
+
+    @property
+    def reference_t0(self) -> float:
+        """The incoming beam's mean ``t``, before sampling, in s: the time a
+        code without a clock of its own centres the bunch on; see
+        :attr:`reference_p0c`."""
+        return self._input_mean("t")
+
+    @property
+    def reference_z0(self) -> float:
+        """The incoming beam's mean ``z``, before sampling, in m; see
+        :attr:`reference_t0`."""
+        return self._input_mean("z")
+
+    def pass_beta0(self) -> float | np.ndarray:
+        """
+        Reference speed / ``c`` on every pass; see :meth:`pass_p0c`.
+
+        Returns
+        -------
+        np.ndarray
+            ``turns * passes_per_turn`` values
+        """
+        return beta_from_p0c(self.pass_p0c(), self.rest_energy)
+
+    def pass_index(self, turn: int, sector: int = 1) -> int:
+        """
+        0-based index of a pass: ``sector`` of ``turn``, both 1-based.
+        A turn is :attr:`passes_per_turn` passes of this line.
+        """
+        return (turn - 1) * self.passes_per_turn + sector - 1
+
+    def last_pass(self, turn: int) -> int:
+        """0-based index of the last pass of ``turn`` (1-based): the one a turn's
+        outputs are recorded on."""
+        return turn * self.passes_per_turn - 1
+
+    @property
+    def uses_reference_clock(self) -> bool:
+        """Whether every code reports ``t`` on :meth:`reference_time`."""
+        return self.fixed_reference
+
+    def reset_reference_clock(self) -> None:
+        """Fix :meth:`reference_time` for this run, from the beam just read."""
+        self._reference_clock = None
+        beam = (self.global_parameters or {}).get("beam")
+        t = getattr(getattr(beam, "t", None), "val", None)
+        if t is None or not np.size(t):
+            return
+        p0c = self.pass_p0c()
+        beta0 = beta_from_p0c(p0c, self.rest_energy)
+        starts = np.concatenate(
+            ([0.0], np.cumsum(self.pass_length / (beta0 * speed_of_light)))
+        )
+        self._reference_clock = (self.reference_t0, starts, beta0, p0c)
+
+    @property
+    def reference_clock(self) -> tuple:
+        """
+        ``(t0, starts, beta0, p0c)``: the incoming beam's mean ``t``, then per
+        pass its start time after ``t0``, reference speed over ``c`` and
+        momentum in eV; see :meth:`reference_time`.
+        """
+        if self._reference_clock is None:
+            self.reset_reference_clock()
+        return self._reference_clock
+
+    def reference_time(self, s: float, pass_index: int = 0) -> float:
+        """
+        Absolute time the reference particle reaches ``s`` on a pass.
+
+        ``T_j(s) = t0 + sum_{k<j} C / (beta_k c) + s / (beta_j c)``, with ``t0``
+        the incoming beam's mean ``t``, ``C`` the length of one pass and
+        ``beta_k`` the reference speed on pass ``k`` (:meth:`pass_beta0`).
+        Normalized for all codes; :meth:`time_to_native` gives the code's reference.
+
+        Parameters
+        ----------
+        s: float
+            Metres from the lattice entrance, within the pass
+        pass_index: int
+            0-based pass; see :meth:`pass_index`
+
+        Returns
+        -------
+        float
+            Seconds
+        """
+        t0, starts, beta0, _ = self.reference_clock
+        return float(t0 + starts[pass_index] + s / (beta0[pass_index] * speed_of_light))
+
+    def pass_start_times(self) -> np.ndarray:
+        """
+        The absolute time each pass of the run starts, on :meth:`reference_time`.
+
+        Returns
+        -------
+        np.ndarray
+            ``turns * passes_per_turn`` values, in seconds
+        """
+        t0, starts, _, _ = self.reference_clock
+        return t0 + starts[: self.turns * self.passes_per_turn]
+
+    @staticmethod
+    def pass_staircase(starts, values) -> tuple:
+        """
+        A per-pass table for an element that reads it against time: flat for
+        a quarter pass either side of each pass's start, so a bunch off the
+        reference by up to half an RF period still reads its own pass's value.
+
+        Parameters
+        ----------
+        starts: array-like
+            Seconds at the start of each pass
+        values: array-like
+            One per pass
+
+        Returns
+        -------
+        tuple
+            ``(times, values)``, two knots per pass
+        """
+        starts = np.asarray(starts, dtype=float)
+        periods = np.diff(starts) if len(starts) > 1 else np.ones(1)
+        before = np.concatenate(([periods[0]], periods))
+        after = np.append(periods, periods[-1])[: len(starts)]
+        times, table = [], []
+        for start, back, ahead, value in zip(starts, before, after, values):
+            times += [start - back / 4, start + ahead / 4]
+            table += [value, value]
+        return times, table
+
+    @classmethod
+    def native_time_scale(cls, beta0: float) -> float | None:
+        """
+        How the code's own time coordinate (:attr:`native_time`) relates to ``t``:
+        ``native = scale * (t - reference_time)``.
+
+        Parameters
+        ----------
+        beta0: float
+            The reference speed over ``c``
+
+        Returns
+        -------
+        float | None
+            ``scale``, or None if the code's own ``t`` is already absolute
+            (elegant's is)
+        """
+        return None
+
+    def time_from_native(
+        self, native, s: float, pass_index: int, beta0=None
+    ) -> np.ndarray:
+        """
+        Absolute ``t`` from the code's own time coordinate.
+
+        Parameters
+        ----------
+        native: array-like
+            The code's coordinate, in :attr:`native_time` units
+        s: float
+            Metres from the lattice entrance, within the pass
+        pass_index: int
+            0-based pass
+        beta0: float | array-like | None
+            The reference speed over ``c``, per particle if the code has it;
+            the clock's for the pass (:attr:`reference_clock`) if not given
+
+        Returns
+        -------
+        np.ndarray
+            Seconds
+        """
+        if beta0 is None:
+            beta0 = self.reference_clock[2][pass_index]
+        scale = self.native_time_scale(beta0)
+        native = np.asarray(native, dtype=float)
+        if scale is None:
+            return native
+        return self.reference_time(s, pass_index) + native / scale
+
+    def time_to_native(self, t, s: float, pass_index: int, beta0=None) -> np.ndarray:
+        """
+        The code's own time coordinate from absolute ``t``; the inverse of
+        :meth:`time_from_native`, and the same arguments.
+        """
+        if beta0 is None:
+            beta0 = self.reference_clock[2][pass_index]
+        scale = self.native_time_scale(beta0)
+        t = np.asarray(t, dtype=float)
+        if scale is None:
+            return t
+        return scale * (t - self.reference_time(s, pass_index))
+
+    def native_times(self, beam, element: str | None = None, turn: int | None = None):
+        """
+        What the code itself would call the time of each particle in a beam
+        SIMBA wrote.
+
+        Parameters
+        ----------
+        beam:
+            A beam this line wrote
+        element: str | None
+            Where; the end of the line if not given
+        turn: int | None
+            Which turn; the beam's own :attr:`turn` if not given, else 1
+
+        Returns
+        -------
+        np.ndarray
+            In :attr:`native_time` units
+        """
+        element = element or self.end
+        if turn is None:
+            turn = getattr(beam, "turn", None) or 1
+        s = self.getSValues(as_dict=True)[element]
+        return self.time_to_native(beam.t.val, s, self.last_pass(turn))
+
+    def accelerating_cavities(self) -> dict:
+        """
+        This line's accelerating cavities; deflecting and crab cavities do not.
+
+        Returns
+        -------
+        dict
+            The elements, by name
+        """
+        cavities = {}
+        for name, element in self.elements.items():
+            hardware = str(getattr(element, "hardware_type", "") or "").lower()
+            if "cavity" not in hardware or "deflect" in hardware or "crab" in hardware:
+                continue
+            cavities[name] = element
+        return cavities
+
+    def rf_phase_corrections(self) -> dict:
+        """
+        How far to move each cavity's phase on each pass for this code to run
+        :attr:`rf_mode`: the slip the mode asks for less the slip of the code's
+        own :attr:`native_rf`, both from
+        :func:`~simba.Modules.EnergyRamp.rf_phase_slip`.
+
+        Returns
+        -------
+        dict
+            Radians, one per pass, by cavity name. Empty when nothing needs moving
+
+        Warns
+        -----
+        :class:`~simba.exceptions.RFPhasesUnsupportedWarning`
+            If corrections are needed and this code cannot make them.
+        """
+        passes = self.turns * self.passes_per_turn
+        # a cavity with no voltage or no frequency does nothing at any phase
+        cavities = {
+            name: element
+            for name, element in self.accelerating_cavities().items()
+            if self.cavity_voltage(element)
+            and getattr(getattr(element, "cavity", None), "frequency", None)
+        }
+        if passes <= 1 or not cavities:
+            return {}
+        beta0 = self.pass_beta0()
+        s_in = self.getSValues(as_dict=True, at_entrance=True)
+        s_out = self.getSValues(as_dict=True)
+        corrections = {}
+        for name, element in cavities.items():
+            frequency = element.cavity.frequency
+            s = 0.5 * (s_in[name] + s_out[name])
+            args = (float(frequency), s, self.pass_length, beta0)
+            correction = wrap_phase(
+                rf_phase_slip(self.rf_mode, *args)
+                - rf_phase_slip(self.native_rf or "synchronous", *args)
+            )
+            if np.max(np.abs(correction)) > 1e-9:
+                corrections[name] = correction
+        if corrections and self.native_rf is None:
+            warn(exceptions.RFPhasesUnsupportedWarning(
+                self.objectname, self.rf_mode, corrections, self.code
+            ))
+            return {}
+        return corrections
+
+    def cavity_phase(self, name: str) -> float | None:
+        """
+        A cavity's phase as the code has it now, in its own units (see
+        :attr:`rf_phase_per_radian`); for :meth:`apply_rf_phases`.
+        Overridden by the codes that move phases pass by pass.
+
+        Parameters
+        ----------
+        name: str
+            The cavity, as simba names it
+
+        Returns
+        -------
+        float | None
+            None if the code's lattice has no such cavity
+        """
+        return None
+
+    def set_cavity_phase(self, name: str, phase: float) -> None:
+        """
+        Set a cavity's phase, in the code's own units; the other half of
+        :meth:`cavity_phase`.
+        """
+        raise NotImplementedError(
+            f"{self.code} reads cavity phases but cannot set them"
+        )
+
+    def rf_phase_shifts(self, correction) -> np.ndarray:
+        """
+        A correction from :meth:`rf_phase_corrections`, as a move of the
+        code's own phase attribute: :attr:`rf_phase_sign` times
+        :attr:`rf_phase_per_radian` times the phase the reference sees.
+        """
+        return self.rf_phase_sign * self.rf_phase_per_radian * np.asarray(correction)
+
+    def begin_rf_phases(self) -> dict:
+        """
+        Take this run's :meth:`rf_phase_corrections`, and forget every cavity
+        phase read on a previous run.
+
+        Returns
+        -------
+        dict
+            The corrections
+        """
+        self._rf_corrections = self.rf_phase_corrections()
+        self._rf_phase0 = {}
+        return self._rf_corrections
+
+    def apply_rf_phases(self, pass_index: int | None) -> None:
+        """
+        Move each cavity's phase for pass `pass_index`, so the code's
+        cavities run as :attr:`rf_mode` asks; see :meth:`rf_phase_corrections`.
+
+        Each phase is moved from the one the code was given, read (by
+        :meth:`cavity_phase`) the first time the cavity is there to read.
+
+        Parameters
+        ----------
+        pass_index: int | None
+            0-based pass, counting superperiods (:meth:`pass_index`); None
+            puts every cavity back as it was given
+        """
+        if not self._rf_corrections:
+            return
+        for name, correction in self._rf_corrections.items():
+            if name not in self._rf_phase0:
+                phase = self.cavity_phase(name)
+                if phase is None:
+                    continue
+                self._rf_phase0[name] = phase
+            shift = 0.0 if pass_index is None else self.rf_phase_shifts(correction)[pass_index]
+            self.set_cavity_phase(name, self._rf_phase0[name] + shift)
+
+    def run_turns(self, track_pass, start_turn=None) -> None:
+        """
+        The turn loop of a code SIMBA drives a pass at a time:
+        programs set per turn, RF phases moved per pass,
+        and the line put back as turn 1 had it at the end
+        (:meth:`end_turns`), for the optics and anything run after.
+
+        Parameters
+        ----------
+        track_pass: callable
+            ``track_pass(turn, pass_index, name_turn, record)``: track one
+            pass. ``name_turn`` is for :meth:`output_basename`, and ``record``
+            is whether this pass's beams are written at all: the last pass of
+            a turn :meth:`output_turns` keeps
+        start_turn: callable, optional
+            ``start_turn(turn)``, called once a turn's programs are set
+        """
+        wanted = dict(self.output_turns())
+        self.begin_rf_phases()
+        passes = self.passes_per_turn
+        try:
+            for turn in range(1, self.turns + 1):
+                key = turn if self.turns > 1 else None
+                self.apply_programs(turn)
+                if start_turn is not None:
+                    start_turn(turn)
+                for sector in range(1, passes + 1):
+                    index = self.pass_index(turn, sector)
+                    self.apply_rf_phases(index)
+                    track_pass(
+                        turn, index, wanted.get(key), sector == passes and key in wanted
+                    )
+        finally:
+            self.end_turns()
+
+    def end_turns(self) -> None:
+        """
+        Put the line back as turn 1 had it: every cavity's phase as given,
+        and every program at turn 1.
+        """
+        self.apply_rf_phases(None)
+        missing = set(self._rf_corrections or {}) - set(self._rf_phase0 or {})
+        if missing:
+            warn(exceptions.MissingCavitiesWarning(self.objectname, missing, self.code))
+        if self.turns > 1:
+            self.apply_programs(1)
+
+    @property
+    def rf_voltage(self) -> float:
+        """
+        Total accelerating voltage on one turn, in volts.
+        Every accelerating cavity's amplitude, ignoring phase, times the
+        passes in a turn.
+        """
+        total = sum(
+            self.cavity_voltage(element)
+            for element in self.accelerating_cavities().values()
+        )
+        return total * self.passes_per_turn
+
+    @staticmethod
+    def cavity_voltage(element) -> float:
+        """
+        A cavity's amplitude, ignoring phase, in volts.
+
+        Parameters
+        ----------
+        element:
+            The cavity
+
+        Returns
+        -------
+        float
+            ``|field_amplitude|``, or 0 if it has none
+        """
+        simulation = getattr(element, "simulation", None)
+        try:
+            amplitude = simulation.resolved("field_amplitude")
+        except (AttributeError, TypeError, ValueError):
+            amplitude = getattr(simulation, "field_amplitude", 0.0)
+        return abs(float(amplitude or 0.0))
+
+    def check_ramp(self) -> None:
+        """
+        Warn about a ramp this run will not track as written.
+        The checks that need only the settings: see :meth:`check_ramp_beam`.
+        """
+        ramp = self.ramp
+        if ramp is None:
+            return
+        if not self.supports_ramp:
+            warn(exceptions.RampUnsupportedWarning(
+                self.objectname, self.code, self.codes_that_can("supports_ramp")
+            ))
+            return
+        if self.turns <= 1:
+            warn(exceptions.RampOneTurnWarning(self.objectname))
+            return
+        if ramp.last_turn > self.turns:
+            warn(exceptions.RampOverrunWarning(self.objectname, ramp.last_turn, self.turns))
+
+    def check_ramp_beam(self) -> None:
+        """
+        Warn about a ramp the input beam will not follow.
+        A beam that does not start on the ramp, and too little RF for the
+        beam to follow it.
+        """
+        if not self.ramped:
+            return
+        ramp = self.ramp
+        beam = (self.global_parameters or {}).get("beam")
+        if beam is None:
+            return
+        rest_energy = self.rest_energy
+        start = ramp.p0c_at(1, rest_energy)
+        entering = self.reference_p0c
+        if entering and abs(start / entering - 1) > 1e-3:
+            warn(exceptions.OffRampWarning(self.objectname, start, entering))
+        needed = float(np.max(np.abs(ramp.energy_gain_per_turn(self.turns, rest_energy))))
+        if not needed:
+            return
+        voltage = self.rf_voltage
+        if not voltage:
+            warn(exceptions.RampWithoutRFWarning(self.objectname))
+        elif needed > voltage:
+            warn(exceptions.RampTooSteepWarning(self.objectname, needed, voltage))
+
+    @property
+    def pass_length(self) -> float:
+        """Length of one pass of this line, in metres."""
+        return float(
+            self.machine.get_elements_s_pos(end=self.end)[self.end] - self.entrance_s
+        )
 
     @property
     def revolution_period(self) -> float:
@@ -1129,13 +1888,10 @@ class frameworkLattice(BaseModel):
         beam = (self.global_parameters or {}).get("beam")
         if beam is None:
             return 0.0
-        length = float(
-            self.machine.get_elements_s_pos(end=self.end)[self.end] - self.entrance_s
-        )
         beta = float(np.mean(beam.BetaGamma) / np.mean(beam.gamma))
         if not beta:
             return 0.0
-        return self.passes_per_turn * length / (beta * speed_of_light)
+        return self.passes_per_turn * self.pass_length / (beta * speed_of_light)
 
     def program_is_vertical(self, name: str) -> bool:
         """
@@ -1155,6 +1911,39 @@ class frameworkLattice(BaseModel):
         element = self.elements.get(name)
         hardware = str(getattr(element, "hardware_type", "") or "")
         return hardware.lower().startswith("vertical")
+
+    def program_attribute(self, program, element_type: str | None) -> str | None:
+        """
+        The attribute `program` sets: its own ``parameter``, else the one
+        :attr:`program_attributes` gives the element's type, in the element's
+        plane (:meth:`program_is_vertical`).
+
+        Parameters
+        ----------
+        program: :class:`~simba.Modules.DeviceProgram.DeviceProgram`
+            The program
+        element_type: str | None
+            The programmed element's type, as this code names it
+
+        Returns
+        -------
+        str | None
+            The attribute, or None if there is none to set
+        """
+        if element_type is None:
+            warn(exceptions.ProgramMissingElementWarning(
+                self.objectname, program.element, self.code
+            ))
+            return None
+        if program.parameter is not None:
+            return program.parameter
+        planes = self.program_attributes.get(element_type)
+        if planes is None:
+            warn(exceptions.ProgramNoAttributeWarning(
+                self.objectname, program.element, self.code, element_type
+            ))
+            return None
+        return planes[1] if self.program_is_vertical(program.element) else planes[0]
 
     def apply_programs(self, turn: int) -> None:
         """
@@ -1364,16 +2153,10 @@ class frameworkLattice(BaseModel):
         try:
             count = int(value)
         except (TypeError, ValueError):
-            warn(
-                f"Line '{self.objectname}' has nsuperperiods={value!r}, which "
-                "is not a whole number. Tracking the line once per turn."
-            )
+            warn(exceptions.BadSuperperiodsWarning(self.objectname, value))
             return 1
         if count < 1:
-            warn(
-                f"Line '{self.objectname}' has nsuperperiods={count}, which is "
-                "not a count. Tracking the line once per turn."
-            )
+            warn(exceptions.BadSuperperiodsWarning(self.objectname, count))
             return 1
         return count
 
@@ -1391,24 +2174,18 @@ class frameworkLattice(BaseModel):
         """Warn when superperiods were asked for and cannot be given."""
         if self.nsuperperiods <= 1 or self.supports_nsuperperiods:
             return
-        warn(
-            f"Line '{self.objectname}' asks for {self.nsuperperiods} "
-            f"superperiods, but {self.code} has no way to repeat the line "
-            "within a turn here, so it will be tracked once per turn -- "
-            f"which is one {self.nsuperperiods}th of the intended ring, not "
-            "a coarser version of it. Ocelot, MAD-X and Xsuite are the codes "
-            "that can."
-        )
+        warn(exceptions.SuperperiodsUnsupportedWarning(
+            self.objectname, self.code, self.nsuperperiods,
+            self.codes_that_can("supports_nsuperperiods"),
+        ))
 
     def check_single_particle_supported(self) -> None:
         """Warn when single-particle mode was asked for and cannot be given."""
         if self.single_particle and not self.supports_single_particle:
-            warn(
-                f"Line '{self.objectname}' asks for single-particle mode, but "
-                f"{self.code} has no implementation of it. The full "
-                "distribution will be tracked, which is slower but not "
-                "wrong -- the results stand."
-            )
+            warn(exceptions.SingleParticleUnsupportedWarning(
+                self.objectname, self.code,
+                self.codes_that_can("supports_single_particle"),
+            ))
 
     def track_reference_particle(self) -> dict:
         """
@@ -1465,8 +2242,12 @@ class frameworkLattice(BaseModel):
         -------
         list
             ``(x, y, tune_x, tune_y)`` per surviving grid point. Lost
-            particles are absent.
+            particles are absent. Empty, with a warning, if this code
+            cannot do it.
         """
+        warn(exceptions.FrequencyMapUnsupportedWarning(
+            self.objectname, self.code, self.codes_that_can("supports_frequency_map")
+        ))
         return []
 
     def run_dynamic_aperture(self) -> list:
@@ -1479,20 +2260,21 @@ class frameworkLattice(BaseModel):
         Returns
         -------
         list
-            ``(x, y, turns_survived)`` per grid point, empty if this code
-            cannot do it.
+            ``(x, y, turns_survived)`` per grid point. Empty, with a
+            warning, if this code cannot do it.
         """
+        warn(exceptions.DynamicApertureUnsupportedWarning(
+            self.objectname, self.code, self.codes_that_can("supports_dynamic_aperture")
+        ))
         return []
 
     def check_turns_supported(self) -> None:
         """Warn when turns were asked for and this code cannot do them."""
         if self.turns > 1 and not self.supports_turns:
-            warn(
-                f"Line '{self.objectname}' asks for {self.turns} turns, but "
-                f"{self.code} tracks a line once and has no turn count. One "
-                "turn will be tracked. elegant, Xsuite, Ocelot and MAD-X are "
-                "the codes that can."
-            )
+            warn(exceptions.TurnsUnsupportedWarning(
+                self.objectname, self.code, self.turns,
+                self.codes_that_can("supports_turns"),
+            ))
 
     def check_turns_closed(self, tolerance: float = 1e-4) -> None:
         """Warn when a line that does not close is treated as though it did.
@@ -1524,26 +2306,9 @@ class frameworkLattice(BaseModel):
         )
         if not length or gap <= tolerance * length:
             return
-        claim = (
-            f"is tracked for {self.turns} turns"
-            if self.turns > 1
-            else "asks for the periodic solution"
-        )
-        message = (
-            f"Line '{self.objectname}' {claim}, but "
-            f"its geometry does not close: it ends {gap:.4g} m from where it "
-            f"starts, over {length:.4g} m."
-        )
-        turn = 2 * math.pi
-        angle = abs(self.net_bend_angle)
-        if angle > 1e-9 and abs(round(turn / angle) - turn / angle) < 1e-3:
-            message += (
-                f" Its net bend is a 1/{round(turn / angle)} fraction of a "
-                "turn, so if this is one superperiod of a symmetric ring, "
-                f"set 'nsuperperiods: {round(turn / angle)}' or track the "
-                "whole ring instead."
-            )
-        warn(message)
+        warn(exceptions.NotClosedWarning(
+            self.objectname, self.turns, gap, length, self.net_bend_angle
+        ))
 
     def check_superperiods_close(self) -> None:
         """
@@ -1556,15 +2321,7 @@ class frameworkLattice(BaseModel):
         turns_of_bend = count * angle / (2 * math.pi)
         if abs(round(turns_of_bend) - turns_of_bend) < 1e-3:
             return
-        implied = (2 * math.pi) / angle
-        message = (
-            f"Line '{self.objectname}' declares {count} superperiods, but "
-            f"{count} of them bend through {turns_of_bend:.4g} turns rather "
-            "than a whole number, so they do not make a closed ring."
-        )
-        if abs(round(implied) - implied) < 1e-3:
-            message += f" Its net bend suggests {round(implied)} instead."
-        warn(message)
+        warn(exceptions.SuperperiodsDoNotCloseWarning(self.objectname, count, angle))
 
     @property
     def net_bend_angle(self) -> float:
@@ -1605,11 +2362,9 @@ class frameworkLattice(BaseModel):
             return
         expected = laura_brho(stated)
         if abs(brho - expected) > tolerance * expected:
-            warn(
-                f"Line '{self.objectname}' tracks a beam of rigidity "
-                f"{float(brho):.4f} T.m, but pass {self.start} states a "
-                f"momentum of {stated:.4g} eV/c ({expected:.4f} T.m)."
-            )
+            warn(exceptions.RigidityMismatchWarning(
+                self.objectname, brho, self.start, stated, expected
+            ))
 
     def output_basename(self, name: str, turn: int | None = None) -> str:
         """Filename stem for ``name``'s output beam file, qualified if needed.
@@ -1630,6 +2385,56 @@ class frameworkLattice(BaseModel):
         if turn is not None and self.turns > 1:
             name = f"{name}{OUTPUT_TURN_SEPARATOR}{turn:0{len(str(self.turns))}d}"
         return name
+
+    def sampled_index(self, index: int | None) -> int | None:
+        """
+        A particle's index once the beam is sampled to every
+        :attr:`sample_interval`-th particle, or None if sampling drops it.
+        """
+        if index is None:
+            return None
+        interval = max(1, int(self.sample_interval))
+        return int(index) // interval if int(index) % interval == 0 else None
+
+    def sample_beam(self, bm):
+        """
+        Every :attr:`sample_interval`-th particle of a beam, conserving the
+        total charge; see :meth:`sampled_index`.
+        """
+        from .Modules.units import UnitValue
+
+        interval = max(1, int(self.sample_interval))
+        newbeam = deepcopy(bm)
+        nb = newbeam._beam
+        idx = slice(None, None, interval)
+        for key in ["x", "y", "z", "t", "px", "py", "pz", "nmacro", "status",
+                    "particle_mass", "particle_rest_energy",
+                    "particle_rest_energy_eV", "particle_charge"]:
+            if hasattr(nb, key) and getattr(nb, key) is not None:
+                val = getattr(nb, key)
+                try:
+                    setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
+                except Exception:
+                    pass
+        nb.set_total_charge(np.sum(np.array(bm.charge.val)))
+        newbeam.reference_particle_index = self.sampled_index(bm.reference_particle_index)
+        return newbeam
+
+    def writes_output(self, name: str, turn: int | None = None) -> bool:
+        """
+        Whether a beam recorded at ``name`` gets a file of its own, under
+        :meth:`output_basename`.
+        Every recorded element does, except the start of the line under its
+        bare name: that file is the input beam, the previous line's end.
+
+        Parameters
+        ----------
+        name: str
+            The element
+        turn: int | None
+            The turn, as :meth:`output_turns` names it
+        """
+        return name != self.start or (turn is not None and self.turns > 1)
 
     def get_prefix(self) -> str:
         """
@@ -1710,6 +2515,65 @@ class frameworkLattice(BaseModel):
         raise Exception(
             f'HDF5 input file {expand_substitution(self, prefix + particle_definition)}.[openpmd.].hdf5 does not exist!')
 
+    @property
+    def input_particle_definition(self) -> str:
+        """
+        The input beam's file name, without its extension: ``input:
+        particle_definition``, where ``initial_distribution`` is the
+        generator's ``laser``; else this line's start.
+        """
+        stated = (self.file_block.get("input") or {}).get("particle_definition")
+        if stated is None:
+            return self.start
+        return "laser" if stated == "initial_distribution" else stated
+
+    def load_input_beam(self, prefix: str, particle_definition: str) -> str:
+        """
+        Read the incoming beam and make it the beam this lattice should see.
+        The ``s`` a code reports is anchored to :attr:`entrance_s`.
+
+        Every code does the same things once its input is read, so they
+        are done here rather than in each ``preProcess``:
+
+        * record the beam's reference, :attr:`reference_p0c` and
+          :attr:`reference_t0`, which every code takes as its own;
+        * keep every :attr:`sample_interval`-th particle, conserving the total
+          charge (:meth:`sample_beam`);
+        * refuse a beam the code cannot track, :meth:`check_species`;
+        * rematch to ``input: twiss`` if it is given;
+        * take :attr:`ref_idx` from the beam;
+        * run the beam-dependent ramp checks, :func:`check_ramp_beam`;
+        * fix the reference clock every code reports ``t`` on,
+          :meth:`reference_time`.
+
+        Parameters
+        ----------
+        prefix: str
+            Prefix of the input beam file
+        particle_definition: str
+            Name of the input beam file, without its extension
+
+        Returns
+        -------
+        str
+            Path of the file that was read; see :func:`read_input_file`
+        """
+        filepath = self.read_input_file(prefix, particle_definition)
+        full = self.global_parameters["beam"]
+        self._input_reference = {
+            coord: float(np.mean(getattr(full, coord).val)) for coord in ("cp", "t", "z")
+        }
+        if int(self.sample_interval) > 1:
+            self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])
+        self.check_species()
+        beam = self.global_parameters["beam"]
+        beam.beam.rematchXPlane(**self.initial_twiss["horizontal"])
+        beam.beam.rematchYPlane(**self.initial_twiss["vertical"])
+        self.ref_idx = beam.reference_particle_index
+        self.check_ramp_beam()
+        self.reset_reference_clock()
+        return filepath
+
     def update_groups(self) -> None:
         """
         Update the group objects in the lattice with their settings.
@@ -1748,7 +2612,7 @@ class frameworkLattice(BaseModel):
             else:
                 return self.groupObjects[element]
         else:
-            warn(f"WARNING: Element {element} does not exist")
+            warn(exceptions.MissingElementWarning(element))
             return {}
 
     def getElementType(
@@ -2598,11 +3462,14 @@ class frameworkLattice(BaseModel):
         self.check_turns_supported()
         self.check_periodic_supported()
         self.check_radiation()
+        self.check_radiation_supported()
         self.check_single_particle_supported()
         self.check_nsuperperiods_supported()
         self.check_programs_supported()
         self.check_programs_fit()
+        self.check_ramp()
         self._apply_radiation_to_section()
+        self._apply_fixed_reference_to_section()
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
@@ -2790,19 +3657,15 @@ class frameworkLattice(BaseModel):
             return
         matrix = np.asarray(matrix, dtype=float)
         if matrix.shape != (6, 6):
-            warn(
-                f"Line '{self.objectname}': {self.code} returned a one-turn "
-                f"map of shape {matrix.shape}, not 6x6."
-            )
+            warn(exceptions.BadOneTurnMapWarning(
+                self.objectname, self.code, shape=matrix.shape
+            ))
             return
         determinant = float(np.linalg.det(matrix))
         if abs(determinant - 1.0) > tolerance:
-            warn(
-                f"Line '{self.objectname}': the one-turn map from {self.code} "
-                f"has determinant {determinant:.6g}, not 1. It is not a "
-                "volume-preserving linear map, so whatever is derived from it "
-                "-- tune, beta, momentum compaction -- is not trustworthy."
-            )
+            warn(exceptions.BadOneTurnMapWarning(
+                self.objectname, self.code, determinant=determinant
+            ))
 
     def postProcess(self):
         """
@@ -3190,7 +4053,6 @@ class frameworkLattice(BaseModel):
         prefix = lat.get_prefix()
         prefix = prefix if lat.trackBeam else prefix + lat.particle_definition
         lat.read_input_file(prefix, lat.particle_definition)
-        lat.ref_s = self.global_parameters["beam"].s
         lat.ref_idx = self.global_parameters["beam"].reference_particle_index
         lat.hdf5_to_npz(prefix)
         lat.writeElements()

@@ -29,7 +29,17 @@ is drawn again, more finely, in :ref:`device-programs`.
 .. note::
    Not every code can honour every setting, and a code that cannot **says so** and
    carries on rather than quietly doing something else. The warnings name the codes
-   that can. See :ref:`ring-capabilities`.
+   that can, read off the codes' own ``supports_*`` flags
+   (:meth:`~simba.Framework_objects.frameworkLattice.codes_that_can`) so the list
+   cannot fall behind them. See :ref:`ring-capabilities`, and
+   :ref:`simba-warnings` for silencing them by kind.
+
+.. note::
+   **Space charge and CSR are the line's, and LSC is off unless asked for.**
+   ``lsc_enable`` defaults to ``false`` in LAURA and in every SIMBA code.
+   A line that wants longitudinal space charge says ``lsc_enable: true`` in its
+   ``files:`` entry; a linac deck that relied on the old default needs to.
+   ``csr_enable`` is unchanged.
 
 .. _tracking-settings:
 
@@ -137,10 +147,17 @@ Whether a multi-turn run writes a beam file per turn. **Off by default**:
     tracking: {turns: 1000, write_turns: true}
 
 With it off, a multi-turn run writes what a single-turn run writes — one file per
-screen, holding the last turn, under the unsuffixed name — so a ring run looks like
-any other run to everything downstream. With it on you get ``M1-t1`` … ``M1-tN``
-*and* the unsuffixed file, which is the one the next section reads by name; see
-:ref:`which-turn` for how to tell them apart from the inside.
+screen, marker and BPM, and one at the end of the line, holding the last turn,
+under the unsuffixed name — so a ring run looks like any other run to everything
+downstream. With it on you get ``M1-t1`` … ``M1-tN`` *and* the unsuffixed file,
+which is the one the next section reads by name; see :ref:`which-turn` for how
+to tell them apart from the inside.
+
+Every ring code records at the same places: screens, markers, BPMs and the end
+of the line. The start element's unsuffixed file is the input beam, and is never
+written over. Under ``nsuperperiods``, turn ``k`` is the beam on the last pass of that
+turn. The s written is the element's position in the machine, measured from the
+lattice's own entrance, and never the incoming beam's ``s``.
 
 single_particle
 ^^^^^^^^^^^^^^^^^^^
@@ -232,7 +249,11 @@ past it warns, as does a run that ends part-way through a program.
 
 An optional ``parameter:`` names the code-native attribute to set directly. That
 turns off both the plane lookup and the sign conversion, and is the escape hatch
-for an element simba has no default for.
+for an element simba has no default for. Without it, an element with both planes
+(a MAD-X ``KICKER``, an Xsuite multipole) is set in its own plane, from its LAURA
+``hardware_type``, in every code
+(:meth:`~simba.Framework_objects.frameworkLattice.program_attribute`). A program
+naming an element the line does not have warns in every code too.
 
 How each code does it
 ^^^^^^^^^^^^^^^^^^^^^
@@ -257,11 +278,182 @@ How each code does it
    * - Ocelot
      - The attribute set on the sequence element between turns of simba's loop.
    * - MAD-X
-     - ``name->attribute`` re-stated between turns, which reaches the lattice even
-       after ``MAKETHIN``.
+     - The attribute tied to a MAD-X variable (``NAME, ATTR:=var``) as each
+       segment is defined, before ``MAKETHIN``, and the variable set between
+       turns. The variable can be
+       set before its segment exists, which on turn 1 it does not. A
+       **multipole cannot be programmed in MAD-X**: it kicks by
+       :math:`-(K_0L - \mathrm{ANGLE})`, and ``ANGLE`` defaults to ``KNL[0]``.
+       A program on one warns and is not applied; model the device as a kicker.
    * - Bmad
      - ``set element`` inside the Tao turn loops, which are the only place Bmad
        counts turns here.
+
+.. _energy-ramp:
+
+ramp — the Reference Momentum Over Turn Number
+------------------------------------------------
+
+A booster ramp, stated once and read the same way by every code that can track
+one:
+
+.. code-block:: yaml
+
+    files:
+      RING:
+        code: xsuite
+        tracking:
+          turns: 2000
+          ramp:
+            turns: [1, 1000, 2000]
+            kinetic_energy: [160.0e6, 2.0e9, 2.0e9]
+
+``momentum`` (``p0c``, eV) may be given instead of ``kinetic_energy`` (eV), but
+not both. Turns are 1-based, as for ``programs``. The default interpolation is
+``linear``, since a ramp is smooth where a kicker is not; ``hold`` and ``spline``
+are also available.
+
+The model
+^^^^^^^^^
+
+Every backend implements this and nothing else:
+
+* the ramp sets the **reference** momentum at the start of each turn and holds
+  it for the whole turn, including across superperiods;
+* changing the reference **changes no particle**. Absolute energy, absolute
+  transverse momentum and arrival time are kept; only coordinates measured
+  from the reference move;
+* magnet strengths are **normalised**, so they stay put and the fields follow
+  the reference;
+* **the RF does the accelerating.** A bunch whose cavities are phased for a
+  stationary bucket slides to the synchronous phase on its own. With too little
+  voltage it falls off the ramp.
+
+Where a code needs time rather than turn number, turn :math:`n` starts at
+
+.. math::
+
+   t_1 = 0, \qquad
+   t_{n+1} = t_n + \frac{C}{c\,\tfrac12\left(\beta_0(n) + \beta_0(n+1)\right)}
+
+with :math:`C` the length of one pass. The mid-point is Xsuite's own convention.
+Written with one knot per pass, it puts Xsuite on integer turns exactly. A
+:ref:`device program <device-programs>` in a ramped run is timed on the same
+clock.
+
+A ramp warns, and is otherwise tracked as written, when:
+
+* the code cannot ramp (Bmad -- to be implemented);
+* the run is one turn, or stops part-way up the ramp;
+* the beam does not start on it (more than 0.1% off);
+* there is no RF cavity, or the cavities' total voltage is less than the
+  largest energy step a turn needs.
+
+How each code does it
+^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 88
+
+   * - Code
+     - Mechanism
+   * - Xsuite
+     - Natively: an ``xt.EnergyProgram`` with one knot per pass on the clock
+       above. Xtrack re-references the particles every turn
+       (``update_p0c_and_energy_deviations``). simba's
+       ``ReferenceEnergyIncrease`` before each cavity is left out, because
+       the program owns the reference.
+   * - elegant
+     - Natively: a ``RAMPP`` first in the beamline, reading a ``WAVEFORM``
+       sidecar. ``RAMPP`` samples its waveform at the **bunch's mean arrival
+       time** rather than at any reference clock.
+       A staircase is used on that axis, flat for a quarter
+       turn either side of each turn's start. ``run_setup`` is written with
+       ``always_change_p0 = 0``: re-centring ``p_central`` on the beam after
+       every element undoes the ramp entirely.
+   * - Ocelot
+     - Between turns of SIMBA's loop: the energy is moved and each particle's
+       ``p``, ``x'`` and ``y'`` are re-expressed so that its absolute momentum
+       is kept. Ocelot's own ``LatticeEnergyProfile`` is not used; it has the
+       electron mass written in and leaves ``x'`` and ``y'`` alone.
+   * - MAD-X
+     - Between turns of SIMBA's loop: the ring's reference ``p0c`` and time are
+       carried from turn to turn rather than taken from the bunch.
+   * - Bmad
+     - Not supported yet; its tracking path here is single-pass.
+
+``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all four
+codes. Over a 2% ramp with no RF, the ramp moves the orbit by about 1.2e-4 m.
+Xsuite and Ocelot agree with elegant to 1e-7 m and 3e-6 m. MAD-X, whose
+lenses are thin, agrees to 2e-5 m.
+
+.. _rf-mode:
+
+rf — How the RF Keeps Time
+--------------------------
+
+Left alone, the codes do not agree on what a cavity is. elegant's ``RFCA`` is a
+free-running oscillator on absolute time. MAD-X, Xsuite and Ocelot re-phase
+their cavities to the reference particle on every pass. On a flat ring with
+the cavity on a harmonic you cannot tell the two apart. Under a ramp, where
+:math:`\beta_0` changes, they part. They also part on a flat ring whose cavity
+is off the harmonic: elegant's beam slips and the others' never does.
+
+So ``rf`` says what the RF does, and every code is made to do it:
+
+.. code-block:: yaml
+
+    tracking: {turns: 2000, ramp: {...}, rf: follow}
+
+``follow`` (the default)
+    The frequency follows the beam, :math:`f(n) = f\,\beta_0(n)/\beta_0(1)`,
+    as a booster's low-level RF does. The ``frequency`` given is the one at
+    turn 1.
+``fixed``
+    A free-running oscillator at the ``frequency`` given.
+
+It is a ``tracking`` setting rather than part of ``ramp``, because it matters
+on a flat ring too, for a cavity off the harmonic.
+
+Each code is moved, pass by pass, from what it does natively to what is
+asked. The correction is the phase slip the mode asks for less the code's
+own. The reference reaches a cavity at
+:math:`T_j(s) = \sum_{k<j} C/(\beta_k c) + s/(\beta_j c)`.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 18 70
+
+   * - Code
+     - Natively
+     - Moved by
+   * - elegant
+     - fixed
+     - ``&modulate_elements`` on each cavity's ``PHASE``, from an SDDS table
+       in the bunch's absolute time, as for ``RAMPP``. ``RAMPRF`` has a
+       different phase convention, and ``LOCK_PHASE`` locks to the bunch
+       centroid, which is not ``follow``.
+   * - Xsuite
+     - synchronous
+     - each cavity's ``lag`` bound to a staircase in ``t_turn_s``.
+   * - MAD-X
+     - synchronous
+     - each cavity's ``LAG`` between passes of simba's loop. A run whose RF
+       has to move cannot use native turns.
+   * - Ocelot
+     - synchronous
+     - each cavity's ``phi`` between passes. Its sign is the opposite of the
+       others', because Ocelot's phase is cosine-based.
+
+.. note::
+   **Ocelot's cavity moves the reference.** Its cavity map always adds
+   :math:`V\cos\phi` to the reference energy. That is right for a linac, but
+   it means a ring's beam never slips. On a ring, SIMBA puts the reference
+   back at each cavity's exit
+   (:class:`~simba.Codes.Ocelot.fixedreference.FixedReference`), keeping
+   each particle's absolute momentum. Ocelot's periodic optics with a cavity
+   in the ring also needed the reference energy passed in.
 
 .. _ring-capabilities:
 
@@ -272,13 +464,14 @@ A code that cannot honour a setting warns and carries on.
 
 .. list-table::
    :header-rows: 1
-   :widths: 15 8 8 10 8 10 10 11 10
+   :widths: 15 8 8 10 8 8 10 10 11 10
 
    * - Code
      - turns
      - periodic
      - radiation
      - programs
+     - ramp
      - dynamic aperture
      - frequency map
      - single particle
@@ -287,6 +480,7 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - yes
      - yes (on by default)
+     - yes
      - yes
      - yes
      - yes
@@ -299,9 +493,11 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - yes
      - yes
+     - yes
      - no
      - yes
    * - Ocelot
+     - yes
      - yes
      - yes
      - yes
@@ -319,17 +515,19 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - yes
      - yes
+     - yes
    * - Bmad
      - ring studies only
      - yes
      - yes (on by default)
      - yes
+     - no
      - yes
      - yes
      - no
      - no
 
-ASTRA, GPT, Cheetah, OPAL and CSRTrack track a line once and have none of these.
+ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
 
 .. _native-turns:
 
@@ -349,6 +547,8 @@ Each of these needs Python between one turn and the next:
   the change above this means a linac, which does not have turns anyway;
 * **device programs** — :ref:`a program <device-programs>` varies an element per
   turn, which is a MAD-X statement between turns;
+* **an energy ramp** — :ref:`the reference momentum <energy-ramp>` changes at
+  the start of every turn, and MAD-X has no way to change it inside a ``RUN``;
 * **single-particle mode**, which is not one tracking run but a map built by
   finite differences;
 * ``native_turns: false``, the explicit override::
@@ -424,12 +624,7 @@ Beyond the usual beam and Twiss output:
 Which Turn a Result Came From
 -----------------------------
 
-A turn number used to live in exactly one place: the **filename**, and only when
-``write_turns`` put it there. With the default off, a thousand-turn run writes one
-beam file per screen holding the thousandth turn, and nothing in or around that file
-said so — on disk it was indistinguishable from a single-turn run.
-
-Both the beam and the Twiss objects now carry it.
+Both the beam and the Twiss objects now carry turn number.
 
 :attr:`~simba.Modules.Beams.beam.turn`
     1-based, and ``None`` where nobody said — a generated distribution, or a file
@@ -461,17 +656,198 @@ behind. The column is what says which turn that was.
 Only :meth:`~simba.Framework.Framework.save_summary_files` fills it. A Twiss file
 read on its own has no way to know, because every code writes one per *line*
 however many turns ran; the framework knows the turn count, so the stamping happens
-there rather than in each of the ten per-code readers.
+there rather than in each of ten per-code readers.
+:meth:`~simba.Framework_objects.frameworkLattice.link_handoff_beam` restores the
+hand-off between turns from the last turn after the backend has written.
+
+.. _ring-time:
+
+What ``t`` Means
+----------------
+
+Every code writes a particle's ``t`` as an **absolute time**, on one clock shared
+by all of them. On a ring, a periodic line or a ramp, that clock is the reference
+particle's:
+
+.. math::
+
+   T_j(s) = t_0 + \sum_{k<j} \frac{C}{\beta_k c} + \frac{s}{\beta_j c}
+
+for pass :math:`j` (0-based) of a line of length :math:`C`, :math:`\beta_k` being
+the reference velocity on pass :math:`k` — constant without a ramp, the ramp's
+otherwise. :math:`t_0` is the incoming beam's mean ``t``, fixed when the beam is
+read (:meth:`~simba.Framework_objects.frameworkLattice.load_input_beam`), so the
+same input gives the same clock whichever code tracks it.
+
+The codes do not keep time the same way: elegant's ``t`` is already absolute, and
+the others carry a lag on their own reference instead. Each converts on the way
+out.
+
+A code's own coordinate is still there when it is wanted:
+:meth:`~simba.Framework_objects.frameworkLattice.native_times` gives it for a
+beam the code wrote, and ``time_to_native`` / ``time_from_native`` convert either
+way. With :math:`T` the reference clock above,
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 70
+
+   * - Code
+     - Native
+     - From ``t``
+   * - elegant
+     - ``t`` [s]
+     - itself
+   * - Xsuite
+     - ``zeta`` [m]
+     - :math:`-\beta_0 c\,(t - T)`
+   * - Ocelot
+     - ``tau`` [m]
+     - :math:`+c\,(t - T)`
+   * - MAD-X
+     - ``T`` [m]
+     - :math:`-c\,(t - T)`
+
+so a particle arriving late has a negative ``zeta`` and ``T`` but a positive
+``tau``.
+
+One turn loop
+^^^^^^^^^^^^^
+
+Ocelot and MAD-X (where it cannot count turns natively, see
+:ref:`native-turns`) track a pass at a time, through one loop
+(:meth:`~simba.Framework_objects.frameworkLattice.run_turns`): programs set at the
+start of each turn, RF phases moved each pass (see the ``rf`` setting above), only
+the last pass of a turn recorded, and the line put back as turn 1 had it at the
+end — even if a pass fails — so the optics, a dynamic aperture or a frequency map
+run afterwards see the lattice that was asked for, not the last turn's.
+
+The start's own file
+^^^^^^^^^^^^^^^^^^^^
+
+A line's start element is where its input beam comes from: ``M1.openpmd.hdf5``
+*is* the previous line's end. No code writes over it. Per-turn files at the
+start (``M1-t3``) are written as for any other marker.
+
+``input: sample_interval: n`` keeps every *n*-th particle, with the total charge
+kept, as the beam is read
+(:meth:`~simba.Framework_objects.frameworkLattice.load_input_beam`), so every code
+tracks the same particles and none samples on its own.
+
+A sampled beam keeps the full beam's reference: its mean momentum and time,
+recorded before sampling
+(:attr:`~simba.Framework_objects.frameworkLattice.reference_p0c`,
+:attr:`~simba.Framework_objects.frameworkLattice.reference_t0`):
+
+* MAD-X on a linac takes each segment after the first from the beam it is
+  given, as it has no other reference past the entrance.
+* Bmad takes its reference particle's if the beam has one; it is exact only if
+  the sampling keeps it.
+* A single Xsuite pass recentres ``zeta`` on the beam's own mean before every
+  element, so its ``t`` is still the sample's (by 6e-14 s in the same cell).
+* ASTRA, GPT, OPAL, Genesis, Wake_T and CSRTrack still take theirs from the
+  beam they are given.
+
+elegant, Ocelot and Cheetah track electrons only
+(:attr:`~simba.Framework_objects.frameworkLattice.electrons_only`), and refuse any
+other beam as it is read.
+
+Lost particles
+^^^^^^^^^^^^^^
+
+A particle a code loses — on an aperture, or to an unstable orbit — is not in the
+beam it writes. elegant and MAD-X drop theirs. Xsuite keeps them in its arrays,
+marked ``state <= 0`` and frozen where they were lost.
+
+Nothing is kept of *where* or on *which turn* a particle was lost, in any code.
+A study that needs a loss map has to get it from the code directly for now:
+Xsuite's ``state``, ``at_turn`` and ``s``, or elegant's ``&losses``.
+
+Xsuite also moves the particles it loses to the end of its arrays. The reference
+particle (:attr:`~simba.Framework_objects.frameworkLattice.ref_idx`) is now found
+by its ``particle_id``.
+
+.. _xsuite-space-charge:
+
+Space charge in Xsuite
+----------------------
+
+Xsuite tracks with 3D space charge when the line asks for it the way Ocelot reads
+it:
+
+.. code-block:: yaml
+
+    files:
+      LINE:
+        code: xsuite
+        charge: {space_charge_mode: 3d}
+
+Every ``space_charge_step`` (0.1 m, Ocelot's ``unit_step``), an xfields
+``SpaceCharge3D`` kick stands for the step around it. Each time the beam passes,
+the kick deposits the beam on its grid, solves for the field and kicks it. The
+grid is ``getGridSizes(N)`` cells a side, as in Ocelot. Any other mode warns
+(:class:`~simba.exceptions.SpaceChargeModeWarning`) and is tracked without.
+
+Things worth knowing:
+
+* **The grids are sized once**, from one pass of (up to 10 000 of) the beam's
+  particles without space charge. Kicks with similar beam sizes share a grid.
+  A beam that outgrows the last grid by the end of the run warns
+  (:class:`~simba.exceptions.SpaceChargeOffGridWarning`). A particle off the grid
+  feels no space charge there and adds none to the field.
+* **The grids can be re-sized** from a second pass of the sample, through the
+  kicks, with ``charge: {space_charge_mode: 3d, space_charge_resize: true}``.
+  It costs one more walk of the sample.
+* **A kick inside a thick element splits it into slices.** They are the same
+  element. Programs and RF phases are bound to it.
+* **Single-particle studies see no space charge.** The reference orbit, dynamic
+  aperture and frequency map track probes, not the bunch, on
+  :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.single_particle_line`, which
+  has the kicks replaced by markers. So does Xsuite's own twiss.
+* ``pic_solver`` can be set to ``FFTSolver2p5D`` or ``FFTSolver2p5DAveraged``.
+  Both are faster, and both ignore the longitudinal field.
 
 .. note::
+   With pyFFTW installed, every xfields solver failed on CPU with an
+   ``AssertionError`` at the first kick. xobjects plans its FFTs with pyFFTW, whose
+   plan expects the array it was made for, and xfields hands it a new one. SIMBA
+   gives each solver a numpy plan instead.
 
-   Asking for ``write_turns`` used to **break the handoff between sections**: a code
-   routing its end element through per-turn output wrote ``M3-t1`` … ``M3-tN`` and no
-   unsuffixed ``M3.openpmd.hdf5``, which is what the next line reads by name.
-   :meth:`~simba.Framework_objects.frameworkLattice.link_handoff_beam` restores it
-   from the last turn after the backend has written. MAD-X separately used to write
-   the end of the line *once* however many turns were tracked — for a ring the one
-   place a per-turn record is most wanted — and now writes it per turn as well.
+.. _simba-warnings:
+
+simba's Warnings
+----------------
+
+Every warning a lattice gives is a class in :mod:`simba.exceptions`, in one of
+four groups. A group, or a single warning, can be silenced without matching on
+its message text:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Group
+     - What it says
+   * - :class:`~simba.exceptions.UnsupportedWarning`
+     - This code cannot do what was asked, and what it does instead
+   * - :class:`~simba.exceptions.SettingWarning`
+     - A setting that cannot be read or does not fit the run
+   * - :class:`~simba.exceptions.GeometryWarning`
+     - The line does not close as a ring
+   * - :class:`~simba.exceptions.PhysicsWarning`
+     - The run is not the physics that was probably meant
+
+.. code-block:: python
+
+    import warnings
+    from simba.exceptions import UnsupportedWarning, NoRadiationWarning
+
+    warnings.simplefilter("ignore", UnsupportedWarning)
+    warnings.simplefilter("error", NoRadiationWarning)
+
+All are ``UserWarning`` subclasses, so existing filters keep working. A beam a code
+cannot track is :class:`~simba.exceptions.WrongSpeciesError`, which is still a
+``ValueError``.
 
 .. _reference-particle:
 

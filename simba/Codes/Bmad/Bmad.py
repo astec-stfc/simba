@@ -153,12 +153,6 @@ class bmadLattice(frameworkLattice):
     tao: Any | None = None
     """PyTao instance"""
 
-    ref_idx: int | None = None
-    """Reference particle index"""
-
-    ref_s: float | None = None
-    """S position at the start of the lattice"""
-
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
 
@@ -197,14 +191,7 @@ class bmadLattice(frameworkLattice):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        particle_definition = self.file_block["input"].get(
-            "particle_definition", self.start
-        )
-        self.particle_definition = (
-            "laser"
-            if particle_definition == "initial_distribution"
-            else particle_definition
-        )
+        self.particle_definition = self.input_particle_definition
         if self.libtao is None:
             self.libtao = self.executables["tao"][0]
 
@@ -215,33 +202,38 @@ class bmadLattice(frameworkLattice):
         space_charge_n_bin = self.csr_bins or self.lsc_bins
         super().preProcess()
         self.space_charge_n_bin = space_charge_n_bin
-        self.read_input_file(self.get_prefix(), self.particle_definition)
-        beam = self.global_parameters["beam"]
-        self.ref_idx = beam.reference_particle_index
-        self.ref_s = beam.s
-        beam.beam.rematchXPlane(**self.initial_twiss["horizontal"])
-        beam.beam.rematchYPlane(**self.initial_twiss["vertical"])
+        self.load_input_beam(self.get_prefix(), self.particle_definition)
         self.input_beam_file = str(
             Path(self.global_parameters["master_subdir"])
             / f"{self.objectname}.bmad.beam"
         )
         self._write_bmad_beam_file()
 
-    def _reference_value(self, values) -> float:
+    def _reference_value(self, values, fallback: float = None) -> float:
+        """The reference particle's value, if the beam has one; else
+        ``fallback`` (the incoming beam's mean, before sampling), else the
+        mean of ``values``."""
         values = np.asarray(values)
         if not values.size:
             raise ValueError("Cannot create a Bmad lattice without beam particles")
         if self.ref_idx is not None and 0 <= self.ref_idx < len(values):
             return float(values[self.ref_idx])
+        if fallback is not None:
+            return float(fallback)
         return float(np.mean(values))
+
+    def _reference_p0c(self) -> float:
+        """The reference particle's ``cp`` in eV, or :attr:`reference_p0c`."""
+        beam = self.global_parameters["beam"]
+        return self._reference_value(beam.cp.val, self.reference_p0c)
 
     def _write_bmad_beam_file(self) -> None:
         """
         Write the beam distribution to a text file.
         """
         beam = self.global_parameters["beam"]
-        p0c = self._reference_value(beam.cp.val)
-        z = beam.z.val - self._reference_value(beam.z.val)
+        p0c = self._reference_p0c()
+        z = beam.z.val - self._reference_value(beam.z.val, self.reference_z0)
         particles = np.column_stack(
             (
                 beam.x.val,
@@ -276,7 +268,9 @@ class bmadLattice(frameworkLattice):
         float
             The energy of the reference particle in eV.
         """
-        return self._reference_value(self.global_parameters["beam"].energy.val)
+        return self._reference_value(
+            self.global_parameters["beam"].energy.val, self.reference_energy
+        )
 
     def _bmad_initial_twiss(self) -> TwissMatchSimulationElement | None:
         """
@@ -358,7 +352,7 @@ class bmadLattice(frameworkLattice):
             handle.write(
                 f"# species = {self.global_parameters['beam'].species}\n"
                 "# state = alive\n"
-                f"# p0c = {self._reference_energy()}\n"
+                f"# p0c = {self._reference_p0c()}\n"
                 f"# charge_tot = {self._GRID_CHARGE * len(rows)}\n"
                 "#! x px y py z pz charge time state\n"
                 f"{body}\n"
@@ -506,24 +500,16 @@ class bmadLattice(frameworkLattice):
         if self.tao is None:
             return
         for program in self.programs:
-            name = sanitize_string(program.element)
-            attribute = program.parameter
+            etype = (
+                self._bmad_type(program.element)
+                if program.element in self.elements else None
+            )
+            attribute = self.program_attribute(program, etype)
             if attribute is None:
-                etype = self._bmad_type(program.element)
-                planes = self.program_attributes.get(etype)
-                if planes is None:
-                    warn(
-                        f"Line '{self.objectname}' programs '{program.element}', "
-                        f"a Bmad {etype or 'missing element'}, and simba has no "
-                        "default attribute for that type. Name it with "
-                        "'parameter:' in the program."
-                    )
-                    continue
-                attribute = planes[1] if self.program_is_vertical(
-                    program.element
-                ) else planes[0]
+                continue
             self.tao.cmd(
-                f"set element {name} {attribute} = {program.value_at(turn)}",
+                f"set element {sanitize_string(program.element)} {attribute} = "
+                f"{program.value_at(turn)}",
                 raises=False,
             )
 
@@ -788,9 +774,8 @@ class bmadLattice(frameworkLattice):
                 for name, key in BEAM_TWISS.items()
             }
         )
-        ref_s = self.ref_s if self.ref_s is not None else self.startObject.physical.start.z
-        twiss["s"] = twiss["s"] + ref_s
-        s_values = np.array(self.getSValues(at_entrance=False)) + ref_s
+        twiss["s"] = twiss["s"] + self.entrance_s
+        s_values = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
         z_values = [z[-1] for z in self.getZValues()]
         twiss["z"] = np.interp(twiss["s"], s_values, z_values)
         return twiss
@@ -905,9 +890,8 @@ class bmadLattice(frameworkLattice):
         if self.tao is None:
             raise RuntimeError("Bmad tracking must finish before post-processing")
         source_beam = self.global_parameters["beam"]
-        ref_s = self.ref_s if self.ref_s is not None else self.startObject.physical.start.z
         s_values = {
-            name: value + ref_s
+            name: value + self.entrance_s
             for name, value in self.getSValues(as_dict=True).items()
         }
         outputs = {
@@ -917,6 +901,8 @@ class bmadLattice(frameworkLattice):
         outputs[self.end] = ("END", self.endObject.physical.end.z)
         final_beam = None
         for output_name, (tao_element, zstart) in outputs.items():
+            if not self.writes_output(output_name):
+                continue
             beam = deepcopy(source_beam)
             particles, ref_idx = self._particles_at(tao_element, zstart=zstart)
             rbf.openpmd.read_particle_group(
@@ -931,7 +917,7 @@ class bmadLattice(frameworkLattice):
                 beam,
                 str(
                     Path(self.global_parameters["master_subdir"])
-                    / f"{output_name}.openpmd.hdf5"
+                    / f"{self.output_basename(output_name)}.openpmd.hdf5"
                 ),
             )
             if output_name == self.end:

@@ -45,13 +45,19 @@ from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
 TURNS = 4
 
 
-def _machine(tmp_path, cavity=False, closed=False):
+def _machine(tmp_path, cavity=False, closed=False, cavity_length=0.0):
     """A FODO cell, optionally with an RF cavity, optionally called a ring.
 
     ``closed`` sets LAURA's section geometry, which is what
     ``segment_at_cavities`` reads -- the point of the cavity/closed pair is
     that the *same* cavity splits the line or does not depending only on
     whether the machine is a ring.
+
+    ``cavity`` may be a dict of RFCavity fields instead of ``True``, for a
+    cavity that actually has a voltage; the bare one has none.
+
+    ``cavity_length`` is for Ocelot, whose cavity divides by its length and so
+    cannot be thin.
     """
     middle = [
         Quadrupole(
@@ -69,8 +75,9 @@ def _machine(tmp_path, cavity=False, closed=False):
         middle.append(
             RFCavity(
                 name="CAV1", machine_area="FODO",
-                physical={"length": 0.0,
-                          "middle": {"x": 0.0, "y": 0.0, "z": 4.0}},
+                physical={"length": cavity_length,
+                          "middle": {"x": 0.0, "y": 0.0, "z": 4.0 + cavity_length / 2}},
+                **(cavity if isinstance(cavity, dict) else {}),
             )
         )
     m1 = Marker(
@@ -288,7 +295,54 @@ def test_a_ring_with_a_cavity_can_use_native_turns(tmp_path, seed_beam):
     """The two changes meeting: not splitting leaves one segment, and one
     segment is what ``use_native_turns`` needs."""
     lattice = _lattice(tmp_path, {"turns": TURNS}, seed_beam, cavity=True, closed=True)
+    # whether the RF has to move pass by pass depends on the beam's speed, so
+    # the question is only asked once the beam is in, as `run_segments` does
+    rbf.openpmd.read_openpmd_beam_file(lattice.global_parameters["beam"], seed_beam)
     assert lattice.use_native_turns
+
+
+# h = 10 on the 4 m cell at the seed's 5 MeV/c; 60 degrees off crest, so the
+# bunch centroid really does gain and lose energy turn to turn
+_BETA = 5e6 / np.hypot(5e6, 0.51099895e6)
+LIVE_CAVITY = {
+    "cavity": {"frequency": 10 * 299792458.0 * _BETA / 4.0, "phase": 60.0},
+    "simulation": {"field_amplitude": 2.0e4},
+}
+
+
+@pytest.mark.parametrize("coord", ["t", "cp"])
+def test_a_live_ring_cavity_agrees_between_the_two_paths(tmp_path, coord, seed_beam):
+    """A closed ring whose cavity does something, turn by turn.
+
+    Both paths used to be wrong here, differently. The loop re-centred T on
+    the bunch and re-referenced p0c to the bunch mean at every turn, which
+    erased the centroid's synchrotron motion (2.1e5 eV of cp after 40 turns,
+    measured). The native path stamped every turn's beam with turn 1's
+    reference time, so t was short by (turn - 1) revolution periods. With no
+    voltage, neither shows: the centroid never moves, and the earlier tests
+    compare only the transverse coordinates.
+    """
+    opts = {"turns": TURNS, "write_turns": True}
+    kw = {"cavity": LIVE_CAVITY, "closed": True}
+    n = _run(tmp_path / "n", opts, seed_beam, **kw)
+    loop = _run(tmp_path / "l", {**opts, "native_turns": False}, seed_beam, **kw)
+    for turn in range(1, TURNS + 1):
+        a = np.array(getattr(_beam(n, f"M3{SEPARATOR}{turn}"), coord).val)
+        b = np.array(getattr(_beam(loop, f"M3{SEPARATOR}{turn}"), coord).val)
+        assert len(a) == len(b) > 0
+        assert np.allclose(a, b, rtol=1e-9, atol=1e-15), (turn, np.abs(a - b).max())
+
+
+def test_the_live_cavity_really_moves_the_centroid(tmp_path, seed_beam):
+    """Guards the test above: a cavity on crest-for-nothing would let the
+    re-centring loop pass too."""
+    subdir = _run(
+        tmp_path, {"turns": TURNS, "write_turns": True}, seed_beam,
+        cavity=LIVE_CAVITY, closed=True,
+    )
+    first = np.mean(_beam(subdir, f"M3{SEPARATOR}1").cp.val)
+    last = np.mean(_beam(subdir, f"M3{SEPARATOR}{TURNS}").cp.val)
+    assert abs(last - first) > 1e3
 
 
 def test_a_split_line_cannot(tmp_path, seed_beam):
@@ -345,13 +399,10 @@ def test_a_programmed_run_really_runs_the_loop(tmp_path, seed_beam):
     """And the fallback is not merely selected but taken: one ``RUN`` per
     turn, which is the only way ``apply_programs`` gets to run between them.
 
-    Whether the program then changes the optics is R18/R19's question and
-    is tested there. It is worth saying why this does not check it: MAD-X
-    warns ``programs 'QUAD1F', which MAD-X does not have``, because
-    ``program_attributes`` has no ``quadrupole`` entry and because
-    ``apply_programs`` is called before the sequence exists on the first
-    turn. Both are pre-existing and neither is touched here -- asserting
-    around them would have buried them.
+    Whether the program then changes the beam is
+    ``test_ring_outputs.test_madx_programs_a_sliced_quadrupole_as_xsuite_does``.
+    It once did not: turn 1 was set before the sequence existed, and the
+    ``MAKETHIN`` slices ignored every turn after.
     """
     tracking = {
         "turns": 5,

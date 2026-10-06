@@ -52,6 +52,7 @@ class FakeLine:
     periodic = frameworkLattice.periodic
     closed_geometry = frameworkLattice.closed_geometry
     check_periodic_supported = frameworkLattice.check_periodic_supported
+    codes_that_can = frameworkLattice.codes_that_can
 
 
 # --- reading the flag ---------------------------------------------------

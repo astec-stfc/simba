@@ -8,6 +8,13 @@ of the package.
 Submodules
 ----------
 
+simba.exceptions module
+-----------------------
+
+.. automodule:: simba.exceptions
+   :members:
+   :show-inheritance:
+
 simba.FrameworkHelperFunctions module
 -------------------------------------
 

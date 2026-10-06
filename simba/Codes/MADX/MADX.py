@@ -63,6 +63,7 @@ from yaml import safe_load
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
+from ...Modules.EnergyRamp import beta_from_p0c
 from ...Modules.units import UnitValue
 from ...Modules.Twiss.madx import save_madx_twiss_hdf
 
@@ -135,9 +136,31 @@ class madxLattice(frameworkLattice):
     """A turn is one sweep of :func:`~run_segments`, the beam leaving the last
     segment re-entering the first."""
 
+    native_time: ClassVar[tuple[str, str]] = ("T", "m")
+    """``T = -c t``, measured from the reference: positive ahead of it."""
+
+    @classmethod
+    def native_time_scale(cls, beta0: float) -> float:
+        """``T = -c (t - reference_time)``."""
+        return -speed_of_light
+
     supports_programs: ClassVar[bool] = True
     """By re-stating ``name->attribute`` between turns of
     :func:`~run_segments`."""
+
+    supports_ramp: ClassVar[bool] = True
+    """MAD-X has no ramp of its own, so simba re-issues ``BEAM`` between
+    turns of :func:`~run_segments` (see :meth:`ring_reference`)."""
+
+    native_rf: ClassVar[str] = "synchronous"
+    """Under a ramp, the gain per turn is what a cavity phased to
+    the reference every pass gives. Moved by :meth:`apply_rf_phases`."""
+
+    rf_phase_sign: ClassVar[float] = 1.0
+    """``LAG`` moved by this times a phase the reference sees."""
+
+    rf_phase_per_radian: ClassVar[float] = 1 / (2 * math.pi)
+    """``LAG`` is in turns."""
 
     otm_convention: ClassVar[str] = "x, px, y, py, t, pt"
     """One-turn map convention."""
@@ -282,28 +305,20 @@ class madxLattice(frameworkLattice):
     :func:`segmentElements`, which is what rebuilds the data they derive
     from."""
 
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
-
     logfile: Any = None
     """File handle for the MAD-X log file"""
 
     program_attributes: ClassVar[dict] = {
-        "hkicker": "kick",
-        "vkicker": "kick",
-        "kicker": "hkick",
-        "tkicker": "hkick",
-        "hacdipole": "volt",
-        "vacdipole": "volt",
-        "multipole": "knl",
+        "hkicker": ("kick", "kick"),
+        "vkicker": ("kick", "kick"),
+        "kicker": ("hkick", "vkick"),
+        "tkicker": ("hkick", "vkick"),
+        "hacdipole": ("volt", "volt"),
+        "vacdipole": ("volt", "volt"),
     }
-    """The MAD-X attribute a program sets, per base type, when the program
-    does not name one. A ``kicker`` carries both planes and so has no single
-    answer; ``hkick`` is the guess, and ``parameter: vkick`` is the override.
-    """
+    """``(horizontal, vertical)`` MAD-X attribute an unqualified program sets,
+    per base type. A ``kicker`` carries both planes, so which it sets is the
+    element's own (:meth:`program_is_vertical`); it was always ``hkick``."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -318,21 +333,7 @@ class madxLattice(frameworkLattice):
                 setattr(self, f, self.madxglobal[f])
             if f in self.file_block:
                 setattr(self, f, self.file_block[f])
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
         self.segments = []
         self.seqstrings = []
         self.sector_maps = []
@@ -348,27 +349,17 @@ class madxLattice(frameworkLattice):
     # Lattice generation
     # ------------------------------------------------------------------
     @property
-    def particle_rest_energy_eV(self) -> float:
-        """Rest energy of the tracked particles in eV"""
-        try:
-            return float(
-                np.mean(self.global_parameters["beam"].particle_rest_energy_eV.val)
-            )
-        except Exception:
-            return constants.m_e * speed_of_light**2 / elementary_charge
-
-    @property
     def segment_at_cavities(self) -> bool:
         """Whether RF cavities should break the lattice into segments.
 
         They should on a **linac**, which is what the splitting is for: an
         accelerating cavity moves the beam energy.
-        They should not on a **ring**.
-
-        :meth:`~simba.Framework_objects.frameworkLattice.closed_geometry` and
-        not ``periodic``.
+        They should not on a line whose reference is its own;
+        :meth:`~simba.Framework_objects.frameworkLattice.fixed_reference`,
+        where the cavity moves the beam and not the reference
+        (:meth:`ring_reference`).
         """
-        return not self.closed_geometry
+        return not self.fixed_reference
 
     def segmentElements(self) -> List:
         """
@@ -534,7 +525,7 @@ class madxLattice(frameworkLattice):
         tuple
             (MAD-X definitions string, energy at the exit of the cavity [eV])
         """
-        m0 = self.particle_rest_energy_eV
+        m0 = self.rest_energy
         if ":=" in cavstring or energy <= m0:
             if energy <= m0:
                 warn(
@@ -660,17 +651,7 @@ class madxLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.read_input_file(prefix, self.particle_definition)
-        if self.initial_twiss["horizontal"]["beta"]:
-            self.global_parameters["beam"].beam.rematchXPlane(
-                **self.initial_twiss["horizontal"]
-            )
-        if self.initial_twiss["vertical"]["beta"]:
-            self.global_parameters["beam"].beam.rematchYPlane(
-                **self.initial_twiss["vertical"]
-            )
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.pin = deepcopy(self.global_parameters["beam"])
 
     def start_madx(self) -> Any:
@@ -707,8 +688,8 @@ class madxLattice(frameworkLattice):
         Issue the MAD-X ``BEAM`` command for a segment, with the reference
         momentum `p0c` (in eV/c) and the mass/charge of the tracked species.
         """
-        m0 = self.particle_rest_energy_eV
-        chargesign = int(np.sign(np.mean(self.global_parameters["beam"].Q.val)) or -1)
+        m0 = self.rest_energy
+        chargesign = int(self.reference_charge)
         species = getattr(self.global_parameters["beam"], "species", "electron")
         if species in madx_particle_names:
             madx.input(
@@ -949,9 +930,7 @@ class madxLattice(frameworkLattice):
         try:
             madx.input(self.seqstrings[0])
             seqname = self.segment_name(0)
-            self.madx_beam_command(
-                madx, float(np.mean(self.global_parameters["beam"].cp.val)), seqname
-            )
+            self.madx_beam_command(madx, self.reference_p0c, seqname)
             madx.input(f"use, sequence={seqname};\ntwiss;")
             xs, ys = self.da_grid()
             starts = "".join(
@@ -1299,6 +1278,8 @@ class madxLattice(frameworkLattice):
         turn: int, optional
             Turn number
         """
+        if not self.writes_output(name, turn):
+            return
         bm.turn = self.beam_turn(turn)
         name = self.output_basename(name, turn=turn)
         fname = os.path.join(
@@ -1340,10 +1321,15 @@ class madxLattice(frameworkLattice):
                 self.logfile = None
             self._madx = None
 
+    @staticmethod
+    def program_variable(program) -> str:
+        """The MAD-X variable :meth:`bind_programs` ties a program's attribute to."""
+        return f"{sanitize_string(program.element).lower()}_simba_program"
+
     def apply_programs(self, turn: int) -> None:
         """
-        Re-state each programmed element's attribute for `turn`;
-        see :attr:`supports_programs`.
+        Set each program's :meth:`program_variable` for `turn`; see
+        :attr:`supports_programs`.
 
         Parameters
         ----------
@@ -1354,27 +1340,79 @@ class madxLattice(frameworkLattice):
         if madx is None:
             return
         for program in self.programs:
-            name = sanitize_string(program.element)
-            element = madx.elements.get(name.lower())
-            if element is None:
+            madx.input(
+                f"{self.program_variable(program)} = {float(program.value_at(turn))!r};"
+            )
+
+    def bind_programs(self, madx: Any, segnames: List) -> None:
+        """
+        Tie each programmed attribute of the segment just defined to its
+        :meth:`program_variable`, before ``MAKETHIN``.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        segnames: list
+            The segment's element names
+        """
+        here = {sanitize_string(name).lower() for name in segnames}
+        for program in self.programs:
+            name = sanitize_string(program.element).lower()
+            if name not in here:
+                continue
+            element = madx.elements.get(name)
+            etype = (
+                None if element is None
+                else getattr(element.base_type, "name", "").lower()
+            )
+            if etype == "multipole" and not program.parameter:
                 warn(
-                    f"Line '{self.objectname}' programs '{program.element}', "
-                    "which MAD-X does not have. Nothing is varied."
+                    f"{self.objectname} programs '{program.element}', a MAD-X "
+                    "multipole. MAD-X takes a multipole's KNL[0] and KSL[0] as "
+                    "the reference's own bend, so it kicks nothing, and the "
+                    "program is not applied. Use a kicker."
                 )
                 continue
-            attribute = program.parameter
+            attribute = self.program_attribute(program, etype)
             if attribute is None:
-                base = getattr(element.base_type, "name", "").lower()
-                attribute = self.program_attributes.get(base)
-            if attribute is None:
-                warn(
-                    f"Line '{self.objectname}' programs '{program.element}', "
-                    f"a MAD-X {getattr(element.base_type, 'name', '?')}, and "
-                    "simba has no default attribute for that type. Name it "
-                    "with 'parameter:' in the program."
-                )
                 continue
-            madx.input(f"{name}->{attribute} = {program.value_at(turn)};")
+            variable = self.program_variable(program)
+            if attribute.lower() in ("knl", "ksl"):
+                # the program is the dipole order; keep the rest as they are
+                higher = list(getattr(element, attribute.lower()))[1:]
+                expression = "{" + ", ".join(
+                    [variable] + [repr(float(value)) for value in higher]
+                ) + "}"
+            else:
+                expression = variable
+            madx.input(f"{name}, {attribute}:={expression};")
+
+    def check_programs_present(self) -> None:
+        """Warn for each program whose element is in no segment of this line."""
+        names = {
+            sanitize_string(name).lower()
+            for segnames in self.segments
+            for name in segnames
+        }
+        for program in self.programs:
+            if sanitize_string(program.element).lower() not in names:
+                self.program_attribute(program, None)
+
+    def cavity_phase(self, name: str) -> float | None:
+        """
+        A cavity's ``LAG``, in turns, once MAD-X has it; see
+        :meth:`~simba.Framework_objects.frameworkLattice.apply_rf_phases`.
+        """
+        madx = getattr(self, "_madx", None)
+        if madx is None:
+            return None
+        cavity = madx.elements.get(sanitize_string(name).lower())
+        return None if cavity is None else float(cavity.lag)
+
+    def set_cavity_phase(self, name: str, phase: float) -> None:
+        """Set a cavity's ``LAG``, in turns."""
+        self._madx.input(f"{sanitize_string(name).lower()}->lag = {float(phase)!r};")
 
     @property
     def use_native_turns(self) -> bool:
@@ -1388,6 +1426,10 @@ class madxLattice(frameworkLattice):
           :meth:`segment_at_cavities` a ring is one segment.
         * **device programs.** A program varies an element per turn
           (:func:`apply_programs`).
+        * **an energy ramp.** ``BEAM`` changes per turn
+          (:meth:`ring_reference`).
+        * **RF to move.** A cavity's ``LAG`` changes per pass
+          (:meth:`apply_rf_phases`).
         * **single-particle mode**, which is not one tracking run at all: it
           builds each segment's linear map by finite differences and applies
           it to the distribution.
@@ -1413,8 +1455,37 @@ class madxLattice(frameworkLattice):
             and self.turns * self.passes_per_turn > 1
             and len(self.segments) == 1
             and not self.programs
+            and not self.ramped
             and not self.single_particle
+            and not self.rf_phase_corrections()
         )
+
+    def ring_reference(self, pass_index: int, s: float) -> tuple | None:
+        """
+        ``(p0c, tbar)`` for a segment starting at ``s`` on a pass of a ring.
+
+        A ring's reference is a property of the ring, not of the beam.
+        A line with a :attr:`fixed_reference` holds ``p0c`` at the pass's
+        (:meth:`pass_p0c`: the ramp's, or the entering beam's), and its
+        reference time is the shared clock's,
+        :meth:`~simba.Framework_objects.frameworkLattice.reference_time`.
+
+        Parameters
+        ----------
+        pass_index: int
+            0-based pass; see :meth:`pass_index`
+        s: float
+            Where the segment starts, in metres from the lattice entrance
+
+        Returns
+        -------
+        tuple | None
+            ``(p0c, tbar)`` in eV and s, or None on a linac
+        """
+        if not self.uses_reference_clock:
+            return None
+        p0c = float(self.reference_clock[3][pass_index])
+        return p0c, self.reference_time(s, pass_index)
 
     def run_segments(self, madx: Any) -> None:
         """
@@ -1430,16 +1501,15 @@ class madxLattice(frameworkLattice):
         """
         if self.use_native_turns:
             return self.run_segments_native(madx)
+        self.check_programs_present()
         sstart_lattice = self.entrance_s
         current_beam = deepcopy(self.pin)
-        if not self.single_particle and self.sample_interval > 1:
-            current_beam = self.sample_beam(current_beam, self.sample_interval)
         ref_idx = current_beam.reference_particle_index
         charge_total = abs(np.sum(np.array(current_beam.charge.val)))
         twiss_init = self.initial_twiss_conditions(current_beam)
 
         # store the beam data at the entrance of the lattice
-        self.segment_p0c[self.start] = float(np.mean(current_beam.cp.val))
+        self.segment_p0c[self.start] = self.reference_p0c
         self.store_beam_data(
             self.start,
             current_beam,
@@ -1447,26 +1517,17 @@ class madxLattice(frameworkLattice):
             self.startObject.physical.start.z,
         )
 
-        wanted = dict(self.output_turns())
-        p0c_prev = None
-        for turn in range(1, self.turns + 1):
-            key = turn if self.turns > 1 else None
-            self.apply_programs(turn)
-            for sector in range(1, self.nsuperperiods + 1):
-                last = sector == self.nsuperperiods
-                current_beam, charge_total, ref_idx, twiss_init, p0c_prev = (
-                    self.track_one_turn(
-                        madx,
-                        current_beam,
-                        charge_total,
-                        ref_idx,
-                        twiss_init,
-                        p0c_prev,
-                        sstart_lattice,
-                        name_turn=wanted.get(key),
-                        record=last and key in wanted,
-                    )
-                )
+        # what one pass hands the next
+        state = [current_beam, charge_total, ref_idx, twiss_init, None]
+
+        def track_pass(turn, pass_index, name_turn, record):
+            state[:] = self.track_one_turn(
+                madx, *state, sstart_lattice,
+                name_turn=name_turn, record=record, turn=turn, pass_index=pass_index,
+            )
+
+        self.run_turns(track_pass)
+        current_beam, charge_total, ref_idx, twiss_init, p0c_prev = state
 
         self.pout = current_beam
         # store/write the final beam at the end of the line
@@ -1487,13 +1548,15 @@ class madxLattice(frameworkLattice):
         """
         sstart_lattice = self.entrance_s
         current_beam = deepcopy(self.pin)
-        if self.sample_interval > 1:
-            current_beam = self.sample_beam(current_beam, self.sample_interval)
         npart = len(current_beam.x.val)
         ref_idx = current_beam.reference_particle_index
         charge_total = abs(np.sum(np.array(current_beam.charge.val)))
         charge_per_particle = charge_total / npart
-        p0c = float(np.mean(current_beam.cp.val))
+        if self.uses_reference_clock:
+            # the line's reference, as the segment loop's (`ring_reference`)
+            p0c = float(self.reference_clock[3][0])
+        else:
+            p0c = self.reference_p0c
 
         segnames = self.segments[0]
         seqname = self.segment_name(0)
@@ -1517,15 +1580,16 @@ class madxLattice(frameworkLattice):
         self.makethin(madx, seqname)
         self._thin_sequences.add(seqname)
         if self.write_model_twiss:
-            # once, not once a turn: the model optics are a property of the
-            # lattice, and this path cannot change it mid-run
             self.model_twiss_segment(
                 madx, seqname, self.initial_twiss_conditions(current_beam)
             )
 
         passes = self.passes_per_turn
         total = self.turns * passes
-        coords = current_beam.beam_to_madx_coords(p0c)
+        clock = self.uses_reference_clock
+        coords = current_beam.beam_to_madx_coords(
+            p0c, self.reference_time(seg_s0) if clock else self.reference_t0
+        )
         tbar0 = coords["tbar"]
         observe = self.observation_points(segnames)
         if getattr(self, "verbose", False):
@@ -1538,14 +1602,18 @@ class madxLattice(frameworkLattice):
             coords,
             observe,
             turns=total,
-            # every turn, or only the last one -- `output_turns` has already
-            # decided, and this is the same decision stated to MAD-X
             ffile=passes if self.write_turns else total,
         )
 
         endelem = self._elements_with_drifts[segnames[-1]]
         for data_turn, name_turn in self.output_turns():
             madx_turn = self.beam_turn(data_turn) * passes
+            if clock:
+                tbar = self.reference_time(seg_s0, madx_turn - 1)
+            else:
+                tbar = tbar0 + (madx_turn - 1) * seg_len / (
+                    coords["beta0"] * speed_of_light
+                )
             for name, s_local in observe:
                 data = self.extract_observation(trackdata, s_local, turn=madx_turn)
                 if len(data["x"]) == 0:
@@ -1554,7 +1622,7 @@ class madxLattice(frameworkLattice):
                 elem = self._elements_with_drifts[name]
                 spos = seg_s0 + s_local + sstart_lattice
                 bm = self.pin.madx_coords_to_beam(
-                    data, p0c, tbar0, s_local, elem.physical.middle.z, spos,
+                    data, p0c, tbar, s_local, elem.physical.middle.z, spos,
                     charge_per_particle * len(data["x"]),
                     ref_index=self.reference_index(data["number"], ref_idx),
                 )
@@ -1572,7 +1640,7 @@ class madxLattice(frameworkLattice):
                 continue
             segend_s = self._sval_out[segnames[-1]] + sstart_lattice
             bm = self.pin.madx_coords_to_beam(
-                data, p0c, tbar0, seg_len, endelem.physical.end.z, segend_s,
+                data, p0c, tbar, seg_len, endelem.physical.end.z, segend_s,
                 charge_per_particle * len(data["x"]),
                 ref_index=self.reference_index(data["number"], ref_idx),
             )
@@ -1609,6 +1677,8 @@ class madxLattice(frameworkLattice):
         sstart_lattice: float,
         name_turn: int | None = None,
         record: bool = True,
+        turn: int = 1,
+        pass_index: int = 0,
     ) -> tuple:
         """
         One sweep through every segment: the body of :func:`~run_segments`,
@@ -1635,6 +1705,10 @@ class madxLattice(frameworkLattice):
             unsuffixed name; from :meth:`output_turns`
         record: bool
             Whether this turn's diagnostics are stored and written at all
+        turn: int
+            Turn number, 1-based
+        pass_index: int
+            0-based pass, for the reference; see :meth:`ring_reference`
 
         Returns
         -------
@@ -1647,7 +1721,13 @@ class madxLattice(frameworkLattice):
             seg_s0 = self._sval_in[segnames[0]]
             seg_s1 = self._sval_out[segnames[-1]]
             seg_len = seg_s1 - seg_s0
-            p0c = float(np.mean(current_beam.cp.val))
+            reference = self.ring_reference(pass_index, seg_s0)
+            if reference is None and iseg == 0 and pass_index == 0:
+                p0c, tbar = self.reference_p0c, self.reference_t0
+            elif reference is None:
+                p0c, tbar = float(np.mean(current_beam.cp.val)), None
+            else:
+                p0c, tbar = reference
             if p0c_prev is not None and p0c_prev > 0:
                 twiss_init = self.rescale_twiss_init(twiss_init, p0c / p0c_prev)
             p0c_prev = p0c
@@ -1663,18 +1743,20 @@ class madxLattice(frameworkLattice):
                 madx.use(sequence=seqname)
             else:
                 madx.input(self.seqstrings[iseg])
+                self.bind_programs(madx, segnames)
                 self.madx_beam_command(madx, p0c, seqname)
                 madx.use(sequence=seqname)
                 self.makethin(madx, seqname)
                 self._thin_sequences.add(seqname)
 
-            if self.write_model_twiss and name_turn is None:
+            if self.write_model_twiss and pass_index == 0:
                 twiss_init = self.model_twiss_segment(madx, seqname, twiss_init)
 
             if self.single_particle:
                 current_beam = self.track_segment_single_particle(
                     madx, current_beam, p0c, seg_len, segnames,
                     seg_s0, sstart_lattice, name_turn=name_turn, record=record,
+                    tbar=tbar,
                 )
                 endkey = self.output_basename(segnames[-1], turn=name_turn)
                 if record and endkey not in self.beam_data:
@@ -1699,6 +1781,7 @@ class madxLattice(frameworkLattice):
                     ref_idx,
                     name_turn=name_turn,
                     record=record,
+                    tbar=tbar,
                 )
                 charge_total = abs(np.sum(np.array(current_beam.charge.val)))
                 ref_idx = current_beam.reference_particle_index
@@ -1718,6 +1801,7 @@ class madxLattice(frameworkLattice):
         ref_idx: int,
         name_turn: int | None = None,
         record: bool = True,
+        tbar: float | None = None,
     ) -> rbf.beam:
         """
         Track the full particle distribution through one segment, recording
@@ -1726,7 +1810,9 @@ class madxLattice(frameworkLattice):
 
         ``name_turn`` qualifies the recorded names and ``record`` suppresses
         the recording entirely, for the turns of a multi-turn run that
-        :meth:`output_turns` does not ask for.
+        :meth:`output_turns` does not ask for. ``tbar`` is the reference
+        time ``T`` is measured from, from :meth:`ring_reference`; the
+        bunch's mean if None.
 
         Returns
         -------
@@ -1734,7 +1820,7 @@ class madxLattice(frameworkLattice):
             The beam at the end of the segment
         """
         npart = len(current_beam.x.val)
-        coords = current_beam.beam_to_madx_coords(p0c)
+        coords = current_beam.beam_to_madx_coords(p0c, tbar=tbar)
         tbar0 = coords["tbar"]
         observe = self.observation_points(segnames)
         trackdata = self.run_track(madx, coords, observe)
@@ -1816,6 +1902,7 @@ class madxLattice(frameworkLattice):
         sstart_lattice: float,
         name_turn: int | None = None,
         record: bool = True,
+        tbar: float | None = None,
     ) -> rbf.beam:
         """
         Standard (single-particle) MAD-X tracking for one segment: the beam
@@ -1836,7 +1923,7 @@ class madxLattice(frameworkLattice):
         )
 
         keys = ["x", "px", "y", "py", "t", "pt"]
-        coords = current_beam.beam_to_madx_coords(p0c)
+        coords = current_beam.beam_to_madx_coords(p0c, tbar=tbar)
         tbar0 = coords["tbar"]
         zin = np.array([coords[k] for k in keys])
         centroid = np.mean(zin, axis=1)
@@ -1897,30 +1984,6 @@ class madxLattice(frameworkLattice):
             )
         return bm_end
 
-    def sample_beam(self, bm: rbf.beam, interval: int) -> rbf.beam:
-        """
-        Downsample a beam by the given interval, conserving the total charge.
-        """
-        newbeam = deepcopy(bm)
-        nb = newbeam._beam
-        idx = slice(None, None, int(interval))
-        for key in ["x", "y", "z", "t", "px", "py", "pz", "nmacro", "status",
-                    "particle_mass", "particle_rest_energy",
-                    "particle_rest_energy_eV", "particle_charge"]:
-            if hasattr(nb, key) and getattr(nb, key) is not None:
-                val = getattr(nb, key)
-                try:
-                    setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
-                except Exception:
-                    pass
-        nb.set_total_charge(np.sum(np.array(bm.charge.val)))
-        refidx = bm.reference_particle_index
-        if refidx is not None and int(refidx) % int(interval) == 0:
-            newbeam.reference_particle_index = int(refidx) // int(interval)
-        else:
-            newbeam.reference_particle_index = None
-        return newbeam
-
     def postProcess(self) -> None:
         """
         Assemble the collected beam statistics and MAD-X model Twiss
@@ -1930,7 +1993,7 @@ class madxLattice(frameworkLattice):
         if len(self.beam_data) == 0:
             warn("MADX: no tracking data to post-process")
             return
-        m0 = self.particle_rest_energy_eV
+        m0 = self.rest_energy
         rows = sorted(self.beam_data.items(), key=lambda kv: kv[1]["s"])
         twsdat = {
             "element_name": np.array([name for name, _ in rows], dtype="S"),
@@ -2003,7 +2066,8 @@ class madxLattice(frameworkLattice):
             twiss=twsdat,
         )
         endfile = os.path.join(
-            self.global_parameters["master_subdir"], f"{self.end}.openpmd.hdf5"
+            self.global_parameters["master_subdir"],
+            f"{self.output_basename(self.end)}.openpmd.hdf5",
         )
         if os.path.isfile(endfile):
             rbf.openpmd.read_openpmd_beam_file(

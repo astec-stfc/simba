@@ -49,27 +49,19 @@ class csrtrackLattice(frameworkLattice):
         self.set_particles_filename()
 
     def set_particles_filename(self) -> None:
-        """
-        Set up the `CSRTrackelementObjects namelist for the initial particle distribution,
-        based on the `particle_definition` and the `global_parameters` of the lattice.
-        """
+        """Set up the `CSRTrackelementObjects namelist for the initial particle distribution."""
+        self.particle_definition = self.input_particle_definition
         self.csrtrack_headers["particles"] = CsrTrackParticles(
-            particle_definition=self.particle_definition,
+            particle_definition=self.start,
             global_parameters=self.global_parameters,
             format="astra",
         )
-        if self.particle_definition == "initial_distribution":
-            self.csrtrack_headers["particles"].particle_definition = "laser.astra"
-            self.csrtrack_headers["particles"].array = "#file{\nname=laser.astra\n}"
-        else:
-            self.particle_definition = self.start
-            self.csrtrack_headers["particles"].particle_definition = self.start
-            self.csrtrack_headers["particles"].array = (
-                "#file{\nname="
-                + self.start
-                + ".astra"
-                + "\n}"
-            )
+        self.csrtrack_headers["particles"].array = (
+            "#file{\nname="
+            + self.start
+            + ".astra"
+            + "\n}"
+        )
 
     @property
     def dipoles_screens_and_bpms(self) -> List:
@@ -144,12 +136,9 @@ class csrtrackLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        self.read_input_file(
-            prefix,
-            self.csrtrack_headers["particles"].particle_definition.replace(".astra", ""),
-        )
-        self.hdf5_to_astra()
-        self.files.append(self.csrtrack_headers["particles"].particle_definition)
+        self.load_input_beam(prefix, self.particle_definition)
+        astrabeamfilename = self.hdf5_to_astra()
+        self.files.append(self.global_parameters["master_subdir"] + "/" + astrabeamfilename)
 
     def hdf5_to_astra(self) -> None:
         """

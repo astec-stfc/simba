@@ -113,9 +113,6 @@ class astraLattice(frameworkLattice):
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
     """Headers for ASTRA input file"""
 
-    ref_s: float = None
-    """Reference s position"""
-
     local_frame: bool | None = None
     """
     Write the deck in the lattice's own frame rather than in world coordinates.
@@ -384,15 +381,12 @@ class astraLattice(frameworkLattice):
         """
         super().preProcess()
         prefix = self.get_prefix()
-        astrabeamfilename = self.read_input_file(
+        self.load_input_beam(
             prefix,
             self.astra_headers["newrun"].input_particle_definition.replace(".astra", "")
         )
-        self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
-        self.astra_headers["newrun"].sample_interval = self.sample_interval
-        self.astra_headers["charge"].sample_interval = self.sample_interval
 
     @lox.thread
     def screen_threaded_function(
@@ -452,9 +446,7 @@ class astraLattice(frameworkLattice):
         :func:`~simba.Codes.ASTRA.ASTRA.astra_to_hdf5`.
         """
         super().postProcess()
-        cathode = (
-            self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
-        )
+        cathode = self.input_particle_definition == "laser"
         mult = self.get_screen_scaling()
         offset = self.s_offset
         self.write_s_offset()
