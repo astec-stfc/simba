@@ -1,0 +1,326 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utility Functions &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Framework" href="../../Framework.html" />
+    <link rel="prev" title="SIMBA Beams Module examples" href="beams_example.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Utility Functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#accessing-and-modifying-elements">Accessing and modifying elements</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Utility Functions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/examples/notebooks/utility_functions.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="utility-functions">
+<h1>Utility Functions<a class="headerlink" href="#utility-functions" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">SIMBA</span></code> provides various utility functions for inspecting, modifying and saving lattices and lattice elements. This notebook will demonstrate some of this functionality.</p>
+<p>For general tips on setting up <code class="docutils literal notranslate"><span class="pre">SIMBA</span></code>, see <a class="reference internal" href="getting_started.html"><span class="std std-doc">getting_started</span></a>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">simba.Framework</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fw</span>  <span class="c1"># noqa E402</span>
+
+<span class="c1"># Define a new framework instance, in directory &#39;getting_started&#39;.</span>
+<span class="c1">#       &quot;clean&quot; will empty (delete everything!) in the directory if true</span>
+<span class="c1">#       &quot;verbose&quot; will print a progressbar if true</span>
+<span class="n">framework</span> <span class="o">=</span> <span class="n">fw</span><span class="o">.</span><span class="n">Framework</span><span class="p">(</span>
+        <span class="n">directory</span><span class="o">=</span><span class="s2">&quot;./getting_started&quot;</span><span class="p">,</span>
+        <span class="n">master_lattice</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;LATTICE_LOCATION&quot;</span><span class="p">],</span>
+        <span class="n">generator_defaults</span><span class="o">=</span><span class="s2">&quot;clara.yaml&quot;</span><span class="p">,</span>
+        <span class="n">clean</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+<span class="n">scaling</span> <span class="o">=</span> <span class="mi">4</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Load the settings from a definitions file and check which codes correspond to each line.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">framework</span><span class="o">.</span><span class="n">loadSettings</span><span class="p">(</span><span class="s2">&quot;Lattices/clara400_v13_combined.def&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">framework</span><span class="p">[</span><span class="n">line</span><span class="p">]</span><span class="o">.</span><span class="n">code</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">framework</span><span class="o">.</span><span class="n">lines</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[&#39;generator: ASTRA&#39;, &#39;injector400: astra&#39;, &#39;Linac: elegant&#39;, &#39;FEBE: elegant&#39;]
+</pre></div>
+</div>
+</div>
+</div>
+<p>Check the global parameters accessible to this instance of SIMBA and all of the <code class="docutils literal notranslate"><span class="pre">frameworkLattice</span></code> objects.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;beam&#39;: {&#39;filename&#39;: None, &#39;code&#39;: None}, &#39;GPTLICENSE&#39;: &#39;&#39;, &#39;delete_tracking_files&#39;: False, &#39;astra_use_wsl&#39;: 1, &#39;master_subdir&#39;: &#39;/home/xkc85723/Documents/simba/docs/source/examples/notebooks/getting_started&#39;, &#39;master_lattice&#39;: &#39;/home/xkc85723/Documents/laura-lattices/CLARA/./&#39;, &#39;simcodes_location&#39;: &#39;/home/xkc85723/Documents/venv/lib/python3.12/site-packages/SimCodes/&#39;}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">framework</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">load_defaults</span><span class="p">(</span><span class="s2">&quot;clara_400_2ps_Gaussian&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>FrameworkSettings({&#39;settingsFilename&#39;: &#39;/home/xkc85723/Documents/laura-lattices/CLARA/./Lattices/clara400_v13_combined.def&#39;, &#39;global&#39;: {}, &#39;generator&#39;: {&#39;code&#39;: &#39;astra&#39;, &#39;default&#39;: &#39;clara_400_3ps&#39;}, &#39;section&#39;: &#39;/home/xkc85723/Documents/laura-lattices/CLARA/sections.yaml&#39;, &#39;element_list&#39;: &#39;/home/xkc85723/Documents/laura-lattices/CLARA/YAML/&#39;, &#39;groups&#39;: {&#39;bunch_compressor&#39;: {&#39;type&#39;: &#39;chicane&#39;, &#39;elements&#39;: [&#39;CLA-VBC-MAG-DIP-01&#39;, &#39;CLA-VBC-MAG-DIP-02&#39;, &#39;CLA-VBC-MAG-DIP-03&#39;, &#39;CLA-VBC-MAG-DIP-04&#39;]}}, &#39;elements&#39;: {}, &#39;files&#39;: {&#39;injector400&#39;: {&#39;code&#39;: &#39;astra&#39;, &#39;charge&#39;: {&#39;cathode&#39;: True, &#39;space_charge_mode&#39;: &#39;2D&#39;, &#39;mirror_charge&#39;: True}, &#39;input&#39;: {&#39;particle_definition&#39;: &#39;initial_distribution&#39;}, &#39;output&#39;: {&#39;zstart&#39;: 0, &#39;end_element&#39;: &#39;CLA-S02-SIM-APER-01&#39;}}, &#39;Linac&#39;: {&#39;code&#39;: &#39;elegant&#39;, &#39;output&#39;: {&#39;start_element&#39;: &#39;CLA-S02-SIM-APER-01&#39;, &#39;end_element&#39;: &#39;CLA-FEA-SIM-START-01&#39;}}, &#39;FEBE&#39;: {&#39;code&#39;: &#39;elegant&#39;, &#39;charge&#39;: {&#39;cathode&#39;: False, &#39;space_charge_mode&#39;: &#39;3D&#39;}, &#39;input&#39;: {}, &#39;output&#39;: {&#39;start_element&#39;: &#39;CLA-FEA-SIM-START-01&#39;, &#39;end_element&#39;: &#39;CLA-FED-SIM-DUMP-01-START&#39;}}}, &#39;layout&#39;: &#39;/home/xkc85723/Documents/laura-lattices/CLARA/layouts.yaml&#39;})
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">framework</span><span class="o">.</span><span class="n">change_subdirectory</span><span class="p">(</span><span class="s1">&#39;./utility_functions&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<section id="accessing-and-modifying-elements">
+<h2>Accessing and modifying elements<a class="headerlink" href="#accessing-and-modifying-elements" title="Link to this heading"></a></h2>
+<p>Elements and their parameters can be retrieved either using <code class="docutils literal notranslate"><span class="pre">getElement</span></code> or as a key in the <code class="docutils literal notranslate"><span class="pre">framework</span></code> object itself.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="s2">&quot;CLA-S02-MAG-QUAD-01&quot;</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="p">[</span><span class="s2">&quot;CLA-S02-MAG-QUAD-01&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>name=&#39;CLA-S02-MAG-QUAD-01&#39; hardware_class=&#39;Magnet&#39; hardware_type=&#39;Quadrupole&#39; hardware_model=&#39;Generic&#39; machine_area=&#39;S02&#39; virtual_name=&#39;&#39; alias=[] subelement=False CASCADING_RULES={} physical=PhysicalElement(middle=Position(x=0.0, y=0.0, z=3.52715239) datum=Position(x=0.0, y=0.0, z=3.59149478) length=0.12868478212775) electrical=ElectricalElement(minI=-53.0, maxI=53.0, read_tolerance=0.1) manufacturer=ManufacturerElement(manufacturer=&#39;Quadrupole Type 1&#39;, serial_number=&#39;13248&#39;, hardware_class=&#39;Quadrupole&#39;) simulation=MagnetSimulationElement(field_definition=None, wakefield_definition=None, field_reference_position=None, scale_field=False, n_kicks=7, smooth=2, edge_field_integral=0.5, edge1_effects=1, edge2_effects=1, sr_enable=True, integration_order=4, nonlinear=1, smoothing_half_width=1, edge_order=2, csr_bins=100, deltaL=0.0, csr_enable=True, isr_enable=True, field_amplitude=0.0) controls=ControlsInformation(variables={&#39;readback&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:RBV&#39;, dtype=&lt;class &#39;float&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;Readback of CLA-S02-MAG-QUAD-01&#39;, read_only=True), &#39;setpoint&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:SP&#39;, dtype=&lt;class &#39;float&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;Setpoint of CLA-S02-MAG-QUAD-01&#39;, read_only=True), &#39;state&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:STATE&#39;, dtype=&lt;class &#39;int&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;State of CLA-S02-MAG-QUAD-01&#39;, read_only=False)}) degauss=DegaussableElement(tolerance=0.5, values=[52.89, -52.89, 31.8, -31.8, 21.2, -21.2, 10.6, -10.6, 5.3, -5.3, 0.0], steps=11) magnetic=Quadrupole_Magnet(skew=False, length=0.12868478212775, multipoles=Multipoles(K1L=Multipole(order=1 normal=5 skew=0.0 radius=0.0)), systematic_multipoles=Multipoles(), random_multipoles=Multipoles(), field_integral_coefficients=FieldIntegral(coefficients=[-2.23133410405682e-10, 4.5196171252132e-08, -3.46208258004659e-06, 0.000111195870210961, 0.0238129337415767, 0.00981229429460256]), linear_saturation_coefficients=LinearSaturationFit(m=0.025500836847330708, I_max=15.575435287034225, f=0.0, a=-1.3755963213967208e-05, I0=942.4766071889139, d=12.215564413215553, L=128.68477053001592), settle_time=45.0, entrance_edge_angle=0.0, exit_edge_angle=0.0, gap=0.032, bore=0.037, plane=&#39;horizontal&#39;, width=0.2, tilt=0.0, edge_field_integral=0.5, fringe_field_coefficient=0.0, half_gap=0.016)
+name=&#39;CLA-S02-MAG-QUAD-01&#39; hardware_class=&#39;Magnet&#39; hardware_type=&#39;Quadrupole&#39; hardware_model=&#39;Generic&#39; machine_area=&#39;S02&#39; virtual_name=&#39;&#39; alias=[] subelement=False CASCADING_RULES={} physical=PhysicalElement(middle=Position(x=0.0, y=0.0, z=3.52715239) datum=Position(x=0.0, y=0.0, z=3.59149478) length=0.12868478212775) electrical=ElectricalElement(minI=-53.0, maxI=53.0, read_tolerance=0.1) manufacturer=ManufacturerElement(manufacturer=&#39;Quadrupole Type 1&#39;, serial_number=&#39;13248&#39;, hardware_class=&#39;Quadrupole&#39;) simulation=MagnetSimulationElement(field_definition=None, wakefield_definition=None, field_reference_position=None, scale_field=False, n_kicks=7, smooth=2, edge_field_integral=0.5, edge1_effects=1, edge2_effects=1, sr_enable=True, integration_order=4, nonlinear=1, smoothing_half_width=1, edge_order=2, csr_bins=100, deltaL=0.0, csr_enable=True, isr_enable=True, field_amplitude=0.0) controls=ControlsInformation(variables={&#39;readback&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:RBV&#39;, dtype=&lt;class &#39;float&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;Readback of CLA-S02-MAG-QUAD-01&#39;, read_only=True), &#39;setpoint&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:SP&#39;, dtype=&lt;class &#39;float&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;Setpoint of CLA-S02-MAG-QUAD-01&#39;, read_only=True), &#39;state&#39;: ControlVariable(identifier=&#39;CLA-S02-MAG-QUAD-01:STATE&#39;, dtype=&lt;class &#39;int&#39;&gt;, protocol=&#39;CA&#39;, units=&#39;N/A&#39;, description=&#39;State of CLA-S02-MAG-QUAD-01&#39;, read_only=False)}) degauss=DegaussableElement(tolerance=0.5, values=[52.89, -52.89, 31.8, -31.8, 21.2, -21.2, 10.6, -10.6, 5.3, -5.3, 0.0], steps=11) magnetic=Quadrupole_Magnet(skew=False, length=0.12868478212775, multipoles=Multipoles(K1L=Multipole(order=1 normal=5 skew=0.0 radius=0.0)), systematic_multipoles=Multipoles(), random_multipoles=Multipoles(), field_integral_coefficients=FieldIntegral(coefficients=[-2.23133410405682e-10, 4.5196171252132e-08, -3.46208258004659e-06, 0.000111195870210961, 0.0238129337415767, 0.00981229429460256]), linear_saturation_coefficients=LinearSaturationFit(m=0.025500836847330708, I_max=15.575435287034225, f=0.0, a=-1.3755963213967208e-05, I0=942.4766071889139, d=12.215564413215553, L=128.68477053001592), settle_time=45.0, entrance_edge_angle=0.0, exit_edge_angle=0.0, gap=0.032, bore=0.037, plane=&#39;horizontal&#39;, width=0.2, tilt=0.0, edge_field_integral=0.5, fringe_field_coefficient=0.0, half_gap=0.016)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="s2">&quot;CLA-S02-MAG-QUAD-01&quot;</span><span class="p">,</span> <span class="s2">&quot;k1l&quot;</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">framework</span><span class="p">[</span><span class="s2">&quot;CLA-S02-MAG-QUAD-01&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">k1l</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>5
+5
+</pre></div>
+</div>
+</div>
+</div>
+<p>All objects of a given type defined in the entire lattice can be accessed as follows.</p>
+<p>(NB here cavity on-crest phase is zero and ASTRA convention is followed for the phase sign)</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cavnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;rfcavity&quot;</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">cavnames</span><span class="p">,</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;rfcavity&quot;</span><span class="p">,</span> <span class="s2">&quot;phase&quot;</span><span class="p">))})</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;CLA-L02-LIN-CAV-01&#39;: 23.0, &#39;CLA-L4H-LIN-CAV-01&#39;: -184.0, &#39;CLA-L01-LIN-CAV-01&#39;: 16.0, &#39;CLA-L03-LIN-CAV-01&#39;: 8.0, &#39;CLA-L04-LIN-CAV-01&#39;: 45.0, &#39;CLA-HRG1-GUN-CAV-01&#39;: 9.0}
+</pre></div>
+</div>
+</div>
+</div>
+<p>Various options are available for changing a lattice element, or multiple elements of a given type simultaneously.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set all dipole angles in the lattice to zero and use `setElementType`</span>
+<span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">)]</span>
+<span class="n">dipnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">)]</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">setElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;angle&quot;</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">dipnames</span><span class="p">,</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;angle&quot;</span><span class="p">))})</span>
+
+<span class="c1"># Set all dipole angles to 0.1 and use modifyElementType</span>
+<span class="n">value</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">modifyElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;angle&quot;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">dipnames</span><span class="p">,</span> <span class="n">framework</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;angle&quot;</span><span class="p">))})</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;CLA-FMS-MAG-DIP-01&#39;: 0, &#39;CLA-VBC-MAG-DIP-01&#39;: 0, &#39;CLA-FMS-MAG-PMD-03&#39;: 0, &#39;CLA-FMS-MAG-DIP-05&#39;: 0, &#39;CLA-FMS-MAG-PMD-02&#39;: 0, &#39;CLA-FMS-MAG-DIP-06&#39;: 0, &#39;CLA-FMS-MAG-DIP-07&#39;: 0, &#39;CLA-FEA-MAG-DIP-04&#39;: 0, &#39;CLA-FMS-MAG-DIP-03&#39;: 0, &#39;CLA-FEA-MAG-DIP-02&#39;: 0, &#39;CLA-VBC-MAG-DIP-03&#39;: 0, &#39;CLA-FED-MAG-DIP-01&#39;: 0, &#39;CLA-FMS-MAG-PMD-01&#39;: 0, &#39;CLA-VBC-MAG-DIP-02&#39;: 0, &#39;CLA-SP2-MAG-DIP-01&#39;: 0, &#39;CLA-VBC-MAG-DIP-04&#39;: 0, &#39;CLA-FMS-MAG-DIP-08&#39;: 0, &#39;CLA-FMS-MAG-DIP-04&#39;: 0, &#39;CLA-FMS-MAG-DIP-02&#39;: 0, &#39;CLA-SP3-MAG-DIP-01&#39;: 0, &#39;CLA-FEA-MAG-DIP-01&#39;: 0, &#39;CLA-FEA-MAG-DIP-03&#39;: 0, &#39;CLA-C2V-MAG-DIP-01&#39;: 0}
+{&#39;CLA-FMS-MAG-DIP-01&#39;: 0.1, &#39;CLA-VBC-MAG-DIP-01&#39;: 0.1, &#39;CLA-FMS-MAG-PMD-03&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-05&#39;: 0.1, &#39;CLA-FMS-MAG-PMD-02&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-06&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-07&#39;: 0.1, &#39;CLA-FEA-MAG-DIP-04&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-03&#39;: 0.1, &#39;CLA-FEA-MAG-DIP-02&#39;: 0.1, &#39;CLA-VBC-MAG-DIP-03&#39;: 0.1, &#39;CLA-FED-MAG-DIP-01&#39;: 0.1, &#39;CLA-FMS-MAG-PMD-01&#39;: 0.1, &#39;CLA-VBC-MAG-DIP-02&#39;: 0.1, &#39;CLA-SP2-MAG-DIP-01&#39;: 0.1, &#39;CLA-VBC-MAG-DIP-04&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-08&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-04&#39;: 0.1, &#39;CLA-FMS-MAG-DIP-02&#39;: 0.1, &#39;CLA-SP3-MAG-DIP-01&#39;: 0.1, &#39;CLA-FEA-MAG-DIP-01&#39;: 0.1, &#39;CLA-FEA-MAG-DIP-03&#39;: 0.1, &#39;CLA-C2V-MAG-DIP-01&#39;: 0.1}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">s02q1</span> <span class="o">=</span> <span class="s2">&quot;CLA-S02-MAG-QUAD-01&quot;</span>
+<span class="n">s02q2</span> <span class="o">=</span> <span class="s2">&quot;CLA-S02-MAG-QUAD-02&quot;</span>
+<span class="nb">setattr</span><span class="p">(</span><span class="n">framework</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">s02q1</span><span class="p">],</span> <span class="s1">&#39;k1l&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="p">[</span><span class="n">s02q1</span><span class="p">]</span><span class="o">.</span><span class="n">k1l</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">modifyElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span> <span class="s2">&quot;k1l&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">modifyElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;k1l&quot;</span><span class="p">,</span> <span class="s2">&quot;n_kicks&quot;</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, n_kicks = </span><span class="si">{</span><span class="n">framework</span><span class="p">[</span><span class="n">s02q1</span><span class="p">]</span><span class="o">.</span><span class="n">n_kicks</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">modifyElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;k1l&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;n_kicks&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, n_kicks = </span><span class="si">{</span><span class="n">framework</span><span class="p">[</span><span class="n">s02q1</span><span class="p">]</span><span class="o">.</span><span class="n">n_kicks</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">modifyElements</span><span class="p">([</span><span class="n">s02q1</span><span class="p">,</span> <span class="n">s02q2</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;k1l&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;n_kicks&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s02q1</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q1</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, n_kicks = </span><span class="si">{</span><span class="n">framework</span><span class="p">[</span><span class="n">s02q1</span><span class="p">]</span><span class="o">.</span><span class="n">n_kicks</span><span class="si">}</span><span class="s2">,</span><span class="se">\</span>
+<span class="si">{</span><span class="n">s02q2</span><span class="si">}</span><span class="s2"> k1l = </span><span class="si">{</span><span class="n">framework</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="n">s02q2</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;k1l&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">, n_kicks = </span><span class="si">{</span><span class="n">framework</span><span class="p">[</span><span class="n">s02q2</span><span class="p">]</span><span class="o">.</span><span class="n">n_kicks</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>CLA-S02-MAG-QUAD-01 k1l = 1
+CLA-S02-MAG-QUAD-01 k1l = 2
+CLA-S02-MAG-QUAD-01 k1l = 3
+CLA-S02-MAG-QUAD-01 k1l = 3, n_kicks = 5
+CLA-S02-MAG-QUAD-01 k1l = 4, n_kicks = 6
+CLA-S02-MAG-QUAD-01 k1l = 5, n_kicks = 7,CLA-S02-MAG-QUAD-02 k1l = 5, n_kicks = 7
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s2">&quot;./utility_functions/&quot;</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;dipoles.yaml&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="beams_example.html" class="btn btn-neutral float-left" title="SIMBA Beams Module examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../../Framework.html" class="btn btn-neutral float-right" title="Framework" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

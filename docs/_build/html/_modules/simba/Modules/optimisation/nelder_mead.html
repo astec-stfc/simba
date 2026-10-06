@@ -1,0 +1,271 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.optimisation.nelder_mead &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.optimisation.nelder_mead</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.optimisation.nelder_mead</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Pure Python/Numpy implementation of the Nelder-Mead algorithm.</span>
+<span class="sd">Taken from `fchollet`_; also see `Wikipedia entry`_</span>
+
+<span class="sd">.. _fchollet: https://github.com/fchollet/nelder-mead</span>
+
+<span class="sd">.. _Wikipedia entry: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+
+
+<div class="viewcode-block" id="nelder_mead">
+<a class="viewcode-back" href="../../../../simba.Modules.optimisation.html#simba.Modules.optimisation.nelder_mead.nelder_mead">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nelder_mead</span><span class="p">(</span>
+    <span class="n">func</span><span class="p">,</span>
+    <span class="n">x_start</span><span class="p">,</span>
+    <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">no_improve_thr</span><span class="o">=</span><span class="mf">10e-6</span><span class="p">,</span>
+    <span class="n">no_improv_break</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">gamma</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">rho</span><span class="o">=-</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">sigma</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">converged</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param func: Function to optimise; must return a scalar score and operate</span>
+<span class="sd">        over a numpy array of the same dimensions as ``x_start``</span>
+<span class="sd">    :param x_start: Initial position, as a numpy array</span>
+<span class="sd">    :param float step: Look-around radius in the initial step</span>
+<span class="sd">    :param float no_improve_thr: Break after ``no_improv_break`` iterations with</span>
+<span class="sd">        an improvement lower than this</span>
+<span class="sd">    :param int no_improv_break: Number of iterations without improvement to</span>
+<span class="sd">        tolerate before breaking</span>
+<span class="sd">    :param int max_iter: Always break after this number of iterations; set it to</span>
+<span class="sd">        0 to loop indefinitely</span>
+<span class="sd">    :param float alpha: Reflection coefficient</span>
+<span class="sd">    :param float gamma: Expansion coefficient</span>
+<span class="sd">    :param float rho: Contraction coefficient</span>
+<span class="sd">    :param float sigma: Shrink coefficient</span>
+<span class="sd">    :returns: Tuple of the best parameter array and the best score</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># init</span>
+
+    <span class="c1"># define function call as a partial with kwargs as input</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Creating opt func as&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_start</span><span class="p">)</span>
+    <span class="n">prev_best</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">x_start</span><span class="p">)</span>
+    <span class="n">no_improv</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">[[</span><span class="n">x_start</span><span class="p">,</span> <span class="n">prev_best</span><span class="p">]]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">x_start</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">step</span><span class="p">):</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">score</span><span class="p">])</span>
+
+    <span class="c1"># simplex iter</span>
+    <span class="n">iters</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c1"># order</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># break if &lt;= converged</span>
+        <span class="k">if</span> <span class="n">converged</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">best</span> <span class="o">&lt;=</span> <span class="n">converged</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># break after max_iter</span>
+        <span class="k">if</span> <span class="n">max_iter</span> <span class="ow">and</span> <span class="n">iters</span> <span class="o">&gt;=</span> <span class="n">max_iter</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">iters</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># break after no_improv_break iterations with no improvement</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;...best so far:&quot;</span><span class="p">,</span> <span class="n">best</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">best</span> <span class="o">&lt;</span> <span class="n">prev_best</span> <span class="o">-</span> <span class="n">no_improve_thr</span><span class="p">:</span>
+            <span class="n">no_improv</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">prev_best</span> <span class="o">=</span> <span class="n">best</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">no_improv</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">no_improv</span> <span class="o">&gt;=</span> <span class="n">no_improv_break</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># centroid</span>
+        <span class="n">x0</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="n">dim</span>
+        <span class="k">for</span> <span class="n">tup</span> <span class="ow">in</span> <span class="n">res</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">x0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">c</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># reflection</span>
+        <span class="n">xr</span> <span class="o">=</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">alpha</span> <span class="o">*</span> <span class="p">(</span><span class="n">x0</span> <span class="o">-</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">rscore</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">rscore</span> <span class="o">&lt;</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">del</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">xr</span><span class="p">,</span> <span class="n">rscore</span><span class="p">])</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># expansion</span>
+        <span class="k">if</span> <span class="n">rscore</span> <span class="o">&lt;</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">xe</span> <span class="o">=</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">gamma</span> <span class="o">*</span> <span class="p">(</span><span class="n">x0</span> <span class="o">-</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">escore</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">xe</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">escore</span> <span class="o">&lt;</span> <span class="n">rscore</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">xe</span><span class="p">,</span> <span class="n">escore</span><span class="p">])</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">xr</span><span class="p">,</span> <span class="n">rscore</span><span class="p">])</span>
+                <span class="k">continue</span>
+
+        <span class="c1"># contraction</span>
+        <span class="n">xc</span> <span class="o">=</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">rho</span> <span class="o">*</span> <span class="p">(</span><span class="n">x0</span> <span class="o">-</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">cscore</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">xc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cscore</span> <span class="o">&lt;</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">del</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">xc</span><span class="p">,</span> <span class="n">cscore</span><span class="p">])</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># reduction</span>
+        <span class="n">x1</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">nres</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tup</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">redx</span> <span class="o">=</span> <span class="n">x1</span> <span class="o">+</span> <span class="n">sigma</span> <span class="o">*</span> <span class="p">(</span><span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">)</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">redx</span><span class="p">)</span>
+            <span class="n">nres</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">redx</span><span class="p">,</span> <span class="n">score</span><span class="p">])</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">nres</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># test</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">nelder_mead</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])))</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

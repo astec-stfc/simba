@@ -7,9 +7,9 @@ Various objects and functions to handle Wake-T lattices and commands. See `Wake-
 
 Classes:
     - :class:`~simba.Codes.Wake_T.Wake_T.waketLattice`: The Wake-T lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Wake-T lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a Wake-T lattice object,
+      and for tracking through it.
 
 """
 

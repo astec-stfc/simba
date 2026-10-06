@@ -264,25 +264,25 @@ class beam(BaseModel):
     Additional results from analysis of the beam are contained in the following properties:
 
     - :attr:`~simba.Modules.Beams.beam.sigmas` -- average beam properties,
-    see :class:`~simba.Modules.Beams.Particles.sigmas.sigmas`.
+      see :class:`~simba.Modules.Beams.Particles.sigmas.sigmas`.
 
     - :attr:`~simba.Modules.Beams.beam.centroids` -- beam centroids,
-    see :class:`~simba.Modules.Beams.Particles.centroids.centroids`.
+      see :class:`~simba.Modules.Beams.Particles.centroids.centroids`.
 
     - :attr:`~simba.Modules.Beams.beam.centroids` -- various emittance calculations,
-    see :class:`~simba.Modules.Beams.Particles.emittance.emittance`.
+      see :class:`~simba.Modules.Beams.Particles.emittance.emittance`.
 
     - :attr:`~simba.Modules.Beams.beam.kde` -- kernel density estimator,
-    see :class:`~simba.Modules.Beams.Particles.kde.kde`.
+      see :class:`~simba.Modules.Beams.Particles.kde.kde`.
 
     - :attr:`~simba.Modules.Beams.beam.mve` -- minimum volume ellipse,
-    see :class:`~simba.Modules.Beams.Particles.mve.MVE`.
+      see :class:`~simba.Modules.Beams.Particles.mve.MVE`.
 
     - :attr:`~simba.Modules.Beams.beam.slices` -- calculations of slice properties,
-    see :class:`~simba.Modules.Beams.Particles.slice.slice`.
+      see :class:`~simba.Modules.Beams.Particles.slice.slice`.
 
     - :attr:`~simba.Modules.Beams.beam.twiss` -- Twiss parameters,
-    see :class:`~simba.Modules.Beams.Particles.twiss.twiss`.
+      see :class:`~simba.Modules.Beams.Particles.twiss.twiss`.
 
     Functions are also provided for translating the particle distribution from and to HDF5 format
     (in-house developed or OpenPMD), ASTRA, GPT, OCELOT, or SDDS.
@@ -304,6 +304,10 @@ class beam(BaseModel):
 
     code: str | None = None
     """Code from which the beam distribution was generated"""
+
+    turn: int | None = None
+    """Which turn of a multi-turn run this distribution was recorded on, 1-based;
+    always 1 for single-pass lines."""
 
     reference_particle: np.ndarray | None  = None
     """Reference particle for ASTRA-type distributions"""

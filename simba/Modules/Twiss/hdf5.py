@@ -53,9 +53,29 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
                     dataset.attrs.create("Units", str(unit.unit))
 
 
+def twiss_file_version(h5file) -> str:
+    """Format version of a twiss HDF5 file, read from where the writer puts it.
+
+    Parameters
+    ----------
+    h5file: h5py.File
+        An open twiss file
+
+    Returns
+    -------
+    str
+        The version string, or ``"1"`` for a file too old to carry one
+    """
+    dataset = h5file.get("Parameters/Version")
+    if dataset is None:
+        return "1"
+    value = dataset[()]
+    return value.decode() if isinstance(value, bytes) else str(value)
+
+
 def read_HDF5_twiss_file(self, filename):
     with h5py.File(filename, "r") as h5file:
-        if not hasattr(h5file, "version") or h5file["Version"] < "2":
+        if twiss_file_version(h5file) < "2":
             cols = list(h5file.get("twiss/columns").asstr())
             twiss = np.array(h5file.get("twiss/twiss")).transpose()
             units = list(h5file.get("twiss/units").asstr())
@@ -63,7 +83,7 @@ def read_HDF5_twiss_file(self, filename):
                 setattr(self, c, UnitValue(v, units=u, dtype=self.properties[c].dtype))
                 for c, v, u in zip(cols, twiss, units)
             ]
-        elif h5file["Version"] == "2":
+        else:
             for name, data in h5file["twiss"].items():
                 setattr(
                     self,

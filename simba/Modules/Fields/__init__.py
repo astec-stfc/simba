@@ -10,7 +10,7 @@ required for specific codes.
 Classes:
     - :class:`~simba.Modules.Fields.field`: Generic field definition.
     - :class:`~simba.Modules.Fields.FieldParameter.FieldParameter`: Field parameter with a
-    name and a :class:`~simba.Modules.units.UnitValue` associated with it.
+      name and a :class:`~simba.Modules.units.UnitValue` associated with it.
 """
 
 import os

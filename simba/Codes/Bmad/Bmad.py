@@ -10,9 +10,9 @@ and `Tao manual`_ for more details.
 
 Classes:
     - :class:`~simba.Codes.Bmad.Bmad.bmadLattice`: The Bmad lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Bmad lattice,
-    and for tracking through it using PyTao.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a Bmad lattice,
+      and for tracking through it using PyTao.
 
 """
 
@@ -24,6 +24,7 @@ from warnings import warn
 
 import numpy as np
 from laura.models.simulation import TwissMatchSimulationElement
+from laura.translator.converters.converter import translate_elements
 from laura.translator.utils.functions import sanitize_string
 
 from ...Framework_objects import frameworkLattice
@@ -113,8 +114,9 @@ class bmadLattice(frameworkLattice):
     the init file; see :meth:`_tao_dynamic_aperture_namelist`."""
 
     supports_frequency_map: ClassVar[bool] = True
-    """By tracking the grid a turn at a time and feeding the bunch back with
-    ``set beam beginning = END``; see :meth:`run_frequency_map`."""
+    """By tracking the grid a turn at a time and feeding the bunch back
+    through ``beam_init%position_file``; see
+    :meth:`_track_grid_turn_by_turn`."""
 
     supports_radiation: ClassVar[bool] = True
     """``bmad_com[radiation_damping_on]`` and ``[radiation_fluctuations_on]``,
@@ -123,6 +125,9 @@ class bmadLattice(frameworkLattice):
     supports_periodic: ClassVar[bool] = True
     """``parameter[geometry] = closed``, which LAURA writes from the section's
     own ``geometry``; Bmad then takes the Twiss from the one-turn map."""
+
+    supports_programs: ClassVar[bool] = True
+    """By ``set element`` inside the Tao turn loops; see :meth:`apply_programs`."""
 
     otm_convention: ClassVar[str] = "x, px, y, py, z, pz"
     """One-turn map convention."""
@@ -163,12 +168,32 @@ class bmadLattice(frameworkLattice):
     _ALIVE: int = 1
     """Value of the Bmad/openPMD particle status flag for a live particle"""
 
+    _GRID_CHARGE: ClassVar[float] = 1e-15
+    """Charge given to each frequency-map grid particle."""
+
+    _POSITION_FILE_CMD: ClassVar[str] = "set beam_init position_file = {path}"
+    """How to point Tao at a particle file; 
+    see :meth:`_track_grid_turn_by_turn`."""
+
+    _PHASE_SPACE: ClassVar[tuple] = ("x", "px", "y", "py", "z", "pz")
+    """Bmad's six phase-space coordinates; see
+    :meth:`_write_position_file`."""
+
     libtao: str | None = None
     """Location of libtao.so"""
 
     chromaticity_delta: float = 1e-4
     """Momentum step for the Bmad chromaticity finite difference. Matches
     Tao's own ``delta_e_chrom`` default."""
+
+    program_attributes: ClassVar[dict] = {
+        "hkicker": ("kick", "kick"),
+        "vkicker": ("kick", "kick"),
+        "kicker": ("hkick", "vkick"),
+        "ac_kicker": ("bl_hkick", "bl_vkick"),
+    }
+    """``(horizontal, vertical)`` Bmad attribute an unqualified program
+    sets, per element type."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -298,6 +323,47 @@ class bmadLattice(frameworkLattice):
             "/\n"
         )
 
+    def _write_position_file(self, path: str, rows, states=None) -> None:
+        """
+        Write particles in the ASCII form ``beam_init%position_file`` reads.
+
+        ``time`` is written as zero rather than the tracked time: Bmad takes
+        the particle's time at the start element from ``z``.
+
+        Parameters
+        ----------
+        path: str
+            File to write.
+        rows: array
+            ``n_particles x 6`` of ``x px y py z pz``, in Bmad's own
+            coordinates -- not openPMD's. :meth:`Tao.bunch1` gives these
+            directly; ``bunch_data`` does not, it converts.
+        states: array | None
+            Tao's integer particle state, as :attr:`_ALIVE` compares
+            against. ``None`` writes every particle alive.
+        """
+        rows = np.asarray(rows, dtype=float)
+        alive = (
+            np.ones(len(rows), dtype=bool)
+            if states is None
+            else np.asarray(states) == self._ALIVE
+        )
+        body = "\n".join(
+            " ".join(f"{value:.15e}" for value in row)
+            + f" {self._GRID_CHARGE:.15e} 0.0 "
+            + ("Alive" if is_alive else "Lost")
+            for row, is_alive in zip(rows, alive)
+        )
+        with open(path, "w") as handle:
+            handle.write(
+                f"# species = {self.global_parameters['beam'].species}\n"
+                "# state = alive\n"
+                f"# p0c = {self._reference_energy()}\n"
+                f"# charge_tot = {self._GRID_CHARGE * len(rows)}\n"
+                "#! x px y py z pz charge time state\n"
+                f"{body}\n"
+            )
+
     def _write_grid_beam_file(self, path: str) -> list:
         """
         One particle per frequency-map grid point, offset from the closed orbit.
@@ -316,33 +382,12 @@ class bmadLattice(frameworkLattice):
             orbit = np.zeros(6)
         xs, ys = self.da_grid()
         points = [(float(x), float(y)) for y in ys for x in xs]
-        p0c = self._reference_energy()
-        rows = np.array(
-            [
-                [
-                    orbit[0] + x,
-                    orbit[1],
-                    orbit[2] + y,
-                    orbit[3],
-                    0.0,
-                    0.0,
-                    1e-15,
-                    0.0,
-                ]
-                for x, y in points
-            ]
-        )
-        np.savetxt(
+        self._write_position_file(
             path,
-            rows,
-            header=(
-                f"# species = {self.global_parameters['beam'].species}\n"
-                "# state = alive\n"
-                f"# p0c = {p0c}\n"
-                f"# charge_tot = {1e-15 * len(points)}\n"
-                "#! x px y py z pz charge time"
-            ),
-            comments="",
+            [
+                [orbit[0] + x, orbit[1], orbit[2] + y, orbit[3], 0.0, 0.0]
+                for x, y in points
+            ],
         )
         return points
 
@@ -350,9 +395,9 @@ class bmadLattice(frameworkLattice):
         """
         Tune footprint by tracking the grid turn by turn through Tao.
 
-        Track one turn, read the bunch at ``END``, then
-        ``set beam beginning = END`` to feed the
-        distribution back and repeat.
+        Track one turn, read the bunch at ``END``, write it back into
+        ``beam_init%position_file`` and repeat; see
+        :meth:`_track_grid_turn_by_turn`.
 
         Returns
         -------
@@ -395,11 +440,8 @@ class bmadLattice(frameworkLattice):
 
     def _track_grid_turn_by_turn(self) -> dict:
         """
-        Track the grid one turn at a time, recording every turn.
-
-        Track one turn, read the bunch at
-        ``END``, then ``set beam beginning = END`` to feed the distribution
-        back.
+        Track one turn, read the bunch at ``END``, write it back into the
+        position file, and go round again.
 
         Returns
         -------
@@ -420,26 +462,92 @@ class bmadLattice(frameworkLattice):
             os.chdir(working_directory)
             grid_file = str(Path(self.lattice_file).with_suffix(".fma.beam"))
             self._write_grid_beam_file(grid_file)
-            self.tao.cmd(f"set beam beam_init_position_file = {grid_file}")
+            self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
             self.tao.cmd("set beam add_saved_at = END")
             self.tao.cmd("set global track_type = beam", raises=False)
-            for _ in range(self.turns):
+            for turn in range(1, self.turns + 1):
+                self.apply_programs(turn)
                 self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-                for name in history:
-                    history[name].append(
-                        list(
-                            self.tao.bunch1(
-                                "END", coordinate=name, which="model", ix_bunch=1
-                            )
+                bunch = {
+                    name: np.asarray(
+                        self.tao.bunch1(
+                            "END", coordinate=name, which="model", ix_bunch=1
                         )
                     )
-                self.tao.cmd("set beam beginning = END", raises=False)
+                    for name in self._PHASE_SPACE + ("state",)
+                }
+                for name in history:
+                    history[name].append(bunch[name])
+                self._write_position_file(
+                    grid_file,
+                    np.column_stack([bunch[name] for name in self._PHASE_SPACE]),
+                    states=bunch["state"],
+                )
+                self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
         except Exception as error:
             warn(f"Tao turn-by-turn tracking failed for {self.objectname}: {error}")
             return {}
         finally:
             os.chdir(previous_directory)
         return {name: np.asarray(values).T for name, values in history.items()}
+
+    def apply_programs(self, turn: int) -> None:
+        """
+        ``set element`` each programmed element's attribute for `turn`.
+
+        Called from inside the Tao turn loops, which are the only place
+        Bmad tracks a line more than once here.
+
+        Parameters
+        ----------
+        turn: int
+            Turn number, 1-based
+        """
+        if self.tao is None:
+            return
+        for program in self.programs:
+            name = sanitize_string(program.element)
+            attribute = program.parameter
+            if attribute is None:
+                etype = self._bmad_type(program.element)
+                planes = self.program_attributes.get(etype)
+                if planes is None:
+                    warn(
+                        f"Line '{self.objectname}' programs '{program.element}', "
+                        f"a Bmad {etype or 'missing element'}, and simba has no "
+                        "default attribute for that type. Name it with "
+                        "'parameter:' in the program."
+                    )
+                    continue
+                attribute = planes[1] if self.program_is_vertical(
+                    program.element
+                ) else planes[0]
+            self.tao.cmd(
+                f"set element {name} {attribute} = {program.value_at(turn)}",
+                raises=False,
+            )
+
+    def _bmad_type(self, name: str) -> str:
+        """
+        The Bmad element type LAURA writes `name` as, lowercased.
+
+        Parameters
+        ----------
+        name: str
+            Element name
+
+        Returns
+        -------
+        str
+            Name of Bmad element
+        """
+        element = self.elements.get(name)
+        if element is None:
+            return ""
+        translator = translate_elements([element]).get(name)
+        if translator is None:
+            return ""
+        return translator._convert_type_bmad(translator.hardware_type).lower()
 
     def track_reference_particle(self) -> dict:
         """
@@ -817,6 +925,8 @@ class bmadLattice(frameworkLattice):
                 s=s_values[output_name],
                 reference_particle_index=ref_idx,
             )
+            # one pass, whatever `turns` says
+            beam.turn = 1
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
                 str(

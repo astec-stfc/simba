@@ -1,0 +1,987 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.plotting.plotting &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.plotting.plotting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.plotting.plotting</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">nice_array</span><span class="p">,</span> <span class="n">nice_scale_prefix</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mpl_axes_aligner</span><span class="w"> </span><span class="kn">import</span> <span class="n">align</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..Twiss</span><span class="w"> </span><span class="kn">import</span> <span class="n">twissParameter</span><span class="p">,</span> <span class="n">twiss_defaults</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">laura.translator.converters.converter</span><span class="w"> </span><span class="kn">import</span> <span class="n">translate_elements</span>
+
+<span class="c1"># from units import nice_array, nice_scale_prefix</span>
+
+<span class="n">CMAP0</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s2">&quot;viridis&quot;</span><span class="p">))</span>
+<span class="n">CMAP0</span><span class="o">.</span><span class="n">set_under</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+<span class="n">CMAP1</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s2">&quot;plasma&quot;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="trans">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.trans">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">trans</span><span class="p">(</span><span class="n">M</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[[</span><span class="n">M</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">))]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">]))]</span></div>
+
+
+
+<div class="viewcode-block" id="find_nearest">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.find_nearest">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_nearest</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="n">idx</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">idx</span></div>
+
+
+
+<div class="viewcode-block" id="ASTRA_TW_FieldMap">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.ASTRA_TW_FieldMap">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ASTRA_TW_FieldMap</span><span class="p">(</span><span class="n">fielddat</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">cells</span><span class="p">,</span> <span class="n">p</span><span class="p">):</span>
+    <span class="n">zpos</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">fielddat</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">startpos</span> <span class="o">=</span> <span class="n">zpos</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+    <span class="n">stoppos</span> <span class="o">=</span> <span class="n">zpos</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">stop</span><span class="p">)</span>
+    <span class="n">halfcell1</span> <span class="o">=</span> <span class="n">fielddat</span><span class="p">[:</span><span class="n">startpos</span><span class="p">]</span>
+    <span class="n">halfcell2</span> <span class="o">=</span> <span class="n">fielddat</span><span class="p">[</span><span class="n">stoppos</span><span class="p">:]</span>
+    <span class="n">rfcell</span> <span class="o">=</span> <span class="n">fielddat</span><span class="p">[</span><span class="n">startpos</span><span class="p">:</span><span class="n">stoppos</span><span class="p">]</span>
+    <span class="n">n_cells</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cells</span> <span class="o">/</span> <span class="n">p</span><span class="p">)</span>
+    <span class="n">cell_length</span> <span class="o">=</span> <span class="n">rfcell</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">rfcell</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">dat</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">halfcell1</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_cells</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">dat</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">rfcell</span><span class="p">)</span>
+        <span class="n">rfcell</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">cell_length</span>
+    <span class="n">halfcell2</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">n_cells</span> <span class="o">*</span> <span class="n">cell_length</span>
+    <span class="n">dat</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">halfcell2</span><span class="p">)</span>
+    <span class="n">dat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dat</span></div>
+
+
+
+<div class="viewcode-block" id="fieldmap_data">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.fieldmap_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fieldmap_data</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">master_lattice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Loads the fieldmap in absolute coordinates.</span>
+
+<span class="sd">    If a fieldmaps dict is given, these will be used instead of loading the file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Position</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">field_reference_position</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span>
+        <span class="k">elif</span> <span class="n">element</span><span class="o">.</span><span class="n">field_reference_position</span> <span class="o">==</span> <span class="s2">&quot;end&quot;</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">phyiscal</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span>
+
+    <span class="c1"># Scaling</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">field_amplitude</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">field_amplitude</span>
+    <span class="c1"># resolve a functional definition to a number, if present</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">hardware_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;rfcavity&quot;</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="mf">1e6</span>
+        <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">structure_type</span> <span class="o">==</span> <span class="s2">&quot;StandingWave&quot;</span> <span class="ow">and</span> <span class="n">element</span><span class="o">.</span><span class="n">cavity</span><span class="o">.</span><span class="n">n_cells</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">/</span> <span class="n">element</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">length</span>
+    <span class="c1"># file</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="n">translate_elements</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">element</span><span class="p">],</span> <span class="n">master_lattice</span><span class="o">=</span><span class="n">master_lattice</span><span class="p">)[</span><span class="n">element</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+    <span class="n">element</span><span class="o">.</span><span class="n">update_field_definition</span><span class="p">()</span>
+    <span class="n">field</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">field_definition</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">get_field_data</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="s2">&quot;astra&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;1DElectroDynamic&quot;</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">cavity_type</span> <span class="o">==</span> <span class="s2">&quot;TravellingWave&quot;</span><span class="p">:</span>
+        <span class="n">dat</span> <span class="o">=</span> <span class="n">ASTRA_TW_FieldMap</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">field</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">Ez</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span><span class="p">]),</span>
+            <span class="n">field</span><span class="o">.</span><span class="n">start_cell_z</span><span class="p">,</span>
+            <span class="n">field</span><span class="o">.</span><span class="n">end_cell_z</span><span class="p">,</span>
+            <span class="n">element</span><span class="o">.</span><span class="n">cavity</span><span class="o">.</span><span class="n">n_cells</span><span class="p">,</span>
+            <span class="n">field</span><span class="o">.</span><span class="n">mode_denominator</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dat</span> <span class="o">=</span> <span class="n">data</span>
+    <span class="n">dat</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">offset</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">normalise</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="nb">abs</span><span class="p">)</span>
+    <span class="n">dat</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*=</span> <span class="n">scale</span> <span class="o">/</span> <span class="n">normalise</span>
+    <span class="k">return</span> <span class="n">dat</span></div>
+
+
+
+<div class="viewcode-block" id="magnet_plotting_data">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">magnet_plotting_data</span><span class="p">:</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">kinetic_energy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">kinetic_energy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span> <span class="o">=</span> <span class="n">trans</span><span class="p">(</span><span class="n">kinetic_energy</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span> <span class="o">=</span> <span class="p">([</span><span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">])</span>
+
+<div class="viewcode-block" id="magnet_plotting_data.half_rectangle">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.half_rectangle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">half_rectangle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">half_height</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">half_height</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">half_height</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.full_rectangle">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.full_rectangle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">full_rectangle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">half_height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span> <span class="o">-</span> <span class="n">width</span><span class="p">,</span> <span class="o">-</span><span class="n">half_height</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span> <span class="o">-</span> <span class="n">width</span><span class="p">,</span> <span class="n">half_height</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span> <span class="n">half_height</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span> <span class="o">+</span> <span class="n">width</span><span class="p">,</span> <span class="o">-</span><span class="n">half_height</span><span class="p">],</span>
+            <span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.quadrupole">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.quadrupole">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">quadrupole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="c1"># if e.gradient is None:</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">magnetic</span><span class="o">.</span><span class="n">KnL</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="mf">0.5</span>
+        <span class="c1"># else:</span>
+        <span class="c1">#     idx = find_nearest(self.z, e.middle[2])</span>
+        <span class="c1">#     ke = self.kinetic_energy[idx]</span>
+        <span class="c1">#     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;red&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.sextupole">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.sextupole">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sextupole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="c1"># if e.gradient is None:</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">magnetic</span><span class="o">.</span><span class="n">KnL</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="mf">0.5</span>
+        <span class="c1"># else:</span>
+        <span class="c1">#     idx = find_nearest(self.z, e.middle[2])</span>
+        <span class="c1">#     ke = self.kinetic_energy[idx]</span>
+        <span class="c1">#     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;green&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.dipole">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.dipole">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dipole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">magnetic</span><span class="o">.</span><span class="n">KnL</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="o">*</span> <span class="mf">0.4</span>  <span class="c1"># e.angle</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;blue&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.beam_position_monitor">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.beam_position_monitor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">beam_position_monitor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># e.angle</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;purple&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.screen">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.screen">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">screen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="mf">0.33</span>  <span class="c1"># e.angle</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;green&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.aperture">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.aperture">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">aperture</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="mf">0.15</span>  <span class="c1"># e.angle</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">0.01</span><span class="p">),</span> <span class="s2">&quot;black&quot;</span></div>
+
+
+<div class="viewcode-block" id="magnet_plotting_data.wall_current_monitor">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.magnet_plotting_data.wall_current_monitor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wall_current_monitor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span>
+        <span class="n">strength</span> <span class="o">=</span> <span class="mf">0.33</span>  <span class="c1"># e.angle</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_rectangle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">strength</span><span class="p">),</span> <span class="s2">&quot;brown&quot;</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="load_elements">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.load_elements">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_elements</span><span class="p">(</span>
+    <span class="n">lattice</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">sections</span><span class="o">=</span><span class="s2">&quot;All&quot;</span><span class="p">,</span>
+    <span class="n">types</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">],</span>
+    <span class="n">kinetic_energy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">master_lattice</span> <span class="o">=</span> <span class="n">lattice</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_lattice&quot;</span><span class="p">]</span>
+    <span class="n">fmap</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">mpd</span> <span class="o">=</span> <span class="n">magnet_plotting_data</span><span class="p">(</span><span class="n">kinetic_energy</span><span class="o">=</span><span class="n">kinetic_energy</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+        <span class="n">fmap</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">sections</span> <span class="o">==</span> <span class="s2">&quot;All&quot;</span><span class="p">:</span>
+            <span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">lattice</span><span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">lattice</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="n">t</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sections</span><span class="p">:</span>
+                <span class="n">elements</span> <span class="o">+=</span> <span class="p">[</span><span class="n">lattice</span><span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">lattice</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="n">t</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">elements</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">e</span>
+                <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span> <span class="o">&lt;=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span> <span class="o">&gt;=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.1</span>
+            <span class="p">]</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;RFCavity&quot;</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">&quot;field_definition&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">field_definition</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">fmap</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">fieldmap_data</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">master_lattice</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">mpd</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+                <span class="n">fmap</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mpd</span><span class="p">,</span> <span class="n">t</span><span class="p">)(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Missing drawings for&quot;</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fmap</span></div>
+
+
+
+<div class="viewcode-block" id="add_fieldmaps_to_axes">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.add_fieldmaps_to_axes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_fieldmaps_to_axes</span><span class="p">(</span>
+    <span class="n">lattice</span><span class="p">,</span>
+    <span class="n">axes</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">sections</span><span class="o">=</span><span class="s2">&quot;All&quot;</span><span class="p">,</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">],</span>
+    <span class="n">include_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adds fieldmaps to an axes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_scale</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">fmaps</span> <span class="o">=</span> <span class="n">load_elements</span><span class="p">(</span>
+        <span class="n">lattice</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span> <span class="n">sections</span><span class="o">=</span><span class="n">sections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="n">types</span><span class="o">=</span><span class="n">fields</span>
+    <span class="p">)</span>
+    <span class="n">ax1</span> <span class="o">=</span> <span class="n">axes</span>
+
+    <span class="n">ax1rhs</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax1rhs</span><span class="p">]</span>
+
+    <span class="n">ylabel</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">:</span> <span class="s2">&quot;$E_z$ (MV/m)&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">:</span> <span class="s2">&quot;$B_z$ (T)&quot;</span><span class="p">}</span>
+    <span class="n">color</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">:</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">:</span> <span class="s2">&quot;blue&quot;</span><span class="p">}</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">section</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fields</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">ax</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">fmaps</span><span class="p">[</span><span class="n">section</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">section</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">color</span><span class="p">[</span><span class="n">section</span><span class="p">]</span>
+            <span class="c1"># if section == &#39;cavity&#39;:# and not section == &#39;solenoid&#39;:</span>
+            <span class="k">if</span> <span class="n">section</span> <span class="o">==</span> <span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">max_scale</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]))</span>
+                    <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]))</span> <span class="o">&gt;</span> <span class="n">max_scale</span>
+                    <span class="k">else</span> <span class="n">max_scale</span>
+                <span class="p">)</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">[</span><span class="n">section</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">ax</span><span class="p">:</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([])</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">getSValues</span><span class="p">()),</span> <span class="mi">0</span><span class="p">]])</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_magnets_to_axes">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.add_magnets_to_axes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_magnets_to_axes</span><span class="p">(</span>
+    <span class="n">lattice</span><span class="p">,</span>
+    <span class="n">axes</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">sections</span><span class="o">=</span><span class="s2">&quot;All&quot;</span><span class="p">,</span>
+    <span class="n">magnets</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;quadrupole&quot;</span><span class="p">,</span> <span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;sextupole&quot;</span><span class="p">,</span> <span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">,</span> <span class="s2">&quot;screen&quot;</span><span class="p">],</span>
+    <span class="n">include_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">kinetic_energy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adds magnets to an axes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_scale</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">fmaps</span> <span class="o">=</span> <span class="n">load_elements</span><span class="p">(</span>
+        <span class="n">lattice</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+        <span class="n">sections</span><span class="o">=</span><span class="n">sections</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+        <span class="n">types</span><span class="o">=</span><span class="n">magnets</span><span class="p">,</span>
+        <span class="n">scale</span><span class="o">=</span><span class="n">max_scale</span><span class="p">,</span>
+        <span class="n">kinetic_energy</span><span class="o">=</span><span class="n">kinetic_energy</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">ax1</span> <span class="o">=</span> <span class="n">axes</span>
+    <span class="n">ax1rhs</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax1rhs</span><span class="p">]</span>
+
+    <span class="n">ylabel</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;dipole&quot;</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\theta$ (rad)&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;quadrupole&quot;</span><span class="p">:</span> <span class="s2">&quot;$K_n$ (T/m)&quot;</span><span class="p">,</span>
+    <span class="p">}</span>  <span class="c1"># , &quot;sextupole&quot;: &quot;$K_2$ (T/$m^2$)&quot;}</span>
+    <span class="n">axis</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;dipole&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;quadrupole&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+    <span class="n">color</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;dipole&quot;</span><span class="p">:</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;quadrupole&quot;</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sextupole&quot;</span><span class="p">:</span> <span class="s2">&quot;green&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">:</span> <span class="s2">&quot;purple&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">for</span> <span class="n">section</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">axis</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">ax</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">color</span><span class="p">[</span><span class="n">section</span><span class="p">]</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">[</span><span class="n">section</span><span class="p">])</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">color</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">fmaps</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="n">fmaps</span><span class="p">[</span><span class="n">section</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">a</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">getSValues</span><span class="p">()),</span> <span class="mi">0</span><span class="p">]])</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">bounds</span><span class="p">:</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">align</span><span class="o">.</span><span class="n">yaxes</span><span class="p">(</span><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="plot_fieldmaps">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.plot_fieldmaps">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_fieldmaps</span><span class="p">(</span>
+    <span class="n">lattice</span><span class="p">,</span>
+    <span class="n">sections</span><span class="o">=</span><span class="s2">&quot;All&quot;</span><span class="p">,</span>
+    <span class="n">include_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">limits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">],</span>
+    <span class="n">magnets</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;quadrupole&quot;</span><span class="p">,</span> <span class="s2">&quot;dipole&quot;</span><span class="p">,</span> <span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">,</span> <span class="s2">&quot;screen&quot;</span><span class="p">],</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple fieldmap plot</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">add_fieldmaps_to_axes</span><span class="p">(</span>
+        <span class="n">lattice</span><span class="p">,</span>
+        <span class="n">axes</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">limits</span><span class="p">,</span>
+        <span class="n">include_labels</span><span class="o">=</span><span class="n">include_labels</span><span class="p">,</span>
+        <span class="n">sections</span><span class="o">=</span><span class="n">sections</span><span class="p">,</span>
+        <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+        <span class="c1"># magnets=magnets,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="plot">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.plot">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
+    <span class="n">framework_object</span><span class="p">,</span>
+    <span class="n">ykeys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sigma_x&quot;</span><span class="p">,</span> <span class="s2">&quot;sigma_y&quot;</span><span class="p">],</span>
+    <span class="n">ykeys2</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sigma_z&quot;</span><span class="p">],</span>
+    <span class="n">xkey</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span>
+    <span class="n">limits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">nice</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_layout</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_particles</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">],</span>
+    <span class="n">magnets</span><span class="o">=</span><span class="p">[</span>
+        <span class="s2">&quot;quadrupole&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;dipole&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;screen&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;wall_current_monitor&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;aperture&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="n">grid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ax_top</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ax_field_layout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ax_magnet_layout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+
+    <span class="n">twiss</span> <span class="o">=</span> <span class="n">framework_object</span><span class="o">.</span><span class="n">twiss</span>
+    <span class="n">twiss</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">framework_object</span><span class="o">.</span><span class="n">beams</span>
+
+    <span class="c1"># ------------------------------------------------------------</span>
+    <span class="c1"># AXIS CREATION OR AXIS INJECTION</span>
+    <span class="c1"># ------------------------------------------------------------</span>
+    <span class="n">external_axes</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">ax_top</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="ow">and</span> <span class="p">(</span><span class="n">include_layout</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">or</span> <span class="p">(</span><span class="n">ax_field_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">ax_magnet_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">include_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">external_axes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;sharex&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;sharex&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">all_axis</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span>
+                <span class="mi">3</span><span class="p">,</span>
+                <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;height_ratios&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]},</span>
+                <span class="n">subplot_kw</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ax_top</span> <span class="o">=</span> <span class="n">all_axis</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">ax_field_layout</span> <span class="o">=</span> <span class="n">all_axis</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ax_magnet_layout</span> <span class="o">=</span> <span class="n">all_axis</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">external_axes</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax_top</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">grid</span><span class="p">:</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;major&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#666666&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Collect data keys</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ykeys</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">ykeys</span> <span class="o">=</span> <span class="p">[</span><span class="n">ykeys</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">ykeys2</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ykeys2</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">ykeys2</span> <span class="o">=</span> <span class="p">[</span><span class="n">ykeys2</span><span class="p">]</span>
+        <span class="n">ax_right</span> <span class="o">=</span> <span class="n">ax_top</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>
+        <span class="n">ax_plot</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax_top</span><span class="p">,</span> <span class="n">ax_right</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ax_plot</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax_top</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ykeys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ykeys2</span><span class="p">:</span>
+        <span class="n">include_legend</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># X-axis data</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">xkey</span><span class="p">)</span><span class="o">.</span><span class="n">val</span>
+    <span class="k">if</span> <span class="n">xkey</span> <span class="ow">in</span> <span class="n">twiss_defaults</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">twissParameter</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">twiss_defaults</span><span class="p">[</span><span class="n">xkey</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">twissParameter</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">xkey</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Apply limits</span>
+    <span class="k">if</span> <span class="n">limits</span><span class="p">:</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span> <span class="o">&gt;=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="o">.</span><span class="n">val</span> <span class="o">&lt;=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">good</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">good</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">good</span><span class="p">):</span>
+                <span class="n">good</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">min</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">limits</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">),</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">limits</span> <span class="o">=</span> <span class="p">(</span><span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">max</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">limits</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">))</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># Particles</span>
+    <span class="n">Pnames</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">X_particles</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">include_particles</span><span class="p">:</span>
+        <span class="c1"># Each beam file is named after the diagnostic element it was recorded at, so</span>
+        <span class="c1"># for a longitudinal x-axis anchor the marker to that element&#39;s physical</span>
+        <span class="c1"># position. This keeps the dots aligned with the lattice layout, which is drawn</span>
+        <span class="c1"># from physical.z -- a tracking code&#39;s arc length (e.g. MAD-X&#39;s) can drift from</span>
+        <span class="c1"># the SIMBA geometry. Falls back to the beam&#39;s own mean position when unmatched.</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">framework_object</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;elementObjects&quot;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">beams</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="s2">&quot;beams&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">P</span><span class="p">)):</span>
+            <span class="n">xp</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">xkey</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pname</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">):</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">keys</span><span class="p">[</span><span class="n">pname</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">elem</span> <span class="o">=</span> <span class="n">elements</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">elements</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">elem</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">xp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="n">xp</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">xp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="n">pname</span><span class="p">],</span> <span class="n">xkey</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">xp</span> <span class="o">&lt;=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">Pnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pname</span><span class="p">)</span>
+                <span class="n">X_particles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xp</span><span class="p">)</span>
+        <span class="n">X_particles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">X_particles</span><span class="p">)</span>
+
+    <span class="c1"># Units + nice scaling</span>
+    <span class="n">units_x</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">unit</span>
+    <span class="k">if</span> <span class="n">nice</span><span class="p">:</span>
+        <span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">factor_x</span><span class="p">,</span> <span class="n">prefix_x</span> <span class="o">=</span> <span class="n">nice_array</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="n">units_x</span> <span class="o">=</span> <span class="n">prefix_x</span> <span class="o">+</span> <span class="n">units_x</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">factor_x</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Set x axis label</span>
+    <span class="n">ax_plot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">xkey</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Plot ykeys + ykeys2</span>
+    <span class="n">linestyles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="s2">&quot;dashed&quot;</span><span class="p">]</span>
+    <span class="n">legend_labels</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">line_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">for</span> <span class="n">idx_axis</span><span class="p">,</span> <span class="n">keys</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="n">ykeys</span><span class="p">,</span> <span class="n">ykeys2</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">ax_plot</span><span class="p">[</span><span class="n">idx_axis</span><span class="p">]</span>
+        <span class="n">linestyle</span> <span class="o">=</span> <span class="n">linestyles</span><span class="p">[</span><span class="n">idx_axis</span><span class="p">]</span>
+
+        <span class="c1"># Determine units</span>
+        <span class="n">units_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="n">Y</span> <span class="o">=</span> <span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">val</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">twiss_defaults</span><span class="p">:</span>
+                <span class="n">Y</span> <span class="o">=</span> <span class="n">twissParameter</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">Y</span><span class="p">,</span> <span class="o">**</span><span class="n">twiss_defaults</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">Y</span> <span class="o">=</span> <span class="n">twissParameter</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">Y</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">units_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Y</span><span class="o">.</span><span class="n">unit</span><span class="p">)</span>
+
+        <span class="c1"># Unit compatibility</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">units_list</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Incompatible units among ykeys.&quot;</span><span class="p">)</span>
+
+        <span class="n">unit</span> <span class="o">=</span> <span class="n">units_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">data_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">label</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">nice</span><span class="p">:</span>
+            <span class="n">factor</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">data_list</span><span class="p">))</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">unit</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">factor</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">dat</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">data_list</span><span class="p">,</span> <span class="n">labels</span><span class="p">):</span>
+            <span class="n">line_index</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;C</span><span class="si">{</span><span class="n">line_index</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+                    <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="n">label</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">symbol</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;$&quot;</span>
+            <span class="n">legend_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+                <span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+                <span class="n">dat</span> <span class="o">/</span> <span class="n">factor</span><span class="p">,</span>
+                <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">linestyle</span><span class="o">=</span><span class="n">linestyle</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Particle plots</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">Pnames</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">Yp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">key</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">P</span><span class="o">.</span><span class="n">_parameters</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
+                    <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">key</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">Pnames</span>
+                <span class="p">])</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X_particles</span> <span class="o">/</span> <span class="n">factor_x</span><span class="p">,</span> <span class="n">Yp</span> <span class="o">/</span> <span class="n">factor</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+
+        <span class="n">ylabel</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">l</span> <span class="o">=</span> <span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="n">l</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">symbol</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;$&quot;</span>
+            <span class="n">ylabel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ylabel</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ylabel</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span> <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Legend</span>
+    <span class="k">if</span> <span class="n">include_legend</span><span class="p">:</span>
+        <span class="n">handles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">ax_plot</span><span class="p">:</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_legend_handles_labels</span><span class="p">()</span>
+            <span class="n">handles</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+        <span class="n">ax_plot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="p">,</span> <span class="n">legend_labels</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;best&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Accelerator layout</span>
+    <span class="k">if</span> <span class="n">include_layout</span><span class="p">:</span>
+        <span class="n">add_fieldmaps_to_axes</span><span class="p">(</span>
+            <span class="n">framework_object</span><span class="o">.</span><span class="n">framework</span><span class="p">,</span>
+            <span class="n">ax_field_layout</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">limits</span><span class="p">,</span>
+            <span class="n">include_labels</span><span class="o">=</span><span class="n">include_labels</span><span class="p">,</span>
+            <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">add_magnets_to_axes</span><span class="p">(</span>
+            <span class="n">framework_object</span><span class="o">.</span><span class="n">framework</span><span class="p">,</span>
+            <span class="n">ax_magnet_layout</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">limits</span><span class="p">,</span>
+            <span class="n">include_labels</span><span class="o">=</span><span class="n">include_labels</span><span class="p">,</span>
+            <span class="n">magnets</span><span class="o">=</span><span class="n">magnets</span><span class="p">,</span>
+            <span class="n">kinetic_energy</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span>
+                <span class="nb">zip</span><span class="p">(</span><span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">good</span><span class="p">],</span> <span class="n">twiss</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="s2">&quot;kinetic_energy&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">good</span><span class="p">])</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">ax_top</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">())</span>
+        <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">ax_top</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">external_axes</span> <span class="ow">and</span> <span class="n">include_layout</span><span class="p">:</span>
+        <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">sharex</span><span class="p">(</span><span class="n">ax_top</span><span class="p">)</span>
+        <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">sharex</span><span class="p">(</span><span class="n">ax_top</span><span class="p">)</span>
+
+    <span class="c1"># 2. X label placement</span>
+    <span class="k">if</span> <span class="n">include_layout</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">external_axes</span><span class="p">:</span>
+            <span class="c1"># external axes: put label only on bottom axis</span>
+            <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">xkey</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="c1"># show ticks only on bottom axis</span>
+            <span class="n">ax_top</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># internal axes: bottom axis gets the x-label</span>
+            <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">xkey</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="n">ax_top</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ax_field_layout</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ax_magnet_layout</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelbottom</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># No layout → single axis case</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">xkey</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ax_top</span><span class="p">,</span> <span class="n">ax_field_layout</span><span class="p">,</span> <span class="n">ax_magnet_layout</span></div>
+
+
+
+
+<div class="viewcode-block" id="getattrsplit">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.getattrsplit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">getattrsplit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+    <span class="n">attrs</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
+<div class="viewcode-block" id="general_plot">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.plotting.general_plot">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">general_plot</span><span class="p">(</span>
+    <span class="n">framework_object</span><span class="p">,</span>
+    <span class="n">ykeys</span><span class="o">=</span><span class="p">[],</span>
+    <span class="n">ykeys2</span><span class="o">=</span><span class="p">[],</span>
+    <span class="n">xkey</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span>
+    <span class="n">limits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">nice</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_layout</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_particles</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;RFCavity&quot;</span><span class="p">,</span> <span class="s2">&quot;Solenoid&quot;</span><span class="p">],</span>
+    <span class="n">magnets</span><span class="o">=</span><span class="p">[</span>
+        <span class="s2">&quot;quadrupole&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;dipole&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;screen&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;wall_current_monitor&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;aperture&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="n">grid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">include_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">all_axis</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;height_ratios&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]},</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax_layout</span> <span class="o">=</span> <span class="n">all_axis</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">ax_plot</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_axis</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">all_axis</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax_plot</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_axis</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">grid</span><span class="p">:</span>
+        <span class="n">ax_plot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;major&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#666666&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+
+    <span class="c1"># collect axes</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ykeys</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">ykeys</span> <span class="o">=</span> <span class="p">[</span><span class="n">ykeys</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">ykeys2</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ykeys2</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">ykeys2</span> <span class="o">=</span> <span class="p">[</span><span class="n">ykeys2</span><span class="p">]</span>
+        <span class="n">ax_plot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ax_plot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">twinx</span><span class="p">())</span>
+
+    <span class="c1"># Ensure we are using numpy arrays</span>
+    <span class="n">xdata</span> <span class="o">=</span> <span class="n">getattrsplit</span><span class="p">(</span><span class="n">framework_object</span><span class="o">.</span><span class="n">twiss</span><span class="p">,</span> <span class="n">xkey</span><span class="p">)</span>
+    <span class="n">ydata</span> <span class="o">=</span> <span class="p">[</span><span class="n">getattrsplit</span><span class="p">(</span><span class="n">framework_object</span><span class="o">.</span><span class="n">twiss</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">ykeys</span><span class="p">]</span>
+    <span class="n">ydata2</span> <span class="o">=</span> <span class="p">[</span><span class="n">getattrsplit</span><span class="p">(</span><span class="n">framework_object</span><span class="o">.</span><span class="n">twiss</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">ykeys2</span><span class="p">]</span>
+
+    <span class="c1"># Split keys</span>
+    <span class="n">xkey</span> <span class="o">=</span> <span class="n">xkey</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">ykeys</span> <span class="o">=</span> <span class="p">[</span><span class="n">yk</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">yk</span> <span class="ow">in</span> <span class="n">ykeys</span><span class="p">]</span>
+    <span class="n">ykeys2</span> <span class="o">=</span> <span class="p">[</span><span class="n">yk</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">yk</span> <span class="ow">in</span> <span class="n">ykeys2</span><span class="p">]</span>
+
+    <span class="c1"># No need for a legend if there is only one plot</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ydata</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ydata2</span><span class="p">:</span>
+        <span class="n">include_legend</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">xdata</span>
+
+    <span class="c1"># Only get the data we need</span>
+    <span class="k">if</span> <span class="n">limits</span><span class="p">:</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">X</span> <span class="o">&gt;=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">X</span> <span class="o">&lt;=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">good</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">good</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">good</span><span class="p">):</span>
+                <span class="n">good</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">limits</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">X</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># everything</span>
+
+    <span class="c1"># X axis scaling</span>
+    <span class="n">units_x</span> <span class="o">=</span> <span class="n">xdata</span><span class="o">.</span><span class="n">unit</span>
+    <span class="k">if</span> <span class="n">nice</span><span class="p">:</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">factor_x</span><span class="p">,</span> <span class="n">prefix_x</span> <span class="o">=</span> <span class="n">nice_array</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="n">units_x</span> <span class="o">=</span> <span class="n">prefix_x</span> <span class="o">+</span> <span class="n">units_x</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">factor_x</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># set all but the layout</span>
+    <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">ax_plot</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">factor_x</span><span class="p">,</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">factor_x</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">xkey</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">units_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Draw for Y1 and Y2</span>
+
+    <span class="n">linestyles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="s2">&quot;dashed&quot;</span><span class="p">]</span>
+
+    <span class="n">ii</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># counter for colors</span>
+    <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([[</span><span class="n">ydata</span><span class="p">,</span> <span class="n">ykeys</span><span class="p">],</span> <span class="p">[</span><span class="n">ydata2</span><span class="p">,</span> <span class="n">ykeys2</span><span class="p">]]):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">ax_plot</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+        <span class="n">linestyle</span> <span class="o">=</span> <span class="n">linestyles</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+
+        <span class="c1"># Check that units are compatible</span>
+        <span class="n">ulist</span> <span class="o">=</span> <span class="p">[</span><span class="n">dat</span><span class="o">.</span><span class="n">unit</span> <span class="k">for</span> <span class="n">dat</span> <span class="ow">in</span> <span class="n">d</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ulist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">u2</span> <span class="ow">in</span> <span class="n">ulist</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="k">assert</span> <span class="n">ulist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">u2</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Incompatible units: </span><span class="si">{</span><span class="n">ulist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">u2</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="c1"># String representation</span>
+        <span class="n">unit</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ulist</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Data</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">good</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">d</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">nice</span><span class="p">:</span>
+            <span class="n">factor</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">unit</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">factor</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="c1"># Make a line and point</span>
+        <span class="n">symbols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">]</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="n">k</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">symbol</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;$&quot;</span> <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">symbols</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span> <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">dat</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+            <span class="n">ii</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="s2">&quot;C&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ii</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+                <span class="n">X</span><span class="p">,</span>
+                <span class="n">dat</span> <span class="o">/</span> <span class="n">factor</span><span class="p">,</span>
+                <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">linestyle</span><span class="o">=</span><span class="n">linestyle</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Collect legend</span>
+    <span class="k">if</span> <span class="n">include_legend</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">ax_plot</span><span class="p">:</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_legend_handles_labels</span><span class="p">()</span>
+            <span class="n">lines</span> <span class="o">+=</span> <span class="n">a</span>
+            <span class="n">labels</span> <span class="o">+=</span> <span class="n">b</span>
+        <span class="n">ax_plot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;best&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Layout</span>
+    <span class="k">if</span> <span class="n">include_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+
+        <span class="c1"># Gives some space to the top plot</span>
+        <span class="c1"># ax_layout.set_ylim(-1, 1.5)</span>
+
+        <span class="k">if</span> <span class="n">xkey</span> <span class="o">==</span> <span class="s2">&quot;z&quot;</span><span class="p">:</span>
+            <span class="c1"># ax_layout.set_axis_off()</span>
+            <span class="n">ax_layout</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">limits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">limits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># else:</span>
+        <span class="c1">#     ax_layout.set_xlabel(&#39;mean_z&#39;)</span>
+        <span class="c1">#     limits = (0, I.stop)</span>
+        <span class="n">add_fieldmaps_to_axes</span><span class="p">(</span>
+            <span class="n">framework_object</span><span class="o">.</span><span class="n">framework</span><span class="p">,</span>
+            <span class="n">ax_layout</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">limits</span><span class="p">,</span>
+            <span class="n">include_labels</span><span class="o">=</span><span class="n">include_labels</span><span class="p">,</span>
+            <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+            <span class="c1"># magnets=magnets,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">plt</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">all_axis</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

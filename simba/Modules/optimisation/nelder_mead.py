@@ -28,18 +28,21 @@ def nelder_mead(
     **kwargs,
 ):
     """
-    @param f (function): function to optimize, must return a scalar score
-        and operate over a numpy array of the same dimensions as x_start
-    @param x_start (numpy array): initial position
-    @param step (float): look-around radius in initial step
-    @no_improv_thr,  no_improv_break (float, int): break after no_improv_break iterations with
-        an improvement lower than no_improv_thr
-    @max_iter (int): always break after this number of iterations.
-        Set it to 0 to loop indefinitely.
-    @alpha, gamma, rho, sigma (floats): parameters of the algorithm
-        (see Wikipedia page for reference)
-
-    return: tuple (best parameter array, best score)
+    :param func: Function to optimise; must return a scalar score and operate
+        over a numpy array of the same dimensions as ``x_start``
+    :param x_start: Initial position, as a numpy array
+    :param float step: Look-around radius in the initial step
+    :param float no_improve_thr: Break after ``no_improv_break`` iterations with
+        an improvement lower than this
+    :param int no_improv_break: Number of iterations without improvement to
+        tolerate before breaking
+    :param int max_iter: Always break after this number of iterations; set it to
+        0 to loop indefinitely
+    :param float alpha: Reflection coefficient
+    :param float gamma: Expansion coefficient
+    :param float rho: Contraction coefficient
+    :param float sigma: Shrink coefficient
+    :returns: Tuple of the best parameter array and the best score
     """
 
     # init

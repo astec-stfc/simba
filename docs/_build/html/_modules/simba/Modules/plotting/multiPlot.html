@@ -1,0 +1,485 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.plotting.multiPlot &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.plotting.multiPlot</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.plotting.multiPlot</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">time</span><span class="o">,</span><span class="w"> </span><span class="nn">math</span><span class="o">,</span><span class="w"> </span><span class="nn">datetime</span><span class="o">,</span><span class="w"> </span><span class="nn">copy</span><span class="o">,</span><span class="w"> </span><span class="nn">re</span><span class="o">,</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">PyQt4.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">PyQt4.QtGui</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtCore</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtGui</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">PyQt5.QtWidgets</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyqtgraph</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pg</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.latticeDraw</span><span class="w"> </span><span class="kn">import</span> <span class="n">latticeDraw</span>
+
+
+<div class="viewcode-block" id="mainWindow">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.mainWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">mainWindow</span><span class="p">(</span><span class="n">QMainWindow</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">mainWindow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="mi">1800</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">centralWidget</span> <span class="o">=</span> <span class="n">QWidget</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">QVBoxLayout</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">centralWidget</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tab</span> <span class="o">=</span> <span class="n">QTabWidget</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlot</span> <span class="o">=</span> <span class="n">multiPlotWidget</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multiPlot</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setCentralWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">centralWidget</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="s2">&quot;ASTRA Data Plotter&quot;</span><span class="p">)</span>
+        <span class="n">menubar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">menuBar</span><span class="p">()</span>
+        <span class="n">fileMenu</span> <span class="o">=</span> <span class="n">menubar</span><span class="o">.</span><span class="n">addMenu</span><span class="p">(</span><span class="s2">&quot;&amp;File&quot;</span><span class="p">)</span>
+
+        <span class="n">exitAction</span> <span class="o">=</span> <span class="n">QAction</span><span class="p">(</span><span class="s2">&quot;&amp;Exit&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="n">exitAction</span><span class="o">.</span><span class="n">setShortcut</span><span class="p">(</span><span class="s2">&quot;Ctrl+Q&quot;</span><span class="p">)</span>
+        <span class="n">exitAction</span><span class="o">.</span><span class="n">setStatusTip</span><span class="p">(</span><span class="s2">&quot;Exit application&quot;</span><span class="p">)</span>
+        <span class="n">exitAction</span><span class="o">.</span><span class="n">triggered</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">)</span>
+        <span class="n">fileMenu</span><span class="o">.</span><span class="n">addAction</span><span class="p">(</span><span class="n">exitAction</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="multiPlotWidget">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">multiPlotWidget</span><span class="p">(</span><span class="n">QWidget</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;QWidget containing various Twiss plots&quot;&quot;&quot;</span>
+
+    <span class="c1"># Styles for the plot lines</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">QColor</span><span class="p">(</span><span class="s2">&quot;#F5973A&quot;</span><span class="p">),</span>
+        <span class="n">QColor</span><span class="p">(</span><span class="s2">&quot;#A95AA1&quot;</span><span class="p">),</span>
+        <span class="n">QColor</span><span class="p">(</span><span class="s2">&quot;#85C059&quot;</span><span class="p">),</span>
+        <span class="n">QColor</span><span class="p">(</span><span class="s2">&quot;#0F2080&quot;</span><span class="p">),</span>
+        <span class="n">QColor</span><span class="p">(</span><span class="s2">&quot;#BDB8AD&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;k&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;m&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">styles</span> <span class="o">=</span> <span class="p">[</span><span class="n">Qt</span><span class="o">.</span><span class="n">SolidLine</span><span class="p">,</span> <span class="n">Qt</span><span class="o">.</span><span class="n">DashLine</span><span class="p">,</span> <span class="n">Qt</span><span class="o">.</span><span class="n">DotLine</span><span class="p">,</span> <span class="n">Qt</span><span class="o">.</span><span class="n">DashDotLine</span><span class="p">,</span> <span class="n">Qt</span><span class="o">.</span><span class="n">DashDotDotLine</span><span class="p">]</span>
+
+    <span class="c1"># Layout oder for the individual Tiwss plot items</span>
+    <span class="n">plotParams</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">highlightCurveSignal</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">unHighlightCurveSignal</span> <span class="o">=</span> <span class="n">pyqtSignal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">xmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">ymin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">xlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">xlabelunits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">setTitles</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">multiPlotWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; multiPlotWidget - main pyQtGraph display widgets &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotView</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">GraphicsView</span><span class="p">(</span><span class="n">useOpenGL</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidget</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">GraphicsLayout</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotView</span><span class="o">.</span><span class="n">setCentralItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidget</span><span class="p">)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; multiPlotWidgets - holds the base plotWidgets for each Twiss plot &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; multiPlotLattice - holds the lattice items for each Twiss plot &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotLattice</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; curves - a dictionary containing {directory: [individual plotItems for each twiss plot,]} &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curves</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">plotParams</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;next_row&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidget</span><span class="o">.</span><span class="n">nextRow</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;p - the relevant plotWidget for each param in plotParams&quot;&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">setTitles</span><span class="p">:</span>
+                    <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidget</span><span class="o">.</span><span class="n">addPlot</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidget</span><span class="o">.</span><span class="n">addPlot</span><span class="p">()</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot; this just links the horizontal axis for all plots.</span>
+<span class="sd">                    The first plot is selected to be the master axis &quot;&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">linkAxis</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">vb</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">setXLink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">linkAxis</span><span class="p">)</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot; Connect the scaleChanged signal to redraw lattice &quot;&quot;&quot;</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">showGrid</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span>
+                    <span class="s2">&quot;left&quot;</span><span class="p">,</span>
+                    <span class="n">text</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="n">units</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">],</span>
+                    <span class="o">**</span><span class="p">{</span><span class="s2">&quot;font-size&quot;</span><span class="p">:</span> <span class="s2">&quot;12pt&quot;</span><span class="p">,</span> <span class="s2">&quot;font-family&quot;</span><span class="p">:</span> <span class="s2">&quot;Arial&quot;</span><span class="p">},</span>
+                <span class="p">)</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">xlabel</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">xlabelunits</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;xlabel&quot;</span> <span class="ow">in</span> <span class="n">param</span> <span class="ow">and</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;xlabel&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">xlu</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;xlabelunits&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;xlabelunits&quot;</span> <span class="ow">in</span> <span class="n">param</span> <span class="k">else</span> <span class="kc">None</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;xlabel&quot;</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="n">xlu</span><span class="p">)</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot; set lower plot limit for all plots &quot;&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">xmin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">vb</span><span class="o">.</span><span class="n">setLimits</span><span class="p">(</span><span class="n">xMin</span><span class="o">=</span><span class="n">xmin</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ymin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">vb</span><span class="o">.</span><span class="n">setLimits</span><span class="p">(</span><span class="n">yMin</span><span class="o">=</span><span class="n">ymin</span><span class="p">)</span>
+                <span class="c1"># paramater xmin/ymin overrides global setting</span>
+                <span class="k">if</span> <span class="s2">&quot;xmin&quot;</span> <span class="ow">in</span> <span class="n">param</span> <span class="ow">and</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;xmin&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">vb</span><span class="o">.</span><span class="n">setLimits</span><span class="p">(</span><span class="n">xMin</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;xmin&quot;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="s2">&quot;ymin&quot;</span> <span class="ow">in</span> <span class="n">param</span> <span class="ow">and</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;ymin&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">vb</span><span class="o">.</span><span class="n">setLimits</span><span class="p">(</span><span class="n">yMin</span><span class="o">=</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;ymin&quot;</span><span class="p">])</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot; set the vertical viewRange according to the plotParams &quot;&quot;&quot;</span>
+                <span class="k">if</span> <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="n">param</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">vb</span><span class="o">.</span><span class="n">setYRange</span><span class="p">(</span><span class="o">*</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;range&quot;</span><span class="p">])</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot; record the plotWidget in the dictionary indexed by Twiss item &quot;&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="p">[</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">p</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">QVBoxLayout</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multiPlotView</span><span class="p">)</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; used for style cycling &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plotColor</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="multiPlotWidget.add_lattice_plot">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.add_lattice_plot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_lattice_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elementlist</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span> <span class="o">=</span> <span class="n">elementlist</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">lattice</span> <span class="o">=</span> <span class="n">latticeDraw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotLattice</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">getViewBox</span><span class="p">()]</span> <span class="o">=</span> <span class="n">lattice</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">lattice</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+                <span class="n">elem</span><span class="o">.</span><span class="n">setZValue</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">addItem</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reScaleLattice</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">getViewBox</span><span class="p">())</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">getViewBox</span><span class="p">()</span><span class="o">.</span><span class="n">sigYRangeChanged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reScaleLattice</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.reScaleLattice">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.reScaleLattice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reScaleLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">):</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotLattice</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+        <span class="n">yScale</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">viewRange</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">latticeScale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">yScale</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">yScale</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mf">5.0</span><span class="p">)</span>
+        <span class="n">lattice</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">latticeScale</span>
+        <span class="n">lattice</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">yScale</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">latticeScale</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.set_horizontal_axis_label">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.set_horizontal_axis_label">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_horizontal_axis_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">plotParams</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;next_row&quot;</span><span class="p">:</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;p - the relevant plotWidget for each param in plotParams&quot;&quot;&quot;</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="p">[</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]]</span>
+                <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">units</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">label</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.addCurve">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.addCurve">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">addCurve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">pen</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;adds a curve to the main plot&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="p">[</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">pen</span><span class="o">=</span><span class="n">pen</span><span class="p">)</span></div>
+
+        <span class="c1"># self.curves[name][label].curve.setClickable(True)</span>
+        <span class="c1"># self.curves[name][label].sigClicked.connect(lambda: self.curveClicked(name))</span>
+        <span class="c1"># self.updateCurveHighlights()</span>
+
+<div class="viewcode-block" id="multiPlotWidget.updateCurve">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.updateCurve">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">updateCurve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;updates a curve to the main plot&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">setData</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">pen</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">opts</span><span class="p">[</span><span class="s2">&quot;pen&quot;</span><span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.removeCurve">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.removeCurve">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">removeCurve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;finds all curves based on a key name, and removes them&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">plotParams</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;next_row&quot;</span><span class="p">:</span>
+<span class="w">                        </span><span class="sd">&quot;&quot;&quot;Remove the plotItem from the relevant plotWidget&quot;&quot;&quot;</span>
+                        <span class="c1"># print(&#39;REMOVING curve: &#39;, name)</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="p">[</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">removeItem</span><span class="p">(</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]]</span>
+                            <span class="p">)</span>
+                        <span class="k">except</span><span class="p">:</span>
+                            <span class="k">pass</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">n</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">removeData</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></div>
+
+        <span class="c1"># self.updateCurveHighlights()</span>
+
+<div class="viewcode-block" id="multiPlotWidget.removeData">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.removeData">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">removeData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.clearCurves">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.clearCurves">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clearCurves</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">removeCurve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.curveClicked">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.curveClicked">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">curveClicked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unHighlightPlot</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unHighlightCurveSignal</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">highlightPlot</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">highlightCurveSignal</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.highlightPlot">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.highlightPlot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">highlightPlot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;highlights a particular plot&quot;&quot;&quot;</span>
+        <span class="c1"># print(&#39;highligher clicked! = &#39;, name)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">addShadowPen</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">updateCurveHighlights</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.unHighlightPlot">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.unHighlightPlot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unHighlightPlot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;highlights a particular plot&quot;&quot;&quot;</span>
+        <span class="c1"># print(&#39;highligher clicked! = &#39;, name)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">removeShadowPen</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">updateCurveHighlights</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.updateCurveHighlights">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.updateCurveHighlights">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">updateCurveHighlights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">setPenAlpha</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">setPenAlpha</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.addShadowPen">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.addShadowPen">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">addShadowPen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;add/remove a shadow pen to a given plot curve&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+            <span class="c1"># for param in self.plotParams:</span>
+            <span class="c1">#     if not param == &#39;next_row&#39;:</span>
+            <span class="c1">#         label = param[&#39;label&#39;]</span>
+            <span class="c1">#         # if name in self.curves and label in self.curves[name]:</span>
+            <span class="c1">#         curve = self.curves[name][label]</span>
+            <span class="c1">#         pen = curve.opts[&#39;pen&#39;]</span>
+            <span class="c1">#         shadowpencolor = pen.color()</span>
+            <span class="c1">#         shadowpencolor.setAlpha(100)</span>
+            <span class="c1">#         shadowpen = pg.mkPen(color=shadowpencolor, width=(pen.width()+3))</span>
+            <span class="c1">#         curve.setShadowPen(shadowpen)</span>
+
+<div class="viewcode-block" id="multiPlotWidget.removeShadowPen">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.removeShadowPen">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">removeShadowPen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;add/remove a shadow pen to a given plot curve&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+            <span class="c1"># for param in self.plotParams:</span>
+            <span class="c1">#     if not param == &#39;next_row&#39;:</span>
+            <span class="c1">#         label = param[&#39;label&#39;]</span>
+            <span class="c1">#         # if name in self.curves and label in self.curves[name]:</span>
+            <span class="c1">#         curve = self.curves[name][label]</span>
+            <span class="c1">#         curve.setShadowPen(None)</span>
+            <span class="c1">#         curve.opts[&#39;shadowPen&#39;] = None</span>
+
+<div class="viewcode-block" id="multiPlotWidget.setPenAlpha">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.setPenAlpha">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setPenAlpha</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;change the alpha channel and width of a curves pen&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">plotParams</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;next_row&quot;</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span> <span class="ow">and</span> <span class="n">label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">name</span><span class="p">]:</span>
+                    <span class="n">curve</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curves</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">label</span><span class="p">]</span>
+                    <span class="n">pen</span> <span class="o">=</span> <span class="n">curve</span><span class="o">.</span><span class="n">opts</span><span class="p">[</span><span class="s2">&quot;pen&quot;</span><span class="p">]</span>
+                    <span class="n">pencolor</span> <span class="o">=</span> <span class="n">pen</span><span class="o">.</span><span class="n">color</span><span class="p">()</span>
+                    <span class="n">pencolor</span><span class="o">.</span><span class="n">setAlpha</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+                    <span class="n">pen</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">mkPen</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">pencolor</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="n">pen</span><span class="o">.</span><span class="n">style</span><span class="p">())</span>
+                    <span class="n">curve</span><span class="o">.</span><span class="n">setPen</span><span class="p">(</span><span class="n">pen</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="multiPlotWidget.clear">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.multiPlotWidget.clear">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">plotParams</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">param</span> <span class="o">==</span> <span class="s2">&quot;next_row&quot;</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">multiPlotWidgets</span><span class="p">[</span><span class="n">param</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plotColor</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">curves</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shadowCurves</span> <span class="o">=</span> <span class="p">[]</span></div>
+</div>
+
+
+
+<span class="n">pg</span><span class="o">.</span><span class="n">setConfigOptions</span><span class="p">(</span><span class="n">antialias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">pg</span><span class="o">.</span><span class="n">setConfigOption</span><span class="p">(</span><span class="s2">&quot;background&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+<span class="n">pg</span><span class="o">.</span><span class="n">setConfigOption</span><span class="p">(</span><span class="s2">&quot;foreground&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../simba.Modules.plotting.html#simba.Modules.plotting.multiPlot.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">QApplication</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span>
+    <span class="n">pg</span><span class="o">.</span><span class="n">setConfigOptions</span><span class="p">(</span><span class="n">antialias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pg</span><span class="o">.</span><span class="n">setConfigOption</span><span class="p">(</span><span class="s2">&quot;background&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+    <span class="n">pg</span><span class="o">.</span><span class="n">setConfigOption</span><span class="p">(</span><span class="s2">&quot;foreground&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">)</span>
+    <span class="n">ex</span> <span class="o">=</span> <span class="n">mainWindow</span><span class="p">()</span>
+    <span class="n">ex</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">app</span><span class="o">.</span><span class="n">exec_</span><span class="p">())</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

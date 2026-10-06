@@ -1,0 +1,812 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Executables &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Executables</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Executables</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">platform</span>
+
+<div class="viewcode-block" id="which">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.which">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">which</span><span class="p">(</span><span class="n">program</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_exe</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">X_OK</span><span class="p">)</span>
+
+    <span class="n">fpath</span><span class="p">,</span> <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fpath</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">program</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">program</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">pathsep</span><span class="p">):</span>
+            <span class="n">exe_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">program</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">exe_file</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">exe_file</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="default_sif_path">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.default_sif_path">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">default_sif_path</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;simcodes-apptainer_master.sif&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">system</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">system</span> <span class="o">==</span> <span class="s2">&quot;Linux&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;.local&quot;</span><span class="p">,</span> <span class="s2">&quot;share&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">system</span> <span class="o">==</span> <span class="s2">&quot;Darwin&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;Library&quot;</span><span class="p">,</span> <span class="s2">&quot;Application Support&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;.local&quot;</span><span class="p">,</span> <span class="s2">&quot;share&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span></div>
+
+
+<span class="n">SIMCODES_SIF</span> <span class="o">=</span> <span class="n">default_sif_path</span><span class="p">()</span>
+
+<span class="n">WINDOWS_UNSUPPORTED_CODES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;opal&quot;</span><span class="p">,</span> <span class="s2">&quot;genesis&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="container_user">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.container_user">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">container_user</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the `uid:gid` string for runing via container so files written into a</span>
+<span class="sd">    mounted directory are owned by the invoking user rather than root.</span>
+
+<span class="sd">    Returns an empty string for Windows / POSIX.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str:</span>
+<span class="sd">        `uid:gid` on POSIX, otherwise an empty string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">os</span><span class="p">,</span> <span class="s2">&quot;getuid&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">getgid</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="ensure_image">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.ensure_image">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ensure_image</span><span class="p">(</span>
+    <span class="n">runtime</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;docker&quot;</span><span class="p">,</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">],</span>
+    <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">build_context</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sif</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">simcodes_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ensure the container image is available locally for the given runtime.</span>
+
+<span class="sd">    For Docker: checks the daemon registry; pulls or builds if missing.</span>
+<span class="sd">    For Apptainer: checks for a .sif file on disk; pulls from registry if missing.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    runtime : str</span>
+<span class="sd">        Container runtime to use: &#39;docker&#39; or &#39;apptainer&#39;.</span>
+<span class="sd">    image : str</span>
+<span class="sd">        Docker image name (used for Docker pull/build, and as Apptainer pull source).</span>
+<span class="sd">    build_context : str, optional</span>
+<span class="sd">        Path to a directory containing a Dockerfile. If provided and the image is</span>
+<span class="sd">        missing, the image will be built rather than pulled. Docker only.</span>
+<span class="sd">    sif : str, optional</span>
+<span class="sd">        Path to the Apptainer .sif file. Used for Apptainer only.</span>
+<span class="sd">    simcodes_location: str, optional</span>
+<span class="sd">        Path to the SimCodes directory, used for substituting $simcodes$ in the sif path if pulling the image;</span>
+<span class="sd">        if `None`, this goes to a default location depending on the OS.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">runtime</span> <span class="o">==</span> <span class="s2">&quot;docker&quot;</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="s1">&#39;docker&#39;</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="s1">&#39;inspect&#39;</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span>
+            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Docker image &#39;</span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&#39; found locally.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">build_context</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image &#39;</span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&#39; not found. Building from &#39;</span><span class="si">{</span><span class="n">build_context</span><span class="si">}</span><span class="s2">&#39;...&quot;</span><span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                <span class="p">[</span><span class="s1">&#39;docker&#39;</span><span class="p">,</span> <span class="s1">&#39;build&#39;</span><span class="p">,</span> <span class="s1">&#39;-t&#39;</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">build_context</span><span class="p">],</span>
+                <span class="n">check</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image &#39;</span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&#39; not found locally. Pulling from registry...&quot;</span><span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;docker&#39;</span><span class="p">,</span> <span class="s1">&#39;pull&#39;</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">runtime</span> <span class="o">==</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sif</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">sif</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Apptainer image found at &#39;</span><span class="si">{</span><span class="n">sif</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Apptainer .sif not found at &#39;</span><span class="si">{</span><span class="n">sif</span><span class="si">}</span><span class="s2">&#39;.&quot;</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sif</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;Apptainer .sif path not provided.&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sif</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">sif</span> <span class="o">=</span> <span class="n">SIMCODES_SIF</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">sif</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">log</span><span class="si">}</span><span class="s2"> Pulling from &#39;</span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s2">&#39; to </span><span class="si">{</span><span class="n">sif</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="s1">&#39;apptainer&#39;</span><span class="p">,</span> <span class="s1">&#39;pull&#39;</span><span class="p">,</span> <span class="n">sif</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;oras://</span><span class="si">{</span><span class="n">image</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">],</span>
+            <span class="n">check</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown container runtime &#39;</span><span class="si">{</span><span class="n">runtime</span><span class="si">}</span><span class="s2">&#39;. Use &#39;docker&#39; or &#39;apptainer&#39;.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="executable">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.executable">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">executable</span><span class="p">:</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">settings</span><span class="p">:</span> <span class="nb">dict</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ncpu</span> <span class="o">=</span> <span class="n">ncpu</span>
+        <span class="k">if</span> <span class="n">location</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">location</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="n">location</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="n">location</span><span class="p">][</span><span class="n">name</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">([</span><span class="n">location</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">hostname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">override_location</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">section</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="n">section</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="n">section</span><span class="p">][</span><span class="n">name</span><span class="p">]</span>
+                    <span class="p">)</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_sif</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_substitute_sif</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">param</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$sif$&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;apptainer&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sif&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Substitute `$user$` with the invoking user&#39;s `uid:gid`. For POSIX user IDs</span>
+<span class="sd">        `--user $user$` is dropped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">container_user</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">user</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$user$&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">s</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">!=</span> <span class="s2">&quot;$user$&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;--user&quot;</span> <span class="ow">and</span> <span class="n">param</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;$user$&quot;</span><span class="p">])</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_substitute_variables</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_user</span><span class="p">(</span><span class="n">param</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_ncpu</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_simcodes</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_sif</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_substitute_image</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_simcodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_substitute_simcodes</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">param</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$simcodes$&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;sim_codes_location&quot;</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_ncpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_substitute_ncpu</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">param</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$ncpu$&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ncpu</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_substitute_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_substitute_image</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">param</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$image$&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;docker&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="Executables">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Executables</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for interpreting the accelerator code executables defined in</span>
+<span class="sd">    :download:`Executables &lt;../../simba/Executables.yaml&gt;` for a given computer architecture and linking</span>
+<span class="sd">    to the `SimCodes` directory. This enables the simulation code with the lattice input file</span>
+<span class="sd">    to be called from within the `Framework` instance.</span>
+
+<span class="sd">    Executables for Windows and POSIX architectures are defined, as are executables for</span>
+<span class="sd">    specific clusters based at Daresbury Laboratory. Others can be added by the user.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">global_parameters</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Executables</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span> <span class="o">=</span> <span class="n">global_parameters</span>
+        <span class="n">sim_codes</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;simcodes_location&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;simcodes_location&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">sim_codes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/../SimCodes/SimCodes&quot;</span>
+                <span class="p">)</span>
+                <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="c1"># print(&#39;Using SimCodes at &#39;, os.path.abspath(self.sim_codes_location))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">=</span> <span class="n">sim_codes</span>
+        <span class="c1"># try:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;../Executables.yaml&quot;</span><span class="p">),</span> <span class="s2">&quot;r&quot;</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">Loader</span><span class="o">=</span><span class="n">yaml</span><span class="o">.</span><span class="n">Loader</span><span class="p">)</span>
+        <span class="c1"># except:</span>
+        <span class="c1">#     self.settings = {}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runtime</span> <span class="o">=</span> <span class="n">global_parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;container_runtime&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># &#39;docker&#39;, &#39;apptainer&#39;, or None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">runtime</span> <span class="o">==</span> <span class="s2">&quot;docker&quot;</span><span class="p">:</span>
+            <span class="n">docker_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;docker&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="n">ensure_image</span><span class="p">(</span>
+                <span class="n">runtime</span><span class="o">=</span><span class="s2">&quot;docker&quot;</span><span class="p">,</span>
+                <span class="n">image</span><span class="o">=</span><span class="n">docker_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                <span class="n">build_context</span><span class="o">=</span><span class="n">global_parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;docker_build_context&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                <span class="n">simcodes_location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">runtime</span> <span class="o">==</span> <span class="s2">&quot;apptainer&quot;</span><span class="p">:</span>
+            <span class="n">apptainer_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;apptainer&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="n">ensure_image</span><span class="p">(</span>
+                <span class="n">runtime</span><span class="o">=</span><span class="s2">&quot;apptainer&quot;</span><span class="p">,</span>
+                <span class="n">image</span><span class="o">=</span><span class="n">apptainer_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;registry&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                <span class="n">sif</span><span class="o">=</span><span class="n">apptainer_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sif&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$simcodes$&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span><span class="p">),</span>
+                <span class="n">simcodes_location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ASTRAgenerator</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">astra</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elegant</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gpt</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">genesis</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opal</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tao</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">madx</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;sim_codes_location&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_ASTRAgenerator_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_astra_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_elegant_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_csrtrack_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_gpt_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_opal_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_genesis_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_tao_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">define_madx_command</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">runtime</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">runtime</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">WINDOWS_UNSUPPORTED_CODES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2">&#39; has no native Windows build, so it cannot be run by a Python &quot;</span>
+                <span class="s2">&quot;process on Windows itself. Either run SIMBA from within WSL, or &quot;</span>
+                <span class="s2">&quot;instantiate it with container_runtime=&#39;docker&#39;. &quot;</span>
+                <span class="s2">&quot;See docs/source/SimCodes.rst for both routes.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Executables.build_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.build_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">workdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Inject workdir into the container command if using a container runtime.</span>
+<span class="sd">        For Docker, inserts the -v bind mount. For Apptainer, substitutes $workdir$.</span>
+<span class="sd">        Returns the command unchanged if no container runtime is set.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        cmd: list</span>
+<span class="sd">            List of commands as strings</span>
+<span class="sd">        workdir: str</span>
+<span class="sd">            Working directory to mount in Docker</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int:</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">runtime</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cmd</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;$workdir$&#39;</span><span class="p">,</span> <span class="n">workdir</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">s</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">cmd</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Executables.getNCPU">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.getNCPU">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getNCPU</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the number of CPUs for tracking.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs for multi-threaded runs</span>
+<span class="sd">        scaling: int</span>
+<span class="sd">            Scaling factor for the number of particles</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int:</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">scaling</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">ncpu</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">scaling</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ncpu</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_ASTRAgenerator_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_ASTRAgenerator_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_ASTRAgenerator_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the ASTRA generator :class:`~executable` object and sets :attr:`~ASTRAgenerator`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str, optional</span>
+<span class="sd">            Location of ASTRA generator executable; overrides `default`.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ASTRAgeneratorExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;astragenerator&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;ASTRA/generator&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ASTRAgenerator</span> <span class="o">=</span> <span class="n">ASTRAgeneratorExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_astra_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_astra_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_astra_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the ASTRA :class:`~executable` object and sets :attr:`~astra`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of ASTRA executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="n">astraExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;astra&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;ASTRA/astra&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">astra</span> <span class="o">=</span> <span class="n">astraExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_elegant_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_elegant_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_elegant_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the ELEGANT :class:`~executable` object and sets :attr:`~elegant`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of ELEGANT executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ncpu</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">elegantExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+                <span class="s2">&quot;Pelegant&quot;</span><span class="p">,</span>
+                <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+                <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+                <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="p">[</span>
+                    <span class="n">which</span><span class="p">(</span><span class="s2">&quot;mpiexec.exe&quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;-np&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">ncpu</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)])),</span>
+                    <span class="n">which</span><span class="p">(</span><span class="s2">&quot;Pelegant.exe&quot;</span><span class="p">),</span>
+                <span class="p">],</span>
+                <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">elegantExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+                <span class="s2">&quot;elegant&quot;</span><span class="p">,</span>
+                <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+                <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+                <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;Elegant/elegant&quot;</span><span class="p">],</span>
+                <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elegant</span> <span class="o">=</span> <span class="n">elegantExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_csrtrack_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_csrtrack_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_csrtrack_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the CSRTrack :class:`~executable` object and sets :attr:`~csrtrack`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of CSRTrack executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="n">csrtrackExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;csrtrack&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;CSRTrack/csrtrack&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack</span> <span class="o">=</span> <span class="n">csrtrackExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_gpt_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_gpt_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_gpt_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the GPT :class:`~executable` object and sets :attr:`~gpt`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of GPT executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="n">gptExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;gpt&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;GPT/gpt.exe&quot;</span><span class="p">,</span> <span class="s2">&quot;-j&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ncpu</span><span class="p">)],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gpt</span> <span class="o">=</span> <span class="n">gptExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_opal_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_opal_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_opal_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the OPAL :class:`~executable` object and sets :attr:`~opal`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of OPAL executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opalExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;opal&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;OPAL/bin/opal&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opalExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_genesis_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_genesis_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_genesis_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the Genesis :class:`~executable` object and sets :attr:`~genesis`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of Genesis executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">genesisExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;genesis&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;Genesis/genesis4&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">genesis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genesisExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_madx_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_madx_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_madx_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the MAD-X :class:`~executable` object and sets :attr:`~madx`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of MAD-X executable; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">madxExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;madx&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;MADX/madx&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">madx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">madxExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+
+
+<div class="viewcode-block" id="Executables.define_tao_command">
+<a class="viewcode-back" href="../../../simba.Codes.html#simba.Codes.Executables.Executables.define_tao_command">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">define_tao_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">override_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Define the Tao :class:`~executable` object and sets :attr:`~tao`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location: str</span>
+<span class="sd">            Location of Tao library; overrides `default`.</span>
+<span class="sd">        ncpu: int</span>
+<span class="sd">            Number of CPUs to run</span>
+<span class="sd">        scaling: int, optional</span>
+<span class="sd">            Scaling parameter for number of CPUs.</span>
+<span class="sd">        override_location: str, optional</span>
+<span class="sd">            Name of remote server on which to run the executable;</span>
+<span class="sd">            must be defined in `Executables.yaml`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ncpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getNCPU</span><span class="p">(</span><span class="n">ncpu</span><span class="p">,</span> <span class="n">scaling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">taoExecutable</span> <span class="o">=</span> <span class="n">executable</span><span class="p">(</span>
+            <span class="s2">&quot;tao&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+            <span class="n">ncpu</span><span class="o">=</span><span class="n">ncpu</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sim_codes_location</span> <span class="o">+</span> <span class="s2">&quot;Bmad/lib/libtao.so&quot;</span><span class="p">],</span>
+            <span class="n">override_location</span><span class="o">=</span><span class="n">override_location</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tao</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">taoExecutable</span><span class="o">.</span><span class="n">executable</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

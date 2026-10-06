@@ -1,0 +1,666 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Generators.gpt &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Generators.gpt</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Generators.gpt</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This file generates a GPT beam file from the provided parameters.</span>
+
+<span class="sd">It includes methods to run the GPT generator, write the input file, and post-process the generated beam data.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...FrameworkHelperFunctions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">saveFile</span><span class="p">,</span>
+    <span class="n">copylink</span><span class="p">,</span>
+    <span class="n">expand_substitution</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.Generators</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">frameworkGenerator</span><span class="p">,</span>
+    <span class="n">aliases</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">easygdf</span><span class="w"> </span><span class="kn">import</span> <span class="n">load</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+
+<span class="n">mass_index</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;electron&quot;</span><span class="p">:</span> <span class="s2">&quot;me&quot;</span><span class="p">,</span>  <span class="c1"># electron</span>
+        <span class="s2">&quot;positron&quot;</span><span class="p">:</span> <span class="s2">&quot;me&quot;</span><span class="p">,</span>  <span class="c1"># positron</span>
+        <span class="s2">&quot;proton&quot;</span><span class="p">:</span> <span class="s2">&quot;mp&quot;</span><span class="p">,</span>    <span class="c1"># proton</span>
+        <span class="s2">&quot;hydrogen&quot;</span><span class="p">:</span> <span class="s2">&quot;mp&quot;</span><span class="p">,</span>  <span class="c1"># hydrogen ion</span>
+        <span class="s2">&quot;electrons&quot;</span><span class="p">:</span> <span class="s2">&quot;me&quot;</span><span class="p">,</span>  <span class="c1"># electron</span>
+        <span class="s2">&quot;positrons&quot;</span><span class="p">:</span> <span class="s2">&quot;me&quot;</span><span class="p">,</span>  <span class="c1"># positron</span>
+        <span class="s2">&quot;protons&quot;</span><span class="p">:</span> <span class="s2">&quot;mp&quot;</span><span class="p">,</span>    <span class="c1"># proton</span>
+    <span class="p">}</span>
+<span class="n">charge_sign_index</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;electron&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;positron&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;proton&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;hydrogen&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;electrons&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;positrons&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;protons&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="GPTGenerator">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPTGenerator</span><span class="p">(</span><span class="n">frameworkGenerator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to generate a GPT beam file from the provided parameters.</span>
+
+<span class="sd">    :param executables: Dictionary containing the paths to the executables.</span>
+<span class="sd">    :param global_parameters: Dictionary containing global parameters for the simulation.</span>
+<span class="sd">    :param generator_keywords: Dictionary containing keywords for the generator.</span>
+<span class="sd">    :param kwargs: Additional keyword arguments for the generator.</span>
+<span class="sd">    :ivar filename: Name of the output file.</span>
+<span class="sd">    :ivar code: Code identifier for the generator.</span>
+<span class="sd">    :ivar allowedKeyWords: List of allowed keywords for the generator.</span>
+<span class="sd">    :ivar generator_keywords: Keywords specific to the GPT generator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_alias_and_multiplier</span><span class="p">(</span><span class="n">aliases</span><span class="p">,</span> <span class="s2">&quot;gpt&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;gpt&quot;</span>
+
+<div class="viewcode-block" id="GPTGenerator.run">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the GPT generator to create the beam file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;generator.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;GPTLICENSE=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s1">&#39;GPTLICENSE&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">.in&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">my_env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">my_env</span><span class="p">[</span><span class="s2">&quot;LD_LIBRARY_PATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">my_env</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;LD_LIBRARY_PATH&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">:/opt/GPT3.3.6/lib/&quot;</span>
+        <span class="p">)</span>
+        <span class="n">my_env</span><span class="p">[</span><span class="s2">&quot;OMP_WAIT_POLICY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PASSIVE&quot;</span>
+
+        <span class="n">log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">.log&quot;</span>
+        <span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">log_path</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log_file</span><span class="p">:</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">command</span><span class="p">,</span>
+                <span class="n">stdout</span><span class="o">=</span><span class="n">log_file</span><span class="p">,</span>
+                <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span>
+                <span class="n">env</span><span class="o">=</span><span class="n">my_env</span><span class="p">,</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.load_longitudinal_profile">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.load_longitudinal_profile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_longitudinal_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;.gdf&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Longitudinal profiles only defined for GPT; fields must be GDF format&quot;</span><span class="p">)</span>
+            <span class="n">fi</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_profile</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">fi</span><span class="p">[</span><span class="s2">&quot;blocks&quot;</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span> <span class="o">=</span> <span class="s2">&quot;F&quot;</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_particles">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_particles">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_particles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the basic beam parameters for the GPT input file.</span>
+<span class="sd">        These include the thermal kinetic energy, charge, and number of particles.</span>
+<span class="sd">        :return: A string representation of the basic beam parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;&quot;&quot;#--Basic beam parameters--</span>
+<span class="s2">        E0 = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">thermal_kinetic_energy</span><span class="si">}</span><span class="s2">;</span>
+<span class="s2">        G = 1-(qe)*E0/(</span><span class="si">{</span><span class="n">mass_index</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">]</span><span class="si">}</span><span class="s2"> * c * c);</span>
+<span class="s2">        GB = sqrt(G^2 - 1);</span>
+<span class="s2">        Qtot = </span><span class="si">{</span><span class="n">charge_sign_index</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">]</span><span class="si">}</span><span class="s2">*</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="mf">1e12</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">charge</span><span class="p">))</span><span class="si">}</span><span class="s2">e-12;</span>
+<span class="s2">        npart = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">number_of_particles</span><span class="si">}</span><span class="s2">;</span>
+<span class="s2">        setparticles( &quot;beam&quot;, npart, </span><span class="si">{</span><span class="n">mass_index</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="o">-</span><span class="n">charge_sign_index</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">]</span><span class="si">}</span><span class="s2">*qe, Qtot ) ;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.check_xy_parameters">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.check_xy_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_xy_parameters</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">x</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">y</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">default</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the parameters x and y are set correctly.</span>
+<span class="sd">        If one of them is None and the other is not, set the None parameter to the value of the other.</span>
+<span class="sd">        If both are None, set both to the default value.</span>
+<span class="sd">        :param x: The first parameter to check.</span>
+<span class="sd">        :param y: The second parameter to check.</span>
+<span class="sd">        :param default: The default value to set if both parameters are None.</span>
+
+<span class="sd">        #TODO This appears not to be used in the code, consider removing it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x_val</span><span class="p">,</span> <span class="n">y_val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">x_val</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">y_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">x_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">y_val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x_val</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">x_val</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">y_val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_uniform_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">distname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">variable</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">left_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">right_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">left_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">right_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a uniform distribution string for the GPT input file.</span>
+
+<span class="sd">        :param distname: The name of the distribution.</span>
+<span class="sd">        :param variable: The variable to apply the distribution to.</span>
+<span class="sd">        :param left_multiplier: The multiplier for the left side of the distribution.</span>
+<span class="sd">        :param right_multiplier: The multiplier for the right side of the distribution.</span>
+<span class="sd">        :return: A string representation of the uniform distribution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">distname</span><span class="si">}</span><span class="s1">( &quot;beam&quot;, &quot;u&quot;, </span><span class="si">{</span><span class="n">left_multiplier</span><span class="si">}</span><span class="s1">*</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">right_multiplier</span><span class="si">}</span><span class="s1">*</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s1"> ) ;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_gaussian_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">distname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">variable</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">left_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="n">right_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="n">left_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="n">right_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a Gaussian distribution string for the GPT input file.</span>
+
+<span class="sd">        :param distname: The name of the distribution.</span>
+<span class="sd">        :param variable: The variable to apply the distribution to.</span>
+<span class="sd">        :param left_cutoff: The cutoff value for the left side of the distribution.</span>
+<span class="sd">        :param right_cutoff: The cutoff value for the right side of the distribution.</span>
+<span class="sd">        :return: A string representation of the Gaussian distribution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">distname</span><span class="si">}</span><span class="s1">( &quot;beam&quot;, &quot;g&quot;, 0, </span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">left_cutoff</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">right_cutoff</span><span class="si">}</span><span class="s1"> ) ;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_file_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">distname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">variable</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">column1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">column2</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+            <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a Gaussian distribution string for the GPT input file.</span>
+
+<span class="sd">        :param distname: The name of the distribution.</span>
+<span class="sd">        :param variable: The filename for the distribution</span>
+<span class="sd">        :param column1: Time parameter in distribution file</span>
+<span class="sd">        :param column2: Probability parameter in distribution file</span>
+<span class="sd">        :param scaling: Scaling for distribution file (should be normalised to 1)</span>
+<span class="sd">        :param offset: Offset in distribution file</span>
+<span class="sd">        :return: A string representation of the Gaussian distribution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">distname</span><span class="si">}</span><span class="s1">( &quot;beam&quot;, &quot;F&quot;, &quot;</span><span class="si">{</span><span class="n">variable</span><span class="si">}</span><span class="s1">&quot;, &quot;</span><span class="si">{</span><span class="n">column1</span><span class="si">}</span><span class="s1">&quot;, &quot;</span><span class="si">{</span><span class="n">column2</span><span class="si">}</span><span class="s1">&quot;, </span><span class="si">{</span><span class="n">scaling</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s1"> ) ;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_distribution</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">distname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">variable</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a distribution string based on the type of distribution specified in the parameter.</span>
+<span class="sd">        Only supports Gaussian and Uniform distributions.</span>
+
+<span class="sd">        :param param: The parameter that specifies the type of distribution.</span>
+<span class="sd">        :param distname: The name of the distribution to generate.</span>
+<span class="sd">        :param variable: The variable to apply the distribution to.</span>
+<span class="sd">        :param kwargs: Additional keyword arguments for the distribution.</span>
+<span class="sd">        :return: A string representation of the distribution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">param_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">param_value</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gaussian_distribution</span><span class="p">(</span><span class="n">distname</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">param_value</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;plateau&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uniform_distribution</span><span class="p">(</span><span class="n">distname</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">param_value</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;F&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="s2">&quot;file&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_distribution</span><span class="p">(</span><span class="n">distname</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Only uniform, gaussian and from-file distributions are supported&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GPTGenerator.generate_image_name">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_image_name">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_image_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a name for the image file based on the provided parameter.</span>
+<span class="sd">        This function expands the parameter substitution, checks if the file exists,</span>
+<span class="sd">        and creates a symbolic link or copies the file to the master subdirectory.</span>
+<span class="sd">        This is used for image-based distributions in the beam generation in :func:`generate_radial_distribution`.</span>
+
+<span class="sd">        :param param: The parameter containing the image filename.</span>
+<span class="sd">        :return: The basename of the image file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">basename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+            <span class="n">expand_substitution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">efield_basename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span> <span class="n">basename</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="n">copylink</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">efield_basename</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">basename</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_radial_distribution">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_radial_distribution">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_radial_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the radial distribution for the beam based on the parameters provided.</span>
+
+<span class="sd">        This function checks the distribution type and sigma values for both x and y dimensions.</span>
+<span class="sd">        If the distribution type is &#39;image&#39;, it generates a command to set the beam distribution from an image file.</span>
+<span class="sd">        If the sigma values for x and y are equal and the distribution types are the same, it generates a command</span>
+<span class="sd">        to set a circular distribution.</span>
+
+<span class="sd">        If the sigma values are different but the distribution types are the same, it generates a command</span>
+<span class="sd">        to set an elliptical distribution. If the distribution types are different, it returns an empty string.</span>
+
+<span class="sd">        :return: A string representation of the radial distribution command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_x</span> <span class="o">==</span> <span class="s2">&quot;image&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_y</span> <span class="o">==</span> <span class="s2">&quot;image&quot;</span><span class="p">:</span>
+            <span class="n">image_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_filename</span><span class="p">)</span>
+            <span class="n">image_calibration_x</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_x</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_x</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+                   <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_x</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="k">else</span> <span class="mi">1000</span> <span class="o">*</span> <span class="mf">1e3</span>
+            <span class="p">)</span>
+            <span class="n">image_calibration_y</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_y</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_y</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+                   <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_calibration_y</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="k">else</span> <span class="mi">1000</span> <span class="o">*</span> <span class="mf">1e3</span>
+            <span class="p">)</span>
+            <span class="n">image_filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_image_name</span><span class="p">(</span><span class="n">image_filename</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;setxydistbmp(&quot;beam&quot;, &quot;</span><span class="si">{</span><span class="n">image_filename</span><span class="si">}</span><span class="s1">&quot;, </span><span class="si">{</span><span class="n">image_calibration_x</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">image_calibration_y</span><span class="si">}</span><span class="s1">) ;</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_x</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_y</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;radius_x = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;radius_y = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s1">&#39;setellipse(&quot;beam&quot;, 2.0*radius_x, 2.0*radius_y, 1e-12);</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_x</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_y</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;radius = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span>
+                <span class="s2">&quot;distribution_type_x&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;setrxydist&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;radius&quot;</span><span class="p">,</span>
+                <span class="n">left_cutoff</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">right_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_x</span><span class="p">,</span>
+            <span class="p">)</span>
+                    <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">setphidist(&quot;beam&quot;, &quot;u&quot;, 0, 2*pi) ;</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_phase_space_distribution">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_phase_space_distribution">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_phase_space_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the initial phase-space distribution for the beam.</span>
+
+<span class="sd">        A uniform distribution is set for z, theta, and phi.</span>
+<span class="sd">        #TODO Should these be configurable parameters?</span>
+
+<span class="sd">        :return: A string representation of the initial phase-space distribution command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;&quot;#--Initial Phase-Space--</span>
+<span class="s2">setGBzdist( &quot;beam&quot;, &quot;u&quot;, GB, 0 ) ;</span>
+<span class="s2">setGBthetadist(&quot;beam&quot;,&quot;u&quot;, pi/4, pi/2);</span>
+<span class="s2">setGBphidist(&quot;beam&quot;,&quot;u&quot;, 0, 2*pi);</span>
+<span class="s2">&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_correlated_divergences">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_correlated_divergences">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_correlated_divergences</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate correlated divergences.</span>
+
+<span class="sd">        :return: String representing x-px and y-py divergences to be applied</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_px</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">xc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">output</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;addxdiv(&quot;beam&quot; , </span><span class="si">{</span><span class="n">xc</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correlation_px</span><span class="si">}</span><span class="s2">);</span><span class="se">\n</span><span class="s2">&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_py</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">yc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">output</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;addydiv(&quot;beam&quot; , </span><span class="si">{</span><span class="n">yc</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correlation_py</span><span class="si">}</span><span class="s2">);</span><span class="se">\n</span><span class="s2">&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_thermal_emittance">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_thermal_emittance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_thermal_emittance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the thermal emittance for the beam based on the distribution type and sigma values.</span>
+
+<span class="sd">        If the distribution type is &#39;image&#39;, it returns an empty string.</span>
+<span class="sd">        If the sigma values for x and y are different, it generates separate commands for x and y emittance.</span>
+<span class="sd">        If the sigma values are equal, it generates a command for circular emittance.</span>
+
+<span class="sd">        :return: A string representation of the thermal emittance command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normalized_emittance_x</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normalized_horizontal_emittance</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalized_horizontal_emittance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="n">normalized_emittance_y</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normalized_vertical_emittance</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalized_vertical_emittance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_x</span> <span class="o">==</span> <span class="s2">&quot;image&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_x</span> <span class="o">==</span> <span class="s2">&quot;image&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="p">:</span>
+            <span class="n">thermal_emittance</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thermal_emittance</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">thermal_emittance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="mi">0</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&quot;&quot;setGBxemittance(&quot;beam&quot;, </span><span class="si">{</span><span class="n">normalized_emittance_x</span><span class="si">}</span><span class="s2">/2 + (</span><span class="si">{</span><span class="n">thermal_emittance</span><span class="si">}</span><span class="s2">*radius_x)) ;</span>
+<span class="s2">        setGByemittance(&quot;beam&quot;, </span><span class="si">{</span><span class="n">normalized_emittance_y</span><span class="si">}</span><span class="s2">/2 + (</span><span class="si">{</span><span class="n">thermal_emittance</span><span class="si">}</span><span class="s2">*radius_y)) ;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">thermal_emittance</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thermal_emittance</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">thermal_emittance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="mi">0</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&quot;&quot;setGBxemittance(&quot;beam&quot;, </span><span class="si">{</span><span class="n">normalized_emittance_x</span><span class="si">}</span><span class="s2"> + (</span><span class="si">{</span><span class="n">thermal_emittance</span><span class="si">}</span><span class="s2">*radius)) ;</span>
+<span class="s2">        setGByemittance(&quot;beam&quot;, </span><span class="si">{</span><span class="n">normalized_emittance_y</span><span class="si">}</span><span class="s2"> + (</span><span class="si">{</span><span class="n">thermal_emittance</span><span class="si">}</span><span class="s2">*radius)) ;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_longitudinal_distribution">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_longitudinal_distribution">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_longitudinal_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the longitudinal distribution for the beam based on the distribution type and parameters.</span>
+
+<span class="sd">        If the distribution type is &#39;gaussian&#39;, it generates a command for a Gaussian distribution with the</span>
+<span class="sd">        specified sigma.</span>
+<span class="sd">        If the distribution type is not &#39;gaussian&#39;, it generates a command for a plateau bunch length distribution.</span>
+
+<span class="sd">        :return: A string representation of the longitudinal distribution command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="s2">&quot;file&quot;</span><span class="p">])</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_profile</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">profile_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_profile</span><span class="p">)</span>
+            <span class="n">profile_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_image_name</span><span class="p">(</span><span class="n">profile_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_fields</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;length of longitudinal_fields is not correct; check </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_profile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">variable</span> <span class="o">=</span> <span class="n">profile_name</span>
+            <span class="n">dist_params</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;column1&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_fields</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s2">&quot;column2&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_fields</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dist_params</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;left_cutoff&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_z</span><span class="p">,</span>
+                <span class="s2">&quot;right_cutoff&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_z</span><span class="p">,</span>
+                <span class="s2">&quot;left_multiplier&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">&quot;right_multiplier&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;tlen&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;tlen = </span><span class="si">{</span><span class="mf">1e12</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span><span class="si">}</span><span class="s2">e-12;</span><span class="se">\n</span><span class="s2">&quot;&quot;&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;tlen = </span><span class="si">{</span><span class="mf">1e12</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">plateau_bunch_length</span><span class="si">}</span><span class="s2">e-12;</span><span class="se">\n</span><span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_distribution</span><span class="p">(</span>
+                    <span class="s2">&quot;distribution_type_z&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;settdist&quot;</span><span class="p">,</span>
+                    <span class="n">variable</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">dist_params</span>
+                <span class="p">)</span>
+                <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_output">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_output">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the output command for the GPT input file at z=0.</span>
+<span class="sd">        This command sets the screen for the beam output, specifying the type and position.</span>
+
+<span class="sd">        :return: A string representation of the output command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;&quot;screen( &quot;wcs&quot;, &quot;I&quot;, 0) ;</span>
+<span class="s2">&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.generate_offset_transform">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.generate_offset_transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_offset_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the offset transform command for the beam.</span>
+
+<span class="sd">        This command sets the transformation of the beam in the WCS (World Coordinate System)</span>
+<span class="sd">        with the specified offsets in x and y (i.e. if the beam is offset from the nominal axis).</span>
+
+<span class="sd">        :return: A string representation of the offset transform command for the GPT input file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;settransform(&quot;wcs&quot;, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="si">}</span><span class="s1">, 0, 1, 0, 0, 0, 1, 0, &quot;beam&quot;);</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.write">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the GPT input file with the parameters defined in the class.</span>
+
+<span class="sd">        Base attributes of :class:`~simba.Codes.Generators.frameworkGenerator`</span>
+<span class="sd">        are used to generate the input file, with the appropriate aliases and multipliers applied for the GPT code.</span>
+
+<span class="sd">        :return: None</span>
+
+<span class="sd">        #TODO Filenames are hardcoded for simplicity and they shouldn&#39;t be.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># try:</span>
+        <span class="c1">#     npart = eval(self.number_of_particles)</span>
+        <span class="c1"># except:</span>
+        <span class="c1">#     npart = self.number_of_particles</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cathode</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Only cathode beams are currently supported in GPT generator&quot;</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_particles</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_radial_distribution</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_phase_space_distribution</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_thermal_emittance</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_longitudinal_distribution</span><span class="p">()</span>
+        <span class="c1"># output += self.generate_correlated_divergences()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_offset_transform</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_output</span><span class="p">()</span>
+        <span class="n">saveFile</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.in&quot;</span><span class="p">,</span>
+            <span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GPTGenerator.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.gpt.GPTGenerator.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Post-process the generated beam data to create an HDF5 file.</span>
+
+<span class="sd">        This method reads the GPT beam file and writes it to an HDF5 format.</span>
+<span class="sd">        The Z component of the beam is set to zero, and the status of the particles is initialized to -1.</span>
+<span class="sd">        The output HDF5 file is named &#39;laser.hdf5&#39; and is saved in the master subdirectory.</span>
+<span class="sd">        #TODO Filenames are hardcoded for simplicity and they shouldn&#39;t be.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">gptbeamfilename</span> <span class="o">=</span> <span class="s2">&quot;generator.gdf&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">()</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">gdf</span><span class="o">.</span><span class="n">read_gdf_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">gptbeamfilename</span><span class="p">,</span>
+            <span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">longitudinal_reference</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Set the Z component to be zero</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">z</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cathode</span><span class="p">:</span>
+            <span class="n">HDF5filename</span> <span class="o">=</span> <span class="s2">&quot;laser.openpmd.hdf5&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">HDF5filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_species</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">)</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">HDF5filename</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

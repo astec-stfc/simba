@@ -62,6 +62,7 @@ def read_openpmd_beam_file(self, filename):
         read_particle_group(self, particles)
         bunch_species = bunch_data[particles.species]
         self._beam.s = UnitValue(bunch_species["s"], units="m") if "s" in bunch_species else None
+        self.turn = int(bunch_species["turn"][()]) if "turn" in bunch_species else None
         if "reference_particle" in bunch_species:
             ref_particle = bunch_species["reference_particle"]
             self.reference_particle = [ref_particle[coord][()] for coord in openpmd_coords]
@@ -98,6 +99,8 @@ def write_openpmd_beam_file(
     h5file_species = h5file_particles[self.species]
     if self.s is not None:
         h5file_species["s"] = self.s
+    if self.turn is not None:
+        h5file_species["turn"] = int(self.turn)
     if hasattr(self, "reference_particle") and self.reference_particle is not None:
         write_openpmd_reference_particle(self, h5file_species)
     h5file.close()

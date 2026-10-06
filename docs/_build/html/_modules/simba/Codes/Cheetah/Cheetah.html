@@ -1,0 +1,418 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Cheetah.Cheetah &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Cheetah.Cheetah</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Cheetah.Cheetah</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SIMBA Cheetah Module</span>
+
+<span class="sd">Various objects and functions to handle Cheetah lattices and commands. See `Cheetah github`_ for more details.</span>
+
+<span class="sd">    .. _Cheetah github: https://github.com/desy-ml/cheetah</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">    - :class:`~simba.Codes.Cheetah.Cheetah.cheetahLattice`: The Cheetah lattice object, used for</span>
+<span class="sd">      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the</span>
+<span class="sd">      :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,</span>
+<span class="sd">      and for tracking through it.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Framework_objects</span><span class="w"> </span><span class="kn">import</span> <span class="n">frameworkLattice</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">yaml</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_load</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ClassVar</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">lox</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lox.worker.thread</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScatterGatherDescriptor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">laura.models.diagnostic</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiagnosticElement</span>
+
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/cheetah_defaults.yaml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">cheetahglobal</span> <span class="o">=</span> <span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="n">twiss_keys</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;beta_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;beta_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;alpha_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;alpha_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;energy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;emittance_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;emittance_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;projected_emittance_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;projected_emittance_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_px&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_py&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mu_x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mu_y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_tau&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sigma_p&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<div class="viewcode-block" id="cheetahLattice">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">cheetahLattice</span><span class="p">(</span><span class="n">frameworkLattice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for defining the Cheetah lattice object, used for</span>
+<span class="sd">    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the</span>
+<span class="sd">    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,</span>
+<span class="sd">    and for tracking through it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">screen_threaded_function</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">ScatterGatherDescriptor</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">ScatterGatherDescriptor</span>
+    <span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Function for converting all screen outputs from ELEGANT into the SIMBA generic </span>
+<span class="sd">    :class:`~simba.Modules.Beams.beam` object and writing files&quot;&quot;&quot;</span>
+
+    <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cheetah&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;String indicating the lattice object type&quot;&quot;&quot;</span>
+
+    <span class="n">trackBeam</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flag to indicate whether to track the beam&quot;&quot;&quot;</span>
+
+    <span class="n">segment</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lattice elements arranged into a Cheetah `Segment`_</span>
+<span class="sd">    </span>
+<span class="sd">    .. _Segment: https://github.com/desy-ml/cheetah/blob/master/cheetah/accelerator/segment.py</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pin</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initial particle distribution as a Cheetah `ParticleBeam`_</span>
+
+<span class="sd">    .. _ParticleBeam: https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py&quot;&quot;&quot;</span>
+
+    <span class="n">pout</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Final particle distribution as a Cheetah `ParticleBeam`_&quot;&quot;&quot;</span>
+
+    <span class="n">tws</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor or tuple of Tensors containing Twiss parameters&quot;&quot;&quot;</span>
+
+    <span class="n">cheetahglobal</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Global settings for Cheetah, read in from `cheetahLattice.settings[&quot;global&quot;][&quot;Cheetahsettings&quot;]` and</span>
+<span class="sd">    `cheetah_defaults.yaml`&quot;&quot;&quot;</span>
+
+    <span class="n">particle_definition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initial particle distribution as a string&quot;&quot;&quot;</span>
+
+    <span class="n">ref_s</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference s position&quot;&quot;&quot;</span>
+
+    <span class="n">ref_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference particle index&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cheetahglobal</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">cheetahglobal</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;CHEETAHsettings&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;global&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;global&quot;</span><span class="p">][</span><span class="s2">&quot;CHEETAHsettings&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">Dict</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">k1</span><span class="p">,</span> <span class="n">v1</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">cheetahglobal</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k1</span><span class="p">:</span> <span class="n">v1</span><span class="p">})</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cheetahglobal</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">})</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;input&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span>
+            <span class="ow">and</span> <span class="s2">&quot;particle_definition&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span><span class="s2">&quot;particle_definition&quot;</span><span class="p">]</span>
+                <span class="o">==</span> <span class="s2">&quot;initial_distribution&quot;</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="s2">&quot;laser&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span>
+                    <span class="s2">&quot;particle_definition&quot;</span>
+                <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+
+
+<div class="viewcode-block" id="cheetahLattice.writeElements">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">writeElements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create Cheetah objects for all the elements in the lattice and set the</span>
+<span class="sd">        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.segment`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if successful</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">segment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">to_cheetah</span><span class="p">(</span><span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="cheetahLattice.write">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create the lattice object via :func:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements`</span>
+<span class="sd">        and save it as a JSON file to `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeElements</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">to_lattice_json</span><span class="p">(</span>
+                <span class="n">filepath</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s1">.json&#39;</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="cheetahLattice.preProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.preProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">preProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the initial particle distribution defined in `file_block[&#39;input&#39;][&#39;prefix&#39;]` if it exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">preProcess</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prefix</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trackBeam</span> <span class="k">else</span> <span class="n">prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_input_file</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ref_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">s</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ref_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">reference_particle_index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hdf5_to_openpmd</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="cheetahLattice.hdf5_to_openpmd">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.hdf5_to_openpmd">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hdf5_to_openpmd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">write</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the initial HDF5 particle distribution to OpenPMD format and set</span>
+<span class="sd">        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.pin` accordingly.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefix: str</span>
+<span class="sd">            Prefix for particle file</span>
+<span class="sd">        write: bool</span>
+<span class="sd">            Flag to indicate whether to save the file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cheetahbeamfilename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">+</span> <span class="s2">&quot;.openpmd.hdf5&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchXPlane</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;horizontal&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchYPlane</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;vertical&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pin</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">write_cheetah_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="n">cheetahbeamfilename</span><span class="p">,</span>
+            <span class="n">write</span><span class="o">=</span><span class="n">write</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="cheetahLattice.run">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the code, and set :attr:`~tws` and :attr:`~pout`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># navi = self.navi_setup()</span>
+        <span class="n">pin</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pin</span><span class="p">)</span>
+        <span class="c1"># if self.sample_interval &gt; 1:</span>
+        <span class="c1">#     pin = pin.thin_out(nth=self.sample_interval)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cheetahglobal</span><span class="p">[</span><span class="s2">&quot;save_twiss&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tws</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">get_beam_attrs_along_segment</span><span class="p">(</span><span class="n">twiss_keys</span><span class="p">,</span> <span class="n">pin</span><span class="p">)</span></div>
+
+            <span class="c1"># print(&quot;Twiss parameters:&quot;, self.tws)</span>
+
+    <span class="nd">@lox</span><span class="o">.</span><span class="n">thread</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">screen_threaded_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scr</span><span class="p">:</span> <span class="n">DiagnosticElement</span><span class="p">,</span> <span class="n">outname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert output from Cheetah ParticleBeam to HDF5 format</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scr: LAURA DiagnosticElement</span>
+<span class="sd">            Screen object</span>
+<span class="sd">        outname: str</span>
+<span class="sd">            Name of Cheetah beam file</span>
+<span class="sd">        name: str</span>
+<span class="sd">            Name of element</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.Beams</span><span class="w"> </span><span class="kn">import</span> <span class="n">cheetah</span> <span class="k">as</span> <span class="n">rbf_cheetah</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">:</span>
+            <span class="n">zstart</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">zstart</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">zstart</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">)]</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span>
+        <span class="n">rbf_cheetah</span><span class="o">.</span><span class="n">interpret_cheetah_ParticleBeam</span><span class="p">(</span>
+            <span class="n">beam</span><span class="p">,</span>
+            <span class="n">scr</span><span class="p">,</span>
+            <span class="n">zstart</span><span class="o">=</span><span class="n">zstart</span><span class="p">,</span>
+            <span class="n">s</span><span class="o">=</span><span class="n">scr</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+            <span class="n">ref_index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ref_idx</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">outname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">beam</span>
+
+<div class="viewcode-block" id="cheetahLattice.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Cheetah.html#simba.Codes.Cheetah.Cheetah.cheetahLattice.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the outputs from Cheetah to HDF5 format and save them to `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cheetah.accelerator</span><span class="w"> </span><span class="kn">import</span> <span class="n">Screen</span>
+        <span class="n">screens</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">Screen</span><span class="p">):</span>
+                <span class="n">screens</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">element</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">element</span><span class="o">.</span><span class="n">get_read_beam</span><span class="p">()})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">Screen</span><span class="p">):</span>
+            <span class="n">screens</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pout</span><span class="p">})</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">scr</span> <span class="ow">in</span> <span class="n">screens</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">outname</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_basename</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">.openpmd.hdf5&#39;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">screen_threaded_function</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">scr</span><span class="p">,</span> <span class="n">outname</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen_threaded_function</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cheetahglobal</span><span class="p">[</span><span class="s2">&quot;save_twiss&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">tws</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">twsname</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s1">_twiss.cheetah.hdf5&#39;</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">twsname</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">twsgrp</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;Twiss&quot;</span><span class="p">)</span>
+                <span class="n">svals</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">twiss_keys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tws</span><span class="p">):</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;s&quot;</span><span class="p">:</span>
+                        <span class="n">svals</span> <span class="o">=</span> <span class="n">data</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">data</span> <span class="o">=</span> <span class="n">svals</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_s</span>
+                    <span class="n">twsgrp</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">svals</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">lat_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getSValues</span><span class="p">(</span><span class="n">at_entrance</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+                    <span class="n">lat_z</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getZValues</span><span class="p">()]</span>
+                    <span class="n">twsgrp</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">svals</span><span class="p">,</span> <span class="n">lat_s</span><span class="p">,</span> <span class="n">lat_z</span><span class="p">))</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

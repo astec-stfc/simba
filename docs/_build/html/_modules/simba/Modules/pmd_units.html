@@ -1,0 +1,694 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.pmd_units &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.pmd_units</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.pmd_units</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Simple units functionality for the openPMD beamphysics records.</span>
+
+<span class="sd">For more advanced units, use a package like Pint:</span>
+<span class="sd">    https://pint.readthedocs.io/</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># import scipy.constants</span>
+
+<span class="n">m_e</span> <span class="o">=</span> <span class="mf">510998.94999999995</span>
+<span class="n">m_p</span> <span class="o">=</span> <span class="mf">938272088.16</span>
+<span class="n">c_light</span> <span class="o">=</span> <span class="mi">299792458</span>
+<span class="n">e_charge</span> <span class="o">=</span> <span class="mf">1.602176634e-19</span>
+<span class="n">mu_0</span> <span class="o">=</span> <span class="mf">1.25663706212e-06</span>
+
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+
+<div class="viewcode-block" id="pmd_unit">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.pmd_unit">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">pmd_unit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    Params</span>
+<span class="sd">    ------</span>
+
+<span class="sd">    unitSymbol: Native units name</span>
+<span class="sd">    unitSI:     Conversion factor to the the correspontign SI unit</span>
+<span class="sd">    unitDimension: SI Base Exponents</span>
+
+<span class="sd">    Base unit dimensions are defined as::</span>
+
+<span class="sd">       Base dimension  | exponents.       | SI unit</span>
+<span class="sd">       ---------------- -----------------   -------</span>
+<span class="sd">       length          : (1,0,0,0,0,0,0)     m</span>
+<span class="sd">       mass            : (0,1,0,0,0,0,0)     kg</span>
+<span class="sd">       time            : (0,0,1,0,0,0,0)     s</span>
+<span class="sd">       current         : (0,0,0,1,0,0,0)     A</span>
+<span class="sd">       temperture      : (0,0,0,0,1,0,0)     K</span>
+<span class="sd">       mol             : (0,0,0,0,0,1,0)     mol</span>
+<span class="sd">       luminous        : (0,0,0,0,0,0,1)     cd</span>
+
+<span class="sd">    For example::</span>
+
+<span class="sd">        pmd_unit(&#39;eV&#39;, 1.602176634e-19, (2, 1, -2, 0, 0, 0, 0))</span>
+
+<span class="sd">    defines that an eV is 1.602176634e-19 of base units m^2 kg/s^2, which is a</span>
+<span class="sd">    Joule (J).</span>
+
+<span class="sd">    If ``unitSI=0`` (default), init with a known symbol::</span>
+
+<span class="sd">        pmd_unit(&#39;T&#39;)</span>
+
+<span class="sd">    returns::</span>
+
+<span class="sd">        pmd_unit(&#39;T&#39;, 1, (0, 1, -2, -1, 0, 0, 0))</span>
+
+<span class="sd">    Simple equalities are provided::</span>
+
+<span class="sd">        u1 == u2</span>
+
+<span class="sd">    which returns True if the params are all the same.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unitSymbol</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">unitSI</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">unitDimension</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+
+        <span class="c1"># Allow to return an internally known unit</span>
+        <span class="k">if</span> <span class="n">unitSI</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">unitSymbol</span> <span class="ow">in</span> <span class="n">known_unit</span><span class="p">:</span>
+                <span class="c1"># Copy internals</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">known_unit</span><span class="p">[</span><span class="n">unitSymbol</span><span class="p">]</span>
+                <span class="n">unitSI</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitSI</span>
+                <span class="n">unitDimension</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitDimension</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unknown unitSymbol: </span><span class="si">{</span><span class="n">unitSymbol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unitSymbol</span> <span class="o">=</span> <span class="n">unitSymbol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unitSI</span> <span class="o">=</span> <span class="n">unitSI</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unitDimension</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_unitDimension</span> <span class="o">=</span> <span class="n">DIMENSION</span><span class="p">[</span><span class="n">unitDimension</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_unitDimension</span> <span class="o">=</span> <span class="n">unitDimension</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unitSymbol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unitSymbol</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unitSI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unitSI</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unitDimension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unitDimension</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">multiply_units</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">divide_units</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unitSymbol</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;pmd_unit(&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unitSymbol</span><span class="si">}</span><span class="s2">&#39;, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unitSI</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unitDimension</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="is_identity">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.is_identity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_identity</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the unit is equivalent to 1&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">u</span><span class="o">.</span><span class="n">unitSI</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">u</span><span class="o">.</span><span class="n">unitDimension</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="multiply_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.multiply_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">multiply_units</span><span class="p">(</span><span class="n">u1</span><span class="p">,</span> <span class="n">u2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Multiplies two pmd_unit symbols</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">is_identity</span><span class="p">(</span><span class="n">u1</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">u2</span>
+    <span class="k">if</span> <span class="n">is_identity</span><span class="p">(</span><span class="n">u2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">u1</span>
+
+    <span class="n">s1</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitSymbol</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitSymbol</span>
+    <span class="k">if</span> <span class="n">s1</span> <span class="o">==</span> <span class="n">s2</span><span class="p">:</span>
+        <span class="n">symbol</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s1</span><span class="si">}</span><span class="s2">^2&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">symbol</span> <span class="o">=</span> <span class="n">s1</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">+</span> <span class="n">s2</span>
+    <span class="n">d1</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitDimension</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitDimension</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">))</span>
+    <span class="n">unitSI</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitSI</span> <span class="o">*</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitSI</span>
+
+    <span class="k">return</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="n">unitSymbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span> <span class="n">unitSI</span><span class="o">=</span><span class="n">unitSI</span><span class="p">,</span> <span class="n">unitDimension</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="divide_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.divide_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">divide_units</span><span class="p">(</span><span class="n">u1</span><span class="p">,</span> <span class="n">u2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Divides two pmd_unit symbols : u1/u2</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">is_identity</span><span class="p">(</span><span class="n">u2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">u1</span>
+
+    <span class="n">s1</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitSymbol</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitSymbol</span>
+    <span class="k">if</span> <span class="n">s1</span> <span class="o">==</span> <span class="n">s2</span><span class="p">:</span>
+        <span class="n">symbol</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">symbol</span> <span class="o">=</span> <span class="n">s1</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">s2</span>
+    <span class="n">d1</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitDimension</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitDimension</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">))</span>
+    <span class="n">unitSI</span> <span class="o">=</span> <span class="n">u1</span><span class="o">.</span><span class="n">unitSI</span> <span class="o">/</span> <span class="n">u2</span><span class="o">.</span><span class="n">unitSI</span>
+
+    <span class="k">return</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="n">unitSymbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span> <span class="n">unitSI</span><span class="o">=</span><span class="n">unitSI</span><span class="p">,</span> <span class="n">unitDimension</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="sqrt_unit">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.sqrt_unit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sqrt_unit</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the sqrt of a unit</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">u</span><span class="o">.</span><span class="n">unitDimension</span>
+
+    <span class="n">symbol</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitSymbol</span>
+    <span class="k">if</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">]:</span>
+        <span class="n">symbol</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sqrt(</span><span class="si">{</span><span class="n">symbol</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="n">unitSI</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">unitSI</span><span class="p">)</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">x</span> <span class="o">/</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">unitDimension</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="n">unitSymbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span> <span class="n">unitSI</span><span class="o">=</span><span class="n">unitSI</span><span class="p">,</span> <span class="n">unitDimension</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span></div>
+
+
+
+<span class="n">DIMENSION</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;1&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="c1"># Base units</span>
+    <span class="s2">&quot;length&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;mass&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;current&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;temperture&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;mol&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;luminous&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="c1">#</span>
+    <span class="s2">&quot;charge&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;electric_field&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;electric_potential&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;magnetic_field&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;velocity&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;energy&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="s2">&quot;momentum&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">DIMENSION_NAME</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">DIMENSION</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<div class="viewcode-block" id="dimension">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.dimension">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dimension</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">DIMENSION</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">DIMENSION</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="dimension_name">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.dimension_name">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dimension_name</span><span class="p">(</span><span class="n">dim_array</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">DIMENSION_NAME</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">dim_array</span><span class="p">)]</span></div>
+
+
+
+<span class="n">SI_symbol</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;1&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;length&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mass&quot;</span><span class="p">:</span> <span class="s2">&quot;kg&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;current&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;temperture&quot;</span><span class="p">:</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mol&quot;</span><span class="p">:</span> <span class="s2">&quot;mol&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;luminous&quot;</span><span class="p">:</span> <span class="s2">&quot;cd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;charge&quot;</span><span class="p">:</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;electric_field&quot;</span><span class="p">:</span> <span class="s2">&quot;V/m&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;electric_potential&quot;</span><span class="p">:</span> <span class="s2">&quot;V&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;velocity&quot;</span><span class="p">:</span> <span class="s2">&quot;m/s&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;energy&quot;</span><span class="p">:</span> <span class="s2">&quot;J&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;momentum&quot;</span><span class="p">:</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;magnetic_field&quot;</span><span class="p">:</span> <span class="s2">&quot;T&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">SI_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SI_symbol</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="n">known_unit</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;1&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;rad&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;m&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;length&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;kg&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;kg&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;mass&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;g&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s2">&quot;mass&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;A&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;current&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;K&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;temperture&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;mol&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;mol&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;mol&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;cd&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;cd&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;luminous&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;charge&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;charge_num&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;charge #&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;charge&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;V/m&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;V/m&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;electric_field&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;V&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;V&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;electric_potential&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;c_light&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;vel/c&quot;</span><span class="p">,</span> <span class="n">c_light</span><span class="p">,</span> <span class="s2">&quot;velocity&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;vel/c&quot;</span><span class="p">,</span> <span class="n">c_light</span><span class="p">,</span> <span class="s2">&quot;velocity&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;m/s&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;m/s&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;velocity&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;eV&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;eV&quot;</span><span class="p">,</span> <span class="n">e_charge</span><span class="p">,</span> <span class="s2">&quot;energy&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;J&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;J&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;energy&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;eV/c&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span> <span class="n">e_charge</span> <span class="o">/</span> <span class="n">c_light</span><span class="p">,</span> <span class="s2">&quot;momentum&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;T&quot;</span><span class="p">:</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;magnetic_field&quot;</span><span class="p">),</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="unit">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.unit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit</span><span class="p">(</span><span class="n">symbol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a pmd_unit from a known symbol.</span>
+
+<span class="sd">    * is allowed between two known symbols:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">known_unit</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">known_unit</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">symbol</span><span class="p">:</span>
+        <span class="n">subunits</span> <span class="o">=</span> <span class="p">[</span><span class="n">known_unit</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">symbol</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)]</span>
+        <span class="c1"># Require these to be in known units</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">subunits</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;TODO: more complicated units&quot;</span>
+        <span class="k">return</span> <span class="n">multiply_units</span><span class="p">(</span><span class="n">subunits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">subunits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown unit symbol: </span><span class="si">{</span><span class="n">symbol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Dicts for prefixes</span>
+<span class="n">PREFIX_FACTOR</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;yocto-&quot;</span><span class="p">:</span> <span class="mf">1e-24</span><span class="p">,</span>
+    <span class="s2">&quot;zepto-&quot;</span><span class="p">:</span> <span class="mf">1e-21</span><span class="p">,</span>
+    <span class="s2">&quot;atto-&quot;</span><span class="p">:</span> <span class="mf">1e-18</span><span class="p">,</span>
+    <span class="s2">&quot;femto-&quot;</span><span class="p">:</span> <span class="mf">1e-15</span><span class="p">,</span>
+    <span class="s2">&quot;pico-&quot;</span><span class="p">:</span> <span class="mf">1e-12</span><span class="p">,</span>
+    <span class="s2">&quot;nano-&quot;</span><span class="p">:</span> <span class="mf">1e-9</span><span class="p">,</span>
+    <span class="s2">&quot;micro-&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span>
+    <span class="s2">&quot;milli-&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+    <span class="s2">&quot;centi-&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="s2">&quot;deci-&quot;</span><span class="p">:</span> <span class="mf">1e-1</span><span class="p">,</span>
+    <span class="s2">&quot;deca-&quot;</span><span class="p">:</span> <span class="mf">1e1</span><span class="p">,</span>
+    <span class="s2">&quot;hecto-&quot;</span><span class="p">:</span> <span class="mf">1e2</span><span class="p">,</span>
+    <span class="s2">&quot;kilo-&quot;</span><span class="p">:</span> <span class="mf">1e3</span><span class="p">,</span>
+    <span class="s2">&quot;mega-&quot;</span><span class="p">:</span> <span class="mf">1e6</span><span class="p">,</span>
+    <span class="s2">&quot;giga-&quot;</span><span class="p">:</span> <span class="mf">1e9</span><span class="p">,</span>
+    <span class="s2">&quot;tera-&quot;</span><span class="p">:</span> <span class="mf">1e12</span><span class="p">,</span>
+    <span class="s2">&quot;peta-&quot;</span><span class="p">:</span> <span class="mf">1e15</span><span class="p">,</span>
+    <span class="s2">&quot;exa-&quot;</span><span class="p">:</span> <span class="mf">1e18</span><span class="p">,</span>
+    <span class="s2">&quot;zetta-&quot;</span><span class="p">:</span> <span class="mf">1e21</span><span class="p">,</span>
+    <span class="s2">&quot;yotta-&quot;</span><span class="p">:</span> <span class="mf">1e24</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">PREFIX</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">PREFIX_FACTOR</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+<span class="n">SHORT_PREFIX_FACTOR</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="mf">1e-24</span><span class="p">,</span>
+    <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="mf">1e-21</span><span class="p">,</span>
+    <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mf">1e-18</span><span class="p">,</span>
+    <span class="s2">&quot;f&quot;</span><span class="p">:</span> <span class="mf">1e-15</span><span class="p">,</span>
+    <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="mf">1e-12</span><span class="p">,</span>
+    <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mf">1e-9</span><span class="p">,</span>
+    <span class="s2">&quot;µ&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span>
+    <span class="s2">&quot;m&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+    <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="mf">1e-1</span><span class="p">,</span>
+    <span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;da&quot;</span><span class="p">:</span> <span class="mf">1e1</span><span class="p">,</span>
+    <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="mf">1e2</span><span class="p">,</span>
+    <span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="mf">1e3</span><span class="p">,</span>
+    <span class="s2">&quot;M&quot;</span><span class="p">:</span> <span class="mf">1e6</span><span class="p">,</span>
+    <span class="s2">&quot;G&quot;</span><span class="p">:</span> <span class="mf">1e9</span><span class="p">,</span>
+    <span class="s2">&quot;T&quot;</span><span class="p">:</span> <span class="mf">1e12</span><span class="p">,</span>
+    <span class="s2">&quot;P&quot;</span><span class="p">:</span> <span class="mf">1e15</span><span class="p">,</span>
+    <span class="s2">&quot;E&quot;</span><span class="p">:</span> <span class="mf">1e18</span><span class="p">,</span>
+    <span class="s2">&quot;Z&quot;</span><span class="p">:</span> <span class="mf">1e21</span><span class="p">,</span>
+    <span class="s2">&quot;Y&quot;</span><span class="p">:</span> <span class="mf">1e24</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">SHORT_PREFIX</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+
+<span class="c1"># Nice scaling</span>
+
+
+<div class="viewcode-block" id="nice_scale_prefix">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.nice_scale_prefix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nice_scale_prefix</span><span class="p">(</span><span class="n">scale</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a nice factor and a SI prefix string</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        scale = 2e-10</span>
+
+<span class="sd">        f, u = nice_scale_prefix(scale)</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">scale</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">p10</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">scale</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">p10</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">2</span> <span class="ow">or</span> <span class="n">p10</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">p10</span> <span class="o">//</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">SHORT_PREFIX</span><span class="p">[</span><span class="n">f</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="nice_array">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.nice_array">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nice_array</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a scaled array, the scaling, and a unit prefix</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        nice_array( np.array([2e-10, 3e-10]) )</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (array([200., 300.]), 1e-12, &#39;p&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">a</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">ptp</span><span class="p">()</span>
+
+    <span class="n">fac</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">a</span> <span class="o">/</span> <span class="n">fac</span><span class="p">,</span> <span class="n">fac</span><span class="p">,</span> <span class="n">prefix</span></div>
+
+
+
+<span class="c1"># -------------------------</span>
+<span class="c1"># Units for ParticleGroup</span>
+
+<span class="n">PARTICLEGROUP_UNITS</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span>
+    <span class="s2">&quot;energy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;kinetic_energy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mass&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;higher_order_energy_spread&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;higher_order_energy&quot;</span><span class="p">,</span>
+<span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;eV&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;px&quot;</span><span class="p">,</span> <span class="s2">&quot;py&quot;</span><span class="p">,</span> <span class="s2">&quot;pz&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;pr&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;eV/c&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;Jx&quot;</span><span class="p">,</span> <span class="s2">&quot;Jy&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">,</span> <span class="s2">&quot;beta_x&quot;</span><span class="p">,</span> <span class="s2">&quot;beta_y&quot;</span><span class="p">,</span> <span class="s2">&quot;beta_z&quot;</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">,</span> <span class="s2">&quot;ptheta&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">,</span> <span class="s2">&quot;species_charge&quot;</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;average_current&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;norm_emit_x&quot;</span><span class="p">,</span> <span class="s2">&quot;norm_emit_y&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;norm_emit_4d&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiply_units</span><span class="p">(</span><span class="n">unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">),</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;xp&quot;</span><span class="p">,</span> <span class="s2">&quot;yp&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;rad&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;x_bar&quot;</span><span class="p">,</span> <span class="s2">&quot;px_bar&quot;</span><span class="p">,</span> <span class="s2">&quot;y_bar&quot;</span><span class="p">,</span> <span class="s2">&quot;py_bar&quot;</span><span class="p">]:</span>
+    <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">sqrt_unit</span><span class="p">(</span><span class="n">unit</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="pg_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.pg_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">pg_units</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a str representing the units of any attribute</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;sigma_&quot;</span><span class="p">,</span> <span class="s2">&quot;mean_&quot;</span><span class="p">,</span> <span class="s2">&quot;min_&quot;</span><span class="p">,</span> <span class="s2">&quot;max_&quot;</span><span class="p">,</span> <span class="s2">&quot;ptp_&quot;</span><span class="p">,</span> <span class="s2">&quot;delta_&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">):</span>
+            <span class="n">nkey</span> <span class="o">=</span> <span class="n">key</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="p">:]</span>
+            <span class="k">return</span> <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">nkey</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;cov_&quot;</span><span class="p">):</span>
+        <span class="n">subkeys</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;cov_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span>
+        <span class="n">unit0</span> <span class="o">=</span> <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">subkeys</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+        <span class="n">unit1</span> <span class="o">=</span> <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">subkeys</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+
+        <span class="k">return</span> <span class="n">multiply_units</span><span class="p">(</span><span class="n">unit0</span><span class="p">,</span> <span class="n">unit1</span><span class="p">)</span>
+
+    <span class="c1"># Fields</span>
+    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;electricField&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;V/m&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;magneticField&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">unit</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">PARTICLEGROUP_UNITS</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+
+
+
+<span class="c1"># -------------------------</span>
+<span class="c1"># h5 tools</span>
+
+
+<div class="viewcode-block" id="write_unit_h5">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.write_unit_h5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Writes an pmd_unit to an h5 handle</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;unitSI&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitSI</span>
+    <span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;unitDimension&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitDimension</span>
+    <span class="n">h5</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;unitSymbol&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">unitSymbol</span></div>
+
+
+
+<div class="viewcode-block" id="read_unit_h5">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.read_unit_h5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads unit data from an h5 handle and returns a pmd_unit object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">attrs</span>
+
+    <span class="n">unitSI</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;unitSI&quot;</span><span class="p">]</span>
+    <span class="n">unitDimension</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="s2">&quot;unitDimension&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="s2">&quot;unitSymbol&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">a</span><span class="p">:</span>
+        <span class="n">unitSymbol</span> <span class="o">=</span> <span class="s2">&quot;unknown&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">unitSymbol</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;unitSymbol&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">pmd_unit</span><span class="p">(</span><span class="n">unitSymbol</span><span class="o">=</span><span class="n">unitSymbol</span><span class="p">,</span> <span class="n">unitSI</span><span class="o">=</span><span class="n">unitSI</span><span class="p">,</span> <span class="n">unitDimension</span><span class="o">=</span><span class="n">unitDimension</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_dataset_and_unit_h5">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.read_dataset_and_unit_h5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_dataset_and_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">,</span> <span class="n">expected_unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads a dataset that has openPMD unit attributes.</span>
+
+<span class="sd">    expected_unit can be a pmd_unit object, or a known unit str. Examples: &#39;kg&#39;, &#39;J&#39;, &#39;eV&#39;</span>
+
+<span class="sd">    If expected_unit is given, will check that the units are compatible.</span>
+
+<span class="sd">    If convert, the data will be returned with the expected_units.</span>
+
+
+<span class="sd">    Returns a tuple:</span>
+<span class="sd">        np.array, pmd_unit</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Read the unit that is there.</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">read_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">)</span>
+
+    <span class="c1"># Simple case</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">expected_unit</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h5</span><span class="p">),</span> <span class="n">u</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected_unit</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Try to get unit</span>
+        <span class="n">expected_unit</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="n">expected_unit</span><span class="p">)</span>
+
+    <span class="c1"># Check dimensions</span>
+    <span class="n">du</span> <span class="o">=</span> <span class="n">divide_units</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">expected_unit</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">du</span><span class="o">.</span><span class="n">unitDimension</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s2">&quot;incompatible units&quot;</span>
+
+    <span class="k">if</span> <span class="n">convert</span><span class="p">:</span>
+        <span class="n">fac</span> <span class="o">=</span> <span class="n">du</span><span class="o">.</span><span class="n">unitSI</span>
+        <span class="k">return</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h5</span><span class="p">),</span> <span class="n">expected_unit</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h5</span><span class="p">),</span> <span class="n">u</span></div>
+
+
+
+<div class="viewcode-block" id="write_dataset_and_unit_h5">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.pmd_units.write_dataset_and_unit_h5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_dataset_and_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Writes data and pmd_unit to h5[name]</span>
+
+<span class="sd">    See: read_dataset_and_unit_h5</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">h5</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+
+    <span class="k">if</span> <span class="n">unit</span><span class="p">:</span>
+        <span class="n">write_unit_h5</span><span class="p">(</span><span class="n">h5</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">unit</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

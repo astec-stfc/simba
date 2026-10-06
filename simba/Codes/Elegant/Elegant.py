@@ -7,54 +7,54 @@ Various objects and functions to handle ELEGANT lattices and commands. See `Eleg
 
 Classes:
     - :class:`~simba.Codes.Elegant.Elegant.elegantLattice`: The ELEGANT lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for ELEGANT input and lattice files.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+      the lattice suitable for ELEGANT input and lattice files.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegantCommandFile`: Base class for defining
-    commands in an ELEGANT input file.
+      commands in an ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_global_settings_command`: Class for defining the
-    &global_settings portion of the ELEGANT input file.
+      &global_settings portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_run_setup_command`: Class for defining the
-    &run_setup portion of the ELEGANT input file.
+      &run_setup portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_error_elements_command`: Class for defining the
-    &error_elements portion of the ELEGANT input file.
+      &error_elements portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_error_elements_command`: Class for defining the
-    &error_elements portion of the ELEGANT input file.
+      &error_elements portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_scan_elements_command`: Class for defining the
-    &scan_elements portion of the ELEGANT input file.
+      &scan_elements portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_run_control_command`: Class for defining the
-    &run_control portion of the ELEGANT input file.
+      &run_control portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_twiss_output_command`: Class for defining the
-    &twiss_output portion of the ELEGANT input file.
+      &twiss_output portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_floor_coordinates_command`: Class for defining the
-    &floor_coordinates portion of the ELEGANT input file.
+      &floor_coordinates portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_matrix_output_command`: Class for defining the
-    &matrix_output portion of the ELEGANT input file.
+      &matrix_output portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_sdds_beam_command`: Class for defining the
-    &sdds_beam portion of the ELEGANT input file.
+      &sdds_beam portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_track_command`: Class for defining the
-    &track portion of the ELEGANT input file.
+      &track portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegant_track_command`: Class for defining the
-    &track portion of the ELEGANT input file.
+      &track portion of the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.elegantOptimisation`: Class for defining the
-    commands for optimization in the ELEGANT input file.
+      commands for optimization in the ELEGANT input file.
 
     - :class:`~simba.Codes.Elegant.Elegant.sddsFile`: Class for creating, modifying and
-    saving SDDS files.
+      saving SDDS files.
 """
 
 import math
@@ -79,8 +79,11 @@ from ...Framework_objects import (
 )
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
+from ...Modules.SDDSFile import SDDS_Types
 from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
+from laura.translator.converters.converter import translate_elements
+from laura.translator.utils.functions import sanitize_string
 
 
 class elegantLattice(frameworkLattice):
@@ -119,6 +122,10 @@ class elegantLattice(frameworkLattice):
 
     supports_periodic: ClassVar[bool] = True
     """``twiss_output``'s ``matched = 1``."""
+
+    supports_programs: ClassVar[bool] = True
+    """For a ``BUMPER``/``MBUMPER``, and only for one -- see
+    :meth:`program_commands`."""
 
     otm_convention: ClassVar[str] = "x, xp, y, yp, s, delta"
     """One-turn map convention."""
@@ -169,6 +176,12 @@ class elegantLattice(frameworkLattice):
 
     ref_idx: int = None
     """Reference particle index"""
+
+    program_elements: ClassVar[tuple] = ("bumper", "mbumper")
+    """The elegant element types a device program can be written onto.
+    The only ones with a ``WAVEFORM``, and so the only ones whose strength
+    can change from pass to pass.
+    """
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -411,6 +424,108 @@ class elegantLattice(frameworkLattice):
         # except Exception:
         #     passastrabeamfilename
 
+    def _elegant_type(self, name: str) -> str:
+        """
+        The elegant element type LAURA writes `name` as, lowercased.
+
+        Parameters
+        ----------
+        name: str
+            Element name
+
+        Returns
+        -------
+        str
+            Name of ELEGANT element
+        """
+        element = self.elements.get(name)
+        if element is None:
+            return ""
+        translator = translate_elements([element]).get(name)
+        if translator is None:
+            return ""
+        return translator._convert_type_elegant(translator.hardware_type).lower()
+
+    def write_program_waveform(self, program) -> str:
+        """
+        Write one program's ``(t, factor)`` table beside the lattice.
+
+        The times are seconds from the firing pass, which is where
+        elegant measures a ``WAVEFORM`` from; see
+        :meth:`~simba.Modules.DeviceProgram.DeviceProgram.linear_knots`.
+
+        Parameters
+        ----------
+        program: :class:`~simba.Modules.DeviceProgram.DeviceProgram`
+            The program to write
+
+        Returns
+        -------
+        str
+            Basename of the SDDS ``WAVEFORM`` file
+        """
+        from ...Modules.SDDSFile import SDDSFile
+
+        times, factors = program.factor_knots(
+            self.revolution_period, origin_turn=program.first_turn
+        )
+        basename = f"{sanitize_string(program.element)}_program.sdds"
+        sdds = SDDSFile(index=1, ascii=True)
+        sdds.add_columns(
+            ["t", "factor"],
+            [times, factors],
+            [SDDS_Types.SDDS_DOUBLE, SDDS_Types.SDDS_DOUBLE],
+            ["s", ""],
+            ["", ""],
+        )
+        path = os.path.join(self.global_parameters["master_subdir"], basename)
+        sdds.write_file(path)
+        self.files.append(path)
+        return basename
+
+    def program_commands(self) -> dict:
+        """
+        ``&alter_elements`` commands putting each program onto its element.
+        Three per program -- the peak strength, the firing pass and the
+        waveform.
+
+        ``FIRE_ON_PASS`` is **zero-based**, measured: ``FIRE_ON_PASS=2``
+        first kicks on the third pass.
+
+        Returns
+        -------
+        dict
+            Command files to insert, keyed for ``commandFiles``. Empty if
+            nothing is programmed
+        """
+        commands = {}
+        for program in self.programs:
+            etype = self._elegant_type(program.element)
+            if etype not in self.program_elements:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}', "
+                    f"which elegant writes as a {etype or 'missing element'}. "
+                    "Only a BUMPER or MBUMPER carries a WAVEFORM"
+                )
+                continue
+            name = sanitize_string(program.element)
+            waveform = self.write_program_waveform(program)
+            for item, key, value in (
+                ("ANGLE", "value", program.peak),
+                ("FIRE_ON_PASS", "value", program.first_turn - 1),
+                ("WAVEFORM", "string_value", f'"{waveform}=t+factor"'),
+            ):
+                key_name = f"program_{name}_{item.lower()}"
+                command = elegantCommandFile(
+                    objectname=key_name,
+                    objecttype="alter_elements",
+                    item=item,
+                    **{key: value},
+                )
+                command.add_property("name", name)
+                commands[key_name] = command
+        return commands
+
     def createCommandFiles(self) -> None:
         """
         Create the :class:`~simba.Codes.Elegant.elegantCommandFile` objects
@@ -437,6 +552,9 @@ class elegantLattice(frameworkLattice):
                 s_start=self.start_s,
                 use_beamline=self.objectname,
             )
+
+            for key, command in self.program_commands().items():
+                self.commandFiles[key] = command
 
             # print('generate commands for monte carlo jitter runs')
             if elementErrors is not None:
@@ -939,6 +1057,7 @@ class elegantLattice(frameworkLattice):
                 xyzoffset=xyzoffset,
                 ref_index=ref_index,
             )
+            beam.turn = self.beam_turn(turn)
             HDF5filename = (
                 f"{self.global_parameters['master_subdir']}/"
                 f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"
@@ -1096,7 +1215,7 @@ class elegant_run_setup_command(elegantCommandFile):
     """The default order of transfer matrices used for elements having matrices."""
 
     lattice: frameworkLattice | str = None
-    """:class:`~simba.Framework_objects.frameworkLattice object"""
+    """:class:`~simba.Framework_objects.frameworkLattice` object"""
 
     centroid: str = "%s.cen"
     """File to which centroid data is to be written"""
@@ -1131,7 +1250,7 @@ class elegant_error_elements_command(elegantCommandFile):
     """Number of error runs to perform"""
 
     lattice: frameworkLattice = None
-    """:class:`~simba.Framework_objects.frameworkLattice object"""
+    """:class:`~simba.Framework_objects.frameworkLattice` object"""
 
     no_errors_for_first_step: int = 1
     """Perform the first run without errors"""
@@ -1175,7 +1294,7 @@ class elegant_scan_elements_command(elegantCommandFile):
     """Scan number index"""
 
     lattice: frameworkLattice = None
-    """:class:`~simba.Framework_objects.frameworkLattice object"""
+    """:class:`~simba.Framework_objects.frameworkLattice` object"""
 
     objectname: str = "vary_element"
     """Name of frameworkObject objectname"""
@@ -1261,7 +1380,7 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     .. _Elegant floor coordinates: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu35.html#x43-420007.26
     """
     lattice: frameworkLattice = None
-    """:class:`~simba.Framework_objects.frameworkLattice object"""
+    """:class:`~simba.Framework_objects.frameworkLattice` object"""
 
     filename: str = "%s.flr"
     """Filename for elegant .flr file"""

@@ -1,0 +1,382 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Fields.opal &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../Fields.html">simba.Modules.Fields</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Fields.opal</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Fields.opal</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.sdds</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_SDDS_field_file</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">warn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.FieldParameter</span><span class="w"> </span><span class="kn">import</span> <span class="n">FieldParameter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="n">d</span> <span class="o">=</span> <span class="s2">&quot;,!?/&amp;-:;@&#39;</span><span class="se">\n</span><span class="s2"> </span><span class="se">\t</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="write_opal_field_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Fields.html#simba.Modules.Fields.opal.write_opal_field_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_opal_field_file</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">fourier</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">orientation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate the field data in a format that is suitable for OPAL, based on the</span>
+<span class="sd">    :class:`~simba.Modules.Fields.field` object provided.</span>
+
+<span class="sd">    See the `OPAL manual`_ for more details.</span>
+
+<span class="sd">    This is then written to a text file.</span>
+<span class="sd">    The `field_type` parameter determines the format of the file.</span>
+
+<span class="sd">    A warning is raised if the field type is not supported (perhaps elevate to a `NotImplementedError`?</span>
+
+<span class="sd">    .. _OPAL manual: https://amas.web.psi.ch/opal/Documentation/master/OPAL_Manual.html</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self: :class:`~simba.Modules.Fields.field`</span>
+<span class="sd">        The field object</span>
+<span class="sd">    frequency: float | None</span>
+<span class="sd">        The frequency of the field</span>
+<span class="sd">    radius: float | None</span>
+<span class="sd">        The radius of the field, for 1D axially symmetric fields; defaults to 0.1</span>
+<span class="sd">    fourier: int = 100</span>
+<span class="sd">        Number of fourier coefficients</span>
+<span class="sd">    orientation: str | None</span>
+<span class="sd">        Orientation of the field (for 2D)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str | None:</span>
+<span class="sd">        The name of the field file.</span>
+<span class="sd">        Will return None if required parameters for certain fields are not provided.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    Warning:</span>
+<span class="sd">        if too many or not enough fourier components are provided; will default to 1/100</span>
+<span class="sd">    Warning:</span>
+<span class="sd">        if the magnet radius is not provided; will default to 0.1</span>
+<span class="sd">    Warning:</span>
+<span class="sd">        if the RF frequency, radius or orientation is not provided for</span>
+<span class="sd">        `1DElectroDynamic` or `2DElectrodynamic`, return None</span>
+<span class="sd">    Warning:</span>
+<span class="sd">        if trying to use wakefields; these are tricky to get working with OPAL</span>
+<span class="sd">    Warning:</span>
+<span class="sd">        if a given `field_type` is not supported.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
+    <span class="n">opal_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_filename</span><span class="p">(</span><span class="n">extension</span><span class="o">=</span><span class="s2">&quot;.opal&quot;</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">fourier_ratio</span> <span class="o">=</span> <span class="n">fourier</span> <span class="o">/</span> <span class="n">length</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_type</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span> <span class="o">!=</span> <span class="s2">&quot;2DElectroDynamic&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">fourier_ratio</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Too many fourier components provided; defaulting to 1/100&quot;</span><span class="p">)</span>
+            <span class="n">fourier</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fourier_ratio</span> <span class="o">&lt;</span> <span class="mf">0.01</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Not enough fourier components provided; defaulting to 1/100&quot;</span><span class="p">)</span>
+            <span class="n">fourier</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;1DMagnetoStatic&quot;</span><span class="p">:</span>
+        <span class="n">zmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e2</span>
+        <span class="n">zmax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e2</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bz</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;1DMagnetoStatic&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fourier</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Magnet radius not provided; defaulting to 10cm&quot;</span><span class="p">)</span>
+            <span class="n">radius</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="n">rvals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">radius</span> <span class="o">*</span> <span class="mi">100</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">length</span><span class="p">),</span> <span class="n">fourier</span><span class="p">]</span>
+        <span class="n">zvals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">zmin</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">zmax</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">length</span><span class="p">)]</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">head</span><span class="p">,</span> <span class="n">zvals</span><span class="p">,</span> <span class="n">rvals</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;1DElectroDynamic&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">frequency</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;RF Frequency not provided to field class&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;AstraDynamic&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fourier</span><span class="p">)]</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">)]</span>
+        <span class="n">zdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">ezdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ez</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">zdata</span><span class="p">,</span> <span class="n">ezdata</span><span class="p">])</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">head</span><span class="p">,</span> <span class="n">freq</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;2DElectroDynamic&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">frequency</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;RF Frequency not provided to field class&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Radius not provided to field class&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">orientation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Orientation not provided to field class&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">orient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">orientation</span>
+        <span class="n">ezvals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ez</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">ervals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Er</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">eabsvals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ex</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">brvals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Br</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">val</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ezvals</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">ezvals</span><span class="p">)</span>
+        <span class="n">repeating_floats</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">count</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">}</span>
+        <span class="n">zlen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">repeating_floats</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">rlen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">shape</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">repeating_floats</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;2DDynamic&quot;</span><span class="p">,</span> <span class="n">orient</span><span class="p">]</span>
+        <span class="n">leng</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;0.0&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">*</span> <span class="mi">10</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">zlen</span><span class="p">)]</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">)]</span>
+        <span class="n">rad</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;0.0&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">*</span> <span class="mi">10</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">rlen</span><span class="p">)]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">ezvals</span><span class="p">,</span> <span class="n">ervals</span><span class="p">,</span> <span class="n">eabsvals</span><span class="p">,</span> <span class="n">brvals</span><span class="p">])</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">head</span><span class="p">,</span> <span class="n">leng</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">rad</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="s2">&quot;wake&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_type</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+        <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Field type </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">field_type</span><span class="si">}</span><span class="s2"> defaulting to SDDS type; use with caution&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">write_SDDS_field_file</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Field type </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">field_type</span><span class="si">}</span><span class="s2"> not supported for OPAL&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">opal_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">header</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">h</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">dat</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+                    <span class="n">dat</span> <span class="o">=</span> <span class="p">[</span><span class="n">dat</span><span class="p">]</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dat</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">opal_file</span></div>
+
+
+
+<div class="viewcode-block" id="read_opal_field_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Fields.html#simba.Modules.Fields.opal.read_opal_field_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_opal_field_file</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">field_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">cavity_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read an OPAL field file and convert it into a :class:`simba.Modules.Fields.field` object</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self: :class:`~simba.Modules.Fields.field`</span>
+<span class="sd">        The field object to be updated.</span>
+<span class="sd">    filename: str</span>
+<span class="sd">        The path to the OPAL field file</span>
+<span class="sd">    field_type: str</span>
+<span class="sd">        The name of the field, see :attr:`~simba.Modules.Fields.allowed_fields`</span>
+<span class="sd">    cavity_type: str, optional</span>
+<span class="sd">        The type of RF cavity, see :attr:`~simba.Modules.Fields.allowed_cavities`</span>
+<span class="sd">    frequency: float, optional</span>
+<span class="sd">        The frequency of the RF cavity.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError:</span>
+<span class="sd">        if the cavity `field_type` contains the string `Electro` and `cavity_type` is not provided</span>
+<span class="sd">    ValueError:</span>
+<span class="sd">        if the cavity `field_type` contains the string `Electro` and `frequency` is not provided</span>
+<span class="sd">    NotImplementedError:</span>
+<span class="sd">        if a given `field_type` is not implemented</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;field_type&quot;</span><span class="p">,</span> <span class="n">field_type</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;Electro&quot;</span> <span class="ow">in</span> <span class="n">field_type</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">cavity_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;cavity_type must be provided for </span><span class="si">{</span><span class="n">field_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;cavity_type&quot;</span><span class="p">,</span> <span class="n">cavity_type</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">frequency</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;frequency must be provided for </span><span class="si">{</span><span class="n">field_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;frequency&quot;</span><span class="p">,</span> <span class="n">frequency</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;2DElectroDynamic&quot;</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">rl</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;length&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e-2</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;frequency&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e-2</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;orientation&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;[&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;]&quot;</span><span class="p">,</span> <span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">fdat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Ez&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Ez&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;V/m&quot;</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Er&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Er&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;V/m&quot;</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Ex&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Ex&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;V/m&quot;</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Br&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;T&quot;</span><span class="p">)),</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;1DMagnetoStatic&quot;</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">rl</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;1DMagnetoStatic&quot;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> field type not implemented for OPAL fields&quot;</span>
+                <span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;fourier&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e-2</span><span class="p">)</span>
+            <span class="n">zstart</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e-2</span>
+            <span class="n">zend</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e-2</span>
+        <span class="n">fdat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">zvals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">zstart</span><span class="p">,</span> <span class="n">zend</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">fdat</span><span class="p">))</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)))</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Bz&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Bz&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">fdat</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;T&quot;</span><span class="p">)),</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;1DElectroDynamic&quot;</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">rl</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;AstraDynamic&quot;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> field type not implemented for OPAL fields&quot;</span>
+                <span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;fourier&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;frequency&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">rl</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">)</span>
+        <span class="n">fdat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">FieldParameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="s2">&quot;Ez&quot;</span><span class="p">,</span>
+            <span class="n">FieldParameter</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Ez&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">fdat</span><span class="p">[::,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;V/m&quot;</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

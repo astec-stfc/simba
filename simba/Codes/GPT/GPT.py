@@ -5,48 +5,48 @@ Various objects and functions to handle GPT lattices and commands.
 
 Classes:
     - :class:`~simba.Codes.GPT.GPT.gptLattice`: The GPT lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for GPT input and lattice files.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+      the lattice suitable for GPT input and lattice files.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_element`: Base class for defining
-    commands in a GPT input file.
+      commands in a GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_setfile`: Class for defining the
-    input files for the GPT input file.
+      input files for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_charge`: Class for defining the
-    bunch charge for the GPT input file.
+      bunch charge for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.GptSetReduce`: Class for reducing the
-    number of particles for the GPT input file.
+      number of particles for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_accuracy`: Class for setting the
-    accuracy for GPT tracking.
+      accuracy for GPT tracking.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_spacecharge`: Class for defining the
-    space charge setup for the GPT input file.
+      space charge setup for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.GptTout`: Class for defining the
-    number of steps for particle distribution output for the GPT input file.
+      number of steps for particle distribution output for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_csr1d`: Class for defining the
-    CSR calculations for the GPT input file.
+      CSR calculations for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_writefloorplan`: Class for setting up the
-    writing of the lattice floor plan for the GPT input file.
+      writing of the lattice floor plan for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_Zminmax`: Class for defining the
-    minimum and maximum z-positions for the GPT input file.
+      minimum and maximum z-positions for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_forwardscatter`: Class for defining
-    scattering parameters for the GPT input file.
+      scattering parameters for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_scatterplate`: Class for defining a
-    scattering object for the GPT input file.
+      scattering object for the GPT input file.
 
     - :class:`~simba.Codes.GPT.GPT.gpt_dtmaxt`: Class for defining the
-    step size(s) for the GPT input file.
+      step size(s) for the GPT input file.
 """
 
 import os

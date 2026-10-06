@@ -1,0 +1,265 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Beams.opal &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../Beams.html">simba.Modules.Beams</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Beams.opal</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Beams.opal</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">warn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+
+<span class="n">emass_eV</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span> <span class="o">*</span> <span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span>
+<span class="n">emass_MeV</span> <span class="o">=</span> <span class="n">emass_eV</span> <span class="o">*</span> <span class="mf">1e-6</span>
+<span class="n">emass_GeV</span> <span class="o">=</span> <span class="n">emass_eV</span> <span class="o">*</span> <span class="mf">1e-9</span>
+
+<div class="viewcode-block" id="find_nearest">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.opal.find_nearest">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_nearest</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">array</span> <span class="o">-</span> <span class="n">value</span><span class="p">))</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="find_opal_s_positions">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.opal.find_opal_s_positions">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_opal_s_positions</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">spos</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+    <span class="n">file</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="n">file_s_pos</span> <span class="o">=</span> <span class="p">[</span><span class="n">file</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Step#</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;SPOS&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">keys</span><span class="p">()))]</span>
+    <span class="n">elem_indices</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">spos</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">sval</span> <span class="o">=</span> <span class="n">find_nearest</span><span class="p">(</span><span class="n">file_s_pos</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sval</span> <span class="o">-</span> <span class="n">s</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tolerance</span><span class="p">:</span>
+            <span class="n">elem_indices</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">name</span><span class="p">:</span> <span class="n">file_s_pos</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">find_nearest</span><span class="p">(</span><span class="n">file_s_pos</span><span class="p">,</span> <span class="n">s</span><span class="p">))})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find beam output within </span><span class="si">{</span><span class="n">tolerance</span><span class="si">}</span><span class="s2"> tolerance for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">elem_indices</span></div>
+
+
+<div class="viewcode-block" id="read_opal_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.opal.read_opal_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_opal_beam_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+    <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;code&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;OPAL&quot;</span>
+    <span class="n">file</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">beamdata</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Step#</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">beamdata</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Step#</span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;MASS&quot;</span><span class="p">],</span> <span class="n">emass_GeV</span><span class="p">):</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;TotalCharge&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;TotalMass&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">m_e</span><span class="p">,</span> <span class="n">mass</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-28</span><span class="p">):</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">m_p</span><span class="p">,</span> <span class="n">mass</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-28</span><span class="p">):</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Could not determine if particle is electron or proton; setting electron mass.&quot;</span><span class="p">)</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][()]),</span> <span class="n">mass</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg&quot;</span>
+    <span class="p">)</span>
+    <span class="c1"># print(&#39;SDDS&#39;, self._beam[&quot;particle_mass&quot;])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span> <span class="o">**</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;J&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># print(&#39;SDDS&#39;, self._beam[&quot;particle_rest_energy&quot;])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy_eV</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span><span class="p">),</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># print(&#39;SDDS&#39;, self._beam[&quot;particle_rest_energy_eV&quot;])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][()]),</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span><span class="p">),</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][()],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">][()],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">][()],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;TIME&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">t0</span> <span class="o">-</span> <span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">][()]</span><span class="o">/</span><span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="c1"># self._beam.z = UnitValue((np.mean(self._beam.t) - self._beam.t) * constants.speed_of_light, units=&quot;m&quot;)</span>
+
+    <span class="n">gammax</span> <span class="o">=</span> <span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;px&quot;</span><span class="p">][()]</span>
+    <span class="n">gammay</span> <span class="o">=</span> <span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;py&quot;</span><span class="p">][()]</span>
+    <span class="n">gammaz</span> <span class="o">=</span> <span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;pz&quot;</span><span class="p">][()]</span>
+    <span class="n">pfac</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="s2">&quot;MONI&quot;</span> <span class="ow">in</span> <span class="n">filename</span> <span class="k">else</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+    <span class="c1"># pfac = 0 if &quot;generator&quot; in filename else pfac</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">gammax</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">gammay</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">pz</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">gammaz</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span>
+         <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span><span class="p">)),</span>
+         <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+     <span class="p">)</span>  <span class="c1"># np.full(len(self.t), 0)</span>
+    <span class="c1"># for b in [&quot;px&quot;, &quot;py&quot;, &quot;pz&quot;]:</span>
+    <span class="c1">#     self._beam[b] += constants.m_e * constants.speed_of_light</span>
+
+    <span class="c1"># if &quot;time&quot; in list(beamdata.keys()):</span>
+    <span class="c1">#     self._beam.t = UnitValue(beamdata[&quot;time&quot;][()], units=&quot;s&quot;)</span>
+    <span class="c1">#     if &quot;MONI&quot; in filename:</span>
+    <span class="c1">#         self._beam.t += UnitValue(-np.mean(self._beam.t), units=&quot;s&quot;)</span>
+    <span class="c1">#</span>
+    <span class="c1">#     #self._beam[&quot;z&quot;] += np.mean(self.beam[&quot;t&quot;]) * constants.speed_of_light</span>
+    <span class="c1"># else:</span>
+    <span class="c1">#     self._beam[&quot;t&quot;] = -self._beam[&quot;z&quot;] / constants.speed_of_light</span>
+
+    <span class="k">if</span> <span class="s2">&quot;TotalCharge&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">beamdata</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;TotalCharge&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">beamdata</span><span class="p">[</span><span class="s2">&quot;q&quot;</span><span class="p">][()]),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">nmacro</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">val</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">val</span><span class="p">),</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span><span class="p">),</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">set_total_charge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="write_opal_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.opal.write_opal_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_opal_beam_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">subz</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">emitted</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save a text file for opal.&quot;&quot;&quot;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">val</span>
+    <span class="n">betax_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpx</span><span class="o">.</span><span class="n">val</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="o">.</span><span class="n">val</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">val</span>
+    <span class="n">betay_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpy</span><span class="o">.</span><span class="n">val</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="o">.</span><span class="n">val</span>
+    <span class="k">if</span> <span class="n">emitted</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span> <span class="o">-</span> <span class="n">subz</span>
+    <span class="n">betaz_gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpz</span><span class="o">.</span><span class="n">val</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy</span><span class="o">.</span><span class="n">val</span>
+    <span class="n">beamdata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">betax_gamma</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">betay_gamma</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">betaz_gamma</span><span class="p">])</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]]),</span> <span class="n">beamdata</span><span class="p">])</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">d</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

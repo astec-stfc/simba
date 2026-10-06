@@ -28,12 +28,11 @@ MIN_COLUMN_WIDTH = 10
 def read_tfs(tfs_file_path: str, index: str = None):
     """
     Parses the TFS table present in **tfs_file_path** and returns a dictionary.
-    Args:
-        tfs_file_path (str): Path object to the output TFS file.
-        index (str): Name of the column to set as index. If not given, looks in **tfs_file_path**
-            for a column starting with `INDEX&&&`.
-    Returns:
-        Dictionary object.
+
+    :param str tfs_file_path: Path object to the output TFS file
+    :param str index: Name of the column to set as index; if not given, looks in
+        **tfs_file_path** for a column starting with ``INDEX&&&``
+    :returns: Dictionary object
     """
     headers = OrderedDict()
     rows_list = []

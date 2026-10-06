@@ -114,8 +114,8 @@ class slice(BaseModel):
 
         Returns
         -------
-        :class:`~simba.Modules.units.UnitValue
-            :attr:`~_slicelength
+        :class:`~simba.Modules.units.UnitValue`
+            :attr:`~_slicelength`
         """
         return UnitValue(self._slicelength, "s")
 
@@ -397,6 +397,7 @@ class slice(BaseModel):
         Get the slice horizontal emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Slice horizontal emittance
         """
@@ -409,6 +410,7 @@ class slice(BaseModel):
         Get the slice vertical emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Slice vertical emittance
         """
@@ -421,6 +423,7 @@ class slice(BaseModel):
         Get the normalised slice horizontal emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Normalised slice horizontal emittance
         """
@@ -433,6 +436,7 @@ class slice(BaseModel):
         Get the slice vertical emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Normalised slice vertical emittance
         """
@@ -457,6 +461,7 @@ class slice(BaseModel):
         Get the slice horizontal emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Slice horizontal emittance
         """
@@ -469,6 +474,7 @@ class slice(BaseModel):
         Get the slice vertical emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Slice vertical emittance
         """
@@ -481,6 +487,7 @@ class slice(BaseModel):
         Get the normalised slice horizontal emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Normalised slice horizontal emittance
         """
@@ -493,6 +500,7 @@ class slice(BaseModel):
         Get the slice vertical emittance.
 
         Returns
+        -------
         :class:`~simba.Modules.units.UnitValue`
             Normalised slice vertical emittance
         """

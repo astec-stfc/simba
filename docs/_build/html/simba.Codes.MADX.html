@@ -1,0 +1,1305 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.MADX package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Codes.OPAL package" href="simba.Codes.OPAL.html" />
+    <link rel="prev" title="simba.Codes.Genesis package" href="simba.Codes.Genesis.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Codes.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.ASTRA.html">simba.Codes.ASTRA package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Bmad.html">simba.Codes.Bmad package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.CSRTrack.html">simba.Codes.CSRTrack package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Cheetah.html">simba.Codes.Cheetah package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Elegant.html">simba.Codes.Elegant package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.GPT.html">simba.Codes.GPT package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Generators.html">simba.Codes.Generators package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Genesis.html">simba.Codes.Genesis package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Codes.MADX package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.MADX.MADX">simba.Codes.MADX.MADX module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.MADX">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.OPAL.html">simba.Codes.OPAL package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Ocelot.html">simba.Codes.Ocelot package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Wake_T.html">simba.Codes.Wake_T package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Xsuite.html">simba.Codes.Xsuite package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes.Executables">simba.Codes.Executables module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Codes.html">simba.Codes package</a></li>
+      <li class="breadcrumb-item active">simba.Codes.MADX package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Codes.MADX.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-codes-madx-package">
+<h1>simba.Codes.MADX package<a class="headerlink" href="#simba-codes-madx-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Codes.MADX.MADX">
+<span id="simba-codes-madx-madx-module"></span><h2>simba.Codes.MADX.MADX module<a class="headerlink" href="#module-simba.Codes.MADX.MADX" title="Link to this heading"></a></h2>
+<p>SIMBA MAD-X Module</p>
+<p>Various objects and functions to handle MAD-X lattices and tracking. The
+interaction with MAD-X is handled through the <a class="reference external" href="https://hibtc.github.io/cpymad/">cpymad</a> library, which embeds
+the MAD-X interpreter in the Python process; see the <a class="reference external" href="https://madx.web.cern.ch/webguide/manual.html">MAD-X manual</a> for
+details of the underlying commands.</p>
+<blockquote>
+<div></div></blockquote>
+<p>The lattice (including explicit drifts) is converted into one or more MAD-X
+<code class="docutils literal notranslate"><span class="pre">SEQUENCE</span></code> blocks via the LAURA
+<code class="xref py py-class docutils literal notranslate"><span class="pre">SectionLatticeTranslator</span></code>
+machinery. Since MAD-X reference momentum is fixed for a given <code class="docutils literal notranslate"><span class="pre">BEAM</span></code>
+statement (magnet strengths are normalised to it, and tracking coordinates are
+canonical w.r.t. it), the lattice is split into segments at each accelerating
+(RF) cavity. Each segment is tracked with the local reference momentum taken
+from the tracked bunch itself, and the particle coordinates are re-referenced
+between segments – mirroring the <code class="docutils literal notranslate"><span class="pre">always_change_p0</span></code> behaviour used for
+ELEGANT and the internal energy bookkeeping of Ocelot, so that the beam
+evolution can be interpreted in the same way as for the other tracking codes.</p>
+<p>Two tracking modes are available:</p>
+<ul class="simple">
+<li><p>Full-beam tracking (default): every macro-particle in the input
+distribution is tracked with the thin-lens tracking module (<code class="docutils literal notranslate"><span class="pre">TRACK</span></code> …
+<code class="docutils literal notranslate"><span class="pre">START</span></code> … <code class="docutils literal notranslate"><span class="pre">RUN</span></code>), and output beam distributions are written (in
+OpenPMD HDF5 format) at every diagnostic (<code class="docutils literal notranslate"><span class="pre">Screen</span></code>, <code class="docutils literal notranslate"><span class="pre">Marker</span></code> and
+<code class="docutils literal notranslate"><span class="pre">BPM</span></code>) in the lattice, as well as at the end of the line.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">single_particle</span></code> mode: only the beam centroid (plus a small set of probe
+trajectories used to build the linear map by finite differences) is tracked
+through each segment with standard MAD-X tracking. The output beam at every
+diagnostic, and at the end of the line, is then generated by applying the
+resulting transformation (centroid + linear map) to the initial particle
+distribution.</p></li>
+</ul>
+<p>In both cases a Twiss summary file (<code class="docutils literal notranslate"><span class="pre">&lt;lattice&gt;_twiss.madx.hdf5</span></code>) is written,
+containing both the MAD-X model optics (Twiss functions, dispersion, phase
+advances) and beam-distribution statistics (momentum, sizes, bunch length,
+emittances), which can be loaded through
+<a class="reference internal" href="simba.Modules.Twiss.html#simba.Modules.Twiss.load_directory" title="simba.Modules.Twiss.load_directory"><code class="xref py py-func docutils literal notranslate"><span class="pre">simba.Modules.Twiss.load_directory()</span></code></a> in the same way as the output of
+the other tracking codes.</p>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice" title="simba.Codes.MADX.MADX.madxLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">madxLattice</span></code></a>: The MAD-X lattice object,
+used for converting the elements defined in the
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a> into MAD-X sequences,
+and for tracking through them using <cite>cpymad</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">madxLattice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a></p>
+<p>Class for defining the MAD-X lattice object, used for converting the
+elements defined in the <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a>
+into MAD-X <code class="docutils literal notranslate"><span class="pre">SEQUENCE</span></code> definitions and for tracking through them with
+<a class="reference external" href="https://hibtc.github.io/cpymad/">cpymad</a>.</p>
+<p>The lattice is split into segments at each RF cavity so that the MAD-X
+reference momentum (to which magnet strengths and canonical track
+coordinates are normalised) can follow the acceleration of the beam; the
+particle coordinates are transformed between the segment-local reference
+frames via the generic <a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a> object.</p>
+<p>If <code class="xref py py-attr docutils literal notranslate"><span class="pre">single_particle</span></code> is False (the default), the full particle
+distribution is tracked and beam distributions are written at each
+diagnostic (<cite>Screen</cite>, <cite>Marker</cite> and <cite>BPM</cite>) in the lattice. If True,
+standard (single-particle) MAD-X tracking is performed for the beam
+centroid and a set of probe trajectories, and only the output beam at the
+end of the line is generated, based on a transformation (centroid offset
+plus finite-difference linear map) of the initial distribution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.apply_programs">
+<span class="sig-name descname"><span class="pre">apply_programs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">turn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.apply_programs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.apply_programs" title="Link to this definition"></a></dt>
+<dd><p>Re-state each programmed element’s attribute for <cite>turn</cite>;
+see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.supports_programs" title="simba.Codes.MADX.MADX.madxLattice.supports_programs"><code class="xref py py-attr docutils literal notranslate"><span class="pre">supports_programs</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>turn</strong> (<em>int</em>) – Turn number, 1-based</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.beam_data">
+<span class="sig-name descname"><span class="pre">beam_data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.beam_data" title="Link to this definition"></a></dt>
+<dd><p>Data containing beam statistics at each observation point</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.cavity_model">
+<span class="sig-name descname"><span class="pre">cavity_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.cavity_model" title="Link to this definition"></a></dt>
+<dd><p>Transverse model for accelerating (RF) cavities:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">rsmatrix</span></code> (default): the transverse motion through the structure is
+described by a first-order MAD-X <code class="docutils literal notranslate"><span class="pre">MATRIX</span></code> element containing the
+Rosenzweig-Serafini accelerating-structure matrix (as also used by
+Ocelot), which accounts for adiabatic damping and ponderomotive (RF)
+focusing; the energy gain and RF curvature are applied by a thin
+<code class="docutils literal notranslate"><span class="pre">RFCAVITY</span></code> kick. In the fixed-reference-momentum canonical
+coordinates of a segment this matrix is exactly symplectic.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sliced</span></code>: the cavity is subdivided into <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity" title="simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity"><code class="xref py py-attr docutils literal notranslate"><span class="pre">nslice_rfcavity</span></code></a> thin
+RF kicks with exact drifts in between (adiabatic damping only).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thin</span></code>: a single thin RF kick at the centre of the structure (the
+plain MAD-X MAKETHIN treatment).</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.code">
+<span class="sig-name descname"><span class="pre">code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.code" title="Link to this definition"></a></dt>
+<dd><p>String indicating the lattice object type</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.extract_observation">
+<span class="sig-name descname"><span class="pre">extract_observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trackdata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s_target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.extract_observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.extract_observation" title="Link to this definition"></a></dt>
+<dd><p>Extract the particle coordinates recorded at a given s position from
+the <code class="docutils literal notranslate"><span class="pre">trackone</span></code> table data, de-duplicated and ordered by particle
+number.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trackdata</strong> (<em>Dict</em>) – The <cite>trackone</cite> table data</p></li>
+<li><p><strong>s_target</strong> (<em>float</em>) – The s position of the observation point within the segment</p></li>
+<li><p><strong>turn</strong> (<em>int</em><em>, </em><em>optional</em>) – Which turn to take, for a table that holds more than one. The
+segmented path runs one turn per <code class="docutils literal notranslate"><span class="pre">RUN</span></code> and so has no use for
+this; <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a> runs the whole line in one and
+selects per turn here.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary of coordinate arrays (including the surviving particle
+<cite>number</cite> array)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.fd_delta">
+<span class="sig-name descname"><span class="pre">fd_delta</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.fd_delta" title="Link to this definition"></a></dt>
+<dd><p>Finite-difference step used to build the linear map in
+<code class="docutils literal notranslate"><span class="pre">single_particle</span></code> mode</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.initial_energy">
+<span class="sig-name descname"><span class="pre">initial_energy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.initial_energy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.initial_energy" title="Link to this definition"></a></dt>
+<dd><p>Total energy [eV] of the input beam (used to accumulate the design
+energy along the segments when building the cavity matrices). Returns
+0 if no beam has been loaded yet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.initial_twiss_conditions">
+<span class="sig-name descname"><span class="pre">initial_twiss_conditions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bm</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.initial_twiss_conditions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.initial_twiss_conditions" title="Link to this definition"></a></dt>
+<dd><p>Initial Twiss conditions for the model Twiss, from the beam</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>bm</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.logfile">
+<span class="sig-name descname"><span class="pre">logfile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.logfile" title="Link to this definition"></a></dt>
+<dd><p>File handle for the MAD-X log file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.madx_beam_command">
+<span class="sig-name descname"><span class="pre">madx_beam_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p0c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.madx_beam_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.madx_beam_command" title="Link to this definition"></a></dt>
+<dd><p>Issue the MAD-X <code class="docutils literal notranslate"><span class="pre">BEAM</span></code> command for a segment, with the reference
+momentum <cite>p0c</cite> (in eV/c) and the mass/charge of the tracked species.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+<li><p><strong>p0c</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>seqname</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.madxglobal">
+<span class="sig-name descname"><span class="pre">madxglobal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.madxglobal" title="Link to this definition"></a></dt>
+<dd><p>Global settings for MAD-X, read in from
+<cite>settings[“global”][“MADXsettings”]</cite> and <cite>madx_defaults.yaml</cite></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.makedipedge">
+<span class="sig-name descname"><span class="pre">makedipedge</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.makedipedge" title="Link to this definition"></a></dt>
+<dd><p>Flag to control the generation of DIPEDGE elements in MAKETHIN</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.makethin">
+<span class="sig-name descname"><span class="pre">makethin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.makethin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.makethin" title="Link to this definition"></a></dt>
+<dd><p>Slice the (thick) segment sequence into thin lenses with the MAD-X
+<code class="docutils literal notranslate"><span class="pre">MAKETHIN</span></code> command (required by the thin-lens tracking module), and
+re-<code class="docutils literal notranslate"><span class="pre">USE</span></code> the sequence.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+<li><p><strong>seqname</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.makethin_style">
+<span class="sig-name descname"><span class="pre">makethin_style</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.makethin_style" title="Link to this definition"></a></dt>
+<dd><p>Slicing style for the MAD-X MAKETHIN command</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.maxaper">
+<span class="sig-name descname"><span class="pre">maxaper</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.maxaper" title="Link to this definition"></a></dt>
+<dd><p>Upper limits for the particle coordinates [x, px, y, py, t, pt] used by
+the MAD-X RUN command; kept deliberately large so that particles are not
+artificially collimated (consistent with the other tracking codes)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.model_twiss">
+<span class="sig-name descname"><span class="pre">model_twiss</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.model_twiss" title="Link to this definition"></a></dt>
+<dd><p>MAD-X model Twiss parameters at each element, keyed by element name</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.model_twiss_orbit">
+<span class="sig-name descname"><span class="pre">model_twiss_orbit</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.model_twiss_orbit" title="Link to this definition"></a></dt>
+<dd><p>Closed orbit at the start of the line, taken off the first row of the
+periodic TWISS table; see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.read_closed_orbit" title="simba.Codes.MADX.MADX.madxLattice.read_closed_orbit"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_closed_orbit()</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.model_twiss_segment">
+<span class="sig-name descname"><span class="pre">model_twiss_segment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.model_twiss_segment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.model_twiss_segment" title="Link to this definition"></a></dt>
+<dd><p>Compute the MAD-X model Twiss parameters for a segment with initial
+conditions <cite>init</cite>, and return the initial conditions for the next
+segment together with the Twiss data at each element.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<em>cpymad.madx.Madx</em>) – The MAD-X instance</p></li>
+<li><p><strong>seqname</strong> (<em>str</em>) – The name of the segment sequence</p></li>
+<li><p><strong>init</strong> (<em>Dict</em>) – Initial Twiss conditions (betx, alfx, bety, alfy, dx, dpx, dy,
+dpy, mux, muy)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial conditions for the next segment; the element-by-element
+data are accumulated into <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.model_twiss" title="simba.Codes.MADX.MADX.madxLattice.model_twiss"><code class="xref py py-attr docutils literal notranslate"><span class="pre">model_twiss</span></code></a></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.native_turns">
+<span class="sig-name descname"><span class="pre">native_turns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.native_turns" title="Link to this definition"></a></dt>
+<dd><p>Whether to let MAD-X run a multi-turn line itself, with one
+<code class="docutils literal notranslate"><span class="pre">RUN,</span> <span class="pre">TURNS=N</span></code>, where it can; see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.use_native_turns" title="simba.Codes.MADX.MADX.madxLattice.use_native_turns"><code class="xref py py-func docutils literal notranslate"><span class="pre">use_native_turns()</span></code></a> for when
+that is, and <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a> for what it does. Set
+<code class="docutils literal notranslate"><span class="pre">native_turns:</span> <span class="pre">false</span></code> in the <code class="docutils literal notranslate"><span class="pre">files:</span></code> block to force simba’s own
+turn loop – the two are measured against each other in
+<code class="docutils literal notranslate"><span class="pre">unit_tests/test_madx_native_turns.py</span></code> and should not disagree.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.nslice_default">
+<span class="sig-name descname"><span class="pre">nslice_default</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.nslice_default" title="Link to this definition"></a></dt>
+<dd><p>Default number of MAKETHIN slices for all other thick elements</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.nslice_quadrupole">
+<span class="sig-name descname"><span class="pre">nslice_quadrupole</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.nslice_quadrupole" title="Link to this definition"></a></dt>
+<dd><p>Number of MAKETHIN slices for quadrupoles</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity">
+<span class="sig-name descname"><span class="pre">nslice_rfcavity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity" title="Link to this definition"></a></dt>
+<dd><p>Number of longitudinal slices for RF cavities when
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.cavity_model" title="simba.Codes.MADX.MADX.madxLattice.cavity_model"><code class="xref py py-attr docutils literal notranslate"><span class="pre">cavity_model</span></code></a> is <code class="docutils literal notranslate"><span class="pre">sliced</span></code>. Since the MAD-X thin-lens
+tracking module applies RF cavities as single kicks (MAKETHIN does not
+subdivide them), cavities are subdivided at the sequence level into
+<cite>nslice_rfcavity</cite> sub-cavities, each carrying 1/n of the voltage. The
+(exact) drifts between the resulting thin kicks then reproduce the
+adiabatic damping of the transverse coordinates along an accelerating
+structure.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.nslice_sbend">
+<span class="sig-name descname"><span class="pre">nslice_sbend</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.nslice_sbend" title="Link to this definition"></a></dt>
+<dd><p>Number of MAKETHIN slices for bending magnets</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.observation_points">
+<span class="sig-name descname"><span class="pre">observation_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">segnames</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.observation_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.observation_points" title="Link to this definition"></a></dt>
+<dd><p>The observation points for a segment: all zero-length diagnostics
+(<cite>Screen</cite>, <cite>Marker</cite> and <cite>BPM</cite> types) within the segment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>segnames</strong> (<em>List</em>) – Names of the elements in the segment</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(name, s position within segment) tuples</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Cached per segment, because the turn loop asks for this once a turn
+and the answer cannot change during a run: it is the set of
+zero-length diagnostics and their s positions, and a device program
+varies an element’s <em>strength</em> through MAD-X input, never the element
+set or the geometry. Recomputing it was ~20% of the per-turn cost of
+a tracking run – <code class="docutils literal notranslate"><span class="pre">screens_and_markers_and_bpms</span></code> is a property that
+rebuilds and re-sorts three <code class="docutils literal notranslate"><span class="pre">getElementType</span></code> queries, and sorting on
+<code class="docutils literal notranslate"><span class="pre">physical.start.z</span></code> pulls each element through LAURA’s cascading
+attribute resolution every time.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.otm_convention">
+<span class="sig-name descname"><span class="pre">otm_convention</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'x,</span> <span class="pre">px,</span> <span class="pre">y,</span> <span class="pre">py,</span> <span class="pre">t,</span> <span class="pre">pt'</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.otm_convention" title="Link to this definition"></a></dt>
+<dd><p>One-turn map convention.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.otm_longitudinal_scale">
+<span class="sig-name descname"><span class="pre">otm_longitudinal_scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.otm_longitudinal_scale" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">zeta</span> <span class="pre">=</span> <span class="pre">beta0</span> <span class="pre">*</span> <span class="pre">t</span></code> and <code class="docutils literal notranslate"><span class="pre">delta</span> <span class="pre">=</span> <span class="pre">pt</span> <span class="pre">/</span> <span class="pre">beta0</span></code>, so <code class="docutils literal notranslate"><span class="pre">R56</span></code> picks up
+<code class="docutils literal notranslate"><span class="pre">beta0**2</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.otm_longitudinal_sign">
+<span class="sig-name descname"><span class="pre">otm_longitudinal_sign</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.otm_longitudinal_sign" title="Link to this definition"></a></dt>
+<dd><p>One-turn map longitudinal sign (i.e. R56)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.output_beams">
+<span class="sig-name descname"><span class="pre">output_beams</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.output_beams" title="Link to this definition"></a></dt>
+<dd><p>Beam distributions at each observation point, keyed by element name</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.parse_madx_element">
+<span class="sig-name descname"><span class="pre">parse_madx_element</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.parse_madx_element"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.parse_madx_element" title="Link to this definition"></a></dt>
+<dd><p>Parse a MAD-X element definition string into its name, type and
+attribute dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>estr</strong> (<em>str</em>) – MAD-X element definition, e.g. <code class="docutils literal notranslate"><span class="pre">name:</span> <span class="pre">rfcavity,</span> <span class="pre">volt</span> <span class="pre">=</span> <span class="pre">1,</span> <span class="pre">...;</span></code></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(name, type, attributes)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.particle_definition">
+<span class="sig-name descname"><span class="pre">particle_definition</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.particle_definition" title="Link to this definition"></a></dt>
+<dd><p>Initial particle distribution as a string</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.particle_rest_energy_eV">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">particle_rest_energy_eV</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.particle_rest_energy_eV" title="Link to this definition"></a></dt>
+<dd><p>Rest energy of the tracked particles in eV</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.pin">
+<span class="sig-name descname"><span class="pre">pin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.pin" title="Link to this definition"></a></dt>
+<dd><p>Initial particle distribution as a <a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Assemble the collected beam statistics and MAD-X model Twiss
+parameters into a Twiss summary file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.pout">
+<span class="sig-name descname"><span class="pre">pout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.pout" title="Link to this definition"></a></dt>
+<dd><p>Final particle distribution as a <a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.preProcess">
+<span class="sig-name descname"><span class="pre">preProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.preProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.preProcess" title="Link to this definition"></a></dt>
+<dd><p>Get the initial particle distribution defined in
+<cite>file_block[‘input’][‘prefix’]</cite> if it exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.program_attributes">
+<span class="sig-name descname"><span class="pre">program_attributes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'hacdipole':</span> <span class="pre">'volt',</span> <span class="pre">'hkicker':</span> <span class="pre">'kick',</span> <span class="pre">'kicker':</span> <span class="pre">'hkick',</span> <span class="pre">'multipole':</span> <span class="pre">'knl',</span> <span class="pre">'tkicker':</span> <span class="pre">'hkick',</span> <span class="pre">'vacdipole':</span> <span class="pre">'volt',</span> <span class="pre">'vkicker':</span> <span class="pre">'kick'}</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.program_attributes" title="Link to this definition"></a></dt>
+<dd><p>The MAD-X attribute a program sets, per base type, when the program
+does not name one. A <code class="docutils literal notranslate"><span class="pre">kicker</span></code> carries both planes and so has no single
+answer; <code class="docutils literal notranslate"><span class="pre">hkick</span></code> is the guess, and <code class="docutils literal notranslate"><span class="pre">parameter:</span> <span class="pre">vkick</span></code> is the override.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.read_closed_orbit">
+<span class="sig-name descname"><span class="pre">read_closed_orbit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.read_closed_orbit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.read_closed_orbit" title="Link to this definition"></a></dt>
+<dd><p>The first row of MAD-X’s periodic <code class="docutils literal notranslate"><span class="pre">TWISS</span></code> table is the closed
+orbit – MAD-X solves for it rather than being asked.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.read_one_turn_map">
+<span class="sig-name descname"><span class="pre">read_one_turn_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.read_one_turn_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.read_one_turn_map" title="Link to this definition"></a></dt>
+<dd><p>The ordered product of MAD-X’s per-element sector maps.
+The map of the whole line is the product in
+sequence order, <code class="docutils literal notranslate"><span class="pre">R_n</span> <span class="pre">&#64;</span> <span class="pre">...</span> <span class="pre">&#64;</span> <span class="pre">R_1</span></code>.</p>
+<p>The maps are accumulated across segments by
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_collect_sector_maps()</span></code>. Segments are split at RF cavities, so
+multiplying them together assumes one reference momentum for the whole
+line.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The 6x6 map, or None if no sector maps were collected.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy.ndarray | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.read_optics_summary">
+<span class="sig-name descname"><span class="pre">read_optics_summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.read_optics_summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.read_optics_summary" title="Link to this definition"></a></dt>
+<dd><p>What <code class="xref py py-meth docutils literal notranslate"><span class="pre">_collect_optics_summary()</span></code> gathered during the run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.ref_idx">
+<span class="sig-name descname"><span class="pre">ref_idx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.ref_idx" title="Link to this definition"></a></dt>
+<dd><p>Reference particle index</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.ref_s">
+<span class="sig-name descname"><span class="pre">ref_s</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.ref_s" title="Link to this definition"></a></dt>
+<dd><p>Reference s position</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.reference_index">
+<span class="sig-name descname"><span class="pre">reference_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">numbers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.reference_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.reference_index" title="Link to this definition"></a></dt>
+<dd><p>Get the index of the reference particle in the (possibly reduced)
+array of surviving particles, identified by their MAD-X <cite>number</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>numbers</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></span>)</p></li>
+<li><p><strong>ref_idx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.rescale_twiss_init">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">rescale_twiss_init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ratio</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.rescale_twiss_init"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.rescale_twiss_init" title="Link to this definition"></a></dt>
+<dd><p>Re-reference a set of Twiss functions from one MAD-X reference
+momentum to another (<code class="docutils literal notranslate"><span class="pre">ratio</span></code> = p0c_new / p0c_old).</p>
+<p>The MAD-X Twiss functions are defined in the canonical coordinates
+(x, px = Px/P0) of the segment, so they depend on the segment
+reference momentum. Since the beam is accelerated by the cavity at the
+end of each segment, the reference momentum changes at every segment
+boundary and the Twiss functions have to be transformed accordingly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>init</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>)</p></li>
+<li><p><strong>ratio</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.rs_matrix_cavity">
+<span class="sig-name descname"><span class="pre">rs_matrix_cavity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cavstring</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">energy</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.rs_matrix_cavity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.rs_matrix_cavity" title="Link to this definition"></a></dt>
+<dd><p>Convert an RF cavity definition into a first-order MAD-X <code class="docutils literal notranslate"><span class="pre">MATRIX</span></code>
+element containing the Rosenzweig-Serafini accelerating-structure
+matrix (the same transverse model used by Ocelot, with eta = 1),
+followed by a thin <code class="docutils literal notranslate"><span class="pre">RFCAVITY</span></code> applying the energy gain and RF
+curvature.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cavstring</strong> (<em>str</em>) – The full MAD-X element definition for the cavity</p></li>
+<li><p><strong>length</strong> (<em>float</em>) – Physical length of the cavity [m]</p></li>
+<li><p><strong>at</strong> (<em>float</em>) – Position of the cavity centre within the segment [m]</p></li>
+<li><p><strong>energy</strong> (<em>float</em>) – Total beam (design) energy at the entrance of the cavity [eV]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(MAD-X definitions string, energy at the exit of the cavity [eV])</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run" title="Link to this definition"></a></dt>
+<dd><p>Run MAD-X tracking through all segments via <cite>cpymad</cite>, setting the
+MAD-X reference momentum of each segment to the mean momentum of the
+tracked bunch at its entrance, and re-referencing the canonical
+particle coordinates between segments.</p>
+<p>In full-beam mode (default), every particle in the (sampled) input
+distribution is tracked and the beam is recorded at every diagnostic;
+see also <code class="xref py py-attr docutils literal notranslate"><span class="pre">single_particle</span></code> mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run_dynamic_aperture">
+<span class="sig-name descname"><span class="pre">run_dynamic_aperture</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run_dynamic_aperture"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run_dynamic_aperture" title="Link to this definition"></a></dt>
+<dd><p>Turns survived per starting amplitude, from <code class="docutils literal notranslate"><span class="pre">DYNAP</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dktrturns</span></code> is MAD-X’s count of turns tracked before loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run_frequency_map">
+<span class="sig-name descname"><span class="pre">run_frequency_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run_frequency_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run_frequency_map" title="Link to this definition"></a></dt>
+<dd><p>Tune footprint from <code class="docutils literal notranslate"><span class="pre">DYNAP</span></code>’s <code class="docutils literal notranslate"><span class="pre">dynaptune</span></code> table.</p>
+<p>MAD-X computes the tunes itself with <code class="docutils literal notranslate"><span class="pre">fastune</span></code>, so this does not go through
+<a class="reference internal" href="simba.Modules.Matrices.html#simba.Modules.Matrices.tune_from_trajectory" title="simba.Modules.Matrices.tune_from_trajectory"><code class="xref py py-func docutils literal notranslate"><span class="pre">tune_from_trajectory()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run_segments">
+<span class="sig-name descname"><span class="pre">run_segments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run_segments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="Link to this definition"></a></dt>
+<dd><p>Track through each lattice segment in turn; see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run" title="simba.Codes.MADX.MADX.madxLattice.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">run()</span></code></a>.</p>
+<p>A line asking for several turns repeats the whole segment sweep, the
+beam leaving the last segment re-entering the first.
+Which turns are recorded is <code class="xref py py-meth docutils literal notranslate"><span class="pre">output_turns()</span></code>.</p>
+<p>A run that does not need Python between turns is handed to MAD-X
+whole instead; <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.use_native_turns" title="simba.Codes.MADX.MADX.madxLattice.use_native_turns"><code class="xref py py-func docutils literal notranslate"><span class="pre">use_native_turns()</span></code></a> is the test and
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a> is the path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run_segments_native">
+<span class="sig-name descname"><span class="pre">run_segments_native</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run_segments_native"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="Link to this definition"></a></dt>
+<dd><p>Track the whole multi-turn run in one MAD-X <code class="docutils literal notranslate"><span class="pre">RUN</span></code>.</p>
+<p>The alternative to <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="simba.Codes.MADX.MADX.madxLattice.run_segments"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments()</span></code></a>’ Python turn loop, used when
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.use_native_turns" title="simba.Codes.MADX.MADX.madxLattice.use_native_turns"><code class="xref py py-func docutils literal notranslate"><span class="pre">use_native_turns()</span></code></a> says nothing needs to happen between one
+turn and the next. MAD-X is asked for every turn at once and leaves
+a single <code class="docutils literal notranslate"><span class="pre">trackone</span></code> table holding each recorded turn at every
+observation point; the per-turn work simba would have done becomes
+one pass over that table afterwards.</p>
+<p>Two things make this bounded rather than merely fast. <code class="docutils literal notranslate"><span class="pre">FFILE</span></code>
+(see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_track" title="simba.Codes.MADX.MADX.madxLattice.run_track"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_track()</span></code></a>) means only the turns
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">output_turns()</span></code> asks for are ever put in the table, so its size
+follows the output request and not the turn count. And the
+reference momentum is constant here by construction – one segment
+means no boundary at which it could be re-referenced – so the
+per-turn momentum bookkeeping the loop does has nothing to do.</p>
+<p>A superperiod is still a pass and not a turn: MAD-X is asked for
+<code class="docutils literal notranslate"><span class="pre">turns</span> <span class="pre">*</span> <span class="pre">passes_per_turn</span></code> of them, and simba’s turn <code class="docutils literal notranslate"><span class="pre">t</span></code> is
+MAD-X’s turn <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">*</span> <span class="pre">passes_per_turn</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.run_track">
+<span class="sig-name descname"><span class="pre">run_track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">turns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.run_track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.run_track" title="Link to this definition"></a></dt>
+<dd><p>Run the MAD-X thin-lens tracking module (<code class="docutils literal notranslate"><span class="pre">TRACK</span></code>/<code class="docutils literal notranslate"><span class="pre">START</span></code>/
+<code class="docutils literal notranslate"><span class="pre">OBSERVE</span></code>/<code class="docutils literal notranslate"><span class="pre">RUN</span></code>/<code class="docutils literal notranslate"><span class="pre">ENDTRACK</span></code>) for one segment and return the
+contents of the <code class="docutils literal notranslate"><span class="pre">trackone</span></code> table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<em>cpymad.madx.Madx</em>) – The MAD-X instance</p></li>
+<li><p><strong>coords</strong> (<em>Dict</em>) – The canonical starting coordinates</p></li>
+<li><p><strong>observe</strong> (<em>List</em>) – (name, s) tuples at which to observe the beam</p></li>
+<li><p><strong>numbers</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Particle numbers to assign (defaults to 1..N)</p></li>
+<li><p><strong>turns</strong> (<em>int</em>) – How many turns to ask MAD-X for in one <code class="docutils literal notranslate"><span class="pre">RUN</span></code>. <code class="docutils literal notranslate"><span class="pre">1</span></code> is the
+segmented path, which does its own turn loop in Python;
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a> passes the whole run.</p></li>
+<li><p><strong>ffile</strong> (<em>int</em>) – Record only every <code class="docutils literal notranslate"><span class="pre">ffile</span></code>-th turn. This is what keeps the
+native path’s memory flat: <code class="docutils literal notranslate"><span class="pre">trackone</span></code> holds every recorded
+turn at every observation point, so at 512 particles storing all
+of them costs ~2M rows and 457 MB per 1000 turns and grows
+without limit, while storing every 2000th of 20 000 turns is
+21k rows and 47 MB. <code class="xref py py-meth docutils literal notranslate"><span class="pre">output_turns()</span></code> already says which
+turns are wanted, and this is how MAD-X is told.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary of arrays from the MAD-X <cite>trackone</cite> table</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.sample_beam">
+<span class="sig-name descname"><span class="pre">sample_beam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interval</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.sample_beam"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.sample_beam" title="Link to this definition"></a></dt>
+<dd><p>Downsample a beam by the given interval, conserving the total charge.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bm</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></span>)</p></li>
+<li><p><strong>interval</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.sector_maps">
+<span class="sig-name descname"><span class="pre">sector_maps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.sector_maps" title="Link to this definition"></a></dt>
+<dd><p>Per-element 6x6 sector maps, in sequence order, accumulated across
+segments on a periodic line; see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.read_one_turn_map" title="simba.Codes.MADX.MADX.madxLattice.read_one_turn_map"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_one_turn_map()</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.segmentElements">
+<span class="sig-name descname"><span class="pre">segmentElements</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.segmentElements"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.segmentElements" title="Link to this definition"></a></dt>
+<dd><p>Split the lattice (including explicit drifts) into segments, breaking
+after each RF cavity. Within each segment the beam energy – and
+therefore the MAD-X reference momentum – is constant, which allows
+normalised magnet strengths to be interpreted at the local design
+momentum, in the same way as for the other supported tracking codes.</p>
+<p>A ring is left as one segment; <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.segment_at_cavities" title="simba.Codes.MADX.MADX.madxLattice.segment_at_cavities"><code class="xref py py-meth docutils literal notranslate"><span class="pre">segment_at_cavities()</span></code></a> says why.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of segments, each a list of element names (in order).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.segment_at_cavities">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">segment_at_cavities</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.segment_at_cavities" title="Link to this definition"></a></dt>
+<dd><p>Whether RF cavities should break the lattice into segments.</p>
+<p>They should on a <strong>linac</strong>, which is what the splitting is for: an
+accelerating cavity moves the beam energy, MAD-X’s reference momentum
+is fixed for a given <code class="docutils literal notranslate"><span class="pre">BEAM</span></code> statement, and normalised strengths and
+canonical coordinates are both defined against it. Splitting lets
+each segment be tracked at its own momentum.</p>
+<p>They should not on a <strong>ring</strong>. A storage-ring cavity does not move
+the reference energy, it holds the beam at it; the motion it drives
+is a synchrotron oscillation about the synchronous phase, which MAD-X
+tracks on its own. Measured on a 16-bend ring with a real cavity, the
+longitudinal amplitude drifts by +0.003% over 20 000 turns and
+-0.07% over 100 000, and the synchrotron tune scales as the square
+root of the voltage, as it should.</p>
+<p>Splitting such a ring is not merely unnecessary, it is what forces
+the slow path: a segment boundary is a hand-back to Python, so a
+split ring cannot use MAD-X’s own <code class="docutils literal notranslate"><span class="pre">RUN,</span> <span class="pre">TURNS=N</span></code> and pays simba’s
+per-turn cost instead (see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a>). Not
+splitting leaves a one-segment ring, which can.</p>
+<p><a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.closed_geometry" title="simba.Framework_objects.frameworkLattice.closed_geometry"><code class="xref py py-meth docutils literal notranslate"><span class="pre">closed_geometry()</span></code></a> and
+not <code class="docutils literal notranslate"><span class="pre">periodic</span></code>, so that an injection study asking for the open
+optics solution on a real ring does not thereby re-acquire
+accelerating cavities.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.segment_name">
+<span class="sig-name descname"><span class="pre">segment_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iseg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.segment_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.segment_name" title="Link to this definition"></a></dt>
+<dd><p>MAD-X compatible name for lattice segment <cite>iseg</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>iseg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.segment_p0c">
+<span class="sig-name descname"><span class="pre">segment_p0c</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.segment_p0c" title="Link to this definition"></a></dt>
+<dd><p>MAD-X reference momentum [eV/c] of the segment each element belongs to,
+keyed by element name. Used to convert the canonical model Twiss functions
+back to trace space (see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.postProcess" title="simba.Codes.MADX.MADX.madxLattice.postProcess"><code class="xref py py-func docutils literal notranslate"><span class="pre">postProcess()</span></code></a>)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.segments">
+<span class="sig-name descname"><span class="pre">segments</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.segments" title="Link to this definition"></a></dt>
+<dd><p>List of lattice segments; each segment is a list of element names and
+is tracked with a constant MAD-X reference momentum</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.seqstrings">
+<span class="sig-name descname"><span class="pre">seqstrings</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.seqstrings" title="Link to this definition"></a></dt>
+<dd><p>MAD-X SEQUENCE definitions for each segment</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.slice_cavity">
+<span class="sig-name descname"><span class="pre">slice_cavity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cavstring</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">at</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.slice_cavity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.slice_cavity" title="Link to this definition"></a></dt>
+<dd><p>Subdivide an RF cavity definition into <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity" title="simba.Codes.MADX.MADX.madxLattice.nslice_rfcavity"><code class="xref py py-attr docutils literal notranslate"><span class="pre">nslice_rfcavity</span></code></a>
+sub-cavities, each with 1/n of the voltage (and length), placed
+uniformly along the body of the structure. The MAD-X thin-lens
+tracking module applies each sub-cavity as a thin RF kick, with exact
+drifts in between, which reproduces the adiabatic damping of the
+transverse coordinates through the accelerating structure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cavstring</strong> (<em>str</em>) – The full MAD-X element definition for the cavity</p></li>
+<li><p><strong>length</strong> (<em>float</em>) – Physical length of the cavity [m]</p></li>
+<li><p><strong>at</strong> (<em>float</em>) – Position of the cavity centre within the segment [m]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The MAD-X definitions of the sub-cavities (or the original
+definition if it cannot safely be sliced)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.start_madx">
+<span class="sig-name descname"><span class="pre">start_madx</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.start_madx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.start_madx" title="Link to this definition"></a></dt>
+<dd><p>Start a <cite>cpymad</cite> MAD-X interpreter, logging its output to
+<cite>&lt;lattice&gt;.log</cite> in <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The MAD-X instance</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>cpymad.madx.Madx</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.store_beam_data">
+<span class="sig-name descname"><span class="pre">store_beam_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zpos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.store_beam_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.store_beam_data" title="Link to this definition"></a></dt>
+<dd><p>Store the beam statistics at an observation point into
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.beam_data" title="simba.Codes.MADX.MADX.madxLattice.beam_data"><code class="xref py py-attr docutils literal notranslate"><span class="pre">beam_data</span></code></a>, in a form that can be interpreted in the same way
+as the outputs of the other tracking codes.</p>
+<p><code class="docutils literal notranslate"><span class="pre">turn</span></code> qualifies the key through <code class="xref py py-meth docutils literal notranslate"><span class="pre">output_basename()</span></code>, so each
+turn of a multi-turn run keeps its own entry rather than overwriting
+the last.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – Name of element</p></li>
+<li><p><strong>bm</strong> (<a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a>) – The beam object</p></li>
+<li><p><strong>spos</strong> (<em>float</em>) – S-position of beam</p></li>
+<li><p><strong>zpos</strong> (<em>float</em>) – Z-position of beam</p></li>
+<li><p><strong>turn</strong> (<em>int</em><em>, </em><em>optional</em>) – Turn number</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_dynamic_aperture">
+<span class="sig-name descname"><span class="pre">supports_dynamic_aperture</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_dynamic_aperture" title="Link to this definition"></a></dt>
+<dd><p>MAD-X <code class="docutils literal notranslate"><span class="pre">DYNAP</span></code>, whose <code class="docutils literal notranslate"><span class="pre">dynap</span></code> table carries <code class="docutils literal notranslate"><span class="pre">dktrturns</span></code> – the
+turns each start survived.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_frequency_map">
+<span class="sig-name descname"><span class="pre">supports_frequency_map</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_frequency_map" title="Link to this definition"></a></dt>
+<dd><p>its <code class="docutils literal notranslate"><span class="pre">dynaptune</span></code> table is a frequency map
+outright, with <code class="docutils literal notranslate"><span class="pre">tunx</span></code>, <code class="docutils literal notranslate"><span class="pre">tuny</span></code> and a tune diffusion <code class="docutils literal notranslate"><span class="pre">dtune</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The same <code class="docutils literal notranslate"><span class="pre">DYNAP</span></code> call</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_nsuperperiods">
+<span class="sig-name descname"><span class="pre">supports_nsuperperiods</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_nsuperperiods" title="Link to this definition"></a></dt>
+<dd><p>The turn loop in <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="simba.Codes.MADX.MADX.madxLattice.run_segments"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_segments()</span></code></a> is simba’s own, so a superperiod
+is an inner loop over the same already-thin sequences. Only the last pass
+of each turn records.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_periodic">
+<span class="sig-name descname"><span class="pre">supports_periodic</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_periodic" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">TWISS</span></code> with no initial conditions is MAD-X’s periodic solution.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_programs">
+<span class="sig-name descname"><span class="pre">supports_programs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_programs" title="Link to this definition"></a></dt>
+<dd><p>By re-stating <code class="docutils literal notranslate"><span class="pre">name-&gt;attribute</span></code> between turns of
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="simba.Codes.MADX.MADX.madxLattice.run_segments"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_single_particle">
+<span class="sig-name descname"><span class="pre">supports_single_particle</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_single_particle" title="Link to this definition"></a></dt>
+<dd><p>Tracks the 13 probes through MAD-X <code class="docutils literal notranslate"><span class="pre">TRACK</span></code> and carries the
+distribution through the map they measure. The mode matters most here:
+cpymad’s cost is per particle, so the saving is roughly
+<code class="docutils literal notranslate"><span class="pre">n_macroparticles</span> <span class="pre">/</span> <span class="pre">13</span></code>.</p>
+<p>The flag itself lives on
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.single_particle" title="simba.Framework_objects.frameworkLattice.single_particle"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_particle()</span></code></a> –
+it was a MAD-X field until R1, and the concept is code-independent.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.supports_turns">
+<span class="sig-name descname"><span class="pre">supports_turns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.supports_turns" title="Link to this definition"></a></dt>
+<dd><p>A turn is one sweep of <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="simba.Codes.MADX.MADX.madxLattice.run_segments"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments()</span></code></a>, the beam leaving the last
+segment re-entering the first.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.trackBeam">
+<span class="sig-name descname"><span class="pre">trackBeam</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.trackBeam" title="Link to this definition"></a></dt>
+<dd><p>Flag to indicate whether to track the beam</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.track_one_turn">
+<span class="sig-name descname"><span class="pre">track_one_turn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_beam</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charge_total</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">twiss_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p0c_prev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sstart_lattice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.track_one_turn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.track_one_turn" title="Link to this definition"></a></dt>
+<dd><p>One sweep through every segment: the body of <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments" title="simba.Codes.MADX.MADX.madxLattice.run_segments"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments()</span></code></a>,
+and one turn of a ring.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<em>cpymad.Madx</em>) – MAD-X instance</p></li>
+<li><p><strong>current_beam</strong> (:class:<a href="#id2"><span class="problematic" id="id3">`</span></a>~simba.Modules.Beams.beam) – Current beam</p></li>
+<li><p><strong>charge_total</strong> (<em>float</em>) – Beam charge</p></li>
+<li><p><strong>ref_idx</strong> (<em>int</em>) – Reference index for the run</p></li>
+<li><p><strong>twiss_init</strong> (<em>Any</em>) – Typically a dict containing Twiss values</p></li>
+<li><p><strong>p0c_prev</strong> (<em>float</em><em>, </em><em>optional</em>) – Previous beam momentum</p></li>
+<li><p><strong>sstart_lattice</strong> (<em>float</em>) – Starting s-position</p></li>
+<li><p><strong>name_turn</strong> (<em>int</em><em>, </em><em>optional</em>) – Turn number to qualify the output names with, or None for the
+unsuffixed name; from <code class="xref py py-meth docutils literal notranslate"><span class="pre">output_turns()</span></code></p></li>
+<li><p><strong>record</strong> (<em>bool</em>) – Whether this turn’s diagnostics are stored and written at all</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(beam,</span> <span class="pre">charge_total,</span> <span class="pre">ref_idx,</span> <span class="pre">twiss_init,</span> <span class="pre">p0c)</span></code> at the end of
+the turn, to be fed back in as the start of the next one</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.track_segment_beam">
+<span class="sig-name descname"><span class="pre">track_segment_beam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_beam</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p0c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">segnames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seg_s0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seg_len</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sstart_lattice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charge_total</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.track_segment_beam"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.track_segment_beam" title="Link to this definition"></a></dt>
+<dd><p>Track the full particle distribution through one segment, recording
+(and writing) the beam distributions at each diagnostic within the
+segment; see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run" title="simba.Codes.MADX.MADX.madxLattice.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">run()</span></code></a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">name_turn</span></code> qualifies the recorded names and <code class="docutils literal notranslate"><span class="pre">record</span></code> suppresses
+the recording entirely, for the turns of a multi-turn run that
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">output_turns()</span></code> does not ask for.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The beam at the end of the segment</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+<li><p><strong>current_beam</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></span>)</p></li>
+<li><p><strong>p0c</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>segnames</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></span>)</p></li>
+<li><p><strong>seg_s0</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>seg_len</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>sstart_lattice</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>charge_total</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>ref_idx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>)</p></li>
+<li><p><strong>name_turn</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>)</p></li>
+<li><p><strong>record</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.track_segment_single_particle">
+<span class="sig-name descname"><span class="pre">track_segment_single_particle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">madx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_beam</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p0c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seg_len</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">segnames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seg_s0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sstart_lattice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.track_segment_single_particle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.track_segment_single_particle" title="Link to this definition"></a></dt>
+<dd><p>Standard (single-particle) MAD-X tracking for one segment: the beam
+centroid is tracked, together with 12 probe trajectories used to
+build the linear map of the segment by finite differences. The full
+distribution is then transformed with the resulting map (centroid +
+R matrix); see <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run" title="simba.Codes.MADX.MADX.madxLattice.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">run()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The (transformed) beam at the end of the segment</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>madx</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+<li><p><strong>current_beam</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a></span>)</p></li>
+<li><p><strong>p0c</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>seg_len</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>segnames</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></span>)</p></li>
+<li><p><strong>seg_s0</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>sstart_lattice</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>)</p></li>
+<li><p><strong>name_turn</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>)</p></li>
+<li><p><strong>record</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.tws">
+<span class="sig-name descname"><span class="pre">tws</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.tws" title="Link to this definition"></a></dt>
+<dd><p>Dictionary of arrays containing the collected Twiss/beam-statistics
+data along the lattice</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.use_native_turns">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">use_native_turns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.use_native_turns" title="Link to this definition"></a></dt>
+<dd><p>Whether this run can hand the whole turn loop to MAD-X.</p>
+<p>MAD-X tracks multiple turns itself, and does it far faster than
+simba can drive it one turn at a time: at 512 particles the Python
+loop costs ~12 ms a turn, where <code class="docutils literal notranslate"><span class="pre">RUN,</span> <span class="pre">TURNS=20000</span></code> on the same
+lattice is 0.8 s in total. The loop exists because of the things
+below, not because the turn count has to be in Python.</p>
+<p>The conditions, each of which needs Python between turns:</p>
+<ul>
+<li><p><strong>more than one segment.</strong> A segment boundary re-references the
+beam momentum, so the turn has to come back to simba. With
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.segment_at_cavities" title="simba.Codes.MADX.MADX.madxLattice.segment_at_cavities"><code class="xref py py-meth docutils literal notranslate"><span class="pre">segment_at_cavities()</span></code></a> a ring is one segment, so in practice
+this excludes linacs, which do not have turns anyway.</p></li>
+<li><p><strong>device programs.</strong> A program varies an element per turn
+(<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.apply_programs" title="simba.Codes.MADX.MADX.madxLattice.apply_programs"><code class="xref py py-func docutils literal notranslate"><span class="pre">apply_programs()</span></code></a>), which is a MAD-X input statement between
+one turn and the next.</p></li>
+<li><p><strong>single-particle mode</strong>, which is not one tracking run at all: it
+builds each segment’s linear map by finite differences and applies
+it to the distribution.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">native_turns:</span> <span class="pre">false</span></code>, the explicit override. It belongs in the
+<code class="docutils literal notranslate"><span class="pre">tracking</span></code> block, beside the turn count it is about:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">files</span><span class="p">:</span>
+  <span class="n">RING</span><span class="p">:</span>
+    <span class="n">code</span><span class="p">:</span> <span class="n">madx</span>
+    <span class="n">tracking</span><span class="p">:</span> <span class="p">{</span><span class="n">turns</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">native_turns</span><span class="p">:</span> <span class="n">false</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>and falls back to the MAD-X setting of the same name, so it can
+also be turned off globally.</p>
+</li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.run_segments_native" title="simba.Codes.MADX.MADX.madxLattice.run_segments_native"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_segments_native()</span></code></a> should be used</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.write" title="Link to this definition"></a></dt>
+<dd><p>Create the lattice representation via
+<a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.writeElements" title="simba.Codes.MADX.MADX.madxLattice.writeElements"><code class="xref py py-func docutils literal notranslate"><span class="pre">writeElements()</span></code></a> and save it
+as a MAD-X input file to <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.writeElements">
+<span class="sig-name descname"><span class="pre">writeElements</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.writeElements"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.writeElements" title="Link to this definition"></a></dt>
+<dd><p>Create the MAD-X <code class="docutils literal notranslate"><span class="pre">SEQUENCE</span></code> definitions for all segments of the
+lattice, using <code class="docutils literal notranslate"><span class="pre">refer=centre</span></code> positioning (as required by the MAD-X
+<code class="docutils literal notranslate"><span class="pre">MAKETHIN</span></code> command) and set <a class="reference internal" href="#simba.Codes.MADX.MADX.madxLattice.seqstrings" title="simba.Codes.MADX.MADX.madxLattice.seqstrings"><code class="xref py py-attr docutils literal notranslate"><span class="pre">seqstrings</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The full lattice represented as a string compatible with MAD-X</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.write_model_twiss">
+<span class="sig-name descname"><span class="pre">write_model_twiss</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.write_model_twiss" title="Link to this definition"></a></dt>
+<dd><p>If True, compute the MAD-X model Twiss parameters (via the TWISS
+command) for each segment and include them in the Twiss output file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.MADX.MADX.madxLattice.write_output_beam">
+<span class="sig-name descname"><span class="pre">write_output_beam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">turn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/MADX/MADX.html#madxLattice.write_output_beam"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.MADX.MADX.madxLattice.write_output_beam" title="Link to this definition"></a></dt>
+<dd><p>Write a beam distribution to an OpenPMD HDF5 file named after the
+element at which it was observed, and after the turn if there is one;
+see <code class="xref py py-meth docutils literal notranslate"><span class="pre">output_basename()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – Name of element</p></li>
+<li><p><strong>bm</strong> (<a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a>) – The beam object</p></li>
+<li><p><strong>turn</strong> (<em>int</em><em>, </em><em>optional</em>) – Turn number</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.MADX">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Codes.MADX" title="Link to this heading"></a></h2>
+<p>MAD-X backend.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Codes.Genesis.html" class="btn btn-neutral float-left" title="simba.Codes.Genesis package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Codes.OPAL.html" class="btn btn-neutral float-right" title="simba.Codes.OPAL package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

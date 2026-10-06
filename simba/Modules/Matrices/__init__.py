@@ -395,19 +395,24 @@ def momentum_compaction(
 class matrices(munch.Munch):
     """Class for dealing with R-matrices produced by Elegant.
 
-    Usage:
-    mat = matrices()
-    mat.load(<filename>, reset=False, cumulative=True)
-        Load sdds output file from the "matrix_output" command.
-            reset: Reset all parameters to None
-            cumulative: Are the R-matrices cumulative or element-by-element?
-    mat.R:
-        Return the nx6x6 R-matrices that have been loaded where "n" is the number of elements
-    mat.cumulativeR:
-        Return the cumulative R-matrices for the loaded R-matrices in order.
-    mat.elementR:
-        Return the element-by-element R-matrices for the loaded R-matrices in order.
+    Usage::
 
+        mat = matrices()
+        mat.load(<filename>, reset=False, cumulative=True)
+
+    ``load`` reads the sdds output file from the ``matrix_output`` command, with
+    ``reset`` resetting all parameters to ``None`` and ``cumulative`` saying
+    whether the R-matrices are cumulative or element-by-element.
+
+    ``mat.R``
+        The nx6x6 R-matrices that have been loaded, where ``n`` is the number of
+        elements.
+
+    ``mat.cumulativeR``
+        The cumulative R-matrices for the loaded R-matrices in order.
+
+    ``mat.elementR``
+        The element-by-element R-matrices for the loaded R-matrices in order.
     """
 
     def __init__(self):

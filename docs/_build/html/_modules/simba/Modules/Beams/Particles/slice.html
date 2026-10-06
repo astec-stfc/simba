@@ -1,0 +1,1143 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Beams.Particles.slice &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../../Beams.html">simba.Modules.Beams</a></li>
+          <li class="breadcrumb-item"><a href="../Particles.html">simba.Modules.Beams.Particles</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Beams.Particles.slice</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Beams.Particles.slice</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SIMBA Slice Module</span>
+
+<span class="sd">This module calculates the slice properties of a particle distribution.</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">    - :class:`~simba.Modules.Particles.slice.slice`: Slice calculations.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseModel</span><span class="p">,</span>
+    <span class="n">computed_field</span><span class="p">,</span>
+    <span class="n">ConfigDict</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span>
+
+
+<div class="viewcode-block" id="slice">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">slice</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for calculating slice properties of a particle distribution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span>
+        <span class="n">extra</span><span class="o">=</span><span class="s2">&quot;allow&quot;</span><span class="p">,</span>
+        <span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">_slicelength</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporal length of slices&quot;&quot;&quot;</span>
+
+    <span class="n">_slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Number of slices&quot;&quot;&quot;</span>
+
+    <span class="n">time_binned</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;beam&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;slices&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;slice_length&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dictionary representing whether the beam has been binned&quot;&quot;&quot;</span>
+
+    <span class="n">_hist</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporal histogram&quot;&quot;&quot;</span>
+
+    <span class="n">_cp_Bins</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Momentum histogram&quot;&quot;&quot;</span>
+
+    <span class="n">_cp_binned</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Binned momenta&quot;&quot;&quot;</span>
+
+    <span class="n">_tfbins</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporal bins&quot;&quot;&quot;</span>
+
+    <span class="n">_cpbins</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Momentum bins&quot;&quot;&quot;</span>
+
+    <span class="n">_tbins</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time bins&quot;&quot;&quot;</span>
+
+    <span class="n">_t_Bins</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time bins (deprecated???)&quot;&quot;&quot;</span>
+
+    <span class="n">_t_binned</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Indices of temporal bins&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="nb">slice</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">beam</span>
+        <span class="c1"># self.bin_time()</span>
+
+    <span class="c1"># def model_dump(self, *args, **kwargs):</span>
+    <span class="c1">#     # Only include computed fields</span>
+    <span class="c1">#     computed_keys = {</span>
+    <span class="c1">#         f for f in self.__pydantic_decorators__.computed_fields.keys()</span>
+    <span class="c1">#     }</span>
+    <span class="c1">#     full_dump = super().model_dump(*args, **kwargs)</span>
+    <span class="c1">#     return {k: v for k, v in full_dump.items() if k in computed_keys}</span>
+
+    <span class="c1"># def __repr__(self):</span>
+    <span class="c1">#     return repr({p: self.emittance(p) for p in (&#39;x&#39;, &#39;y&#39;)})</span>
+
+<div class="viewcode-block" id="slice.have_we_already_been_binned">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.have_we_already_been_binned">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">have_we_already_been_binned</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if time and momentum have already been binned by checking the values in</span>
+<span class="sd">        :attr:`~time_binned`</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if beam has already been binned</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_binned</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_binned</span><span class="p">[</span><span class="s2">&quot;slices&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_binned</span><span class="p">[</span><span class="s2">&quot;slice_length&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slicelength</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="slice.update_binned_parameters">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.update_binned_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_binned_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the binned parameters in :attr:`~time_binned`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_binned</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;beam&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+            <span class="s2">&quot;slices&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span><span class="p">,</span>
+            <span class="s2">&quot;slice_length&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slicelength</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_length</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice length in seconds</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            :attr:`~_slicelength`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_slicelength</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span>
+
+    <span class="nd">@slice_length</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slicelength</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">|</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the slice length in seconds; sets :attr:`~_slicelength` and calls :func:`~bin_time`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        slicelength: :class:`~simba.Modules.units.UnitValue` or float</span>
+<span class="sd">            Slice length to set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_slicelength</span> <span class="o">=</span> <span class="n">slicelength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the number of slices</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            Number of slices</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span>
+
+    <span class="nd">@slices</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slices</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the number of slices; calls :func:`~set_slices`</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        slices: int</span>
+<span class="sd">            Number of slices</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_slices</span><span class="p">(</span><span class="n">slices</span><span class="p">)</span>
+
+<div class="viewcode-block" id="slice.set_slices">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.set_slices">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_slices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slices</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the slices in the bunch based on the range of time values and the number of slices provided;</span>
+<span class="sd">        calls :func:`~bin_time`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        slices: int</span>
+<span class="sd">            Number of slices</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">twidth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># print(&#39;twidth = &#39;, twidth)</span>
+        <span class="k">if</span> <span class="n">twidth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span>
+            <span class="n">twidth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">slices</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">slices</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">twidth</span> <span class="o">/</span> <span class="mf">0.1e-12</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_slices</span> <span class="o">=</span> <span class="n">slices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_slicelength</span> <span class="o">=</span> <span class="n">twidth</span> <span class="o">/</span> <span class="n">slices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="slice.bin_time">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.bin_time">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bin_time</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bin the temporal distribution depending on :attr:`~slice_length`. The temporal histogram is calculated</span>
+<span class="sd">        and various internal parameters relating to the temporal slices in the bunch are set.</span>
+<span class="sd">        The :attr:`~time_binned` dictionary is then updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">have_we_already_been_binned</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># print(&#39;no slicelength&#39;, self.slice_length)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_slice_length</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="c1"># print(&quot;Assuming slice length is 100 fs&quot;)</span>
+                <span class="n">twidth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">twidth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span>
+                    <span class="n">twidth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span> <span class="o">=</span> <span class="n">twidth</span> <span class="o">/</span> <span class="mf">20.0</span>
+                <span class="c1"># print(&#39;slicelength =&#39;, self.slice_length)</span>
+                <span class="n">nbins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">twidth</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span><span class="p">))])</span> <span class="o">+</span> <span class="mi">2</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_hist</span><span class="p">,</span> <span class="n">binst</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+                    <span class="n">t</span><span class="p">,</span>
+                    <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span>
+                    <span class="nb">range</span><span class="o">=</span><span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span><span class="p">,</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_t_Bins</span> <span class="o">=</span> <span class="n">binst</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_t_binned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_t_Bins</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">_t_binned</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">binst</span><span class="p">))]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">)[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">tbin</span><span class="p">)]</span> <span class="k">for</span> <span class="n">tbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span><span class="p">],</span>
+                    <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">tbin</span><span class="p">)]</span> <span class="k">for</span> <span class="n">tbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span><span class="p">],</span>
+                    <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_binned_parameters</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="slice.bin_momentum">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.bin_momentum">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bin_momentum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mi">10</span><span class="o">**</span><span class="mi">6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bin the momentum distribution depending on the `width` provided. The histogram is calculated</span>
+<span class="sd">        and various internal parameters relating to the temporal and momentum slices in the bunch are set.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        width: float</span>
+<span class="sd">            Width of momentum distribution</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pwidth</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">slice_length_cp</span> <span class="o">=</span> <span class="n">pwidth</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">slices</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">slice_length_cp</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="n">nbins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">pwidth</span> <span class="o">/</span> <span class="n">slice_length_cp</span><span class="p">))])</span> <span class="o">+</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hist</span><span class="p">,</span> <span class="n">binst</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">,</span>
+            <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span>
+            <span class="nb">range</span><span class="o">=</span><span class="p">(</span>
+                <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)</span> <span class="o">-</span> <span class="n">slice_length_cp</span><span class="p">,</span>
+                <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)</span> <span class="o">+</span> <span class="n">slice_length_cp</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cp_Bins</span> <span class="o">=</span> <span class="n">binst</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cp_binned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cp_Bins</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_cp_binned</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">binst</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">cp</span><span class="p">)[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)]</span> <span class="k">for</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span><span class="p">],</span>
+                    <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">)[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">tbin</span><span class="p">)]</span> <span class="k">for</span> <span class="n">tbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span><span class="p">],</span>
+                    <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                <span class="p">)</span></div>
+
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_bins</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice temporal bins</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice temporal bins</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;slice&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_t_Bins</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">bins</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_cpbins</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice momentum bins</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice momentum bins</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;slice&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_momentum</span><span class="p">()</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cp_Bins</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">bins</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_momentum</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice momentum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice momentum</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">cpbin</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_momentum_spread</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice momentum spread (eV/c).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice momentum spread</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">cpbin</span><span class="o">.</span><span class="n">std</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_relative_momentum_spread</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice momentum spread (relative)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice momentum spread</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="mi">100</span> <span class="o">*</span> <span class="n">cpbin</span><span class="o">.</span><span class="n">std</span><span class="p">()</span> <span class="o">/</span> <span class="n">cpbin</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="slice.slice_data">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.slice_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the temporal slice data for a given axis</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data: UnitValue | np.ndarray</span>
+<span class="sd">            Array for which to calculate the slice data</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">tbin</span><span class="p">)]</span> <span class="k">for</span> <span class="n">tbin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tfbins</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="slice.emitbins">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.emitbins">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">emitbins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the slice data for two arrays and transpose these with the slice momenta</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x: :class:`~simba.Modules.units.UnitValue` or np.ndarray</span>
+<span class="sd">            First array</span>
+<span class="sd">        y: :class:`~simba.Modules.units.UnitValue` or np.ndarray</span>
+<span class="sd">            Second array</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            Transpose of binned arrays with slice momenta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">ybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">xbins</span><span class="p">,</span> <span class="n">ybins</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span><span class="p">])</span><span class="o">.</span><span class="n">T</span></div>
+
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ex</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_ex</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ey</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_ey</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">enx</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the normalised slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_enx</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">eny</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_eny</span>
+
+    <span class="c1"># @property</span>
+    <span class="c1"># def ecx(self):</span>
+    <span class="c1">#     return self.horizontal_emittance_corrected</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def ecy(self):</span>
+    <span class="c1">#     return self.vertical_emittance_corrected</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def ecnx(self):</span>
+    <span class="c1">#     return self.normalised_horizontal_emittance_corrected</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def ecny(self):</span>
+    <span class="c1">#     return self.normalised_vertical_emittance_corrected</span>
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_ex</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_horizontal_emittance</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_ey</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_vertical_emittance</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_enx</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the normalised slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_normalized_horizontal_emittance</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_eny</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_normalized_vertical_emittance</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_t</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice temporal bins</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            Slice temporal bins</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_bins</span><span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_z</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice longitudinal bins</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            Slice longitudinal bins</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_bins</span><span class="p">))))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_horizontal_emittance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitbins</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">xp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">emittance_calc</span><span class="p">(</span><span class="n">xbin</span><span class="p">,</span> <span class="n">xpbin</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">xbin</span><span class="p">,</span> <span class="n">xpbin</span><span class="p">,</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m-rad&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_vertical_emittance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitbins</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">yp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">emittance_calc</span><span class="p">(</span><span class="n">ybin</span><span class="p">,</span> <span class="n">ypbin</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">ybin</span><span class="p">,</span> <span class="n">ypbin</span><span class="p">,</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m-rad&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_normalized_horizontal_emittance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the normalised slice horizontal emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice horizontal emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitbins</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">xp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">emittance_calc</span><span class="p">(</span><span class="n">xbin</span><span class="p">,</span> <span class="n">xpbin</span><span class="p">,</span> <span class="n">cpbin</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                    <span class="k">else</span> <span class="mi">0</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">xbin</span><span class="p">,</span> <span class="n">xpbin</span><span class="p">,</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m-rad&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_normalized_vertical_emittance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the normalised slice vertical emittance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Normalised slice vertical emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cpbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitbins</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">yp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">emittance_calc</span><span class="p">(</span><span class="n">ybin</span><span class="p">,</span> <span class="n">ypbin</span><span class="p">,</span> <span class="n">cpbin</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cpbin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                    <span class="k">else</span> <span class="mi">0</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">ybin</span><span class="p">,</span> <span class="n">ypbin</span><span class="p">,</span> <span class="n">cpbin</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m-rad&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_current</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice current based on the bunch charge and temporal binning.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice current</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">absQ</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">Q</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">bin_width</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_t_Bins</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="nb">bin</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n">absQ</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nb">bin</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">bin</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">f</span><span class="p">(</span><span class="nb">bin</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="nb">bin</span><span class="p">,</span> <span class="n">width</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tbins</span><span class="p">,</span> <span class="n">bin_width</span><span class="p">)],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;A&quot;</span>
+        <span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peak_current</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the peak current (i.e. max of :attr:`~slice_current`)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Peak current</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">peakI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">peakI</span><span class="p">)),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;A&quot;</span><span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_max_peak_current_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the peak slice current slice from :attr:`~slice_current`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Peak current slice</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">peakI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">peakI</span><span class="p">))</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">peakI</span><span class="p">)))</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">beta_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal beta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice beta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_beta_x</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">alpha_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal alpha.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice alpha</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_alpha_x</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gamma_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal gamma.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice gamma</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_gamma_x</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">beta_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical beta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice beta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_beta_y</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">alpha_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical alpha.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice alpha</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_alpha_y</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gamma_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical gamma.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice gamma</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_gamma_y</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_beta_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal beta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice beta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">exbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_horizontal_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">xbins</span><span class="p">,</span> <span class="n">exbins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">ex</span> <span class="k">if</span> <span class="n">ex</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">ex</span> <span class="ow">in</span> <span class="n">emitbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_alpha_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal alpha.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice alpha</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">xpbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">xp</span><span class="p">)</span>
+        <span class="n">exbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_horizontal_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">xbins</span><span class="p">,</span> <span class="n">xpbins</span><span class="p">,</span> <span class="n">exbins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">xp</span><span class="p">)</span> <span class="o">/</span> <span class="n">ex</span> <span class="k">if</span> <span class="n">ex</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">xp</span><span class="p">,</span> <span class="n">ex</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_gamma_x</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss horizontal gamma.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice gamma</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xpbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">xp</span><span class="p">)</span>
+        <span class="n">exbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_horizontal_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">xpbins</span><span class="p">,</span> <span class="n">exbins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">xp</span><span class="p">,</span> <span class="n">xp</span><span class="p">)</span> <span class="o">/</span> <span class="n">ex</span> <span class="k">if</span> <span class="n">ex</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">xp</span><span class="p">,</span> <span class="n">ex</span> <span class="ow">in</span> <span class="n">emitbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;rad/m&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_beta_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical beta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice beta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">eybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_vertical_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ybins</span><span class="p">,</span> <span class="n">eybins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">/</span> <span class="n">ey</span> <span class="k">if</span> <span class="n">ey</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">y</span><span class="p">,</span> <span class="n">ey</span> <span class="ow">in</span> <span class="n">emitbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_alpha_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical alpha.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice alpha</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">ypbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">yp</span><span class="p">)</span>
+        <span class="n">eybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_vertical_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ybins</span><span class="p">,</span> <span class="n">ypbins</span><span class="p">,</span> <span class="n">eybins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">yp</span><span class="p">)</span> <span class="o">/</span> <span class="n">ey</span> <span class="k">if</span> <span class="n">ey</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">y</span><span class="p">,</span> <span class="n">yp</span><span class="p">,</span> <span class="n">ey</span> <span class="ow">in</span> <span class="n">emitbins</span>
+            <span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice_gamma_y</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the slice Twiss vertical gamma.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Slice gamma</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ypbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">yp</span><span class="p">)</span>
+        <span class="n">eybins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_vertical_emittance</span>
+        <span class="n">emitbins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ypbins</span><span class="p">,</span> <span class="n">eybins</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">yp</span><span class="p">,</span> <span class="n">yp</span><span class="p">)</span> <span class="o">/</span> <span class="n">ey</span> <span class="k">if</span> <span class="n">ey</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">yp</span><span class="p">,</span> <span class="n">ey</span> <span class="ow">in</span> <span class="n">emitbins</span><span class="p">],</span>
+            <span class="n">units</span><span class="o">=</span><span class="s2">&quot;rad/m&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="slice.sliceAnalysis">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.sliceAnalysis">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sliceAnalysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">density</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get various slice properties of the bunch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        density: bool</span>
+<span class="sd">            If `True`, calculate the slice density from</span>
+<span class="sd">            :class:`~simba.Modules.Beams.Particles.mve.MVE`</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple</span>
+<span class="sd">            The following slice parameters are returned:</span>
+<span class="sd">            - :attr:`slice_current` at :attr:`~slice_max_peak_current_slice`</span>
+<span class="sd">            - standard deviation of `slice_current`</span>
+<span class="sd">            - :attr:`~slice_relative_momentum_spread` at :attr:`~slice_max_peak_current_slice`</span>
+<span class="sd">            - :attr:`~slice_normalized_horizontal_emittance` at :attr:`~slice_max_peak_current_slice`</span>
+<span class="sd">            - :attr:`~slice_normalized_vertical_emittance` at :attr:`~slice_max_peak_current_slice`</span>
+<span class="sd">            - :attr:`~slice_momentum` at :attr:`~slice_max_peak_current_slice`</span>
+<span class="sd">            - `slice_density` if `density` is `True`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">peakIPosition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_max_peak_current_slice</span>
+        <span class="n">slice_density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mve</span><span class="o">.</span><span class="n">slice_density</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span> <span class="k">if</span> <span class="n">density</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">],</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_relative_momentum_spread</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_normalized_horizontal_emittance</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_normalized_vertical_emittance</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">],</span>
+            <span class="n">slice_density</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">chirp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the longitudinal momentum chirp based on</span>
+<span class="sd">        :attr:`~slice_current` and :attr:`~slice_momentum` in eV/s</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Longitudinal momentum chirp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">slice_current_centroid_indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">slice_momentum_centroid</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">peakIPosition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_max_peak_current_slice</span>
+        <span class="n">peakI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span>
+        <span class="n">slicemomentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">slice_current</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">peakI</span> <span class="o">-</span> <span class="n">slice_current</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">peakI</span> <span class="o">*</span> <span class="mf">0.75</span><span class="p">):</span>
+                <span class="n">slice_current_centroid_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">slice_current_centroid_indices</span><span class="p">:</span>
+            <span class="n">slice_momentum_centroid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">slicemomentum</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="n">chirp</span> <span class="o">=</span> <span class="p">(</span><span class="n">slice_momentum_centroid</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">slice_momentum_centroid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">slice_momentum_centroid</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">chirp</span><span class="p">,</span> <span class="s2">&quot;eV/s&quot;</span><span class="p">)</span>
+
+    <span class="nd">@computed_field</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">chirp_m1</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UnitValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the longitudinal momentum chirp based on</span>
+<span class="sd">        :attr:`~slice_current` and :attr:`~slice_momentum` in 1/m</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :class:`~simba.Modules.units.UnitValue`</span>
+<span class="sd">            Longitudinal momentum chirp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_time</span><span class="p">()</span>
+        <span class="n">slice_current_centroid_indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">slice_momentum_centroid</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">peakIPosition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_max_peak_current_slice</span>
+        <span class="n">peakI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span>
+        <span class="n">centralmomentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span>
+        <span class="n">slicemomentum</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span> <span class="o">-</span> <span class="n">centralmomentum</span><span class="p">)</span> <span class="o">/</span> <span class="n">centralmomentum</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">slice_current</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">peakI</span> <span class="o">-</span> <span class="n">slice_current</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">peakI</span> <span class="o">*</span> <span class="mf">0.75</span><span class="p">):</span>
+                <span class="n">slice_current_centroid_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">slice_current_centroid_indices</span><span class="p">:</span>
+            <span class="n">slice_momentum_centroid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">slicemomentum</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="n">chirp</span> <span class="o">=</span> <span class="p">(</span><span class="n">slice_momentum_centroid</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">slice_momentum_centroid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">slice_momentum_centroid</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">chirp</span><span class="p">,</span> <span class="s2">&quot;1/m&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="slice.get_chirp_coeffs">
+<a class="viewcode-back" href="../../../../../simba.Modules.Beams.Particles.html#simba.Modules.Beams.Particles.slice.slice.get_chirp_coeffs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_chirp_coeffs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the momentum chirps up to `order`-th order based on</span>
+<span class="sd">        :attr:`~slice_current` and :attr:`~slice_momentum`</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict</span>
+<span class="sd">            Longitudinal momentum chirps</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">peakIPosition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_max_peak_current_slice</span>
+        <span class="n">peakI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span>
+        <span class="n">centralmomentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span><span class="p">[</span><span class="n">peakIPosition</span><span class="p">]</span>
+
+        <span class="c1"># fractional momentum deviation δ</span>
+        <span class="n">slicemomentum</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_momentum</span> <span class="o">-</span> <span class="n">centralmomentum</span><span class="p">)</span> <span class="o">/</span> <span class="n">centralmomentum</span>
+
+        <span class="c1"># longitudinal positions (assuming uniform spacing from slice_length)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slicemomentum</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_length</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+
+        <span class="c1"># restrict to region with significant current (same logic as your code)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_current</span> <span class="o">-</span> <span class="n">peakI</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mf">0.75</span> <span class="o">*</span> <span class="n">peakI</span><span class="p">)</span>
+        <span class="n">z_masked</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">delta_masked</span> <span class="o">=</span> <span class="n">slicemomentum</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="c1"># polynomial fit δ(z)</span>
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">z_masked</span><span class="p">,</span> <span class="n">delta_masked</span><span class="p">,</span> <span class="n">order</span><span class="p">)</span>  <span class="c1"># highest power first</span>
+
+        <span class="c1"># return dict of coefficients (a1=first-order, a2=second-order, etc.)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">&quot;order_</span><span class="si">{</span><span class="n">order</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">coeff</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

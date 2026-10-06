@@ -37,10 +37,10 @@ def read_HDF5_field_file(self, filename: str) -> str:
     Raises
     ------
     KeyError:
-        if the `cavity_type` attribute is not in :attr:`~simba.Modules.Fields.allowed_cavities
+        if the `cavity_type` attribute is not in :attr:`~simba.Modules.Fields.allowed_cavities`
     KeyError:
         if `cavity_type==TravellingWave` and all the required attributes are not defined in the file;
-         see :attr:`~simba.Modules.Fields.tw_required_attrs
+         see :attr:`~simba.Modules.Fields.tw_required_attrs`
     Warning:
         if a given parameter in the field is not normalised to 1.0
     """

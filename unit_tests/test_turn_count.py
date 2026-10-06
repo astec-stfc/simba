@@ -6,9 +6,14 @@ which is the only shape that survives a million of them. The unit is the line,
 and a ring spanning several sections is written as one section naming them
 (section orders nest), so the line is the whole group.
 
-elegant (``n_passes``), Xsuite (``num_turns``) and Ocelot (``track_nturns``)
-can track turns. Everything else tracks a line once, and says so rather than
-quietly tracking one turn when a thousand were asked for.
+elegant (``n_passes``), Xsuite (``num_turns``), Ocelot (``track_nturns``) and
+MAD-X can track turns. Everything else tracks a line once, and says so rather
+than quietly tracking one turn when a thousand were asked for.
+
+MAD-X was added late and for a reason worth recording: it was listed among the
+codes that *cannot*, and that was never true of MAD-X. ``RUN, TURNS=N`` has
+always worked; ``madxLattice`` simply never declared ``supports_turns`` and so
+inherited ``False``. See ``test_madx_turns.py``.
 """
 
 import warnings
@@ -19,12 +24,13 @@ from simba.Codes.ASTRA.ASTRA import astraLattice
 from simba.Codes.Cheetah.Cheetah import cheetahLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.GPT.GPT import gptLattice
+from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.OPAL.OPAL import opalLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 
-CAN_TURN = [elegantLattice, xsuiteLattice, ocelotLattice]
+CAN_TURN = [elegantLattice, xsuiteLattice, ocelotLattice, madxLattice]
 CANNOT = [astraLattice, gptLattice, cheetahLattice, opalLattice]
 
 
@@ -70,7 +76,7 @@ def test_a_string_count_is_coerced():
 
 
 @pytest.mark.parametrize("cls", CAN_TURN, ids=lambda c: c.__name__)
-def test_the_three_that_can(cls):
+def test_the_ones_that_can(cls):
     assert cls.supports_turns is True
 
 
@@ -184,6 +190,9 @@ class ClosureLine:
     periodic = frameworkLattice.periodic
     net_bend_angle = frameworkLattice.net_bend_angle
     check_turns_closed = frameworkLattice.check_turns_closed
+    # a sector is checked differently; see ``test_superperiods.py``
+    nsuperperiods = frameworkLattice.nsuperperiods
+    check_superperiods_close = frameworkLattice.check_superperiods_close
 
 
 def test_a_closed_ring_is_silent():

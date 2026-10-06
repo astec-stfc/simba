@@ -1,0 +1,967 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Xsuite.Xsuite &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Xsuite.Xsuite</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Xsuite.Xsuite</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SIMBA Xsuite Module</span>
+
+<span class="sd">Various objects and functions to handle Xsuite lattices and commands. See `Xsuite github`_ for more details.</span>
+
+<span class="sd">    .. _Xsuite github: https://github.com/xsuite</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">    - :class:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice`: The Xsuite lattice object, used for</span>
+<span class="sd">      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the</span>
+<span class="sd">      :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,</span>
+<span class="sd">      and for tracking through it.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">cupy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cp</span>
+    <span class="n">has_cupy</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">has_cupy</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Framework_objects</span><span class="w"> </span><span class="kn">import</span> <span class="n">frameworkLattice</span><span class="p">,</span> <span class="n">getGrids</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">warn</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_select_turn</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">turn</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One turn&#39;s rows out of a ``ParticlesMonitor``&#39;s flattened dump.</span>
+
+<span class="sd">    A monitor records one row per particle per turn -- ``monitor.x`` is</span>
+<span class="sd">    ``(particle, turn)``.</span>
+
+<span class="sd">    Anything not the same length as ``at_turn`` (scalars, metadata) is passed</span>
+<span class="sd">    through untouched.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">at_turn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;at_turn&quot;</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">at_turn</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">data</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">at_turn</span> <span class="o">==</span> <span class="n">turn</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;__len__&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">array</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">at_turn</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+            <span class="n">selected</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">selected</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">selected</span>
+
+
+<div class="viewcode-block" id="xsuiteLattice">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">xsuiteLattice</span><span class="p">(</span><span class="n">frameworkLattice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for defining the Xsuite lattice object, used for</span>
+<span class="sd">    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the</span>
+<span class="sd">    :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,</span>
+<span class="sd">    and for tracking through it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;xsuite&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;String indicating the lattice object type&quot;&quot;&quot;</span>
+
+    <span class="n">supports_turns</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;``line.track(num_turns=...)``.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_radiation</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;``line.configure_radiation(model=...)``.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_dynamic_aperture</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A grid of single particles tracked for `turns`; `state` says who was</span>
+<span class="sd">    lost and `at_turn` says when.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_frequency_map</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The same grid with a `ParticlesMonitor`, then the shared tune</span>
+<span class="sd">    extractor.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_periodic</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;``line.twiss()`` with no initial conditions.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_nsuperperiods</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A superperiod is an extra factor on ``num_turns``: Xtrack has no</span>
+<span class="sd">    separate notion of a sector, so N passes are asked for per turn and</span>
+<span class="sd">    everything counted per turn is converted back.&quot;&quot;&quot;</span>
+
+    <span class="n">supports_programs</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Natively, and without simba looping: an element attribute bound to a</span>
+<span class="sd">    ``FunctionPieceWiseLinear`` of ``t_turn_s`` varies inside a single</span>
+<span class="sd">    ``line.track(num_turns=N)`` call.&quot;&quot;&quot;</span>
+
+    <span class="n">otm_convention</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;x, px, y, py, zeta, delta&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-turn-map convention&quot;&quot;&quot;</span>
+
+    <span class="n">otm_longitudinal_sign</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-turn-map longitudinal sign (R56)&quot;&quot;&quot;</span>
+
+    <span class="n">otm_longitudinal_scale</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Canonical by definition: this is the convention the others convert to.&quot;&quot;&quot;</span>
+
+    <span class="n">trackBeam</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flag to indicate whether to track the beam.</span>
+<span class="sd">    If False, run in single-particle mode; the beam is not tracked and the output beam distributions</span>
+<span class="sd">    will be generated from Gaussians.&quot;&quot;&quot;</span>
+
+    <span class="n">names</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Names of elements in the lattice&quot;&quot;&quot;</span>
+
+    <span class="n">particle_definition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initial particle distribution as a string&quot;&quot;&quot;</span>
+
+    <span class="n">final_screen</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Final screen object&quot;&quot;&quot;</span>
+
+    <span class="n">env</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite environment object&quot;&quot;&quot;</span>
+
+    <span class="n">line</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite line object&quot;&quot;&quot;</span>
+
+    <span class="n">pin</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite input particle distribution&quot;&quot;&quot;</span>
+
+    <span class="n">pout</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite output particle distribution&quot;&quot;&quot;</span>
+
+    <span class="n">tws</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite Twiss Table output&quot;&quot;&quot;</span>
+
+    <span class="n">matrices</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dictionary of R-matrices produced by tracking&quot;&quot;&quot;</span>
+
+    <span class="n">context</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Xsuite context object&quot;&quot;&quot;</span>
+
+    <span class="n">beam_data</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Data containing beam statistics at each element&quot;&quot;&quot;</span>
+
+    <span class="n">grids</span><span class="p">:</span> <span class="n">getGrids</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for calculating the required number of space charge grids&quot;&quot;&quot;</span>
+
+    <span class="n">pic_solver</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;FFTSolver2p5DAveraged&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;FFTSolver2p5DAveraged&#39;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PIC solver to use for space charge calculations&quot;&quot;&quot;</span>
+
+    <span class="n">ref_s</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference s position&quot;&quot;&quot;</span>
+
+    <span class="n">ref_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference particle index&quot;&quot;&quot;</span>
+
+    <span class="n">program_attributes</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;Magnet&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;knl[0]&quot;</span><span class="p">,</span> <span class="s2">&quot;ksl[0]&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;Multipole&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;knl[0]&quot;</span><span class="p">,</span> <span class="s2">&quot;ksl[0]&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;ACDipole&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;volt&quot;</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">),</span>
+    <span class="p">}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;``(horizontal, vertical)`` attribute an unqualified program sets, per</span>
+<span class="sd">    Xtrack class.&quot;&quot;&quot;</span>
+
+    <span class="n">program_signs</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;knl[0]&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;ksl[0]&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;What a lattice deflection angle becomes in that attribute.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xobjects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xo</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;input&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span>
+            <span class="ow">and</span> <span class="s2">&quot;particle_definition&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span><span class="s2">&quot;particle_definition&quot;</span><span class="p">]</span>
+                <span class="o">==</span> <span class="s2">&quot;initial_distribution&quot;</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="s2">&quot;laser&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span>
+                    <span class="s2">&quot;particle_definition&quot;</span>
+                <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+        <span class="k">if</span> <span class="n">has_cupy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">xo</span><span class="o">.</span><span class="n">ContextCupy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">xo</span><span class="o">.</span><span class="n">ContextCpu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grids</span> <span class="o">=</span> <span class="n">getGrids</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="xsuiteLattice.writeElements">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.writeElements">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">writeElements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create Xsuite objects for all the elements in the lattice and set the</span>
+<span class="sd">        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.lat_obj` and</span>
+<span class="sd">        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.names`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">Environment</span><span class="p">()</span>
+        <span class="n">particle_ref</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">Particles</span><span class="p">(</span>
+            <span class="n">p0c</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">centroids</span><span class="o">.</span><span class="n">mean_cp</span><span class="o">.</span><span class="n">val</span><span class="p">],</span>
+            <span class="n">mass0</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_rest_energy_eV</span><span class="o">.</span><span class="n">val</span><span class="p">],</span>
+            <span class="n">q0</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">zeta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">beam_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">to_xsuite</span><span class="p">(</span>
+            <span class="n">beam_length</span><span class="p">,</span>
+            <span class="n">env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span>
+            <span class="n">particle_ref</span><span class="o">=</span><span class="n">particle_ref</span><span class="p">,</span>
+            <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">turns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">turns</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.setup_collective_effects">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.setup_collective_effects">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup_collective_effects</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xfields</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xf</span>
+        <span class="k">if</span> <span class="s2">&quot;charge&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="s2">&quot;space_charge_mode&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">][</span><span class="s2">&quot;space_charge_mode&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;3d&quot;</span>
+            <span class="p">):</span>
+                <span class="n">be</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span>
+                <span class="n">gridsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grids</span><span class="o">.</span><span class="n">getGridSizes</span><span class="p">(</span>
+                    <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">be</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_interval</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">sigma_z</span> <span class="o">=</span> <span class="n">be</span><span class="o">.</span><span class="n">sigmas</span><span class="o">.</span><span class="n">sigma_z</span><span class="o">.</span><span class="n">val</span>
+                <span class="n">lprofile</span> <span class="o">=</span> <span class="n">xf</span><span class="o">.</span><span class="n">LongitudinalProfileQGaussian</span><span class="p">(</span>
+                    <span class="n">number_of_particles</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">be</span><span class="o">.</span><span class="n">x</span><span class="p">),</span>
+                    <span class="n">sigma_z</span><span class="o">=</span><span class="n">sigma_z</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">xf</span><span class="o">.</span><span class="n">install_spacecharge_frozen</span><span class="p">(</span>
+                    <span class="n">line</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                    <span class="n">longitudinal_profile</span><span class="o">=</span><span class="n">lprofile</span><span class="p">,</span>
+                    <span class="n">nemitt_x</span><span class="o">=</span><span class="n">be</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">normalized_horizontal_emittance</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+                    <span class="n">nemitt_y</span><span class="o">=</span><span class="n">be</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">normalized_horizontal_emittance</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+                    <span class="n">sigma_z</span><span class="o">=</span><span class="n">sigma_z</span><span class="p">,</span>
+                    <span class="n">num_spacecharge_interactions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getNames</span><span class="p">())</span>
+                <span class="p">)</span>
+                <span class="n">pic_collection</span><span class="p">,</span> <span class="n">all_pics</span> <span class="o">=</span> <span class="n">xf</span><span class="o">.</span><span class="n">replace_spacecharge_with_PIC</span><span class="p">(</span>
+                    <span class="n">line</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                    <span class="n">n_sigmas_range_pic_x</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+                    <span class="n">n_sigmas_range_pic_y</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+                    <span class="n">nx_grid</span><span class="o">=</span><span class="n">gridsize</span><span class="p">,</span>
+                    <span class="n">ny_grid</span><span class="o">=</span><span class="n">gridsize</span><span class="p">,</span>
+                    <span class="n">nz_grid</span><span class="o">=</span><span class="n">gridsize</span><span class="p">,</span>
+                    <span class="n">n_lims_x</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+                    <span class="n">n_lims_y</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                    <span class="n">z_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span> <span class="o">*</span> <span class="n">sigma_z</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">sigma_z</span><span class="p">),</span>
+                    <span class="n">solver</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pic_solver</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.write">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create the lattice object via :func:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.writeElements`</span>
+<span class="sd">        and save it as a python file to `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writeElements</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.preProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.preProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">preProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the initial particle distribution defined in `file_block[&#39;input&#39;][&#39;prefix&#39;]` if it exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">preProcess</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prefix</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trackBeam</span> <span class="k">else</span> <span class="n">prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ref_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">s</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_input_file</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;horizontal&quot;</span><span class="p">][</span><span class="s2">&quot;beta&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchXPlane</span><span class="p">(</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;horizontal&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;vertical&quot;</span><span class="p">][</span><span class="s2">&quot;beta&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchYPlane</span><span class="p">(</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;vertical&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ref_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">reference_particle_index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hdf5_to_json</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.hdf5_to_json">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.hdf5_to_json">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hdf5_to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">write</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the initial HDF5 particle distribution to Xsuite format and set</span>
+<span class="sd">        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.pin` accordingly.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefix: str</span>
+<span class="sd">            Prefix for particle file</span>
+<span class="sd">        write: bool</span>
+<span class="sd">            Flag to indicate whether to save the file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xsuitebeamfilename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">+</span> <span class="s2">&quot;.xsuite.json&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pin</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">write_xsuite_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="n">xsuitebeamfilename</span><span class="p">,</span>
+            <span class="n">write</span><span class="o">=</span><span class="n">write</span><span class="p">,</span>
+            <span class="n">s_start</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">start_s</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.insert_reference_energy_increases">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.insert_reference_energy_increases">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">insert_reference_energy_increases</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert an ``xtrack.ReferenceEnergyIncrease`` immediately ahead of every</span>
+<span class="sd">        cavity in :attr:`~line`, so that the reference momentum follows the</span>
+<span class="sd">        acceleration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xt</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cavity</span><span class="p">,</span> <span class="n">ReferenceEnergyIncrease</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">ReferenceEnergyIncrease</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">new_elements</span><span class="p">,</span> <span class="n">new_names</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">el</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">elements</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">Cavity</span><span class="p">):</span>
+                <span class="c1"># `phase` (radians) is the current Xsuite field, `lag` (degrees)</span>
+                <span class="c1"># the deprecated one; Xsuite sums the two.</span>
+                <span class="n">on_crest_phase</span> <span class="o">=</span> <span class="n">el</span><span class="o">.</span><span class="n">phase</span> <span class="o">+</span> <span class="n">el</span><span class="o">.</span><span class="n">lag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+                <span class="n">new_elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">xt</span><span class="o">.</span><span class="n">ReferenceEnergyIncrease</span><span class="p">(</span>
+                        <span class="n">Delta_p0c</span><span class="o">=</span><span class="n">el</span><span class="o">.</span><span class="n">voltage</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">on_crest_phase</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">new_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_p0c&quot;</span><span class="p">)</span>
+            <span class="n">new_elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">el</span><span class="p">)</span>
+            <span class="n">new_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">particle_ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">particle_ref</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">Line</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="n">new_elements</span><span class="p">,</span> <span class="n">element_names</span><span class="o">=</span><span class="n">new_names</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">particle_ref</span> <span class="o">=</span> <span class="n">particle_ref</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">revolution_period</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Seconds per turn, as Xsuite itself counts them:</span>
+<span class="sd">        ``line_length / (beta0 * clight)``.</span>
+
+<span class="sd">        That expression is what ``t_turn_s`` advances by per *pass*, so with</span>
+<span class="sd">        superperiods it is multiplied by</span>
+<span class="sd">        :meth:`~simba.Framework_objects.frameworkLattice.passes_per_turn`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">speed_of_light</span>
+
+        <span class="n">beta0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">particle_ref</span><span class="o">.</span><span class="n">beta0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">pass_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">get_length</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">beta0</span> <span class="o">*</span> <span class="n">speed_of_light</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span> <span class="o">*</span> <span class="n">pass_time</span>
+
+<div class="viewcode-block" id="xsuiteLattice.bind_programs">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.bind_programs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bind_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bind each programmed element&#39;s attribute to a function of ``t_turn_s``.</span>
+<span class="sd">        Done once, before tracking, rather than per turn.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xt</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">programs</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">period</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">revolution_period</span>
+        <span class="n">bound</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">program</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">programs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">element</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span><span class="p">:</span>
+                <span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Line &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">&#39; programs &#39;</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                    <span class="s2">&quot;which is not in the Xsuite line. Nothing is varied.&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">element</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_dict</span><span class="p">[</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="p">]</span>
+            <span class="n">vertical</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program_is_vertical</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="p">)</span>
+            <span class="n">attribute</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">parameter</span>
+            <span class="k">if</span> <span class="n">attribute</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">planes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program_attributes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                <span class="n">attribute</span> <span class="o">=</span> <span class="n">planes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">vertical</span> <span class="k">else</span> <span class="n">planes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">planes</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">attribute</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Line &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">&#39; programs &#39;</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;an Xtrack </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">, and simba has no &quot;</span>
+                    <span class="s2">&quot;default attribute for that class. Name it with &quot;</span>
+                    <span class="s2">&quot;&#39;parameter:&#39; in the program.&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">sign</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program_signs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">program</span><span class="o">.</span><span class="n">parameter</span> <span class="k">else</span> <span class="mf">1.0</span>
+            <span class="n">times</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">time_knots</span><span class="p">(</span><span class="n">period</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="si">}</span><span class="s2">_simba_program&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">FunctionPieceWiseLinear</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">sign</span> <span class="o">*</span> <span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_refs</span><span class="p">[</span><span class="n">program</span><span class="o">.</span><span class="n">element</span><span class="p">]</span>
+            <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="n">last</span> <span class="o">=</span> <span class="n">attribute</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">piece</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+                <span class="n">target</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">piece</span><span class="p">)]</span> <span class="k">if</span> <span class="n">piece</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">piece</span><span class="p">)</span>
+            <span class="n">expression</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">vars</span><span class="p">[</span><span class="s2">&quot;t_turn_s&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">last</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                <span class="n">target</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">last</span><span class="p">)]</span> <span class="o">=</span> <span class="n">expression</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">expression</span><span class="p">)</span>
+            <span class="n">bound</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">bound</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">enable_time_dependent_vars</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.run">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the code, and set :attr:`~tws` and :attr:`~pout`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">insert_reference_energy_increases</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">build_tracker</span><span class="p">(</span><span class="n">_context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">radiation</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">configure_radiation</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">radiation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">freeze_longitudinal</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">freeze_energy</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bind_programs</span><span class="p">()</span>
+        <span class="n">pin</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pin</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">turns</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">pin</span><span class="p">,</span> <span class="n">num_turns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">turns</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pout</span> <span class="o">=</span> <span class="n">pin</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">collect_beam_data</span><span class="p">(</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">pin</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tws</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_twiss</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">el</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">elements</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span><span class="p">):</span>
+            <span class="n">pin</span><span class="o">.</span><span class="n">zeta</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">pin</span><span class="o">.</span><span class="n">zeta</span><span class="p">)</span>  <span class="c1"># Center zeta</span>
+            <span class="n">el</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">pin</span><span class="p">,</span> <span class="n">increment_at_element</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Track in-place</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bunch_statistics</span><span class="p">(</span><span class="n">pin</span><span class="p">)})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;_end_point&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bunch_statistics</span><span class="p">(</span><span class="n">pin</span><span class="p">)})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pout</span> <span class="o">=</span> <span class="n">pin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tws</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_twiss</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.bunch_statistics">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.bunch_statistics">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bunch_statistics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">particles</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Per-element bunch statistics, as the twiss file wants them;</span>
+<span class="sd">        based on tracking rather than optics via ``line.twiss()``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        particles: xtrack.Particles</span>
+<span class="sd">            The distribution at one point in the line</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            One row of :attr:`beam_data`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;mean_x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">x</span><span class="p">),</span>
+            <span class="s1">&#39;mean_y&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">y</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">x</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_px&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">px</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_y&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">y</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_py&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">py</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_zeta&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">zeta</span><span class="p">),</span>
+            <span class="s1">&#39;sigma_delta&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">delta</span><span class="p">),</span>
+            <span class="s1">&#39;momentum&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">energy</span><span class="p">)</span> <span class="o">-</span> <span class="n">particles</span><span class="o">.</span><span class="n">mass0</span><span class="p">,</span>
+            <span class="s1">&#39;emit_xn&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compute_norm_emit</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">particles</span><span class="o">.</span><span class="n">px</span><span class="p">,</span> <span class="n">particles</span><span class="p">)</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;emit_yn&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compute_norm_emit</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">particles</span><span class="o">.</span><span class="n">py</span><span class="p">,</span> <span class="n">particles</span><span class="p">)</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;emit_xn_corrected&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compute_norm_emit_corrected</span><span class="p">(</span>
+                    <span class="n">particles</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">particles</span><span class="o">.</span><span class="n">px</span><span class="p">,</span> <span class="n">particles</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;emit_yn_corrected&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compute_norm_emit_corrected</span><span class="p">(</span>
+                    <span class="n">particles</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">particles</span><span class="o">.</span><span class="n">py</span><span class="p">,</span> <span class="n">particles</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.collect_beam_data">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.collect_beam_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collect_beam_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">particles</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fill :attr:`beam_data` by walking ``particles`` down the line.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        particles: xtrack.Particles</span>
+<span class="sd">            A copy of the beam entering the pass</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">el</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">elements</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">element_names</span><span class="p">):</span>
+            <span class="n">el</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span> <span class="n">increment_at_element</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bunch_statistics</span><span class="p">(</span><span class="n">particles</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">name</span><span class="p">:</span> <span class="n">stats</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;_end_point&quot;</span><span class="p">:</span> <span class="n">stats</span><span class="p">})</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_twiss</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Twiss the line: the periodic solution if asked for, else the beam&#39;s.</span>
+
+<span class="sd">        ``line.twiss()`` with no initial conditions is Xsuite&#39;s closed</span>
+<span class="sd">        solution, so a ring is a matter of not passing them.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        xt.Line.twiss</span>
+<span class="sd">            Xtrack&#39;s twiss object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">compute_R_element_by_element</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;6d&quot;</span><span class="p">,</span>
+            <span class="n">freeze_energy</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">periodic</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">twiss</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">twiss</span><span class="p">(</span>
+            <span class="n">betx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">twiss</span><span class="o">.</span><span class="n">beta_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+            <span class="n">alfx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">twiss</span><span class="o">.</span><span class="n">alpha_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+            <span class="n">bety</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">twiss</span><span class="o">.</span><span class="n">beta_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+            <span class="n">alfy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">twiss</span><span class="o">.</span><span class="n">alpha_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="xsuiteLattice.track_reference_particle">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.track_reference_particle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">track_reference_particle</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        One particle on the closed orbit, recorded every turn.</span>
+<span class="sd">        Launched a hair off the closed orbit rather than on it.</span>
+<span class="sd">        One sample per *completed* turn.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            ``x``/``px``/``y``/``py``, each of length :meth:`turns`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xt</span>
+
+        <span class="n">orbit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_closed_orbit</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">orbit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">orbit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="n">nudge</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">da_settings</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;x_max&quot;</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">))</span> <span class="o">/</span> <span class="mf">100.0</span>
+        <span class="n">particles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">build_particles</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">orbit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">nudge</span><span class="p">]),</span>
+            <span class="n">px</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">orbit</span><span class="p">[</span><span class="mi">1</span><span class="p">]]),</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">orbit</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">nudge</span><span class="p">]),</span>
+            <span class="n">py</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">orbit</span><span class="p">[</span><span class="mi">3</span><span class="p">]]),</span>
+        <span class="p">)</span>
+        <span class="n">passes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">turns</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span>
+        <span class="n">monitor</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">ParticlesMonitor</span><span class="p">(</span>
+            <span class="n">_context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span>
+            <span class="n">start_at_turn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">stop_at_turn</span><span class="o">=</span><span class="n">passes</span><span class="p">,</span>
+            <span class="n">num_particles</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span> <span class="n">num_turns</span><span class="o">=</span><span class="n">passes</span><span class="p">,</span> <span class="n">turn_by_turn_monitor</span><span class="o">=</span><span class="n">monitor</span><span class="p">)</span>
+        <span class="n">stride</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">name</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">monitor</span><span class="p">,</span> <span class="n">name</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="n">stride</span><span class="p">::</span><span class="n">stride</span><span class="p">],</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span> <span class="n">name</span><span class="p">))[</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;px&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;py&quot;</span><span class="p">)</span>
+        <span class="p">}</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_da_particles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;One particle per grid point, at the requested amplitudes.&quot;&quot;&quot;</span>
+        <span class="n">xs</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">da_grid</span><span class="p">()</span>
+        <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)</span>
+        <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span> <span class="o">=</span> <span class="n">grid_x</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">grid_y</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">build_particles</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">grid_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">grid_y</span><span class="p">)</span>
+
+<div class="viewcode-block" id="xsuiteLattice.run_dynamic_aperture">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.run_dynamic_aperture">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_dynamic_aperture</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Track a grid of single particles and record who survived.</span>
+<span class="sd">        Particles are tracked</span>
+<span class="sd">        together, so the whole grid costs one tracking call.</span>
+
+<span class="sd">        Note this relies on the line having apertures. Without them nothing</span>
+<span class="sd">        is ever lost and the scan reports an aperture larger than the grid.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">            ``(x, y, turns_survived)`` per grid point.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">,</span> <span class="n">particles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_da_particles</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span> <span class="n">num_turns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">turns</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">particle_id</span><span class="p">)</span>
+        <span class="n">turns</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">at_turn</span><span class="p">)[</span><span class="n">order</span><span class="p">]</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dynamic_aperture</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">turn</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">turn</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">,</span> <span class="n">turns</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dynamic_aperture</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.run_frequency_map">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.run_frequency_map">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_frequency_map</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tune footprint over the aperture grid.</span>
+
+<span class="sd">        A `ParticlesMonitor` records every turn, and the tunes come from the</span>
+<span class="sd">        shared :func:`~simba.Modules.Matrices.tune_from_trajectory`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">            ``(x, y, tune_x, tune_y)`` per surviving grid point.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xtrack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xt</span>
+
+        <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.Matrices</span><span class="w"> </span><span class="kn">import</span> <span class="n">tune_diffusion</span>
+
+        <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">,</span> <span class="n">particles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_da_particles</span><span class="p">()</span>
+        <span class="n">passes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">turns</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span>
+        <span class="n">monitor</span> <span class="o">=</span> <span class="n">xt</span><span class="o">.</span><span class="n">ParticlesMonitor</span><span class="p">(</span>
+            <span class="n">_context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span>
+            <span class="n">start_at_turn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">stop_at_turn</span><span class="o">=</span><span class="n">passes</span><span class="p">,</span>
+            <span class="n">num_particles</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">grid_x</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">track</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span> <span class="n">num_turns</span><span class="o">=</span><span class="n">passes</span><span class="p">,</span> <span class="n">turn_by_turn_monitor</span><span class="o">=</span><span class="n">monitor</span><span class="p">)</span>
+        <span class="n">stride</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">passes_per_turn</span>
+        <span class="n">twiss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalisation_twiss</span><span class="p">()</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">grid_x</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">state</span><span class="p">)[</span><span class="n">index</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">tune_x</span><span class="p">,</span> <span class="n">tune_y</span><span class="p">,</span> <span class="n">diffusion</span> <span class="o">=</span> <span class="n">tune_diffusion</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">x</span><span class="p">)[</span><span class="n">index</span><span class="p">][::</span><span class="n">stride</span><span class="p">],</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">px</span><span class="p">)[</span><span class="n">index</span><span class="p">][::</span><span class="n">stride</span><span class="p">],</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">y</span><span class="p">)[</span><span class="n">index</span><span class="p">][::</span><span class="n">stride</span><span class="p">],</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">py</span><span class="p">)[</span><span class="n">index</span><span class="p">][::</span><span class="n">stride</span><span class="p">],</span>
+                <span class="n">twiss</span><span class="o">=</span><span class="n">twiss</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tune_x</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">footprint</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">grid_x</span><span class="p">[</span><span class="n">index</span><span class="p">]),</span>
+                    <span class="nb">float</span><span class="p">(</span><span class="n">grid_y</span><span class="p">[</span><span class="n">index</span><span class="p">]),</span>
+                    <span class="n">tune_x</span><span class="p">,</span>
+                    <span class="n">tune_y</span><span class="p">,</span>
+                    <span class="n">diffusion</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">footprint</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Line &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">&#39;: no particle survived the &quot;</span>
+                <span class="s2">&quot;frequency-map scan, so there is no footprint.&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frequency_map</span> <span class="o">=</span> <span class="n">footprint</span>
+        <span class="k">return</span> <span class="n">footprint</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.read_closed_orbit">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.read_closed_orbit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_closed_orbit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;``line.find_closed_orbit()``, already called for the one-turn map.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">orbit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">find_closed_orbit</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Xsuite found no closed orbit for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">orbit</span><span class="p">,</span> <span class="n">name</span><span class="p">))[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;px&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;py&quot;</span><span class="p">,</span> <span class="s2">&quot;zeta&quot;</span><span class="p">,</span> <span class="s2">&quot;delta&quot;</span><span class="p">)</span>
+            <span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.read_optics_summary">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.read_optics_summary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_optics_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Xsuite reports all four off the periodic twiss directly.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tws</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;tune_x_total&quot;</span><span class="p">:</span> <span class="s2">&quot;qx&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;tune_y_total&quot;</span><span class="p">:</span> <span class="s2">&quot;qy&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;chromaticity_x&quot;</span><span class="p">:</span> <span class="s2">&quot;dqx&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;chromaticity_y&quot;</span><span class="p">:</span> <span class="s2">&quot;dqy&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">summary</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="n">keys</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tws</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">summary</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">summary</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.read_one_turn_map">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.read_one_turn_map">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_one_turn_map</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``line.compute_R_matrix()``, which finite-differences about the</span>
+<span class="sd">        closed orbit.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray | None</span>
+<span class="sd">            The 6x6 map, or None if Xsuite could not find a closed orbit.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">closed_orbit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">find_closed_orbit</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">compute_R_matrix</span><span class="p">(</span><span class="n">particle_on_co</span><span class="o">=</span><span class="n">closed_orbit</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;R_matrix&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Line &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s2">&#39;: Xsuite could not compute a &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;one-turn matrix (</span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">). An unstable or unclosed lattice &quot;</span>
+                <span class="s2">&quot;has no one-turn map.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.compute_norm_emit">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.compute_norm_emit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_norm_emit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">mom</span><span class="p">,</span> <span class="n">particles</span><span class="p">):</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">mom</span><span class="p">)</span>
+        <span class="n">emit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">cov</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">cov</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">cov</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="n">particles</span><span class="o">.</span><span class="n">energy</span> <span class="o">/</span> <span class="n">particles</span><span class="o">.</span><span class="n">mass0</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">particles</span><span class="o">.</span><span class="n">beta0</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">particles</span><span class="o">.</span><span class="n">delta</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">particles</span><span class="o">.</span><span class="n">delta</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="n">particles</span><span class="o">.</span><span class="n">beta0</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">beta</span> <span class="o">*</span> <span class="n">emit</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.compute_norm_emit_corrected">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.compute_norm_emit_corrected">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_norm_emit_corrected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">mom</span><span class="p">,</span> <span class="n">particles</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Normalised emittance with the dispersive contribution removed.</span>
+
+<span class="sd">        Both coordinates have their linear correlation with ``delta`` subtracted</span>
+<span class="sd">        before the emittance is formed, matching</span>
+<span class="sd">        :func:`~simba.Modules.Beams.Particles.emittance.horizontal_emittance_corrected`</span>
+<span class="sd">        (which regresses against the momentum column -- the regression is</span>
+<span class="sd">        scale-invariant, so ``delta`` gives the same answer).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        coord: np.ndarray</span>
+<span class="sd">            Transverse coordinate column (x or y)</span>
+<span class="sd">        mom: np.ndarray</span>
+<span class="sd">            Conjugate momentum column (px or py)</span>
+<span class="sd">        particles: xtrack.Particles</span>
+<span class="sd">            The distribution, used for delta and the normalisation factor</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Dispersion-corrected normalised emittance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">particles</span><span class="o">.</span><span class="n">delta</span><span class="p">)</span>
+        <span class="n">var_delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">var_delta</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">delta</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">var_delta</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span>
+            <span class="n">mom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mom</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">mom</span><span class="p">,</span> <span class="n">delta</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">var_delta</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_norm_emit</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">mom</span><span class="p">,</span> <span class="n">particles</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="xsuiteLattice.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Xsuite.html#simba.Codes.Xsuite.Xsuite.xsuiteLattice.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">xobjects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xo</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">postProcess</span><span class="p">()</span>
+        <span class="n">bfname</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="si">}</span><span class="s1">.xsuite.json&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">bfname</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pout</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">fid</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">xo</span><span class="o">.</span><span class="n">JEncoder</span><span class="p">)</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">])</span>
+        <span class="n">svals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getSValues</span><span class="p">(</span><span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">read_xsuite_beam_file</span><span class="p">(</span>
+            <span class="n">bfname</span><span class="p">,</span>
+            <span class="n">zstart</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">s</span><span class="o">=</span><span class="n">svals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">],</span>
+            <span class="n">ref_index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ref_idx</span>
+        <span class="p">)</span>
+        <span class="c1"># the beam leaving the line is the last turn&#39;s, by definition</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">turn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">turns</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+            <span class="n">beam</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">)</span><span class="si">}</span><span class="s1">.openpmd.hdf5&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">screens_and_bpms</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="p">[</span><span class="n">elem</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">data_turn</span><span class="p">,</span> <span class="n">name_turn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_turns</span><span class="p">():</span>
+                <span class="n">payload</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">data</span> <span class="k">if</span> <span class="n">data_turn</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_select_turn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_turn</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">stem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_basename</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">turn</span><span class="o">=</span><span class="n">name_turn</span><span class="p">)</span>
+                <span class="n">fname</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">stem</span><span class="si">}</span><span class="s1">.xsuite.json&#39;</span>
+                <span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+                    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">fid</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">xo</span><span class="o">.</span><span class="n">JEncoder</span><span class="p">)</span>
+                <span class="n">beam</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">])</span>
+                <span class="n">beam</span><span class="o">.</span><span class="n">read_xsuite_beam_file</span><span class="p">(</span>
+                    <span class="n">fname</span><span class="p">,</span>
+                    <span class="n">zstart</span><span class="o">=</span><span class="n">elem</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+                    <span class="n">s</span><span class="o">=</span><span class="n">svals</span><span class="p">[</span><span class="n">elem</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+                    <span class="n">ref_index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ref_idx</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">beam</span><span class="o">.</span><span class="n">turn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_turn</span><span class="p">(</span><span class="n">data_turn</span><span class="p">)</span>
+                <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+                    <span class="n">beam</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">stem</span><span class="si">}</span><span class="s1">.openpmd.hdf5&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tws</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+        <span class="c1"># Anchor s to the lattice start (not the incoming beam&#39;s accumulated s) to</span>
+        <span class="c1"># match Elegant/Ocelot/MAD-X.</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_s</span>
+        <span class="n">svals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getSValues</span><span class="p">(</span><span class="n">at_entrance</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span> <span class="o">+</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">zvals</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getZValues</span><span class="p">()]</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">],</span> <span class="n">svals</span><span class="p">,</span> <span class="n">zvals</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_data</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s1">_twiss.csv&#39;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

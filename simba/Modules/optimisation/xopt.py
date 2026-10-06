@@ -39,8 +39,8 @@ def xopt_optimisation(
     """
     Optimisation function for use with xopt.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     settings : dict
         Variables from the Xopt `VOCS`, i.e. parameters to be changed.
         The keys in this dictionary are formatted as `elem:param` with `{elem}` the name of the element
@@ -62,8 +62,8 @@ def xopt_optimisation(
         every point along the beamline where a `beam` is dumped. Can be customised to be any `float` attribute
         available to `beam`.
 
-    Returns:
-    -----------
+    Returns
+    -------
     dict
         A dictionary of `elem:param : val` with `elem` the `beam` file names, and `param` in `params`
     """

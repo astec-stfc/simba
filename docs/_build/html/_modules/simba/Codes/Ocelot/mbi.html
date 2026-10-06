@@ -1,0 +1,859 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Ocelot.mbi &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Ocelot.mbi</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Ocelot.mbi</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">@author: Alex Brynes</span>
+<span class="sd">Created on 09.12.2024</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.common.globals</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.elements</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.coord_transform</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.beam</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParticleArray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">kv</span><span class="p">,</span> <span class="n">iv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.physics_proc</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhysProc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.beam</span><span class="w"> </span><span class="kn">import</span> <span class="n">global_slice_analysis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.magnetic_lattice</span><span class="w"> </span><span class="kn">import</span> <span class="n">MagneticLattice</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.elements.element</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ocelot.cpbd.tm_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">transfer_maps_mult</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">A_csr</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.94</span> <span class="o">+</span> <span class="mf">1.63</span><span class="n">j</span>
+
+
+<div class="viewcode-block" id="lattice_transfer_map_z">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.lattice_transfer_map_z">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">lattice_transfer_map_z</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">zfin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function calculates transfer maps, first order only, for the whole lattice, up to `zfin`.</span>
+
+<span class="sd">    :param lattice: MagneticLattice</span>
+<span class="sd">    :param energy: the initial electron beam energy [GeV]</span>
+<span class="sd">    :param zfin: the final z position in the accelerator lattice [m]</span>
+<span class="sd">    :return: first_order_tms - matrix</span>
+<span class="sd">    :return: elem - element located at zfin</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">Ra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+    <span class="n">Ta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">Ba</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="n">energy</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">elem</span> <span class="o">=</span> <span class="n">lattice</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">l</span>
+    <span class="k">while</span> <span class="n">zfin</span> <span class="o">&gt;</span> <span class="n">L</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">Rb</span><span class="p">,</span> <span class="n">Bb</span><span class="p">,</span> <span class="n">Tb</span><span class="p">,</span> <span class="n">tm</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">R</span><span class="p">(</span><span class="n">E</span><span class="p">),</span> <span class="n">elem</span><span class="o">.</span><span class="n">B</span><span class="p">(</span><span class="n">E</span><span class="p">),</span> <span class="n">elem</span><span class="o">.</span><span class="n">T</span><span class="p">(</span><span class="n">E</span><span class="p">),</span> <span class="n">elem</span><span class="o">.</span><span class="n">tms</span><span class="p">):</span>
+            <span class="n">Ba</span><span class="p">,</span> <span class="n">Ra</span><span class="p">,</span> <span class="n">Ta</span> <span class="o">=</span> <span class="n">transfer_maps_mult</span><span class="p">(</span><span class="n">Ba</span><span class="p">,</span> <span class="n">Ra</span><span class="p">,</span> <span class="n">Ta</span><span class="p">,</span> <span class="n">Bb</span><span class="p">,</span> <span class="n">Rb</span><span class="p">,</span> <span class="n">Tb</span><span class="p">)</span>
+            <span class="c1"># Ba = np.dot(Rb, Ba) + Bb</span>
+            <span class="n">E</span> <span class="o">+=</span> <span class="n">tm</span><span class="o">.</span><span class="n">get_delta_e</span><span class="p">()</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">elem</span> <span class="o">=</span> <span class="n">lattice</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">L</span> <span class="o">+=</span> <span class="n">elem</span><span class="o">.</span><span class="n">l</span>
+    <span class="n">delta_l</span> <span class="o">=</span> <span class="n">zfin</span> <span class="o">-</span> <span class="p">(</span><span class="n">L</span> <span class="o">-</span> <span class="n">elem</span><span class="o">.</span><span class="n">l</span><span class="p">)</span>
+    <span class="n">first_order_tms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+        <span class="n">lattice</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">get_section_tms</span><span class="p">(</span><span class="n">start_l</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">delta_l</span><span class="o">=</span><span class="n">delta_l</span><span class="p">,</span> <span class="n">first_order_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">E</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">R</span><span class="p">,</span>
+        <span class="n">Ra</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">first_order_tms</span><span class="p">,</span> <span class="n">elem</span></div>
+
+
+
+<div class="viewcode-block" id="k_wn">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.k_wn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">k_wn</span><span class="p">(</span><span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    uncompressed wave number in [1/m]</span>
+
+<span class="sd">    :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">    :return: conversion from lambda to k [1/m]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">lamb</span></div>
+
+
+
+<div class="viewcode-block" id="b0">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.b0">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">b0</span><span class="p">(</span><span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">I0</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    initial longitudinal bunch factor form shot noise</span>
+
+<span class="sd">    :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">    :param I0: beam current [A]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_e</span> <span class="o">*</span> <span class="n">speed_of_light</span> <span class="o">/</span> <span class="p">(</span><span class="n">I0</span> <span class="o">*</span> <span class="n">lamb</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="p0">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.p0">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">p0</span><span class="p">(</span><span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">compression_factor</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sdelta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">r56</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">b0</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    initial momentum bunch factor form shot noise</span>
+
+<span class="sd">    :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">    :param compression_factor: beam longitudinal compression factor</span>
+<span class="sd">    :param sdelta: fractional energy spread</span>
+<span class="sd">    :param r56: R56 from initial to current simulation step [m]</span>
+<span class="sd">    :param b0: bunching factor from shot noise (see `~b0`</span>
+<span class="sd">    :param I0: beam current [A]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">kfac</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb</span> <span class="o">/</span> <span class="n">compression_factor</span><span class="p">)</span>
+    <span class="n">r56fac</span> <span class="o">=</span> <span class="n">r56</span>
+    <span class="n">sigdfac</span> <span class="o">=</span> <span class="n">sdelta</span><span class="o">**</span><span class="mi">2</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">kfac</span> <span class="o">*</span> <span class="n">r56fac</span> <span class="o">*</span> <span class="n">sigdfac</span> <span class="o">*</span> <span class="n">b0</span></div>
+
+
+
+<div class="viewcode-block" id="MBI">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MBI</span><span class="p">(</span><span class="n">PhysProc</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Microbunching Gain (MBI) calculation physics process</span>
+
+
+<span class="sd">    The beam bunching factor is calculated sequentially along the beamline, following `Tsai et al`_.</span>
+<span class="sd">    [All equations referenced herein refer to this paper.]</span>
+<span class="sd">    At each simulation step, the bunch slice properties and lattice transfer map up to that point are extracted.</span>
+<span class="sd">    The bunching factor in the absence of collective effects -- b0 -- is also calculated.</span>
+<span class="sd">    Based on these parameters, the microbunching integral kernel at each previous step is evaluated</span>
+<span class="sd">    and multiplied with b0.</span>
+<span class="sd">    The bunching factor at a given location z is then the sum of all previous bunching factors.</span>
+<span class="sd">    These bunching factors [bf, pf] are then made attributes of the `~ocelot.cpbd.beam.ParticleArray` object.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        lattice: MagneticLattice</span>
+<span class="sd">         Lattice used during tracking</span>
+<span class="sd">        step: int [in Navigator.unit_step]</span>
+<span class="sd">            step of the MBI calculation</span>
+<span class="sd">        lamb_range: tuple</span>
+<span class="sd">            Initial wavelength modulation range (metres) [min, max, num_steps]</span>
+<span class="sd">        slices: int</span>
+<span class="sd">        Number of time-slices across which to calculate beam slice properties (zero takes only the central slice)</span>
+<span class="sd">        lsc: bool</span>
+<span class="sd">            Include LSC impedance</span>
+<span class="sd">        csr: bool</span>
+<span class="sd">            Include CSR impedance</span>
+
+<span class="sd">    .. _Tsai et al: https://journals.aps.org/prab/abstract/10.1103/PhysRevAccelBeams.23.124401</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lattice</span><span class="p">:</span> <span class="n">MagneticLattice</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">lamb_range</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1e-6</span><span class="p">,</span> <span class="mf">50e-6</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+        <span class="n">slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">lsc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">csr</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">PhysProc</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span> <span class="o">=</span> <span class="n">lattice</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lsc</span> <span class="o">=</span> <span class="n">lsc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csr</span> <span class="o">=</span> <span class="n">csr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span> <span class="o">=</span> <span class="n">lamb_range</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slice</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">slices</span><span class="p">)</span>
+        <span class="c1"># self.lattice = None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bf</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optics_map</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="MBI.set_lamb_range">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.set_lamb_range">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_lamb_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lamb_range</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set initial modulation wavelength and update buching factor lists</span>
+
+<span class="sd">        :param lamb_range: range of initial modulation wavelengths</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span> <span class="o">=</span> <span class="n">lamb_range</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span></div>
+
+
+<div class="viewcode-block" id="MBI.set_slice">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.set_slice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slices</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set number of slices for calculating variation in gain along the beam</span>
+
+<span class="sd">        :param slices: number of slices (zero for beam core only)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">slices</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice</span> <span class="o">=</span> <span class="n">slices</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bf</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">))]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="MBI.get_slice_params">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.get_slice_params">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_slice_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p_array</span><span class="p">:</span> <span class="n">ParticleArray</span><span class="p">,</span> <span class="n">slices</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate beam slice parameters</span>
+
+<span class="sd">        :param p_array: Particle array object</span>
+<span class="sd">        :param slices: if true, calculate beam properties along the full slice; if false,\</span>
+<span class="sd">        calculate slice properties of the central slice</span>
+<span class="sd">        :return: dictionary containing relevant slice parameters obtained from `Ocelot global slice analysis`_</span>
+
+<span class="sd">        .. _Ocelot global slice analysis: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/beam.py</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">slice_params</span> <span class="o">=</span> <span class="n">global_slice_analysis</span><span class="p">(</span><span class="n">p_array</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">slices</span><span class="p">:</span>
+            <span class="n">sli_cen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slice_params</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">sli_tot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">slice_params</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">sli_min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sli_cen</span> <span class="o">-</span> <span class="p">(</span><span class="n">sli_tot</span> <span class="o">/</span> <span class="mf">2.5</span><span class="p">))</span>
+            <span class="n">sli_max</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sli_cen</span> <span class="o">+</span> <span class="p">(</span><span class="n">sli_tot</span> <span class="o">/</span> <span class="mf">2.5</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sli_min</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">sli_max</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">sli</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">slice_params</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;beta_x&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha_x&quot;</span><span class="p">,</span> <span class="s2">&quot;beta_y&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha_y&quot;</span><span class="p">,</span> <span class="s2">&quot;I&quot;</span><span class="p">,</span> <span class="s2">&quot;sig_x&quot;</span><span class="p">,</span> <span class="s2">&quot;sig_y&quot;</span><span class="p">]:</span>
+                <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">])})</span>
+            <span class="k">elif</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;se&quot;</span><span class="p">:</span>
+                <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;sdelta&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                            <span class="n">v</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="o">.</span><span class="n">me</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">]</span>
+                        <span class="p">)</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;me&quot;</span><span class="p">:</span>
+                <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;me&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)})</span>
+                <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">m_e_MeV</span><span class="p">)})</span>
+            <span class="k">elif</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ex&quot;</span><span class="p">,</span> <span class="s2">&quot;ey&quot;</span><span class="p">]:</span>
+                <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="n">k</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">])</span>
+                        <span class="o">*</span> <span class="mf">1e-6</span>
+                        <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">slice_params</span><span class="o">.</span><span class="n">me</span><span class="p">[</span><span class="n">sli_min</span><span class="p">:</span><span class="n">sli_max</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">m_e_MeV</span><span class="p">))</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+        <span class="n">sli</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="n">p_array</span><span class="o">.</span><span class="n">s</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">sli</span></div>
+
+
+<div class="viewcode-block" id="MBI.apply">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.apply">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p_array</span><span class="p">:</span> <span class="n">ParticleArray</span><span class="p">,</span> <span class="n">dz</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply MBI calculation.</span>
+<span class="sd">        Calculates beam slice parameters and optics map, used as input to `~get_bf` or `~get_bf_slice`.</span>
+<span class="sd">        Then updates `self.bf` and `self.pf`.</span>
+
+<span class="sd">        :param p_array: particle array object</span>
+<span class="sd">        :param dz: step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">dz</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot; MBI applied, dz &lt; 1e-10, dz = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">dz</span><span class="p">))</span>
+            <span class="k">return</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot; MBI applied, dz =&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">dz</span><span class="p">))</span>
+        <span class="n">p_array_c</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">p_array</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">t_his</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">p_array_c</span><span class="o">.</span><span class="n">tau</span><span class="p">(),</span> <span class="n">bins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ltm</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t_his</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                        <span class="n">p_array_c</span><span class="o">.</span><span class="n">tau</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">t_his</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_array_c</span><span class="o">.</span><span class="n">tau</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">t_his</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">pn</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">p_array_c</span><span class="p">)</span>
+                <span class="n">pn</span><span class="o">.</span><span class="n">rparticles</span> <span class="o">=</span> <span class="n">p_array_c</span><span class="o">.</span><span class="n">rparticles</span><span class="p">[:,</span> <span class="n">inds</span><span class="p">]</span>
+                <span class="n">pn</span><span class="o">.</span><span class="n">q_array</span> <span class="o">=</span> <span class="n">p_array_c</span><span class="o">.</span><span class="n">q_array</span><span class="p">[</span><span class="n">inds</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_slice_params</span><span class="p">(</span><span class="n">pn</span><span class="p">,</span> <span class="n">slices</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+                <span class="n">z0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">lattice_transfer_map_z</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;me&quot;</span><span class="p">],</span> <span class="n">z0</span>
+                <span class="p">)</span>
+                <span class="n">ltm</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">elem</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">optics_map</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ltm</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_slice_params</span><span class="p">(</span><span class="n">p_array_c</span><span class="p">))</span>
+            <span class="n">z0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span>
+            <span class="n">ltm</span><span class="p">,</span> <span class="n">elem</span> <span class="o">=</span> <span class="n">lattice_transfer_map_z</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;me&quot;</span><span class="p">],</span> <span class="n">z0</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">optics_map</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ltm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">p_array</span><span class="o">.</span><span class="n">bf</span><span class="p">,</span> <span class="n">p_array</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bf_slice</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">optics_map</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">elem</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">p_array</span><span class="o">.</span><span class="n">bf</span><span class="p">,</span> <span class="n">p_array</span><span class="o">.</span><span class="n">pf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bf</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lamb_range</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">optics_map</span><span class="p">,</span> <span class="n">elem</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MBI.get_bf">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.get_bf">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_bf</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb_range</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate bunching factor at the current position (see Eq. (58))</span>
+
+<span class="sd">        :param lamb_range: range of initial modulation wavelengths [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+<span class="sd">        :return: bunching factors in z and p</span>
+
+<span class="sd">        .. _Ocelot element: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/elements/element.py</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cur_init</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lamb_range</span><span class="p">):</span>
+            <span class="n">cur_now</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+            <span class="n">sdelta</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;sdelta&quot;</span><span class="p">]</span>
+            <span class="n">r56</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+            <span class="n">ld_0s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ld0s</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">)</span>
+            <span class="n">b0fac</span> <span class="o">=</span> <span class="n">b0</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">cur_init</span><span class="p">)</span> <span class="o">*</span> <span class="n">ld_0s</span>
+            <span class="n">p0fac</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p0</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">cur_now</span> <span class="o">/</span> <span class="n">cur_init</span><span class="p">,</span> <span class="n">sdelta</span><span class="p">,</span> <span class="n">r56</span><span class="p">,</span> <span class="n">b0fac</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">b0fac</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p0fac</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">k0tot</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">k1tot</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">k2tot</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">i</span><span class="p">]):</span>
+                    <span class="n">fac</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span>
+                    <span class="n">distance</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">slice_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span>
+                        <span class="k">else</span> <span class="p">(</span><span class="n">slice_params</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">])</span>
+                    <span class="p">)</span>
+                    <span class="n">k0</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+                    <span class="n">k0r</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k0</span>
+                    <span class="p">)</span>  <span class="c1"># self.kernel_K0(l, slice_params, optics_map, j, elem)</span>
+                    <span class="n">k0tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k0r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k0r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                    <span class="n">k1r</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k1</span>
+                    <span class="p">)</span>  <span class="c1"># self.kernel_K1(l, slice_params, optics_map, j, elem)</span>
+                    <span class="n">k1tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k1r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k1r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                    <span class="n">k2r</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k2</span>
+                    <span class="p">)</span>  <span class="c1"># self.kernel_K2(l, slice_params, optics_map, j, elem)</span>
+                    <span class="n">k2tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k2r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k2r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                    <span class="n">k2tot</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;sdelta&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+                    <span class="n">k0tot</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                    <span class="n">k2tot</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">k1tot</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">k0tot</span><span class="p">))</span> <span class="o">-</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">k2tot</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="MBI.get_bf_slice">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.get_bf_slice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_bf_slice</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lamb_range</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">slices</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate bunching factor at the current position (see Eq. (58)) across longitudinal bunch slices</span>
+
+<span class="sd">        :param lamb_range: range of initial modulation wavelengths [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param slices: number of slices over which to calculate beam slice properties and bunching factors</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+<span class="sd">        :return: bunching factors in z and p</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">slices</span><span class="p">):</span>
+            <span class="n">cur_init</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+            <span class="n">sli</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">h</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lamb_range</span><span class="p">):</span>
+                <span class="n">ld_0s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ld0s</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">sli</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">)</span>
+                <span class="n">cur_now</span> <span class="o">=</span> <span class="n">sli</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+                <span class="n">sdelta</span> <span class="o">=</span> <span class="n">sli</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;sdelta&quot;</span><span class="p">]</span>
+                <span class="n">r56</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+                <span class="n">b0fac</span> <span class="o">=</span> <span class="n">b0</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">sli</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">ld_0s</span>
+                <span class="n">p0fac</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p0</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">cur_now</span> <span class="o">/</span> <span class="n">cur_init</span><span class="p">,</span> <span class="n">sdelta</span><span class="p">,</span> <span class="n">r56</span><span class="p">,</span> <span class="n">b0fac</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">b0fac</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p0fac</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">slice_params</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">k0tot</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">k1tot</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">k2tot</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">i</span><span class="p">]):</span>
+                        <span class="n">fac</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span>
+                        <span class="n">distance</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">sli</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">(</span><span class="n">sli</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">sli</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="s2">&quot;s&quot;</span><span class="p">])</span>
+                        <span class="p">)</span>
+                        <span class="n">k0</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">sli</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+                        <span class="n">k0r</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k0</span>
+                        <span class="p">)</span>  <span class="c1"># self.kernel_K0(l, sli, optics_map, j, elem)</span>
+                        <span class="n">k0tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k0r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k0r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                        <span class="n">k1r</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k1</span>
+                        <span class="p">)</span>  <span class="c1"># self.kernel_K1(l, sli, optics_map, j, elem)</span>
+                        <span class="n">k1tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k1r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k1r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                        <span class="n">k2r</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">distance</span> <span class="o">*</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">k2</span>
+                        <span class="p">)</span>  <span class="c1"># self.kernel_K2(l, sli, optics_map, j, elem)</span>
+                        <span class="n">k2tot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">k2r</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">k2r</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">k1tot</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">bf</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="MBI.ld0s">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.ld0s">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ld0s</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Landau damping between first lattice point and subsequent points (Eq. (46))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+
+<span class="sd">        :return: Landau damping factor LD(0-&gt;s)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">compfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="n">kfac</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">k_wn</span><span class="p">(</span><span class="n">lamb</span> <span class="o">*</span> <span class="n">compfac</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">ex</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;ex&quot;</span><span class="p">]</span>
+        <span class="n">ey</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;ey&quot;</span><span class="p">]</span>
+        <span class="n">betax</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;beta_x&quot;</span><span class="p">]</span>
+        <span class="n">betay</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;beta_y&quot;</span><span class="p">]</span>
+        <span class="n">alphax</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;alpha_x&quot;</span><span class="p">]</span>
+        <span class="n">alphay</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;alpha_y&quot;</span><span class="p">]</span>
+        <span class="n">sigd</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;sdelta&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">r51s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">r52s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">r53s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">r54s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">r56s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">r51r52</span> <span class="o">=</span> <span class="p">(</span><span class="n">r51s</span> <span class="o">-</span> <span class="p">((</span><span class="n">alphax</span> <span class="o">/</span> <span class="n">betax</span><span class="p">)</span> <span class="o">*</span> <span class="n">r52s</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">r52</span> <span class="o">=</span> <span class="n">r52s</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">r53r54</span> <span class="o">=</span> <span class="p">(</span><span class="n">r53s</span> <span class="o">-</span> <span class="p">((</span><span class="n">alphay</span> <span class="o">/</span> <span class="n">betay</span><span class="p">)</span> <span class="o">*</span> <span class="n">r54s</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">r54</span> <span class="o">=</span> <span class="n">r54s</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">r56</span> <span class="o">=</span> <span class="n">r56s</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">exbeta</span> <span class="o">=</span> <span class="n">ex</span> <span class="o">*</span> <span class="n">betax</span>
+        <span class="n">eybeta</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">*</span> <span class="n">betay</span>
+        <span class="n">exobeta</span> <span class="o">=</span> <span class="n">ex</span> <span class="o">/</span> <span class="n">betax</span>
+        <span class="n">eyobeta</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">/</span> <span class="n">betay</span>
+        <span class="n">exponent</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">exbeta</span> <span class="o">*</span> <span class="n">r51r52</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">exobeta</span> <span class="o">*</span> <span class="n">r52</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">eybeta</span> <span class="o">*</span> <span class="n">r53r54</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">eyobeta</span> <span class="o">*</span> <span class="n">r54</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">((</span><span class="n">sigd</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">r56</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">kfac</span> <span class="o">*</span> <span class="n">exponent</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MBI.ldtaus">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.ldtaus">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ldtaus</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Landau damping between two lattice elements (Eq. (50))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+
+<span class="sd">        :return: Landau damping factor LD(tau,s)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kfac</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">k_wn</span><span class="p">(</span><span class="n">lamb</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">ex</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;ex&quot;</span><span class="p">]</span>
+        <span class="n">ey</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;ey&quot;</span><span class="p">]</span>
+        <span class="n">betax</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;beta_x&quot;</span><span class="p">]</span>
+        <span class="n">betay</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;beta_y&quot;</span><span class="p">]</span>
+        <span class="n">alphax</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;alpha_x&quot;</span><span class="p">]</span>
+        <span class="n">alphay</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;alpha_y&quot;</span><span class="p">]</span>
+        <span class="n">sigd</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;sdelta&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">r51s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">r52s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">r53s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">r54s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">r56s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">r51tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">r52tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">r53tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">r54tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">r56tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">r51taus</span> <span class="o">=</span> <span class="n">r51s</span> <span class="o">-</span> <span class="n">r51tau</span>
+        <span class="n">r52taus</span> <span class="o">=</span> <span class="n">r52s</span> <span class="o">-</span> <span class="n">r52tau</span>
+        <span class="n">r53taus</span> <span class="o">=</span> <span class="n">r53s</span> <span class="o">-</span> <span class="n">r53tau</span>
+        <span class="n">r54taus</span> <span class="o">=</span> <span class="n">r54s</span> <span class="o">-</span> <span class="n">r54tau</span>
+        <span class="n">r56taus</span> <span class="o">=</span> <span class="n">r56s</span> <span class="o">-</span> <span class="n">r56tau</span>
+        <span class="n">r51r52</span> <span class="o">=</span> <span class="p">(</span><span class="n">r51taus</span> <span class="o">-</span> <span class="p">((</span><span class="n">alphax</span> <span class="o">/</span> <span class="n">betax</span><span class="p">)</span> <span class="o">*</span> <span class="n">r52taus</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">r52</span> <span class="o">=</span> <span class="n">r52taus</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">r53r54</span> <span class="o">=</span> <span class="p">(</span><span class="n">r53taus</span> <span class="o">-</span> <span class="p">((</span><span class="n">alphay</span> <span class="o">/</span> <span class="n">betay</span><span class="p">)</span> <span class="o">*</span> <span class="n">r54taus</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">r54</span> <span class="o">=</span> <span class="n">r54taus</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">r56</span> <span class="o">=</span> <span class="n">r56taus</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">exbeta</span> <span class="o">=</span> <span class="n">ex</span> <span class="o">*</span> <span class="n">betax</span>
+        <span class="n">eybeta</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">*</span> <span class="n">betay</span>
+        <span class="n">exobeta</span> <span class="o">=</span> <span class="n">ex</span> <span class="o">/</span> <span class="n">betax</span>
+        <span class="n">eyobeta</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">/</span> <span class="n">betay</span>
+        <span class="n">exponent</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">exbeta</span> <span class="o">*</span> <span class="n">r51r52</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">exobeta</span> <span class="o">*</span> <span class="n">r52</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">eybeta</span> <span class="o">*</span> <span class="n">r53r54</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">eyobeta</span> <span class="o">*</span> <span class="n">r54</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">((</span><span class="n">sigd</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">r56</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">kfac</span> <span class="o">*</span> <span class="n">exponent</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="MBI.r56taus">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.r56taus">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">r56taus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        R56 transport parameter between beamline elements (Eq. (49))</span>
+
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+
+<span class="sd">        :return: R56(tau-&gt;s)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">r51s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">r52s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">r53s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">r54s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">r55s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">r56s</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">r51tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">r52tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">r53tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">r54tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">r55tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">r56tau</span> <span class="o">=</span> <span class="n">optics_map</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">r56s</span> <span class="o">*</span> <span class="n">r55tau</span><span class="p">)</span>
+            <span class="o">-</span> <span class="p">(</span><span class="n">r56tau</span> <span class="o">*</span> <span class="n">r55s</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">r51tau</span> <span class="o">*</span> <span class="n">r52s</span><span class="p">)</span>
+            <span class="o">-</span> <span class="p">(</span><span class="n">r51s</span> <span class="o">*</span> <span class="n">r52tau</span><span class="p">)</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">r53tau</span> <span class="o">*</span> <span class="n">r54s</span><span class="p">)</span>
+            <span class="o">-</span> <span class="p">(</span><span class="n">r53s</span> <span class="o">*</span> <span class="n">r54tau</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+        <span class="c1"># return [r56s, r56tau, r51tau, r52s, r51s, r52tau, r53tau, r54s, r53s, r54tau]</span>
+
+<div class="viewcode-block" id="MBI.kernels">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.kernels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kernels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kernels (Eq. (A17a + b))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+
+<span class="sd">        :return: K0, K1, K2</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">currentfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">((</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;gamma&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">I_Alfven</span><span class="p">)</span>
+        <span class="n">compfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="n">lamb_compressed</span> <span class="o">=</span> <span class="n">lamb</span> <span class="o">/</span> <span class="n">compfac</span>
+        <span class="n">impedancefac</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lscimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lsc</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">csr</span> <span class="ow">and</span> <span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="p">[</span><span class="n">RBend</span><span class="p">,</span> <span class="n">SBend</span><span class="p">,</span> <span class="n">Bend</span><span class="p">]):</span>
+            <span class="n">impedancefac</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+        <span class="n">ldfac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ldtaus</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="n">k0</span> <span class="o">=</span> <span class="n">currentfac</span> <span class="o">*</span> <span class="n">impedancefac</span> <span class="o">*</span> <span class="n">ldfac</span>
+        <span class="n">kfac</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">)</span>
+        <span class="n">r56fac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">r56taus</span><span class="p">(</span><span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="n">k1</span> <span class="o">=</span> <span class="n">k0</span> <span class="o">*</span> <span class="n">kfac</span> <span class="o">*</span> <span class="n">r56fac</span>
+        <span class="n">k2</span> <span class="o">=</span> <span class="n">k0</span> <span class="o">*</span> <span class="p">(</span><span class="n">kfac</span> <span class="o">*</span> <span class="n">r56fac</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">k0</span><span class="p">,</span> <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="MBI.kernel_K0">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.kernel_K0">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kernel_K0</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kernel K0 (Eq. (A17a))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+
+<span class="sd">        :return: K0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">currentfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">((</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;gamma&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">I_Alfven</span><span class="p">)</span>
+        <span class="n">compfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="n">lamb_compressed</span> <span class="o">=</span> <span class="n">lamb</span> <span class="o">/</span> <span class="n">compfac</span>
+        <span class="n">impedancefac</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lscimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lsc</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">csr</span> <span class="ow">and</span> <span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="p">[</span><span class="n">RBend</span><span class="p">,</span> <span class="n">SBend</span><span class="p">,</span> <span class="n">Bend</span><span class="p">]):</span>
+            <span class="n">impedancefac</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+        <span class="n">ldfac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ldtaus</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">currentfac</span> <span class="o">*</span> <span class="n">impedancefac</span> <span class="o">*</span> <span class="n">ldfac</span></div>
+
+
+<div class="viewcode-block" id="MBI.kernel_K1">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.kernel_K1">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kernel_K1</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kernel K1 (Eq. (A17b))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+
+<span class="sd">        :return: K1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">currentfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">((</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;gamma&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">I_Alfven</span><span class="p">)</span>
+        <span class="n">compfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="n">lamb_compressed</span> <span class="o">=</span> <span class="n">lamb</span> <span class="o">/</span> <span class="n">compfac</span>
+        <span class="n">kfac</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">)</span>
+        <span class="n">impedancefac</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lscimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lsc</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">csr</span> <span class="ow">and</span> <span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="p">[</span><span class="n">RBend</span><span class="p">,</span> <span class="n">SBend</span><span class="p">,</span> <span class="n">Bend</span><span class="p">]):</span>
+            <span class="n">impedancefac</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+        <span class="n">ldfac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ldtaus</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="n">r56fac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">r56taus</span><span class="p">(</span><span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">currentfac</span> <span class="o">*</span> <span class="n">kfac</span> <span class="o">*</span> <span class="n">r56fac</span> <span class="o">*</span> <span class="n">impedancefac</span> <span class="o">*</span> <span class="n">ldfac</span></div>
+
+
+<div class="viewcode-block" id="MBI.kernel_K2">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.kernel_K2">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kernel_K2</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kernel K2 (Eq. (A17c))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength [m]</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param optics_map: list of first-order transfer matrices</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+<span class="sd">        :param elem: `Ocelot element`_ at the current position</span>
+
+<span class="sd">        :return: K2</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">currentfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">((</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;gamma&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">I_Alfven</span><span class="p">)</span>
+        <span class="n">compfac</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">slice_params</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;I&quot;</span><span class="p">]</span>
+        <span class="n">lamb_compressed</span> <span class="o">=</span> <span class="n">lamb</span> <span class="o">/</span> <span class="n">compfac</span>
+        <span class="n">kfac</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">impedancefac</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lscimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lsc</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">csr</span> <span class="ow">and</span> <span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="p">[</span><span class="n">RBend</span><span class="p">,</span> <span class="n">SBend</span><span class="p">,</span> <span class="n">Bend</span><span class="p">]):</span>
+            <span class="n">impedancefac</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrimpedance</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+        <span class="n">ldfac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ldtaus</span><span class="p">(</span><span class="n">lamb_compressed</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">,</span> <span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span>
+        <span class="n">r56fac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">r56taus</span><span class="p">(</span><span class="n">optics_map</span><span class="p">,</span> <span class="n">i1</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="n">currentfac</span> <span class="o">*</span> <span class="n">kfac</span> <span class="o">*</span> <span class="n">r56fac</span> <span class="o">*</span> <span class="n">impedancefac</span> <span class="o">*</span> <span class="n">ldfac</span></div>
+
+
+<div class="viewcode-block" id="MBI.lscimpedance">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.lscimpedance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lscimpedance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">slice_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">i1</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        LSC impedance (Eq. (52), although here we use a function from PRAB. 23, 014403 (Eq. 26))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength</span>
+<span class="sd">        :param slice_params: list of dicts containing beam slice properties</span>
+<span class="sd">        :param i1: index from which to calculate</span>
+
+<span class="sd">        :return: LSC impedance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kz</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb</span><span class="p">)</span>
+        <span class="n">rb</span> <span class="o">=</span> <span class="mf">0.8375</span> <span class="o">*</span> <span class="p">(</span><span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;sig_x&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;sig_y&quot;</span><span class="p">])</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="n">slice_params</span><span class="p">[</span><span class="n">i1</span><span class="p">][</span><span class="s2">&quot;gamma&quot;</span><span class="p">]</span>
+        <span class="n">xib</span> <span class="o">=</span> <span class="n">kz</span> <span class="o">*</span> <span class="n">rb</span> <span class="o">/</span> <span class="n">gamma</span>
+        <span class="n">besselfac</span> <span class="o">=</span> <span class="n">kv</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">xib</span><span class="p">)</span>
+        <span class="c1"># initfac = (1j * constant.Z0) / (np.pi * gamma * rb)</span>
+        <span class="c1"># initfac = (4j) / (gamma * rb)</span>
+        <span class="c1"># lscfac = (1 - (xib * besselfac)) / xib</span>
+        <span class="c1"># return 1j * (Z0 / (np.pi * kz * (rb ** 2))) * (1 - (xib * scipy.special.kv(1, xib)))</span>
+        <span class="c1"># return initfac * lscfac</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="mi">1</span><span class="n">j</span>
+            <span class="o">*</span> <span class="p">(</span><span class="n">Z0</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">rb</span><span class="p">))</span>
+            <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">xib</span> <span class="o">*</span> <span class="n">kv</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">xib</span><span class="p">)</span> <span class="o">*</span> <span class="n">iv</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">xib</span><span class="p">)))</span>
+            <span class="o">/</span> <span class="n">xib</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MBI.csrimpedance">
+<a class="viewcode-back" href="../../../../simba.Codes.Ocelot.html#simba.Codes.Ocelot.mbi.MBI.csrimpedance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">csrimpedance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">elem</span><span class="p">:</span> <span class="n">Element</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        CSR impedance (Eq. (51))</span>
+
+<span class="sd">        :param lamb: initial modulation wavelength</span>
+<span class="sd">        :param elem: `Ocelot element`_ object</span>
+
+<span class="sd">        :return: CSR impedance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="s2">&quot;angle&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">angle</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">kz</span> <span class="o">=</span> <span class="n">k_wn</span><span class="p">(</span><span class="n">lamb</span><span class="p">)</span>
+                <span class="n">bendradius</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">l</span> <span class="o">/</span> <span class="n">elem</span><span class="o">.</span><span class="n">angle</span>
+                <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">A_csr</span> <span class="o">*</span> <span class="p">(</span><span class="n">kz</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">bendradius</span> <span class="o">**</span> <span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span><span class="p">))</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

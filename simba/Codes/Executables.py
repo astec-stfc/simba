@@ -206,7 +206,7 @@ class executable:
 class Executables(object):
     """
     Class for interpreting the accelerator code executables defined in
-    :download:`Executables <../Executables.yaml>` for a given computer architecture and linking
+    :download:`Executables <../../simba/Executables.yaml>` for a given computer architecture and linking
     to the `SimCodes` directory. This enables the simulation code with the lattice input file
     to be called from within the `Framework` instance.
 
@@ -288,7 +288,7 @@ class Executables(object):
 
     def build_command(self, cmd: list, workdir: str) -> list:
         """
-         Inject workdir into the container command if using a container runtime.
+        Inject workdir into the container command if using a container runtime.
         For Docker, inserts the -v bind mount. For Apptainer, substitutes $workdir$.
         Returns the command unchanged if no container runtime is set.
 

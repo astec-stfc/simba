@@ -7,8 +7,8 @@ Various objects and functions to handle CSRTrack lattices and commands. See `CSR
 
 Classes:
     - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrackLattice`: The CSRTrack lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for a CSRTrack input file.
+      converting the :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+      the lattice suitable for a CSRTrack input file.
 """
 
 from pydantic import Field

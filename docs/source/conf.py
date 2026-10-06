@@ -15,6 +15,7 @@
 # Options for Pydantic models
 # https://autodoc-pydantic.readthedocs.io/en/stable/users/configuration.html
 
+import importlib.util
 import os
 import sys
 import subprocess
@@ -80,6 +81,7 @@ templates_path = ["_templates"]  # list of paths that contain extra templates
 add_function_parentheses = True  # display function and method names with parentheses
 add_module_names = False  # don't include module names before object names
 pygments_style = "sphinx"  # style for highlighting of source code
+numfig = True  # number figures and tables, so :numref: resolves
 bibtex_bibfiles = ["references.bib"]
 
 # set automodapi options
@@ -118,14 +120,38 @@ autodoc_pydantic_model_show_validator_members = (
     False  # don't include documentation for validator methods
 )
 
-autodoc_mock_imports = [
+# Only mock what this machine cannot actually import. Mocking a module that *is*
+# installed is not free: a mocked ``pydantic`` makes ``BaseModel`` a stub, so every
+# LAURA model fails to build and autodoc then drops the whole of ``simba.Framework``,
+# ``Framework_elements``, ``Framework_objects`` and most of ``simba.Codes``.
+#
+# ``PyQt4`` is deliberately absent: ``plotting.multiPlot`` probes for it with a
+# ``try``/``except`` and falls back to PyQt5, and a mock makes the probe succeed
+# while ``import *`` from it brings in nothing.
+_optional_imports = [
     "pydantic",
     "ocelot",
     "cheetah",
     "PyQt5",
-    "PyQt4",
     "ctypes",
-    ]
+]
+
+
+def _is_importable(name: str) -> bool:
+    """Whether a module can be found without importing it.
+
+    :param str name: Name of the module to look for
+    :returns: True if the module is installed
+    """
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return False
+
+
+autodoc_mock_imports = [
+    name for name in _optional_imports if not _is_importable(name)
+]
 
 autodoc_default_options = {
     "exclude-members": ",".join([
@@ -169,9 +195,11 @@ intersphinx_mapping = {
 
 # set HTML output options
 html_theme = "sphinx_rtd_theme"  # set HTML themse (read the docs theme)
-html_logo = "icon.png"  # set logo for top-left corner of HTML pages
-html_favicon = "favicon.ico"  # set HTML favicon
-html_static_path = ["_static"]  # path to custom static files
+# No logo, favicon or static assets are in the tree yet; set these again when
+# they are, rather than warning on every build for files that do not exist.
+# html_logo = "icon.png"  # set logo for top-left corner of HTML pages
+# html_favicon = "favicon.ico"  # set HTML favicon
+# html_static_path = ["_static"]  # path to custom static files
 
 # set mathjax equation rendering options
 mathjax3_config = {"chtml": {"displayAlign": "left", "displayIndent": "2em"}}

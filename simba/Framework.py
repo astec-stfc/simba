@@ -3,7 +3,7 @@ SIMBA Framework Module
 
 The main class for handling the tracking of a particle distribution through a lattice.
 
-Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files.
+Settings files can be loaded in, consisting of one or more `LAURA <https://github.com/astec-stfc/laura/>`_ YAML files.
 This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
 
 These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
@@ -164,7 +164,7 @@ class Framework(BaseModel):
     """
     The main class for handling the tracking of a particle distribution through a lattice.
 
-    Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files. This creates
+    Settings files can be loaded in, consisting of one or more `LAURA <https://github.com/astec-stfc/laura/>`_ YAML files. This creates
     :class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
     :class:`~laura.models.element.Element` objects.
 
@@ -1107,7 +1107,7 @@ class Framework(BaseModel):
 
         Returns
         -------
-        dict or Any or :class:`~laura.models.element.Element
+        dict or Any or :class:`~laura.models.element.Element`
             Get the `param` associated with `element`, or the entire element, or an empty dictionary if
             the element does not exist in the entire lattice
         """
@@ -1947,6 +1947,7 @@ class Framework(BaseModel):
                         base_description + ": post-process "
                     )  # noqa E701
                 latt.postProcess()
+                latt.link_handoff_beam()
                 self.progress = base_percentage + 1 * percentage_step
                 if lattice_name != "generator":
                     for name, elem in latt.elementObjects.items():
@@ -2028,11 +2029,40 @@ class Framework(BaseModel):
         """
         if twiss:
             t = rtf.load_directory(self.subdirectory)
+            self.stamp_twiss_turns(t)
             t.save_HDF5_twiss_file(os.path.join(self.subdirectory, "Twiss_Summary.hdf5"))
         if beams:
             rbf.save_HDF5_summary_file(
                 self.subdirectory, os.path.join(self.subdirectory, "Beam_Summary.hdf5")
             )
+
+    def stamp_twiss_turns(self, t: "rtf.twiss") -> None:
+        """
+        Fill the ``turn`` column of a loaded twiss object.
+
+        A twiss file is written once per line, and its bunch-statistic
+        columns are the ones the last turn left behind; see
+        :attr:`~simba.Modules.Twiss.twiss.turn`.
+
+        Rows are matched to a line through ``lattice_name``, which the
+        readers take from the filename.
+
+        Parameters
+        ----------
+        t: :class:`~simba.Modules.Twiss.twiss`
+            Twiss object to stamp, modified in place
+        """
+        names = np.array(t.lattice_name.val, dtype=str)
+        if len(names) == 0:
+            return
+        turns = {n: o.turns for n, o in self.latticeObjects.items()}
+        t.turn.val = np.array(
+            [
+                turns.get(n, turns.get(n.removesuffix("_twiss"), 0))
+                for n in names
+            ],
+            dtype=int,
+        )
 
     def pushRunSettings(self) -> None:
         """

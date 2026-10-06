@@ -1,0 +1,1299 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIMBA Beams Module examples &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Utility Functions" href="utility_functions.html" />
+    <link rel="prev" title="Getting Started" href="getting_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SIMBA Beams Module examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#plotting-beam-parameters">Plotting beam parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#derived-objects-from-the-distribution">Derived objects from the distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reading-and-writing-to-and-from-different-simulation-code-formats">Reading and writing to and from different simulation code formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">SIMBA Beams Module examples</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/examples/notebooks/beams_example.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-beams-module-examples">
+<h1>SIMBA Beams Module examples<a class="headerlink" href="#simba-beams-module-examples" title="Link to this heading"></a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">beam</span></code> module in SIMBA is a container for arbitrary 6-dimensional particle distributions, providing functions for reading and writing to and from various file formats for simulation codes, including <a class="reference external" href="https://www.desy.de/~mpyflo/Astra_manual/Astra-Manual_V3.2.pdf">ASTRA</a>, <a class="reference external" href="https://pulsar.nl/">GPT</a> (via <a class="reference external" href="https://github.com/electronsandstuff/easygdf">easyGDF</a>), <a class="reference external" href="https://ops.aps.anl.gov/manuals/SDDStoolkit/SDDStoolkit.html">SDDS</a> (via <a class="reference external" href="https://pypi.org/project/soliday.sdds/">soliday.sdds</a>), <a class="reference external" href="https://github.com/ocelot-collab/ocelot">Ocelot</a>, <a class="reference external" href="https://github.com/xsuite">Xsuite</a>, <a class="reference external" href="https://github.com/ChristopherMayes/openPMD-beamphysics">OpenPMD</a> and an in-house HDF5 distribution.</p>
+<p>Functions and properties are provided for obtaining:</p>
+<ul class="simple">
+<li><p>slice properties</p></li>
+<li><p>Twiss parameters</p></li>
+<li><p>beam centroids</p></li>
+<li><p>beam sigmas</p></li>
+<li><p>beam emittances</p></li>
+<li><p>kernel density estimator</p></li>
+<li><p>minimum volume ellipse</p></li>
+</ul>
+<p>This notebook will show some of the functionality for loading in distributions, writing them to files, and plotting beam distributions and analysis.</p>
+<p>First import the SIMBA <code class="docutils literal notranslate"><span class="pre">Beams</span></code> module and the plotting functions.</p>
+<p>The test file is loaded from the repository.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">simba.Modules.Beams</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rbf</span>  <span class="c1"># noqa E402</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">simba.Modules.Beams.plot</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">plotScreenImage</span><span class="p">,</span>
+    <span class="n">density_plot</span><span class="p">,</span>
+    <span class="n">marginal_plot</span><span class="p">,</span>
+    <span class="n">slice_plot</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">testbeamlocation</span> <span class="o">=</span> <span class="s1">&#39;./CLA-S02-DIA-SCR-03.openpmd.hdf5&#39;</span>
+<span class="n">beam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">(</span><span class="n">testbeamlocation</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>In addition to the 6D phase space distribution [<code class="docutils literal notranslate"><span class="pre">x</span></code> (m), <code class="docutils literal notranslate"><span class="pre">y</span></code> (m), <code class="docutils literal notranslate"><span class="pre">z</span></code> (m) / <code class="docutils literal notranslate"><span class="pre">t</span></code> (s), <code class="docutils literal notranslate"><span class="pre">px</span></code> (kg<em>m/s), <code class="docutils literal notranslate"><span class="pre">py</span></code> (kg</em>m/s), <code class="docutils literal notranslate"><span class="pre">pz</span></code> (kg*m/s)] , the following properties are derived:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fullbeam</span></code> – the transpose of the 6D array.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">xp</span></code>, <code class="docutils literal notranslate"><span class="pre">yp</span></code>] – horizontal and vertical angular distributions.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">xc</span></code>, <code class="docutils literal notranslate"><span class="pre">xpc</span></code>, <code class="docutils literal notranslate"><span class="pre">yc</span></code>, <code class="docutils literal notranslate"><span class="pre">ypc</span></code>] – horizontal and vertical positions and angular distributions, corrected for dispersion.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">cpx</span></code>, <code class="docutils literal notranslate"><span class="pre">cpy</span></code>, <code class="docutils literal notranslate"><span class="pre">cpz</span></code>] – the beam momenta in eV/c.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">deltap</span></code> – fractional momentum deviation from the mean.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">p</span></code>, <code class="docutils literal notranslate"><span class="pre">cp</span></code>] – total beam momentum in kg*m/s and eV/c, respectively.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">Ex</span></code>, <code class="docutils literal notranslate"><span class="pre">Ey</span></code>, <code class="docutils literal notranslate"><span class="pre">Ez</span></code>] – beam energies in eV.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">Bx</span></code>, <code class="docutils literal notranslate"><span class="pre">By</span></code>, <code class="docutils literal notranslate"><span class="pre">Bz</span></code>] – relativistic betas.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gamma</span></code> – relativistic Lorentz factor.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Brho</span></code> – magnetic rigidity.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BetaGamma</span></code> – beam momentum as beta*gamma.</p></li>
+<li><p>[<code class="docutils literal notranslate"><span class="pre">kinetic_energy</span></code>, <code class="docutils literal notranslate"><span class="pre">mean_energy</span></code>] – kinetic energy in J and its mean.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">E0_eV</span></code> – rest energy of the particles in eV.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Q</span></code> – total charge of the bunch in C.</p></li>
+</ul>
+<p>Note that only the base-level 6D distribution can be modified (along with attributes such as <code class="docutils literal notranslate"><span class="pre">toffset</span></code> and <code class="docutils literal notranslate"><span class="pre">total_charge</span></code>); all of the properties above are derived and cannot be set.</p>
+<section id="plotting-beam-parameters">
+<h2>Plotting beam parameters<a class="headerlink" href="#plotting-beam-parameters" title="Link to this heading"></a></h2>
+<p>Any of the array-like properties of the <code class="docutils literal notranslate"><span class="pre">beam</span></code> object can be plotted using the three functions defined below.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plotScreenImage</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;cpz&quot;</span><span class="p">],</span> <span class="n">subtract_mean</span><span class="o">=</span><span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;Axes: xlabel=&#39;z (mm)&#39;, ylabel=&#39;cpz (keV/c)&#39;&gt;
+</pre></div>
+</div>
+<img alt="../../_images/f1555d504b538b302b1bacc53fd34c4605b1f0e173b62f8ad88edf324a464a05.png" src="../../_images/f1555d504b538b302b1bacc53fd34c4605b1f0e173b62f8ad88edf324a464a05.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">density_plot</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/a3cfecce114bcbd6e7bd054f8521776f234bc1470b8b95858728998ffedcc0ee.png" src="../../_images/a3cfecce114bcbd6e7bd054f8521776f234bc1470b8b95858728998ffedcc0ee.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">marginal_plot</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">key1</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="n">key2</span><span class="o">=</span><span class="s2">&quot;cpz&quot;</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">subtract_mean</span><span class="o">=</span><span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/cb359b2278df55349e4f685dd441a93a0f35770f087ea352886f5a0ab16a16a1.png" src="../../_images/cb359b2278df55349e4f685dd441a93a0f35770f087ea352886f5a0ab16a16a1.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">slice_plot</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/dca0c1390edae3a9ddd3270cf8543aa55bc77d0a54ef90e102d59999e8ce4111.png" src="../../_images/dca0c1390edae3a9ddd3270cf8543aa55bc77d0a54ef90e102d59999e8ce4111.png" />
+</div>
+</div>
+</section>
+<section id="derived-objects-from-the-distribution">
+<h2>Derived objects from the distribution<a class="headerlink" href="#derived-objects-from-the-distribution" title="Link to this heading"></a></h2>
+<p>Once a distribution is loaded, the <code class="docutils literal notranslate"><span class="pre">beam</span></code> object will calculate the emittance, Twiss, and so on, with the following properties defined therein.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;Q&#39;: 250.0000000000001 pC,
+ &#39;x&#39;: array([ 3.84012607e-06,  1.24709072e-04, -6.53576034e-04,  3.63362210e-04,
+        -2.17527257e-03,  4.08700903e-04, -2.56052705e-03,  1.42263885e-03,
+         4.23819774e-03,  1.49548872e-03,  3.43928836e-03,  2.75204847e-05,
+        -4.60962054e-04,  2.97270433e-03, -1.47440009e-03, -9.73810902e-04,
+         2.03861975e-03, -4.02725043e-04,  2.21416480e-05, -1.37148719e-03,
+        -3.66777700e-03,  3.09407193e-03,  1.14202147e-03,  9.23852830e-04,
+         1.85029882e-03, -1.53588540e-03, -2.35215119e-03, -2.18535575e-03,
+        -7.52776809e-04,  2.77055096e-03, -9.05148287e-04,  1.52677663e-04,
+        -2.61296122e-03,  3.27244012e-03,  2.96092847e-03,  1.78582148e-03,
+         1.69790656e-03, -9.68602460e-04, -7.21478671e-04,  2.41547914e-03,
+        -5.72784509e-04, -1.26640109e-03, -2.85861761e-03,  4.87730543e-04,
+         5.17705647e-04, -3.43664592e-04, -9.93478035e-05,  4.34983621e-03,
+        -3.58310297e-03, -1.40817920e-03,  2.19725178e-03, -2.90654925e-04,
+        -1.04010637e-03, -4.29958478e-03, -1.18948165e-04, -4.87039668e-04,
+         9.31833308e-04, -2.56460673e-03, -2.58651853e-03,  3.05166171e-03,
+        -1.76442892e-03, -4.34040433e-03,  2.16535530e-04,  1.70297866e-04,
+        -8.33396511e-04, -1.26717891e-03,  7.57238793e-05,  4.22754650e-04,
+         1.00637269e-04,  1.98026926e-03, -1.54176901e-04,  1.97825787e-03,
+        -1.40055174e-03, -1.47914490e-03, -1.73342908e-04,  1.79502133e-03,
+        -7.83552797e-05,  2.07273041e-04,  3.09856087e-03,  2.09233381e-03,
+        -5.22172047e-04,  2.60770698e-03,  1.39300457e-04, -6.85223286e-04,
+         6.45708068e-04, -8.10308430e-04,  3.94953913e-03, -1.71989097e-03,
+         1.16804886e-03, -2.02096926e-05,  4.35240726e-03, -2.93580417e-04,
+        -3.73078914e-04,  1.51671390e-05,  4.57618744e-04, -9.38152306e-05,
+        -2.58183032e-04,  2.97792107e-03, -1.95786590e-03,  1.98113476e-03,
+        -3.86992275e-04, -2.26114847e-03, -2.86268934e-04,  7.26077034e-04,
+        -3.94910604e-03, -1.42662166e-03, -1.88518314e-03, -6.63210723e-04,
+        -2.35465010e-03,  2.42870673e-03,  1.21966847e-03,  5.05159802e-05,
+         6.12074928e-04,  1.53568419e-03, -2.87946321e-03, -2.72380604e-03,
+         1.73862246e-03, -2.35805620e-03,  7.45300803e-04, -3.49337467e-04,
+         2.55267309e-03,  2.50271364e-03, -7.26357319e-04,  3.79451438e-03,
+        -6.66362391e-04,  1.58356377e-03, -1.20416902e-04,  1.21303523e-05,
+         4.02426646e-04,  3.75883830e-04, -1.32668375e-03,  3.61630830e-04,
+        -1.15020090e-03,  1.57290074e-03,  1.32918916e-03,  1.61527712e-03,
+        -8.66710165e-04, -2.56877493e-03,  1.20308965e-03,  5.10831973e-04,
+         6.02602849e-04,  4.89514208e-04,  4.41440969e-04, -2.69488796e-03,
+         1.98456835e-03,  2.36314640e-03, -1.09486747e-04,  3.88112656e-04,
+         1.56744495e-04, -1.81591378e-03,  2.55777047e-04,  2.54724486e-03,
+        -1.10005185e-04, -9.03843164e-04, -1.31149438e-03,  4.50450221e-04,
+         1.49004308e-03, -2.34086784e-03,  6.75809381e-04, -5.30322397e-04,
+         6.93727343e-04,  3.04831900e-03,  8.36177386e-04, -1.39850802e-03,
+         3.63528739e-05,  2.09253788e-03,  1.76628253e-03, -1.14448536e-03,
+         5.48124723e-04, -5.39011620e-04, -1.07574360e-05,  1.62259865e-04,
+        -5.20807178e-04, -1.84003160e-03, -5.22615820e-04,  1.92847974e-03,
+         2.34004326e-03,  9.91778789e-04,  6.18037422e-04,  1.22208018e-03,
+         7.63194243e-04,  4.35201017e-03, -1.13912219e-03,  3.85812554e-04,
+        -7.80473614e-04,  1.75177172e-03, -1.66098186e-03,  3.23737661e-03,
+         1.16075258e-03, -3.20659144e-03,  2.69956971e-03, -8.94252717e-04,
+        -2.30295524e-03,  9.48567137e-04,  9.86994164e-04, -2.91482744e-03,
+        -1.98996836e-03,  1.16910543e-04,  1.22680288e-03,  8.29256757e-05,
+        -2.21547803e-03,  6.00368365e-04,  2.87246067e-03,  1.07553250e-03,
+         2.26614895e-03,  3.18178490e-04,  1.06652360e-03, -4.42817673e-03,
+         1.36735513e-03,  1.10997428e-03, -2.01946833e-03, -3.22223570e-03,
+        -3.32630868e-03,  1.32194119e-03, -1.51094810e-03, -2.56142049e-03,
+        -1.71838415e-03,  8.70247903e-05,  7.74516902e-04, -1.31797028e-03,
+         1.97340615e-05, -1.25128104e-03, -5.60791952e-04,  4.28497749e-03,
+        -3.11104919e-03, -2.05248081e-03,  2.13274289e-03, -2.05288940e-03,
+        -5.11311001e-04,  7.61632681e-04, -1.97965602e-03,  2.81313317e-03,
+         5.62715591e-04, -1.32820831e-03,  9.38568727e-04, -1.30747762e-03,
+        -3.08341183e-03, -2.53486527e-03,  4.97820514e-06, -7.14574517e-04,
+        -7.02035823e-05,  2.13564449e-03, -1.06344787e-05, -4.17001004e-04,
+         3.51999775e-04,  5.13693970e-04, -1.22756310e-03,  1.81036596e-03,
+         9.02751317e-04, -4.94948190e-04, -1.94123003e-03, -4.22398944e-03,
+        -4.23841637e-04, -3.30828420e-04, -2.05787391e-05, -2.87027566e-04,
+         4.18746791e-03,  1.30277635e-03,  2.14430143e-03, -1.16207258e-03,
+         3.24891197e-03, -6.95392673e-04,  2.11149297e-03,  1.44302372e-03,
+         2.79686900e-03, -4.95391215e-04, -2.72126295e-03, -2.50245337e-03,
+         1.18669119e-04, -7.09909364e-04, -3.03041388e-03,  1.00834495e-04,
+         7.29436942e-04, -1.54904489e-04, -7.96336387e-04,  8.58302554e-04,
+         1.94237704e-03,  8.84197330e-04,  2.54638120e-04, -1.99269146e-03,
+         7.17716927e-04,  1.93448189e-03, -4.10459924e-05, -9.08275860e-04,
+        -1.50882499e-04, -4.18882232e-03,  1.74005522e-03, -1.45571434e-03,
+        -9.28890471e-04, -2.88390280e-03, -2.15765055e-03,  2.50909082e-04,
+         1.07083739e-03, -2.57699495e-03, -1.90989896e-03, -3.87600000e-04,
+         3.19602032e-03, -5.13880222e-04,  2.62967528e-03,  1.10640430e-03,
+         1.85679889e-03, -7.68778451e-04, -1.77053787e-03,  5.68951803e-04,
+        -3.33928798e-04, -2.57665489e-03,  7.38983542e-04,  3.01409718e-03,
+        -3.71753800e-03, -2.87315468e-04, -4.18406582e-03, -4.12886107e-04,
+        -6.19014661e-04, -1.54525904e-03, -1.48392262e-03,  1.00003099e-03,
+         1.90947217e-04,  2.81961226e-03, -9.76865739e-04,  2.67121689e-03,
+        -1.90645004e-04,  9.18500689e-04,  2.75365740e-03, -2.49036480e-03,
+        -8.21772298e-04,  9.70641075e-04, -2.40653457e-03,  2.72921313e-03,
+         6.02398187e-04,  3.22084622e-03,  1.88821719e-03, -1.50089163e-03,
+         3.99761105e-05,  2.22902200e-03,  2.74096682e-03,  2.29528447e-04,
+        -2.84335455e-04,  2.83148177e-04, -3.54965268e-04, -1.61158821e-03,
+         2.32216992e-04,  2.85395135e-04,  1.37305509e-03,  3.85072958e-04,
+        -2.95314980e-03, -2.47909609e-04, -2.60267140e-04,  4.07358653e-03,
+        -1.91274405e-03,  2.55016114e-03,  9.93119080e-05, -9.52309850e-04,
+         3.47908524e-03,  3.01244894e-04, -4.89364552e-04, -4.08725708e-03,
+         3.08254704e-03,  1.76026208e-03,  6.83025430e-05, -5.88948262e-04,
+        -2.86413979e-03,  1.34987287e-03,  6.70633080e-04, -2.27407624e-04,
+         2.56598911e-03, -1.42749517e-03,  3.01065403e-03,  1.80236897e-03,
+        -2.12765378e-04, -4.17332326e-03,  6.97786973e-04,  7.48282443e-04,
+        -1.06323590e-03,  2.51713344e-04,  2.34987222e-03,  1.90547468e-03,
+         5.96238256e-04,  2.49045677e-03, -2.73018311e-03, -1.13316816e-04,
+         5.96951506e-04, -1.72416510e-03,  3.45482620e-03,  2.29311381e-04,
+        -2.90449064e-03, -2.41529173e-03,  2.28984072e-03,  1.14315721e-03,
+        -3.31213505e-03,  7.96374490e-04, -1.88885598e-03,  9.34804346e-04,
+        -1.83966730e-03,  2.72391032e-03, -1.66580983e-03, -4.68067490e-04,
+         2.08279786e-03,  1.48047613e-03, -3.51371210e-04,  8.13195610e-05,
+        -2.98612268e-04, -5.85993241e-05,  6.41839556e-04,  5.05719727e-04,
+        -2.50785910e-03, -2.82847863e-03, -1.45107874e-03,  4.79838616e-04,
+         1.18826830e-03, -9.24392383e-05, -3.52445727e-03,  1.99118770e-03,
+         4.02690983e-03,  5.15446545e-04,  1.04746953e-03, -1.24307129e-03,
+         3.92483755e-03,  2.83659365e-05, -1.10071128e-03,  1.54699330e-03,
+        -2.24635688e-03, -6.98262404e-04, -1.99028416e-03, -9.08090454e-05,
+        -8.18555993e-05, -3.10699276e-03, -1.86987156e-03,  1.90564458e-04,
+         6.83339217e-04,  4.45466373e-04,  1.67594237e-03, -1.06285156e-04,
+        -6.91494115e-04,  8.56109554e-04, -1.36153450e-03,  1.64792308e-03,
+        -3.78379044e-03, -3.17696665e-03,  1.54949246e-03, -1.75033591e-04,
+        -1.25837507e-03, -7.76126931e-05,  1.22020465e-03, -9.44977237e-04,
+        -1.91072022e-03,  1.08802534e-03, -1.36140809e-03,  1.46230509e-03,
+        -5.65361801e-04,  1.32377488e-03,  3.19131200e-04, -1.31642537e-03,
+         2.63099990e-03, -9.34199892e-04,  3.31341108e-03,  8.25770598e-04,
+         3.19544500e-04, -4.03519888e-04, -9.58347227e-04, -1.14009461e-03,
+         2.86378155e-04,  2.00979436e-03,  8.78066855e-04, -1.68236236e-03,
+        -6.66554901e-04, -2.04586851e-03,  2.15939332e-03, -6.92441805e-04,
+         1.53102010e-04,  7.30982154e-04, -3.34282153e-03, -3.96153870e-03,
+        -4.96718155e-04,  3.62194955e-03, -2.76293221e-04,  3.36032149e-03,
+        -2.71554888e-03, -3.39694937e-04, -2.37150258e-05, -1.51113370e-04,
+        -3.12777721e-04, -3.16942271e-03, -9.41600239e-04,  2.48808274e-03,
+        -1.21163702e-03, -2.44487040e-03, -7.91997517e-04,  5.11813207e-04,
+        -8.12801786e-04,  1.33538639e-03, -1.22912610e-03, -1.08025112e-03,
+        -1.07289923e-03, -2.92547900e-04, -8.05660515e-04, -1.06504565e-03,
+         2.41278107e-04, -2.22984874e-04,  1.03861012e-03, -4.63177780e-04,
+        -1.76451722e-03,  7.91928232e-04, -2.94843670e-04, -2.89882951e-03,
+        -1.60175759e-03, -6.96274633e-04, -1.48948989e-03, -4.64360732e-04,
+        -1.80239995e-03, -1.10846447e-03,  3.00214933e-03,  2.28551210e-03], units=&#39;m&#39;),
+ &#39;y&#39;: array([ 1.57910435e-05,  1.20429082e-03,  2.33457401e-04,  3.88628040e-03,
+         6.57765442e-04,  4.64715966e-03,  7.54736489e-04,  1.12020747e-03,
+         2.21858902e-03, -3.29169177e-03,  5.07329834e-05,  5.89579319e-04,
+         6.14919368e-03,  1.65689129e-03,  2.49821190e-03, -5.44130933e-03,
+         1.90409581e-04,  1.55832746e-03, -7.09421765e-03,  5.68264832e-03,
+         2.05708999e-03, -2.59366662e-03, -2.58892138e-03,  1.02586305e-03,
+         7.07283497e-04, -3.97954538e-03, -4.85633931e-03,  1.54183467e-03,
+         1.83965983e-03,  1.43364251e-03, -6.05466646e-03,  1.94147793e-03,
+         9.09143407e-04, -7.17304202e-05, -5.30823248e-03,  1.62380262e-03,
+        -1.11799668e-03, -3.83500759e-03, -6.62523313e-03,  4.83492757e-03,
+         5.44251942e-04, -2.86021418e-03, -5.14892939e-03,  3.98449891e-03,
+        -2.46968454e-03,  7.76690062e-03,  8.55453484e-04,  1.70414311e-03,
+         1.27416667e-03,  3.23773649e-03, -3.99113060e-03,  1.17511566e-03,
+         2.16554999e-03, -3.30230957e-04, -1.62359061e-03,  3.55847718e-03,
+         1.06726342e-03,  3.93884740e-03, -3.79085788e-03,  1.85486348e-03,
+         3.11403484e-03,  1.21845569e-03,  1.85710318e-03, -6.85573709e-03,
+        -3.64030269e-03,  2.87156306e-05, -7.52671347e-04, -4.87446749e-04,
+        -7.45426557e-04,  1.78558151e-03,  6.29758795e-04, -2.40266783e-03,
+         2.09157333e-03, -5.73106237e-03,  1.22689556e-03, -5.57329741e-03,
+        -1.86687082e-03, -1.74230698e-03,  2.91368747e-03, -8.61977031e-05,
+         5.62399383e-03, -4.39707835e-03, -8.04408032e-03,  5.70570161e-03,
+        -3.97184053e-03, -1.87130766e-05,  1.25226238e-03,  1.18818173e-03,
+        -9.39613342e-04,  1.12621883e-03,  2.40258966e-03, -2.85362237e-03,
+        -4.93617923e-03,  3.13498549e-04, -4.95290924e-03,  5.77455911e-03,
+        -9.34661641e-04, -4.96510576e-03, -7.07084866e-03,  5.92380222e-04,
+         7.60170400e-04,  2.11412242e-03, -2.80405089e-04, -3.12770873e-03,
+         1.09948582e-03,  3.89224675e-03, -4.45301685e-03, -7.48483528e-04,
+         2.34520050e-03, -1.05989195e-03,  7.07058145e-04, -3.06451698e-03,
+         2.08248818e-03,  3.27125236e-03,  3.93494293e-03,  1.76763859e-03,
+        -2.11516451e-03,  2.36810014e-03,  1.95783641e-03,  1.72480338e-03,
+        -3.34602346e-03,  2.60679188e-03,  3.37230967e-03, -1.44412430e-03,
+        -2.41961947e-03,  4.13852505e-03,  6.55484238e-04,  1.28381323e-03,
+        -1.24467135e-03,  5.03246731e-03, -4.45710834e-03,  5.87394388e-03,
+        -7.68575977e-03,  4.43043880e-03, -2.31439231e-04,  3.33998081e-03,
+        -2.01726310e-03,  6.25867478e-03,  3.18477351e-03, -1.05232751e-03,
+         3.78315716e-04, -6.96125301e-04, -4.24878652e-03,  3.24363660e-03,
+        -6.01869536e-03, -1.74930502e-03, -1.66768351e-03,  1.05639901e-03,
+         1.34653047e-03,  3.49418554e-04,  5.11248536e-03, -4.78206871e-03,
+         3.24244527e-03, -2.98877365e-03,  6.35277236e-03, -2.76812386e-03,
+        -4.70393726e-03, -6.00286681e-04,  1.37789464e-03,  1.24197878e-03,
+         4.81614936e-03,  3.48309242e-03, -3.51916812e-03, -2.50111985e-03,
+        -1.42647865e-03,  1.18794959e-03,  2.07283639e-03, -1.93682972e-03,
+        -3.14435679e-03,  1.15776684e-03,  2.82654024e-03,  8.32551506e-04,
+        -5.67758411e-03, -7.85856856e-04,  1.40714093e-04, -4.62848834e-03,
+         1.18757248e-03, -6.79130162e-03,  1.53409659e-03,  3.78368059e-03,
+         2.58356545e-03,  1.40318668e-03, -1.51969941e-03,  5.18697385e-04,
+        -6.11785020e-04, -5.62444028e-03, -5.68524095e-03, -7.83134601e-04,
+        -4.01725481e-03, -3.50204352e-03,  2.49117735e-04,  2.54387579e-04,
+        -6.38951089e-03, -7.19343789e-04, -7.57637400e-03,  1.49965270e-03,
+         2.63989874e-03,  4.36122422e-04,  4.79598334e-03, -6.26107645e-04,
+        -2.75417259e-03, -1.38894178e-04, -1.19319856e-03, -1.36680176e-03,
+        -1.82457799e-03,  2.10481933e-03,  2.62488278e-03,  1.15829693e-03,
+        -4.87686169e-03, -4.06339219e-04,  2.03444151e-03,  2.59625350e-03,
+         9.50667077e-04, -2.78976774e-03,  5.86206858e-03,  1.50377262e-04,
+         7.32823135e-03,  1.33800780e-03, -1.76004465e-03, -3.02770695e-03,
+        -1.10766499e-03, -6.23902502e-03,  2.37072761e-03, -2.02522245e-03,
+        -8.23387537e-04, -4.57968195e-03, -2.44365299e-03,  2.27068214e-03,
+         2.38736570e-04,  5.19198294e-03,  4.44947437e-03, -2.79064107e-04,
+         1.12079483e-03, -1.82579369e-03, -6.24321357e-03, -3.76879612e-03,
+        -2.40933992e-03,  1.42196353e-03, -1.54033252e-03, -6.34544308e-04,
+        -5.27621905e-04, -8.89051967e-05,  1.52498428e-03,  1.69350402e-03,
+         6.24548401e-04,  2.39272102e-04,  6.43637808e-03,  1.91612952e-03,
+         1.90014192e-03, -3.43245392e-03,  7.02742454e-03, -2.34153114e-03,
+         1.65165088e-03, -5.40617914e-03,  1.39999691e-03, -2.66942943e-03,
+        -2.01743668e-03, -5.67283801e-03,  7.84438507e-04,  5.64951949e-03,
+         3.20413354e-03,  2.18209569e-03, -1.92894897e-03,  1.93430807e-03,
+         3.90759093e-04, -2.69561371e-03,  2.32995267e-03,  1.72937120e-04,
+         1.02980618e-03,  1.94616009e-03,  1.91280827e-03,  5.09015252e-03,
+         9.04188764e-04, -6.15686896e-06, -9.78900307e-04,  1.14501570e-03,
+        -1.62870595e-03, -2.42345109e-03, -6.62963923e-04,  3.40972529e-03,
+         1.55321806e-03,  1.42047895e-03, -5.81684837e-03,  4.15907887e-03,
+        -2.35859828e-03, -1.90025583e-03, -5.82909800e-03,  1.80064481e-03,
+        -1.87458290e-03,  9.00287469e-04,  2.55645329e-04, -3.24218312e-03,
+         4.72505476e-03,  3.64599250e-04,  2.60353687e-03,  7.45067727e-04,
+         1.53149507e-04, -2.07483245e-03, -6.19780161e-03, -1.41663941e-03,
+         3.43393453e-03, -4.35864860e-03, -1.32373650e-03,  3.52163464e-03,
+         2.25405236e-03,  1.89588745e-03,  1.65184463e-03,  1.37405337e-03,
+        -4.44987581e-03,  1.03616193e-03,  3.23540264e-03,  1.79735481e-03,
+         1.63988655e-03,  1.06057052e-03,  1.51688398e-03,  5.07949302e-04,
+         1.15838282e-03,  4.26106965e-03, -3.85385606e-03,  2.10315728e-03,
+         2.01585634e-04, -4.20162343e-03, -2.92870853e-04,  2.14390376e-03,
+        -6.26657652e-03,  1.22284024e-03, -8.42540890e-04,  1.03184694e-04,
+        -7.86400106e-04,  4.52286105e-04, -2.93922146e-03,  7.22425947e-03,
+         3.04139774e-03, -3.24172009e-03, -9.43550939e-04,  2.06491204e-03,
+        -1.21245058e-03,  5.95410210e-04, -4.36165411e-04,  4.29227928e-03,
+         1.09991450e-04, -5.28623525e-04, -2.39598080e-03,  2.75479190e-03,
+        -1.47098768e-03,  1.35360529e-03,  8.97605941e-04,  3.62794412e-03,
+         3.76862420e-03,  3.65826714e-03,  3.98260815e-03, -7.76074865e-04,
+        -4.83909101e-03,  2.50284680e-03,  6.75388251e-05, -2.54506250e-04,
+         1.78383140e-04, -4.63049415e-03, -7.28669955e-03,  2.57467863e-03,
+        -3.52589473e-03, -5.56254338e-03, -1.74851599e-03,  1.19104327e-03,
+         4.93576978e-04, -4.28512159e-03, -3.47782236e-03, -5.22648598e-03,
+         6.32800253e-04,  2.46366182e-03, -8.95038688e-04, -2.29130132e-03,
+         1.40714296e-03,  2.07931075e-03,  2.24019697e-03, -4.48232776e-03,
+        -7.86179079e-04, -4.56608934e-03, -1.56205870e-03,  3.98896808e-04,
+        -2.98411132e-04, -3.52519383e-03, -1.21642433e-03,  8.88196064e-04,
+         3.52614258e-03, -4.47811204e-03,  2.89611070e-03, -7.66765439e-03,
+        -4.45295513e-03,  2.02941723e-03, -4.52294886e-03, -1.65234566e-03,
+        -5.15828755e-03,  2.07395244e-04,  1.68453869e-03,  2.30720151e-03,
+         5.28533734e-03, -3.36928772e-04,  2.48808712e-03, -6.71549211e-04,
+        -1.26177984e-03,  4.39281288e-04,  6.84470289e-03, -1.69246242e-03,
+         4.89781996e-03,  2.93105977e-03,  3.46142916e-03,  4.40845201e-04,
+         5.89222480e-03, -4.04362853e-03, -8.62096352e-04,  4.87265794e-03,
+        -1.71805766e-04,  2.35055872e-03,  4.02824494e-03, -2.01425813e-03,
+         1.13447737e-03, -4.56909006e-04,  3.45160408e-03,  8.50723540e-04,
+         7.93358528e-04, -6.27073728e-04,  2.14674092e-03, -6.50881380e-03,
+         1.25844232e-03,  7.47807697e-04, -3.90954271e-03,  1.65554322e-04,
+        -1.81731871e-04, -4.15557437e-04,  1.79819900e-03,  7.41984461e-04,
+         1.06258973e-04, -2.81365055e-03, -4.27675474e-03, -4.29996318e-03,
+         3.52842928e-03, -5.32880629e-03,  4.00405769e-03,  3.65571421e-03,
+         4.56830459e-03, -1.42813158e-03,  2.99160402e-03, -1.45025022e-03,
+         6.36279058e-03, -3.74404395e-03, -1.67133362e-03,  3.46409979e-03,
+        -4.63224473e-03, -5.65256646e-03,  4.17386753e-03, -1.29231346e-03,
+        -1.49432466e-03, -3.67572136e-03, -3.87566274e-03, -4.64874599e-03,
+        -4.55034780e-03,  1.17205512e-04, -5.49087401e-03, -2.33533788e-04,
+         2.77365922e-03,  1.57939889e-03,  5.68718231e-03, -1.71844947e-03,
+        -3.16022411e-03, -1.91448919e-03, -2.32283641e-03,  3.38729760e-03,
+         2.34834039e-03, -1.51658539e-03,  5.16598173e-03, -3.15394556e-03,
+         3.73267318e-03,  8.87316844e-05,  2.12157047e-04,  2.56686884e-03,
+        -2.90547043e-03, -5.82281768e-03, -6.62775804e-04,  3.59858029e-03,
+        -6.41462947e-04, -7.19539543e-04,  4.21001007e-03,  2.02492402e-03,
+         5.43530541e-03, -1.16326068e-03,  1.17826082e-03, -7.95736148e-03,
+        -3.42136728e-03, -7.22175320e-03, -2.16347133e-03,  7.66201829e-03,
+        -1.63047684e-03,  1.82303132e-04, -2.96249303e-03,  6.73802536e-04,
+         7.36349738e-04,  2.57512182e-03, -2.48185321e-03, -2.84417446e-03,
+        -7.53764618e-05, -3.82255522e-03, -6.39367271e-04,  2.78864499e-03,
+         2.59520606e-03,  5.24748168e-03, -1.27649625e-03,  6.67310868e-03,
+        -4.30813023e-04,  1.76725659e-03,  4.00946937e-04, -5.52184683e-03], units=&#39;m&#39;),
+ &#39;z&#39;: array([6.48996837, 6.49005993, 6.49006023, 6.48995451, 6.48995514,
+        6.48984963, 6.48985079, 6.48850269, 6.48905532, 6.48925988,
+        6.48861527, 6.48784406, 6.48957565, 6.48865845, 6.48944174,
+        6.48925322, 6.48990041, 6.48865514, 6.48872655, 6.48898155,
+        6.48937289, 6.48893358, 6.48845686, 6.4891148 , 6.48987488,
+        6.48872148, 6.48863424, 6.48880784, 6.48829696, 6.48973558,
+        6.48907014, 6.48931284, 6.48976932, 6.48886547, 6.48882953,
+        6.48939552, 6.48955218, 6.48902921, 6.48870187, 6.48894794,
+        6.48816917, 6.48876407, 6.48932532, 6.48880246, 6.48908235,
+        6.48886418, 6.48810801, 6.48882531, 6.48893896, 6.48907266,
+        6.48872039, 6.48811414, 6.48851275, 6.48893622, 6.48816117,
+        6.4894895 , 6.48992335, 6.48899382, 6.48929789, 6.48952533,
+        6.48977762, 6.48915034, 6.48945836, 6.48943414, 6.48921989,
+        6.48851355, 6.48809933, 6.48845745, 6.48843066, 6.48989597,
+        6.48959525, 6.48990651, 6.48963335, 6.48921173, 6.48822382,
+        6.48948646, 6.48917658, 6.48821875, 6.48930324, 6.4898636 ,
+        6.48971128, 6.48947588, 6.48906348, 6.48934965, 6.48883534,
+        6.48887621, 6.48932685, 6.48973212, 6.4897043 , 6.48796418,
+        6.48895726, 6.48836673, 6.48981006, 6.48839925, 6.48911234,
+        6.48957891, 6.48793214, 6.48895942, 6.4891076 , 6.48915669,
+        6.48807789, 6.48925917, 6.48792916, 6.48978778, 6.4893543 ,
+        6.48872741, 6.48946883, 6.48937431, 6.48981255, 6.48900222,
+        6.48993633, 6.48961323, 6.48829201, 6.48949498, 6.48896631,
+        6.48856574, 6.489523  , 6.48915178, 6.48847426, 6.48887724,
+        6.4888815 , 6.48883864, 6.48953446, 6.48935206, 6.48874165,
+        6.48952347, 6.49002354, 6.48816242, 6.48821655, 6.48968691,
+        6.48860082, 6.48894817, 6.48908508, 6.48850631, 6.48989462,
+        6.48984114, 6.48840877, 6.48885371, 6.48992088, 6.4894479 ,
+        6.48825599, 6.4882299 , 6.48985603, 6.48964398, 6.48922372,
+        6.48934131, 6.48834983, 6.48831288, 6.48800641, 6.48860182,
+        6.48895869, 6.48941598, 6.48841882, 6.48962052, 6.48868605,
+        6.48952096, 6.48869167, 6.48913666, 6.48822514, 6.48820144,
+        6.48946001, 6.48866231, 6.48886481, 6.48848073, 6.48799385,
+        6.48968968, 6.48967774, 6.48843639, 6.48888623, 6.48819902,
+        6.48842492, 6.48813402, 6.48967791, 6.48993534, 6.48823593,
+        6.48916294, 6.48914662, 6.48874133, 6.48996729, 6.48908029,
+        6.48898705, 6.48894285, 6.48839703, 6.4880125 , 6.4884962 ,
+        6.4893586 , 6.48895327, 6.48903932, 6.48903626, 6.48867494,
+        6.48922188, 6.48898741, 6.48918172, 6.48827021, 6.48912335,
+        6.48926296, 6.48989001, 6.48782844, 6.4896703 , 6.48834811,
+        6.48950356, 6.48841698, 6.48867998, 6.48855692, 6.48865189,
+        6.48837891, 6.48849585, 6.48911021, 6.48899195, 6.48961794,
+        6.48874085, 6.48874781, 6.48926497, 6.48979227, 6.48863996,
+        6.48855299, 6.48908289, 6.48822497, 6.48839054, 6.48963481,
+        6.48809952, 6.4894243 , 6.48870949, 6.4888753 , 6.48871157,
+        6.48965587, 6.48881557, 6.4892228 , 6.48813802, 6.4889845 ,
+        6.48932769, 6.48976593, 6.48826449, 6.48912687, 6.48895295,
+        6.48976297, 6.48881002, 6.48981157, 6.48899546, 6.48851061,
+        6.48832347, 6.48856038, 6.48829671, 6.48940795, 6.48837956,
+        6.48938995, 6.48930032, 6.4893823 , 6.48848235, 6.48873878,
+        6.48883135, 6.4891465 , 6.48959961, 6.48972372, 6.48867864,
+        6.48938583, 6.4888189 , 6.48891867, 6.48960026, 6.48905066,
+        6.48944177, 6.48923808, 6.4898841 , 6.48886848, 6.48899831,
+        6.488625  , 6.48893936, 6.4892514 , 6.48796395, 6.48855945,
+        6.4896383 , 6.48969559, 6.4885305 , 6.48777911, 6.48951099,
+        6.49003428, 6.48875385, 6.48866992, 6.48800926, 6.48934347,
+        6.48836093, 6.48940012, 6.48940207, 6.48879947, 6.48863961,
+        6.48898664, 6.48942517, 6.48880393, 6.48939406, 6.48974622,
+        6.48857017, 6.48842646, 6.48880821, 6.48857206, 6.48959034,
+        6.48808639, 6.48856018, 6.48826433, 6.48886391, 6.48939871,
+        6.48873721, 6.48970198, 6.48934304, 6.48912156, 6.48850499,
+        6.48975563, 6.48834127, 6.48947333, 6.48893226, 6.4892731 ,
+        6.48904959, 6.48823539, 6.48847349, 6.4892215 , 6.48941881,
+        6.49003028, 6.48813207, 6.48867788, 6.48866115, 6.48935736,
+        6.48812476, 6.48973144, 6.48930125, 6.48923548, 6.48943387,
+        6.48835331, 6.48988115, 6.48921123, 6.48830842, 6.4885711 ,
+        6.48860154, 6.48891483, 6.48879083, 6.48889263, 6.48976796,
+        6.48950321, 6.48810327, 6.48792634, 6.48896419, 6.48945749,
+        6.48785665, 6.48798954, 6.48848963, 6.48957155, 6.4888919 ,
+        6.48822201, 6.48798605, 6.48895329, 6.48853676, 6.48959448,
+        6.48988854, 6.48988506, 6.48887349, 6.48829866, 6.48801534,
+        6.48876924, 6.48928351, 6.48968111, 6.489135  , 6.4890552 ,
+        6.48951344, 6.48924716, 6.48846207, 6.48808219, 6.48929685,
+        6.48897985, 6.48864613, 6.48906056, 6.48919358, 6.48919383,
+        6.48927883, 6.48919392, 6.48849934, 6.48822265, 6.48902661,
+        6.48949003, 6.48847549, 6.48888156, 6.48976451, 6.48827872,
+        6.48842809, 6.48974381, 6.48949942, 6.48812837, 6.48912383,
+        6.48864968, 6.48964767, 6.48912894, 6.48928316, 6.48848041,
+        6.48964776, 6.48834021, 6.48912514, 6.48903296, 6.48866262,
+        6.48828977, 6.48945301, 6.48901142, 6.48959847, 6.48783975,
+        6.49001919, 6.4878125 , 6.48927374, 6.48917922, 6.48945838,
+        6.48921532, 6.48976335, 6.48826301, 6.48916907, 6.48927692,
+        6.48864075, 6.48860007, 6.48933886, 6.48944953, 6.48982262,
+        6.4892687 , 6.48876623, 6.48780153, 6.48965743, 6.48999208,
+        6.48992999, 6.48952252, 6.48852311, 6.48942555, 6.48795663,
+        6.48918998, 6.48885606, 6.48787212, 6.48835734, 6.48798654,
+        6.48939193, 6.48786504, 6.48869947, 6.48846473, 6.48972281,
+        6.48866021, 6.48923285, 6.48919634, 6.48977431, 6.48957952,
+        6.48853769, 6.48810323, 6.48939575, 6.48831843, 6.48899819,
+        6.48861111, 6.48990057, 6.48984921, 6.48879876, 6.4889236 ,
+        6.48951587, 6.48915518, 6.48862641, 6.48978364, 6.48923269,
+        6.48913026, 6.48985333, 6.48797129, 6.48876244, 6.48881898,
+        6.48835321, 6.48856828, 6.48914906, 6.48888627, 6.48997144,
+        6.48986572, 6.4895195 , 6.48847058, 6.48824908, 6.48831724,
+        6.48890125, 6.48916877, 6.48971787, 6.48902586, 6.48789764,
+        6.48945533, 6.48855702, 6.48967005, 6.49000436, 6.48846119,
+        6.48795927, 6.48916374, 6.48977058, 6.4895204 , 6.48878099,
+        6.48940283, 6.4889651 , 6.48903908, 6.48950866, 6.48922892,
+        6.48951712, 6.48885549, 6.48848997, 6.48972006, 6.48960144,
+        6.48858962, 6.48801964, 6.48830535, 6.48923402, 6.48868958,
+        6.48942366, 6.48950705, 6.48791153, 6.48926378, 6.4895778 ,
+        6.48875393, 6.48847094, 6.48888262, 6.48999053, 6.48999202,
+        6.48942706, 6.48935133], units=&#39;m&#39;),
+ &#39;cpx&#39;: array([ 6.90268622e+00, -2.92848799e+02,  1.57679801e+03, -7.06704439e+02,
+         3.93870586e+03, -1.07326775e+03,  6.26178136e+03, -6.38477470e+03,
+        -6.03094617e+03, -2.91152750e+03, -8.07867596e+03, -2.11914665e+02,
+         1.50880312e+03, -6.52067012e+03,  4.42950386e+03,  2.09132042e+03,
+        -3.88210157e+03,  7.52565313e+02,  2.02552906e+02,  1.26127708e+03,
+         9.49568409e+03, -2.91575009e+03, -1.13183845e+04, -5.88080647e+02,
+        -3.81166755e+03,  2.46544476e+03,  5.56342642e+03,  2.38247514e+03,
+         1.10636054e+04, -8.68852211e+03,  1.21715167e+03, -2.40207694e+02,
+         7.78471980e+03, -3.18210581e+03, -3.26211829e+03, -4.81703925e+03,
+        -6.05795182e+03,  1.15281349e+03,  1.73899728e+03, -3.05803181e+03,
+         1.38896821e+04,  1.63478434e+03,  7.11795239e+03, -5.52083946e+02,
+        -5.24529755e+02,  1.26074364e+02,  3.47628146e+03, -5.03878769e+03,
+         3.98992477e+03,  1.64163222e+03, -3.51496220e+03,  8.00659339e+03,
+         2.53931624e+03,  5.39899420e+03,  3.62417057e+03,  1.48307663e+03,
+        -1.84049487e+03,  2.47174329e+03,  6.12475690e+03, -1.02771683e+04,
+         4.74740212e+03,  7.13287203e+03, -6.58238983e+02, -2.07020018e+02,
+         1.60321701e+03,  3.03166756e+03, -1.42887930e+03, -3.34848318e+03,
+        -7.04823024e+02, -3.75375824e+03,  5.05528939e+02, -3.80856855e+03,
+         5.10233589e+03,  3.12717400e+03,  4.60176824e+03, -5.79891512e+03,
+         7.33333049e+01, -3.79012751e+03, -7.60851230e+03, -4.44432714e+03,
+         1.57887205e+03, -8.40428343e+03,  1.06945923e+01,  1.65390708e+03,
+        -4.66309310e+02,  8.43133232e+02, -9.73570730e+03,  5.26335909e+03,
+        -3.89293494e+03,  5.34948232e+02, -4.89220935e+03,  4.15866484e+03,
+         1.18930657e+03, -1.03895245e+02, -4.96559886e+02,  1.41487056e+02,
+         6.33160610e+03, -3.44560440e+03,  3.26079380e+03, -2.96850638e+03,
+         1.05497293e+04,  4.34976055e+03,  4.20398078e+03, -1.82066309e+03,
+         9.86903796e+03,  1.89286427e+03,  5.85279003e+03,  1.46202692e+03,
+         6.59314706e+03, -2.45649949e+03, -2.39383596e+03, -1.44528548e+02,
+        -9.86199022e+03, -5.03948175e+03,  3.31654941e+03,  7.24325434e+03,
+        -5.99784065e+03,  3.36921495e+03, -6.71292403e+03,  5.02104699e+02,
+        -2.31215709e+03, -2.46763236e+03,  2.40748428e+03, -9.82030368e+03,
+         1.06422138e+03, -5.14250418e+03,  3.78117473e+02, -4.53167263e+02,
+        -8.59631496e+03, -1.30821890e+03,  3.42420232e+03, -5.28094479e+02,
+         1.95394571e+03, -5.10437917e+03, -2.62647170e+03, -4.04583816e+03,
+         9.59562551e+03,  2.88531968e+03, -2.20512836e+03, -1.25526752e+03,
+        -1.20527542e+04, -1.09846893e+04, -9.02554103e+02,  9.50099316e+03,
+        -3.60519409e+03, -5.50608592e+03,  2.20418081e+03, -8.12650427e+03,
+        -4.82945446e+03,  3.42547604e+03, -2.93351907e+02, -7.41872371e+03,
+         6.72455358e+02,  3.49068083e+03,  2.34013896e+03, -1.45467433e+03,
+        -2.64296696e+03,  3.35338888e+03, -1.22419059e+04,  1.02851316e+04,
+        -2.24932644e+03, -6.75023035e+03, -8.40599090e+02,  1.21928798e+04,
+        -6.32778873e+02, -6.80664274e+03, -6.15032192e+03,  1.25454075e+04,
+        -5.93489180e+02,  1.12046063e+04, -5.15595684e+01, -6.21177341e+03,
+         1.90599055e+03,  3.55788654e+03,  1.17813238e+04, -2.68596947e+03,
+        -3.44075638e+03, -1.32645423e+03, -1.24989084e+03, -1.52304903e+03,
+        -1.00875479e+03, -5.37674928e+03,  1.30855587e+04, -9.00127229e+03,
+         4.27795012e+03, -4.46668215e+03,  2.11447350e+03, -3.44862383e+03,
+        -1.27631533e+03,  6.58494397e+03, -4.75463195e+03,  3.77056875e+02,
+         4.11061982e+03, -1.52526549e+04, -1.33955319e+03,  5.76505139e+03,
+         3.80445255e+03, -1.83604968e+03, -4.11586895e+03, -1.26762599e+03,
+         7.13437984e+03, -7.01424082e+03, -5.08453454e+03, -2.03304391e+03,
+        -4.03243471e+03, -4.21302378e+03, -7.07408494e+03,  6.62508835e+03,
+        -1.29094286e+03, -4.11725644e+03,  2.66924397e+03,  5.26382953e+03,
+         7.15855322e+03, -3.32763398e+03,  3.27125817e+03,  6.41247767e+03,
+         2.22241623e+03, -2.26996880e+03, -8.72769851e+03,  4.89504074e+03,
+        -2.16325807e+02,  4.00827961e+03,  9.97596536e+02, -5.01142499e+03,
+         5.51531316e+03,  7.35052320e+03, -2.05781080e+03,  3.48535635e+03,
+         1.32407347e+04, -7.77155364e+02,  4.46478830e+03, -8.70803733e+03,
+        -1.04571393e+04,  2.06058545e+03, -9.86422178e+02,  3.87048137e+03,
+         3.45732415e+03,  7.02440604e+03, -2.42494722e+01,  1.40054057e+03,
+         1.58449936e+03, -4.81810127e+03, -5.50660461e+01,  1.00857146e+03,
+        -5.64116447e+03, -1.11956195e+03,  2.66454991e+03, -4.75804490e+03,
+        -6.84168496e+03,  6.99350773e+02,  2.04151835e+03,  6.78937456e+03,
+         1.48781842e+03,  1.22641413e+03,  5.73753279e+00,  7.09418609e+02,
+        -5.20221498e+03, -1.17777378e+03, -7.83703852e+03,  1.15119994e+03,
+        -1.00471142e+04,  1.02473128e+03, -4.24424836e+03, -1.66138460e+03,
+        -2.90337431e+03,  9.12741532e+02,  2.59366374e+03,  4.72806819e+03,
+        -2.98057165e+03,  1.32499152e+03,  1.05293305e+04, -4.68798768e+02,
+        -1.14288116e+03,  3.30688586e+03,  2.53081638e+03, -1.80756731e+03,
+        -2.46735198e+03, -1.38343074e+03, -4.62073230e+03,  4.68303865e+03,
+        -9.45592392e+03, -5.12644055e+03,  2.58505778e+02,  9.84806239e+02,
+         2.65755942e+02,  5.39893342e+03, -5.04665187e+03,  1.86076001e+03,
+         2.29809752e+03,  9.39979409e+03,  4.73459489e+03, -2.52091504e+03,
+        -1.26847229e+03,  6.12038512e+03,  6.79026422e+03,  1.03085305e+04,
+        -9.03648957e+03,  8.68950885e+03, -2.86308663e+03, -2.59810399e+03,
+        -2.62407432e+03,  2.55085160e+03,  4.03871561e+03, -8.34756454e+02,
+         7.47974999e+02,  7.64840655e+03, -1.02453666e+04, -9.30700941e+03,
+         4.59034675e+03,  4.16718980e+02,  5.55861637e+03,  6.80936962e+03,
+         5.09777077e+03,  2.79446097e+03,  3.97494005e+03, -2.08833417e+03,
+        -5.86349747e+03, -5.68476148e+03,  1.70431054e+03, -6.65696259e+03,
+         7.44711884e+03, -2.75544955e+03, -5.97969359e+03,  4.57372696e+03,
+         2.73392304e+03, -1.22609560e+04,  5.09928660e+03, -4.54788049e+03,
+        -1.07006463e+04, -8.66760938e+03, -3.93696655e+03,  1.52746409e+03,
+        -1.43550450e+02, -1.99759344e+03, -8.41435403e+03, -7.79238908e+02,
+         8.01977210e+03, -5.08054604e+03,  3.54246352e+01,  4.71887441e+03,
+        -7.71867655e+03, -4.73855694e+03, -9.84328657e+03, -1.56822598e+03,
+         2.82054051e+03,  5.53311064e+03,  5.64680319e+03, -4.63976494e+03,
+         5.30782273e+03, -9.28422763e+03, -2.66684062e+02,  2.11993513e+03,
+        -3.84756394e+03, -4.43040965e+03,  1.19073778e+04,  6.31656215e+03,
+        -6.39858806e+03, -5.73911997e+03,  1.24272496e+02,  6.33355186e+02,
+         9.83084642e+03, -2.62031894e+03, -5.52473962e+03,  5.84076297e+03,
+        -5.43117112e+03,  1.47471690e+03, -6.62191771e+03, -2.00075587e+03,
+         1.21718527e+02,  7.47227904e+03, -9.37302811e+02, -1.00039478e+03,
+         5.70891798e+03, -4.78220634e+03, -2.61445640e+03, -5.88554163e+03,
+        -4.01932259e+03, -2.71308596e+03,  8.68513958e+03,  3.94647983e+03,
+        -6.82623001e+03,  5.29442862e+03, -1.14103279e+04, -6.86710670e+03,
+         4.16197524e+03,  5.74338508e+03, -7.50751716e+03, -1.50154667e+03,
+         7.60581797e+03, -6.37161132e+03,  6.30041670e+03, -1.35594140e+04,
+         2.61595841e+03, -2.96054981e+03,  2.65516594e+03,  6.89329660e+03,
+        -6.55354830e+03, -1.53488068e+03,  1.33483677e+03, -1.74911229e+03,
+         7.06414652e+02,  1.81826431e+03, -1.53792244e+03, -5.06676587e+02,
+         7.64184665e+03,  4.82322803e+03,  4.10257699e+03, -1.08526443e+04,
+        -2.20770072e+03,  2.71958825e+02,  8.11838628e+03, -5.43033355e+03,
+        -9.75504373e+03, -1.42002685e+03, -2.64045732e+03,  2.49224987e+03,
+        -6.30258707e+03, -5.28237312e+01,  3.77103451e+03, -2.92113795e+03,
+         4.14560042e+03,  2.19755414e+03,  5.39335737e+03,  5.23648768e+02,
+         1.92343848e+03,  4.96367428e+03,  1.86137148e+03, -1.92640883e+03,
+        -1.06598530e+04, -1.04041366e+04, -4.40813771e+03,  3.17650027e+03,
+         6.83709036e+02, -7.27128653e+03,  4.42356243e+03, -3.04134816e+03,
+         7.47157968e+03,  5.84399762e+03, -4.78806773e+03,  5.06234646e+02,
+         3.36216018e+03,  2.53448115e+03, -3.36095895e+03,  1.37443462e+04,
+         2.21666218e+03, -2.15390969e+03,  2.73845743e+03, -3.31394107e+03,
+         6.75452999e+02, -1.12717889e+03, -1.08243866e+03,  1.78324249e+03,
+        -5.37811743e+03,  2.55691585e+03, -6.81888552e+03, -1.07120442e+03,
+        -6.61986499e+02,  8.28902649e+03,  1.48787850e+03,  1.65005231e+03,
+        -4.44158761e+03, -4.72561047e+03, -1.36416036e+03,  1.99312119e+03,
+         1.22297224e+03,  4.52340624e+03, -7.04424486e+03,  6.31585879e+03,
+        -3.10187251e+03, -9.96689748e+03,  3.86998540e+03,  6.90168766e+03,
+         1.53787423e+03, -4.15457055e+03,  4.22319655e+03, -1.06705862e+04,
+         7.86995869e+03,  1.33997813e+03,  6.98603909e+01,  9.51277243e+02,
+         7.17524882e+03,  4.61008054e+03,  2.63146920e+03, -8.07480255e+03,
+         1.39721770e+03,  6.78113362e+03,  5.49360815e+02, -4.61847390e+02,
+         2.81489025e+03, -2.41766001e+03,  4.34458998e+03,  9.69881598e+02,
+         7.49216971e+03,  1.01018464e+03,  3.11688070e+03,  2.02475755e+03,
+        -5.06390869e+03,  2.79307929e+03, -1.82425190e+03,  7.96813302e+02,
+         4.83231552e+03, -2.46550490e+03,  8.17566550e+03,  5.75909963e+03,
+         5.80599272e+03,  8.17939975e+02,  1.38383753e+04,  3.19463687e+02,
+         3.39786173e+03,  2.08133238e+03, -8.44313868e+03, -5.79083368e+03], units=&#39;eV/c&#39;),
+ &#39;cpy&#39;: array([   103.16433471,   6059.89700081,   1185.56764183,  20222.93362448,
+          3401.71695512,  23256.74044621,   3747.13743982,   5027.08814561,
+         11961.7017126 , -16894.80572108,    423.93338996,   1228.43584906,
+         28506.69596867,   8592.41708369,  12041.75006238, -28109.42893418,
+          1018.1386409 ,   8173.71371861, -37210.87777754,  31001.80460231,
+         10126.24023199, -14079.85845911,  -7623.66772711,   5720.54399285,
+          3690.69106993, -21171.31469708, -24677.21409727,   8377.18682851,
+          3927.43187202,   6999.19682145, -32607.31742297,  10143.1036115 ,
+          4336.19822319,   -333.33618753, -28687.59916066,   8091.2647264 ,
+         -5101.11918303, -20845.92513542, -34285.11793403,  26213.51934112,
+           531.34679926, -15359.80728606, -25833.95640241,  21680.69260724,
+        -13243.71590945,  42247.90286121,    148.35442013,   9358.11847822,
+          6831.85610889,  17411.69343692, -20900.04679586,    293.5458423 ,
+         10828.80824526,  -1853.8357327 ,  -1216.04165743,  16871.52551871,
+          5533.18422098,  21475.74007075, -19123.23858909,   8897.4631643 ,
+         15298.12528006,   6246.41138062,   9197.54999294, -33174.930635  ,
+        -19027.49862901,     84.55869009,    -59.64341963,  -1729.79205615,
+         -2345.15412781,   9292.24974691,   2963.66529507, -12316.6121668 ,
+          9678.9005015 , -29563.80576194,    893.68195915, -26285.36009569,
+        -10195.50634387,  -2483.1151562 ,  14727.59167875,   -384.09001016,
+         26680.91488581, -20752.99066255, -43031.15015782,  28377.01406053,
+        -21696.86214864,    -45.12653934,   6383.75472917,   5702.05020719,
+         -4423.88805569,   1593.24715043,  13226.00821379,  -7638.44223211,
+        -24077.99042518,    832.90578053, -26485.93197769,  27206.98051618,
+          -875.1533091 , -26724.81159713, -37510.08055824,   3200.21500324,
+           512.88031435,  10835.05752089,   -724.13770867, -15463.9224023 ,
+          5392.90827734,  20797.68019821, -21482.64470527,  -3820.71225949,
+         11427.40534762,  -5674.46860719,   3683.39698716, -14133.9060046 ,
+          4404.69321158,  15701.30693917,  21255.11632076,   8603.45191492,
+         -9865.34765981,  12613.63603802,   6816.77306084,   9316.72177595,
+        -18261.74773081,  14371.96198373,  15812.82972113,  -7033.20564871,
+        -12732.96716505,  19795.74413347,   3222.66878344,    798.41014744,
+         -1479.14652326,  23909.5971788 , -22461.92262917,  32171.67660127,
+        -40951.38415619,  21351.02120989,  -1172.02408958,  16702.49732301,
+         -6006.87169117,  33750.63664927,  16622.89687846,  -5220.65565415,
+           626.4070382 ,   -560.709296  , -21466.84919446,  15060.49611435,
+        -30951.3185228 ,  -8695.8583598 ,  -3198.93296084,   1817.05276132,
+          1180.31791917,   1765.05868893,  27969.07368664, -23042.76702399,
+          8628.09131219, -13753.93120254,  32823.65135276, -13033.87208234,
+        -24406.34401897,  -3188.76894966,   2495.58040911,   1643.31634704,
+         23353.10344367,  17821.6976224 , -19169.66192916,  -8633.43947319,
+          -941.22981256,   5698.97200782,   9823.83502644,  -5961.49490587,
+        -17030.97597499,   1567.58052486,   8704.66233318,    263.55842148,
+        -26868.34018116,  -4083.1849127 ,     49.84869393, -24494.35636657,
+          6405.91431449, -35734.73162235,   7904.60621194,  20428.20233171,
+         14024.25385103,   7742.9813854 ,  -4548.48407357,    823.43072919,
+         -2501.09865438, -27748.95704382, -30771.92113299,  -4194.53279046,
+        -21761.83527927, -18138.3419403 ,   1343.31275375,   1491.3744371 ,
+        -33572.94872574,  -1055.05804165, -39877.47052724,   7660.78695345,
+         13622.90049991,   1138.30885489,  22911.65393981,  -1023.5072418 ,
+        -13254.41905109,   -253.28958277,  -6079.88406988,  -6997.26543921,
+         -9351.39669233,   5456.08984023,  10302.4894517 ,   6036.74803742,
+        -26609.95376286,  -1801.10148852,  10858.30191502,  13565.67366738,
+          4728.6089655 , -13756.78743884,  29654.44238283,    673.44823233,
+         39117.70403951,   1051.39848172,  -4818.726448  , -14148.37394115,
+          -335.93981821, -30140.01259458,  12444.4524917 , -10764.6136633 ,
+         -4362.38111975, -21522.7195389 , -13329.09623597,  11829.59966797,
+           198.66611917,  28421.24416033,  22366.31045334,  -1224.09879015,
+          1981.54101289,  -9673.02684655, -33725.48287821, -18374.52116204,
+        -13163.04880444,   6934.21678352,  -8736.56634864,  -3230.08263289,
+          -492.02404138,   -412.56752978,   2091.59933295,   8560.30597014,
+          1259.58429547,   1293.52961247,  32463.50276586,   9603.48392834,
+          7014.35525903, -18341.83190426,  37975.92293992, -12450.1724952 ,
+          7660.93658757, -25699.89774636,   7631.61999888, -13338.82593897,
+        -10750.41893405, -31016.57033524,   3743.2410851 ,  30619.283242  ,
+         15596.16742409,  11495.15412581,  -9812.96064838,  10506.85214938,
+          2240.86572831, -14032.3166964 ,  12761.61165273,    885.04560933,
+          1382.19271754,   9988.76261999,   8894.55244324,  24351.98695751,
+          4821.03864152,     76.908357  ,  -4715.5947857 ,   5858.52410271,
+         -8651.79980076, -12609.89770192,   -877.66150788,  17102.4859427 ,
+          4097.28461284,   7093.84471565, -28361.35679199,  22638.24999154,
+        -12247.54601131, -10354.82614579, -28033.22092936,   9707.274976  ,
+         -9448.61870137,   4216.30557814,   1210.92650943,  -9057.18269896,
+         25831.79899488,   1766.47352342,  12165.73256519,    268.96885137,
+           870.90509488,  -4070.86455169, -33465.67447234,  -7026.41591416,
+         18365.38185979, -20774.4666995 ,  -6684.21977631,  18810.36944789,
+         11375.26980685,   9139.16250127,   4314.73953779,   6717.67612165,
+        -24133.96321863,   5559.53432762,  17254.51677121,   3231.5619679 ,
+          5790.03555235,   5513.10400458,   7486.64006998,   2611.79921244,
+           769.1076928 ,  22057.01061632, -20174.91778992,  10586.65800455,
+          -236.9083062 , -20106.29450658,  -1443.69882583,  11120.95226409,
+        -30352.18434067,   3452.36428887,  -4318.25618583,    637.92182646,
+         -1177.41342859,   2408.39330325, -14924.436199  ,  39227.793647  ,
+         16273.64934634, -17708.63231314,  -4458.91801882,   9921.27518308,
+          -888.45579731,   1109.82014444,  -2507.70097417,  20811.31898766,
+           334.45445553,   -753.89495454,  -8648.08578912,  12764.56961491,
+         -8090.85040608,   1520.78356746,   1191.53895081,  19872.79324777,
+         18333.18265947,  17169.06121794,  20469.60960737,  -3955.07257368,
+        -26067.76117998,   5856.65865282,   -131.6966873 ,  -1500.78809915,
+          1049.71978133, -21871.47073869, -38439.8662874 ,  13859.59109287,
+        -16729.73044263, -28409.13822706,  -5765.8479248 ,    916.49239731,
+          2596.55383875, -23431.4023526 , -17526.52288554, -28256.86416275,
+          3562.65360605,  12723.1876165 ,  -4780.07401388, -12095.06505939,
+          5772.1264866 ,   3829.63603852,  12192.33595684, -21413.9760869 ,
+         -2993.37554096, -24706.91190592,  -7529.68858374,   -213.74990064,
+          -808.68207517, -17008.19262497,  -5603.28162257,    363.26517689,
+         18707.0195136 , -22764.85384945,  13836.3146365 , -40408.47828563,
+        -22661.99751025,   7293.71393596, -21528.59835174,  -3369.46446509,
+        -27549.78485181,   1219.28570627,   8878.19411732,   4887.71834227,
+         25559.12871953,  -1814.13784357,  11449.02776997,   -293.77906865,
+         -6402.06785394,    215.64951677,  34885.4900592 ,  -9246.61649322,
+         23461.11930637,  15237.72883024,  16818.68826494,    812.29999756,
+         30951.66350739, -20806.6434202 ,  -4438.52678992,  24298.39185458,
+          -740.01258228,  11514.47288319,  20206.73627845, -10350.69991893,
+          6101.76358201,   -492.47614817,  16221.53195665,   4436.06667767,
+          4086.1557623 ,  -2960.45785198,  10583.56258743, -31592.35770229,
+          1151.30785546,   3924.23173086, -21506.08463377,    577.4507021 ,
+          -318.23324711,    -64.22309071,   9012.90741754,    462.35588403,
+           584.3241286 ,  -9264.09080651, -20532.09550028, -22157.08291945,
+         18082.99396303, -27797.39614174,  19401.22557194,  16903.66444706,
+         22275.46971381,   -416.71865206,  14845.56158947,  -3574.82529404,
+         34291.48282009, -19203.86489271,  -8576.08372966,  17592.17005379,
+        -25235.82817362, -30834.29782956,  19792.14982364,  -6922.74234147,
+         -7506.80724601, -18114.54869277, -19689.53007493, -24760.66296022,
+        -22781.66660183,    183.94435427, -29197.92624326,  -1240.89253266,
+          6296.39253477,   8102.48893215,  30347.85683603,  -9374.72878571,
+        -16480.0083291 ,  -9747.62801446, -10979.51738205,  10512.8113491 ,
+          4807.46314488,  -3282.66949487,  27821.70504542, -16571.60544376,
+         17918.82707317,    550.06341513,    378.09202956,  12464.8028491 ,
+        -14313.83692749, -27628.48167776,  -3173.43864198,  11128.93628849,
+          -923.46494505,  -3868.34364579,  20474.90380189,   9777.15706418,
+         29174.7857041 ,  -5782.59928741,   6530.01804142, -42776.26364335,
+        -16110.28000782, -37169.04352336, -10209.9420457 ,  41502.4955808 ,
+         -6326.13909537,    891.46357162, -13693.88453786,   3516.28729042,
+           972.10874376,   5883.98402609, -12886.98021283, -14915.23562087,
+          -414.43111792, -18035.20214578,   -628.86581769,  14246.97541269,
+         12010.39582617,  28037.16626251,  -4229.85578804,  35977.71488191,
+         -2239.3835477 ,   9127.43612238,   2087.30727473, -27210.45008637], units=&#39;eV/c&#39;),
+ &#39;cpz&#39;: array([34913510.96788359, 34896103.18495848, 34896095.93765832,
+        34912185.79956746, 34912243.26194301, 34925551.07110325,
+        34925576.68001156, 35057849.03403734, 35011722.24611389,
+        34982555.66519863, 35055194.24094216, 35105200.97783776,
+        34955547.23380849, 35049403.91344176, 34964567.13197234,
+        34985192.16095654, 34921412.00641386, 35042561.31264111,
+        35045756.42631504, 35014496.21693127, 34977142.47640109,
+        35019313.77239095, 35068009.51308966, 34992468.91703928,
+        34924553.21613155, 35040521.09667432, 35054377.77447222,
+        35029904.60023861, 35076490.37598374, 34937699.14809612,
+        35005102.60346728, 34975444.15459576, 34934429.57331372,
+        35026237.84204829, 35034940.24856745, 34968815.90529288,
+        34953401.77518491, 35005923.17621454, 35048377.25179169,
+        35019812.85003355, 35084160.65524348, 35034016.32382644,
+        34982377.54294138, 35030352.76305564, 34997908.63515307,
+        35031985.03300117, 35083391.97264098, 35036628.95099216,
+        35020397.58151466, 35001149.31111212, 35042538.10726592,
+        35086518.59475317, 35056327.53084711, 35024854.53323762,
+        35084122.27167314, 34960137.69717239, 34919137.04235568,
+        35012642.87442477, 34982054.42052507, 34961152.68357367,
+        34934084.09689441, 35001139.62692528, 34960546.93729185,
+        34970883.94024352, 34986085.49676599, 35054921.53858399,
+        35083750.53563783, 35057304.74472601, 35059010.60716422,
+        34921762.05112261, 34945828.28825538, 34919774.95769811,
+        34945497.60939724, 34991372.73285013, 35076537.35429924,
+        34965104.39995782, 34987039.15629576, 35078356.83420249,
+        34982561.11921643, 34925664.08779974, 34939425.29532002,
+        34966236.24957033, 35010698.60867974, 34976467.18173636,
+        35026983.74774585, 35021669.5915191 , 34982178.75305411,
+        34936570.54537067, 34937226.34335177, 35094523.33090784,
+        35022297.18675181, 35070991.66791864, 34929140.82266691,
+        35061113.46109974, 34998690.93640807, 34955629.50795228,
+        35099353.22448032, 35020264.43386132, 35005791.76223232,
+        34991883.16813628, 35087357.63225713, 34982964.75064   ,
+        35096538.13005964, 34932227.80796379, 34979431.36566474,
+        35039177.6558721 , 34965523.99150363, 34970049.13971758,
+        34929181.35136658, 35009140.30526359, 34917117.36647642,
+        34946353.28239219, 35077657.0690641 , 34960788.50744609,
+        35017503.79123519, 35057435.3117959 , 34957565.20484343,
+        34994179.55244838, 35060322.52780883, 35021572.67779765,
+        35024065.21456385, 35027997.21549524, 34955765.35829466,
+        34979307.11208641, 35035610.64907232, 34959661.60485356,
+        34903773.53045745, 35080519.69164976, 35078058.9213613 ,
+        34943442.30469022, 35053672.36525819, 35017529.90905638,
+        35008291.62200819, 35063745.17399923, 34922640.79023335,
+        34927392.03980687, 35066499.75880948, 35034052.99729291,
+        34918294.42044115, 34962109.71369096, 35074843.67868856,
+        35076772.05216433, 34926089.2114432 , 34947994.20098891,
+        34991570.2700044 , 34974802.2829302 , 35068029.30795132,
+        35070302.51140691, 35093232.12287786, 35049211.59052178,
+        35015028.58095629, 34972336.26414381, 35070340.84934138,
+        34947161.38510102, 35049233.24432281, 34955079.0950851 ,
+        35045302.7840161 , 34994755.69365185, 35081367.78393067,
+        35080416.93914381, 34964837.31789929, 35052210.60034517,
+        35023530.86246043, 35065061.28270686, 35094705.78636917,
+        34942049.21729371, 34942932.44169797, 35066414.69940355,
+        35020982.61517258, 35081121.97056901, 35065000.47124832,
+        35081967.70099584, 34944273.65712465, 34916481.99024909,
+        35075891.93249425, 34994459.22465562, 34993985.79655557,
+        35043835.64946517, 34912564.95637922, 35000672.48436891,
+        35009318.19049092, 35024495.53975435, 35068430.36076321,
+        35090695.95830741, 35055096.18926265, 34977487.68364765,
+        35019058.60617062, 35007237.75423725, 35005689.13876921,
+        35050629.91120131, 34987079.75324887, 35007010.13097982,
+        34996982.62619796, 35079243.48865272, 35003953.27088425,
+        34983722.21989748, 34921917.58917987, 35106478.7508332 ,
+        34945472.82492679, 35066120.28499646, 34961213.22871882,
+        35061700.21925178, 35046047.2185697 , 35051084.32018994,
+        35047167.32152979, 35066974.73652675, 35060322.77273118,
+        35005496.53827051, 35011944.80464385, 34943803.60281671,
+        35036983.29584295, 35041444.20809544, 34985336.168366  ,
+        34932176.33630696, 35053998.89871673, 35056980.06152789,
+        35008019.75165278, 35076499.79232342, 35066624.87783355,
+        34947148.43312499, 35084329.63778105, 34971441.59753473,
+        35038509.75323668, 35031879.64305763, 35043696.58211285,
+        34946381.52069866, 35029333.67828435, 34986192.08413921,
+        35084072.642963  , 35012553.32536785, 34977961.96651716,
+        34933992.81708094, 35074847.385095  , 34994183.89878909,
+        35019172.75809412, 34935531.20694727, 35033041.80081756,
+        34929612.66291405, 35005883.5681795 , 35053576.00385967,
+        35068107.77886199, 35054485.47299705, 35071566.69453747,
+        34966166.08973724, 35064281.98305206, 34969072.22449781,
+        34983709.90569084, 34970222.07461952, 35059660.43635006,
+        35036490.39521222, 35036451.86892312, 35001379.80343437,
+        34945112.84641529, 34938791.71700244, 35040324.71339321,
+        34969143.96408054, 35037599.68996041, 35021222.6092463 ,
+        34950900.69837668, 35006504.79263692, 34970042.65363435,
+        34982541.7974231 , 34922989.86075488, 35022894.08416867,
+        35010497.42523383, 35046271.1385309 , 35017290.52220775,
+        34983606.57183835, 35094579.59157895, 35050871.268081  ,
+        34948967.57366897, 34942515.06127563, 35051885.21796396,
+        35112275.34904414, 34954537.79366029, 34900349.526864  ,
+        35035254.96077958, 35042539.66817678, 35089863.12780957,
+        34974991.07813399, 35068293.81722944, 34968472.77591076,
+        34971838.7165013 , 35031124.88954597, 35044449.56607717,
+        35019242.1508598 , 34971339.38279856, 35029715.87970155,
+        34968052.77788588, 34935722.25929733, 35053709.40885337,
+        35068670.6394014 , 35031222.41914576, 35055307.5470515 ,
+        34952543.49062465, 35086688.23727779, 35060769.75447766,
+        35079365.15879536, 35032614.08393938, 34967543.41319476,
+        35038525.00475623, 34941627.87182277, 34973731.47228593,
+        34995512.79635265, 35055674.30882923, 34935706.85642341,
+        35070423.13608851, 34965318.393833  , 35025815.1222019 ,
+        34979230.308909  , 35012592.34560129, 35077974.86320351,
+        35058762.24094003, 34984968.87958109, 34966039.86344616,
+        34901268.43823706, 35082793.05600378, 35049611.00472435,
+        35045690.84651566, 34974325.52158311, 35082209.92554189,
+        34938622.76273336, 34979126.31672447, 34985807.36727838,
+        34970371.51791012, 35069823.88344865, 34922995.91442377,
+        34988192.00711315, 35071211.9088472 , 35059146.32343189,
+        35052145.43656265, 35026140.67620498, 35031006.65966487,
+        35021932.99232673, 34933920.3407575 , 34955704.61800698,
+        35086139.41411   , 35097605.83584184, 35010076.52102058,
+        34965449.94015895, 35107270.63048772, 35091311.91509409,
+        35062159.68587029, 34949835.11514036, 35022532.21643298,
+        35076935.43847907, 35092601.33629008, 35022811.84585483,
+        35059810.08690497, 34953990.88198656, 34922590.4313096 ,
+        34923782.28852808, 35031718.634119  , 35075326.1479205 ,
+        35091986.04472914, 35042400.12283073, 34981845.82351962,
+        34944046.57528631, 35001091.80147767, 35001180.59060395,
+        34962627.12778001, 34987056.938483  , 35060428.76318374,
+        35086287.20608204, 34979177.47797606, 35012457.47556295,
+        35053350.05096158, 35005638.58007301, 34985450.99557833,
+        34996563.19236687, 34978631.30559579, 34986897.2602333 ,
+        35057078.80275729, 35080164.6013702 , 35007057.34282074,
+        34963832.46158876, 35056573.43101153, 35026636.49597057,
+        34933732.17197478, 35071729.49464598, 35060881.33817492,
+        34937357.68961397, 34964133.72737373, 35082519.5793292 ,
+        34999598.23630635, 35052871.56830734, 34947890.08137593,
+        35003512.61642742, 34986876.2349372 , 35059957.5416203 ,
+        34948222.98693191, 35075268.17643999, 34998969.14521614,
+        35006435.76384616, 35043806.955995  , 35077142.5106268 ,
+        34968630.56413165, 35005770.91505435, 34946384.59322724,
+        35107743.75922635, 34904075.02424864, 35109478.0104945 ,
+        34986475.20123125, 34986830.41201559, 34968327.60751969,
+        34989226.71331737, 34935428.4470838 , 35073777.3689886 ,
+        34995251.5802542 , 34980496.03625459, 35054131.40722208,
+        35057782.91776213, 34981037.46736096, 34962157.1040924 ,
+        34929532.54278681, 34980554.84721575, 35042441.97902544,
+        35109967.23907481, 34945045.88117323, 34907186.42776769,
+        34916458.66394559, 34953175.68586202, 35058827.06103659,
+        34971227.76090063, 35097021.4610675 , 34991378.72095024,
+        35025980.2170752 , 35101610.66847312, 35067380.17671026,
+        35094140.86387551, 34969053.24536477, 35105477.66275635,
+        35038492.90424688, 35063629.4149199 , 34939563.08022219,
+        35048041.90570178, 34992202.01942306, 34996105.65250814,
+        34933668.73775735, 34951801.94839745, 35059623.41960587,
+        35087005.66052003, 34968845.09145602, 35074823.98120613,
+        35015748.2463508 , 35050660.09155099, 34921758.25946615,
+        34926827.75092071, 35031605.07255761, 35020837.22261511,
+        34958754.14219107, 34990452.1564236 , 35050850.4968328 ,
+        34933326.81043462, 34991290.78243992, 34996632.08984824,
+        34925628.29149432, 35093777.13690747, 35038479.96529268,
+        35028099.24891921, 35074513.85350901, 35054178.99556862,
+        34996006.73468602, 35021074.64037486, 34910312.31599438,
+        34925259.57007505, 34959285.10047764, 35066669.02205967,
+        35079085.44666639, 35071962.50326843, 35029073.35705302,
+        34999036.58113389, 34938846.99086028, 35010250.11738656,
+        35099814.53218973, 34968588.34853601, 35060719.74378131,
+        34945254.66838232, 34907281.93538673, 35067015.69642039,
+        35095190.17495715, 34994196.76454587, 34934667.39433554,
+        34959943.97632324, 35036331.40423876, 34969173.4623411 ,
+        35010292.24013184, 35013236.20881191, 34958546.7851454 ,
+        34992452.10856816, 34956257.52509311, 35033844.29942864,
+        35059083.31338143, 34935821.9006018 , 34948614.66774028,
+        35047980.23864172, 35089234.9735786 , 35075282.83288906,
+        34983861.89113148, 35040776.58594171, 34965685.57389542,
+        34959389.31918765, 35101889.44400427, 34984585.6149902 ,
+        34952786.02389792, 35038187.07572615, 35063967.85899214,
+        35027821.94853441, 34906823.92519353, 34907545.00057886,
+        34968636.08685114, 34979071.26364787], units=&#39;eV/c&#39;),
+ &#39;emittance&#39;: {&#39;ex&#39;: 174.09858753209383 nrad*m,
+  &#39;ey&#39;: 196.1049044674848 nrad*m,
+  &#39;enx&#39;: 11.928836982710356 µrad*m,
+  &#39;eny&#39;: 13.436659481636406 µrad*m,
+  &#39;ecx&#39;: 174.08724977827632 nrad*m,
+  &#39;ecy&#39;: 194.84363413737034 nrad*m,
+  &#39;ecnx&#39;: 11.928061562116598 µrad*m,
+  &#39;ecny&#39;: 13.350241708896782 µrad*m,
+  &#39;normalized_horizontal_emittance&#39;: 11.928838399166315 µrad*m,
+  &#39;normalized_vertical_emittance&#39;: 13.436661077134476 µrad*m,
+  &#39;horizontal_emittance&#39;: 174.09858753209383 nrad*m,
+  &#39;vertical_emittance&#39;: 196.1049044674848 nrad*m,
+  &#39;horizontal_emittance_90&#39;: 906.3832287336161 nrad*m,
+  &#39;normalized_horizontal_emittance_90&#39;: 62.096690935635905 µrad*m,
+  &#39;vertical_emittance_90&#39;: 1.0341899610614655 µrad*m,
+  &#39;normalized_vertical_emittance_90&#39;: 70.85278317704308 µrad*m,
+  &#39;horizontal_emittance_corrected&#39;: 174.08724977827632 nrad*m,
+  &#39;vertical_emittance_corrected&#39;: 194.84363413737034 nrad*m,
+  &#39;normalised_horizontal_emittance_corrected&#39;: 11.928061562116598 µrad*m,
+  &#39;normalised_vertical_emittance_corrected&#39;: 13.350241708896782 µrad*m},
+ &#39;twiss&#39;: {&#39;normalized_horizontal_emittance&#39;: 11.928838399166315 µrad*m,
+  &#39;normalized_vertical_emittance&#39;: 13.436661077134476 µrad*m,
+  &#39;horizontal_emittance&#39;: 174.09858753209383 nrad*m,
+  &#39;vertical_emittance&#39;: 196.1049044674848 nrad*m,
+  &#39;horizontal_emittance_corrected&#39;: 174.08724977827632 nrad*m,
+  &#39;vertical_emittance_corrected&#39;: 194.84363413737034 nrad*m,
+  &#39;beta_x&#39;: 18.84877195823276 m/rad,
+  &#39;alpha_x&#39;: 1.193974461783896 rad^-1/m,
+  &#39;gamma_x&#39;: 0.1286861033051388 rad/m,
+  &#39;beta_y&#39;: 52.747359809450934 m/rad,
+  &#39;alpha_y&#39;: -7.543884036036961 rad^-1/m,
+  &#39;gamma_y&#39;: 1.097878387816433 rad/m,
+  &#39;beta_x_corrected&#39;: 18.847571321953417 m/rad,
+  &#39;alpha_x_corrected&#39;: 1.1938848622097344 rad^-1/m,
+  &#39;gamma_x_corrected&#39;: 0.12868294926617554 rad/m,
+  &#39;beta_y_corrected&#39;: 53.08380763573523 m/rad,
+  &#39;alpha_y_corrected&#39;: -7.593104330038315 rad^-1/m,
+  &#39;gamma_y_corrected&#39;: 1.1049552769338418 rad/m,
+  &#39;eta_x&#39;: 0.013340593680719525 m,
+  &#39;eta_xp&#39;: -919.4879600646053 µrad,
+  &#39;eta_y&#39;: 0.020277140256491067 m,
+  &#39;eta_yp&#39;: -1.5620659992864943 mrad},
+ &#39;sigmas&#39;: {&#39;sigma_x&#39;: 1.8115034017751281 mm,
+  &#39;sigma_y&#39;: 3.216211429048846 mm,
+  &#39;sigma_t&#39;: 1.9002308373657044 ps,
+  &#39;sigma_z&#39;: 569.6141711291078 µm,
+  &#39;sigma_px&#39;: 2.801888062189512 ykg*m/s,
+  &#39;sigma_py&#39;: 8.679082455484542 ykg*m/s,
+  &#39;sigma_pz&#39;: 28.844075405565082 ykg*m/s,
+  &#39;sigma_cp&#39;: 53.918563091267316 keV/c,
+  &#39;sigma_cp_eV&#39;: 53.918563091267316 keV/c,
+  &#39;Sx&#39;: 1.8115034017751281 mm,
+  &#39;Sy&#39;: 3.216211429048846 mm,
+  &#39;Sz&#39;: 569.6141711291078 µm,
+  &#39;St&#39;: 1.9002308373657044 ps,
+  &#39;momentum_spread&#39;: 53.918563091267316 keV/c,
+  &#39;linear_chirp_t_cpz&#39;: -8.781475645772638 ac/eV,
+  &#39;linear_chirp_t_pz&#39;: -16.43152267263281 Gs/kg/m,
+  &#39;linear_chirp_z&#39;: -105.9598271810107 p},
+ &#39;centroids&#39;: {&#39;mean_x&#39;: -9.469452800676454 µm,
+  &#39;mean_y&#39;: -79.31028735907547 µm,
+  &#39;mean_t&#39;: 21.644981711285823 ns,
+  &#39;mean_z&#39;: 6.489002270393042 m,
+  &#39;mean_cpx&#39;: -30.324421765187047 eV/c,
+  &#39;mean_cpy&#39;: -595.7111651581272 eV/c,
+  &#39;mean_cpz&#39;: 35.00874585117013 MeV/c,
+  &#39;mean_px&#39;: -1.6206238247575812e-26 kg*m/s,
+  &#39;mean_py&#39;: -3.1836508356366553e-25 kg*m/s,
+  &#39;mean_pz&#39;: 18.709675007364343 zkg*m/s,
+  &#39;mean_energy&#39;: 35.51974895818066 MeV,
+  &#39;mean_gamma&#39;: 68.51771255304351 ,
+  &#39;mean_cp&#39;: 35.00875000818449 MeV/c,
+  &#39;Cx&#39;: -9.469452800676454 µm,
+  &#39;Cy&#39;: -79.31028735907547 µm,
+  &#39;Cz&#39;: 6.489002270393042 m,
+  &#39;Ct&#39;: 21.644981711285823 ns,
+  &#39;Cp&#39;: 35.00875000818449 MeV/c,
+  &#39;Cpx&#39;: -30.324421765187047 eV/c,
+  &#39;Cpy&#39;: -595.7111651581272 eV/c,
+  &#39;Cpz&#39;: 35.00874585117013 MeV/c,
+  &#39;Cxp&#39;: -864.0144434704091 nrad,
+  &#39;Cyp&#39;: -17.01235281354686 µrad,
+  &#39;Cgamma&#39;: 68.51771255304351 ,
+  &#39;Ccp&#39;: 35.00875000818449 MeV/c,
+  &#39;CEn&#39;: 35.51974895818066 MeV}}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">emittance</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;ex&#39;: 174.09858753209383 nrad*m,
+ &#39;ey&#39;: 196.1049044674848 nrad*m,
+ &#39;enx&#39;: 11.928836982710356 µrad*m,
+ &#39;eny&#39;: 13.436659481636406 µrad*m,
+ &#39;ecx&#39;: 174.08724977827632 nrad*m,
+ &#39;ecy&#39;: 194.84363413737034 nrad*m,
+ &#39;ecnx&#39;: 11.928061562116598 µrad*m,
+ &#39;ecny&#39;: 13.350241708896782 µrad*m,
+ &#39;normalized_horizontal_emittance&#39;: 11.928838399166315 µrad*m,
+ &#39;normalized_vertical_emittance&#39;: 13.436661077134476 µrad*m,
+ &#39;horizontal_emittance&#39;: 174.09858753209383 nrad*m,
+ &#39;vertical_emittance&#39;: 196.1049044674848 nrad*m,
+ &#39;horizontal_emittance_90&#39;: 906.3832287336161 nrad*m,
+ &#39;normalized_horizontal_emittance_90&#39;: 62.096690935635905 µrad*m,
+ &#39;vertical_emittance_90&#39;: 1.0341899610614655 µrad*m,
+ &#39;normalized_vertical_emittance_90&#39;: 70.85278317704308 µrad*m,
+ &#39;horizontal_emittance_corrected&#39;: 174.08724977827632 nrad*m,
+ &#39;vertical_emittance_corrected&#39;: 194.84363413737034 nrad*m,
+ &#39;normalised_horizontal_emittance_corrected&#39;: 11.928061562116598 µrad*m,
+ &#39;normalised_vertical_emittance_corrected&#39;: 13.350241708896782 µrad*m}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">twiss</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;normalized_horizontal_emittance&#39;: 11.928838399166315 µrad*m,
+ &#39;normalized_vertical_emittance&#39;: 13.436661077134476 µrad*m,
+ &#39;horizontal_emittance&#39;: 174.09858753209383 nrad*m,
+ &#39;vertical_emittance&#39;: 196.1049044674848 nrad*m,
+ &#39;horizontal_emittance_corrected&#39;: 174.08724977827632 nrad*m,
+ &#39;vertical_emittance_corrected&#39;: 194.84363413737034 nrad*m,
+ &#39;beta_x&#39;: 18.84877195823276 m/rad,
+ &#39;alpha_x&#39;: 1.193974461783896 rad^-1/m,
+ &#39;gamma_x&#39;: 0.1286861033051388 rad/m,
+ &#39;beta_y&#39;: 52.747359809450934 m/rad,
+ &#39;alpha_y&#39;: -7.543884036036961 rad^-1/m,
+ &#39;gamma_y&#39;: 1.097878387816433 rad/m,
+ &#39;beta_x_corrected&#39;: 18.847571321953417 m/rad,
+ &#39;alpha_x_corrected&#39;: 1.1938848622097344 rad^-1/m,
+ &#39;gamma_x_corrected&#39;: 0.12868294926617554 rad/m,
+ &#39;beta_y_corrected&#39;: 53.08380763573523 m/rad,
+ &#39;alpha_y_corrected&#39;: -7.593104330038315 rad^-1/m,
+ &#39;gamma_y_corrected&#39;: 1.1049552769338418 rad/m,
+ &#39;eta_x&#39;: 0.013340593680719525 m,
+ &#39;eta_xp&#39;: -919.4879600646053 µrad,
+ &#39;eta_y&#39;: 0.020277140256491067 m,
+ &#39;eta_yp&#39;: -1.5620659992864943 mrad}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">sigmas</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;sigma_x&#39;: 1.8115034017751281 mm,
+ &#39;sigma_y&#39;: 3.216211429048846 mm,
+ &#39;sigma_t&#39;: 1.9002308373657044 ps,
+ &#39;sigma_z&#39;: 569.6141711291078 µm,
+ &#39;sigma_px&#39;: 2.801888062189512 ykg*m/s,
+ &#39;sigma_py&#39;: 8.679082455484542 ykg*m/s,
+ &#39;sigma_pz&#39;: 28.844075405565082 ykg*m/s,
+ &#39;sigma_cp&#39;: 53.918563091267316 keV/c,
+ &#39;sigma_cp_eV&#39;: 53.918563091267316 keV/c,
+ &#39;Sx&#39;: 1.8115034017751281 mm,
+ &#39;Sy&#39;: 3.216211429048846 mm,
+ &#39;Sz&#39;: 569.6141711291078 µm,
+ &#39;St&#39;: 1.9002308373657044 ps,
+ &#39;momentum_spread&#39;: 53.918563091267316 keV/c,
+ &#39;linear_chirp_t_cpz&#39;: -8.781475645772638 ac/eV,
+ &#39;linear_chirp_t_pz&#39;: -16.43152267263281 Gs/kg/m,
+ &#39;linear_chirp_z&#39;: -105.9598271810107 p}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">centroids</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{&#39;mean_x&#39;: -9.469452800676454 µm,
+ &#39;mean_y&#39;: -79.31028735907547 µm,
+ &#39;mean_t&#39;: 21.644981711285823 ns,
+ &#39;mean_z&#39;: 6.489002270393042 m,
+ &#39;mean_cpx&#39;: -30.324421765187047 eV/c,
+ &#39;mean_cpy&#39;: -595.7111651581272 eV/c,
+ &#39;mean_cpz&#39;: 35.00874585117013 MeV/c,
+ &#39;mean_px&#39;: -1.6206238247575812e-26 kg*m/s,
+ &#39;mean_py&#39;: -3.1836508356366553e-25 kg*m/s,
+ &#39;mean_pz&#39;: 18.709675007364343 zkg*m/s,
+ &#39;mean_energy&#39;: 35.51974895818066 MeV,
+ &#39;mean_gamma&#39;: 68.51771255304351 ,
+ &#39;mean_cp&#39;: 35.00875000818449 MeV/c,
+ &#39;Cx&#39;: -9.469452800676454 µm,
+ &#39;Cy&#39;: -79.31028735907547 µm,
+ &#39;Cz&#39;: 6.489002270393042 m,
+ &#39;Ct&#39;: 21.644981711285823 ns,
+ &#39;Cp&#39;: 35.00875000818449 MeV/c,
+ &#39;Cpx&#39;: -30.324421765187047 eV/c,
+ &#39;Cpy&#39;: -595.7111651581272 eV/c,
+ &#39;Cpz&#39;: 35.00874585117013 MeV/c,
+ &#39;Cxp&#39;: -864.0144434704091 nrad,
+ &#39;Cyp&#39;: -17.01235281354686 µrad,
+ &#39;Cgamma&#39;: 68.51771255304351 ,
+ &#39;Ccp&#39;: 35.00875000818449 MeV/c,
+ &#39;CEn&#39;: 35.51974895818066 MeV}
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="reading-and-writing-to-and-from-different-simulation-code-formats">
+<h2>Reading and writing to and from different simulation code formats<a class="headerlink" href="#reading-and-writing-to-and-from-different-simulation-code-formats" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">beam</span></code> object can load in and write to different file formats. The examples below show how to do this, and as a sanity check we can plot the beam distribution to check that it is the same after transforming.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">astrabeamlocation</span> <span class="o">=</span> <span class="n">testbeamlocation</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;openpmd.hdf5&#39;</span><span class="p">,</span> <span class="s1">&#39;astra&#39;</span><span class="p">)</span>
+<span class="n">sddsbeamlocation</span> <span class="o">=</span> <span class="n">testbeamlocation</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;openpmd.hdf5&#39;</span><span class="p">,</span> <span class="s1">&#39;sdds&#39;</span><span class="p">)</span>
+<span class="n">ocelotbeamlocation</span> <span class="o">=</span> <span class="n">testbeamlocation</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;openpmd.hdf5&#39;</span><span class="p">,</span> <span class="s1">&#39;ocelot.npz&#39;</span><span class="p">)</span>
+<span class="n">gptbeamlocation</span> <span class="o">=</span> <span class="n">testbeamlocation</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;openpmd.hdf5&#39;</span><span class="p">,</span> <span class="s1">&#39;gdf&#39;</span><span class="p">)</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">write_astra_beam_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">astrabeamlocation</span><span class="p">)</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">write_gdf_beam_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">gptbeamlocation</span><span class="p">)</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">write_ocelot_beam_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">ocelotbeamlocation</span><span class="p">)</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">write_SDDS_beam_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">sddsbeamlocation</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">astrabeam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">(</span><span class="n">astrabeamlocation</span><span class="p">)</span>
+<span class="n">sddsbeam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">(</span><span class="n">sddsbeamlocation</span><span class="p">)</span>
+<span class="n">ocelotbeam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">(</span><span class="n">ocelotbeamlocation</span><span class="p">)</span>
+<span class="n">gptbeam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">(</span><span class="n">gptbeamlocation</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plotScreenImage</span><span class="p">(</span><span class="n">gptbeam</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;cpz&quot;</span><span class="p">],</span> <span class="n">subtract_mean</span><span class="o">=</span><span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;Axes: xlabel=&#39;z (mm)&#39;, ylabel=&#39;cpz (keV/c)&#39;&gt;
+</pre></div>
+</div>
+<img alt="../../_images/ef99af408c3f3a47f583e0c0f8f6b93a807e4e727f532d84d1829daeeed67bd9.png" src="../../_images/ef99af408c3f3a47f583e0c0f8f6b93a807e4e727f532d84d1829daeeed67bd9.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;astra&quot;</span><span class="p">,</span> <span class="s2">&quot;ocelot.npz&quot;</span><span class="p">,</span> <span class="s2">&quot;sdds&quot;</span><span class="p">,</span> <span class="s2">&quot;gdf&quot;</span><span class="p">]:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">testbeamlocation</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;openpmd.hdf5&#39;</span><span class="p">,</span> <span class="n">ext</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting_started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utility_functions.html" class="btn btn-neutral float-right" title="Utility Functions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

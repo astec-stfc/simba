@@ -15,10 +15,10 @@ Classes:
     - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping elements together and controlling them all simultaneously.
 
     - :class:`~simba.Framework_objects.element_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements.
-    # TODO is this ever used?
+      # TODO is this ever used?
 
     - :class:`~simba.Framework_objects.r56_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements with an R56.
-    # TODO is this ever used?
+      # TODO is this ever used?
 
     - :class:`~simba.Framework_objects.chicane`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for a 4-dipole bunch compressor chicane.
 
@@ -27,7 +27,9 @@ Classes:
 
 import math
 import os
+import shutil
 import subprocess
+from pathlib import Path
 from warnings import warn
 import stat
 import yaml
@@ -45,7 +47,7 @@ from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
 
-from .Modules.merge_two_dicts import merge_two_dicts
+from .Modules.DeviceProgram import DeviceProgram
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution
@@ -323,10 +325,7 @@ class frameworkObject(BaseModel):
         elif self.objecttype in elementkeywords:
             self.allowedkeywords = elementkeywords[self.objecttype]["keywords"] | elementkeywords["common"]["keywords"]
             if "framework_keywords" in elementkeywords[self.objecttype]:
-                self.allowedkeywords = merge_two_dicts(
-                    self.allowedkeywords,
-                    elementkeywords[self.objecttype]["framework_keywords"],
-                )
+                self.allowedkeywords = self.allowedkeywords | elementkeywords[self.objecttype]["framework_keywords"]
         else:
             raise NameError(f"Unknown type = {self.objecttype}")
         self.allowedkeywords = [x.lower() for x in self.allowedkeywords]
@@ -611,12 +610,21 @@ class frameworkLattice(BaseModel):
     ``track_nturns`` takes a list of single particles and records the turn
     each was lost on, which is exactly the shape of the study."""
 
+    supports_nsuperperiods: ClassVar[bool] = False
+    """Whether this code can track one sector of an N-fold-symmetric ring N
+    times per turn; see :meth:`nsuperperiods`."""
+
     radiates_by_default: ClassVar[bool] = False
     """Whether this code radiates with no asking."""
 
     supports_radiation: ClassVar[bool] = False
     """Whether simba can switch synchrotron radiation on for this code.
     Currently Xsuite only."""
+
+    supports_programs: ClassVar[bool] = False
+    """Whether this code can vary an element's strength from turn to turn;
+    see :class:`~simba.Modules.DeviceProgram.DeviceProgram`. Any code with a
+    per-turn loop of its own can, which is most of the ring codes."""
 
     otm_convention: ClassVar[str] = ""
     """The coordinate order :attr:`one_turn_map` is written in, as this code
@@ -930,6 +938,20 @@ class frameworkLattice(BaseModel):
         tracking = self.file_block.get("tracking") or {}
         if "periodic" in tracking:
             return bool(tracking["periodic"])
+        return self.closed_geometry
+
+    @property
+    def closed_geometry(self) -> bool:
+        """Whether LAURA records this line's reference orbit as closing.
+        :meth:`periodic` is this plus an override, because asking for the
+        closed optics solution is a *choice*; whether the machine is a ring
+        is not.
+
+        Returns
+        -------
+        bool
+            True if LAURA's section geometry is closed
+        """
         geometry = self._machine_geometry()
         return getattr(geometry, "value", geometry) == "closed"
 
@@ -1013,6 +1035,138 @@ class frameworkLattice(BaseModel):
         tracking = self.file_block.get("tracking") or {}
         return bool(tracking.get("write_turns", False))
 
+    @property
+    def programs(self) -> list:
+        """
+        Elements whose strength is a program over turn number.
+
+        A tracking setting, like :meth:`turns`, and the half of R19 that is
+        the *study* rather than the hardware -- when a kicker fires and at
+        what amplitude::
+
+            files:
+              RING:
+                code: elegant
+                tracking:
+                  turns: 10
+                  programs:
+                    - element: KICK1
+                      turns:  [1, 4, 5]
+                      values: [0.0, 1.0e-3, 0.0]
+                      interpolation: hold
+
+        Turns are 1-based, ``values`` are in the element attribute's own
+        units, and the default rule is ``hold`` and is no code's default:
+        see :mod:`simba.Modules.DeviceProgram`, which is where all three of
+        those are argued.
+
+        Returns
+        -------
+        list
+            :class:`~simba.Modules.DeviceProgram.DeviceProgram`, one per
+            entry. An entry simba cannot read warns and is dropped, rather
+            than taking the run down with it.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        entries = tracking.get("programs") or []
+        if isinstance(entries, dict):
+            entries = [entries]
+        programs = []
+        for entry in entries:
+            try:
+                programs.append(DeviceProgram.from_dict(entry))
+            except ValueError as error:
+                warn(f"Line '{self.objectname}': {error}")
+        return programs
+
+    def check_programs_supported(self) -> None:
+        """Warn when a device program was asked for and this code cannot run one."""
+        if not self.programs or self.supports_programs:
+            return
+        warn(
+            f"Line '{self.objectname}' programs "
+            f"{', '.join(p.element for p in self.programs)} over turns, but "
+            f"{self.code} has no way to change an element between turns here."
+        )
+
+    def check_programs_fit(self) -> None:
+        """
+        Warn when a program and the run do not cover the same turns.
+
+        Two ways to author a pulse that is not the one intended, both of
+        which track perfectly: knots past the last turn, and a last knot the
+        run then sits on for thousands of turns.
+        """
+        for program in self.programs:
+            if program.last_turn > self.turns:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}' "
+                    f"out to turn {program.last_turn}, but only {self.turns} "
+                    "turns are tracked, so the run ends part-way through the "
+                    "program."
+                )
+            elif program.last_turn < self.turns and program.values[-1]:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}' "
+                    f"up to turn {program.last_turn} and ends at "
+                    f"{program.values[-1]:.4g}, which it then holds for the "
+                    f"remaining {self.turns - program.last_turn} turns of "
+                    "the run. Add a final knot if it should come back down."
+                )
+
+    @property
+    def revolution_period(self) -> float:
+        """
+        Seconds for one turn: ``passes * C / (beta0 * c)``.
+        ``C`` is this line's length, and :meth:`passes_per_turn` is how
+        many times a turn crosses it.
+
+        Returns
+        -------
+        float
+            Seconds per turn, or 0.0 if there is no beam to ask
+        """
+        beam = (self.global_parameters or {}).get("beam")
+        if beam is None:
+            return 0.0
+        length = float(
+            self.machine.get_elements_s_pos(end=self.end)[self.end] - self.entrance_s
+        )
+        beta = float(np.mean(beam.BetaGamma) / np.mean(beam.gamma))
+        if not beta:
+            return 0.0
+        return self.passes_per_turn * length / (beta * speed_of_light)
+
+    def program_is_vertical(self, name: str) -> bool:
+        """
+        Whether the programmed element steers vertically.
+
+        Parameters
+        ----------
+        name: str
+            Element name, as the lattice names it
+
+        Returns
+        -------
+        bool
+            True for a vertical element, False for a horizontal one or one
+            whose type says nothing
+        """
+        element = self.elements.get(name)
+        hardware = str(getattr(element, "hardware_type", "") or "")
+        return hardware.lower().startswith("vertical")
+
+    def apply_programs(self, turn: int) -> None:
+        """
+        Set each programmed element to its value for `turn`.
+
+        Parameters
+        ----------
+        turn: int
+            Turn number, 1-based
+        """
+        return None
+
     def output_turns(self) -> list:
         """
         ``(data_turn, name_turn)`` for each beam file a run should write.
@@ -1027,6 +1181,42 @@ class frameworkLattice(BaseModel):
         if self.write_turns:
             return [(turn, turn) for turn in range(1, self.turns + 1)]
         return [(self.turns, None)]
+
+    def beam_turn(self, turn: int | None) -> int:
+        """
+        Which turn a beam from an :meth:`output_turns` entry actually is.
+
+        Parameters
+        ----------
+        turn: int | None
+            Either half of an :meth:`output_turns` pair
+
+        Returns
+        -------
+        int
+            A 1-based turn number, never ``None``
+        """
+        return self.turns if turn is None else turn
+
+    def link_handoff_beam(self) -> None:
+        """
+        Make sure the end of the line (or the last turn) has an unsuffixed beam file.
+        """
+        if self.turns <= 1 or not self.write_turns:
+            return
+        directory = (self.global_parameters or {}).get("master_subdir")
+        if not directory:
+            return
+        stem = self.output_basename(self.end)
+        handoff = Path(directory) / f"{stem}.openpmd.hdf5"
+        if handoff.is_file():
+            return
+        last = Path(directory) / (
+            f"{self.output_basename(self.end, turn=self.turns)}.openpmd.hdf5"
+        )
+        if not last.is_file():
+            return
+        shutil.copyfile(last, handoff)
 
     @property
     def da_settings(self) -> dict:
@@ -1148,6 +1338,68 @@ class frameworkLattice(BaseModel):
         tracking = self.file_block.get("tracking") or {}
         return bool(tracking.get("single_particle", False))
 
+    @property
+    def nsuperperiods(self) -> int:
+        """
+        How many times the line is traversed per turn.
+        One sector of an N-fold-symmetric ring is a *superperiod*: it is open
+        on its own and closes after N of them::
+
+            files:
+              RING:
+                code: ocelot
+                tracking: {turns: 1000, nsuperperiods: 4}
+
+        A turn stays a turn: those settings track 4000 passes through the
+        sector, and the beam files, the turn suffixes and anything else
+        counted per turn still count 1000 of them.
+
+        Returns
+        -------
+        int
+            The declared count, or 1 -- which is the same as not asking.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        value = tracking.get("nsuperperiods", 1)
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            warn(
+                f"Line '{self.objectname}' has nsuperperiods={value!r}, which "
+                "is not a whole number. Tracking the line once per turn."
+            )
+            return 1
+        if count < 1:
+            warn(
+                f"Line '{self.objectname}' has nsuperperiods={count}, which is "
+                "not a count. Tracking the line once per turn."
+            )
+            return 1
+        return count
+
+    @property
+    def passes_per_turn(self) -> int:
+        """
+        How many times this code will actually traverse the line per turn.
+
+        :meth:`nsuperperiods` is what was *asked* for; this is what will
+        *happen*, so it is 1 on a code that cannot repeat the line.
+        """
+        return self.nsuperperiods if self.supports_nsuperperiods else 1
+
+    def check_nsuperperiods_supported(self) -> None:
+        """Warn when superperiods were asked for and cannot be given."""
+        if self.nsuperperiods <= 1 or self.supports_nsuperperiods:
+            return
+        warn(
+            f"Line '{self.objectname}' asks for {self.nsuperperiods} "
+            f"superperiods, but {self.code} has no way to repeat the line "
+            "within a turn here, so it will be tracked once per turn -- "
+            f"which is one {self.nsuperperiods}th of the intended ring, not "
+            "a coarser version of it. Ocelot, MAD-X and Xsuite are the codes "
+            "that can."
+        )
+
     def check_single_particle_supported(self) -> None:
         """Warn when single-particle mode was asked for and cannot be given."""
         if self.single_particle and not self.supports_single_particle:
@@ -1238,8 +1490,8 @@ class frameworkLattice(BaseModel):
             warn(
                 f"Line '{self.objectname}' asks for {self.turns} turns, but "
                 f"{self.code} tracks a line once and has no turn count. One "
-                "turn will be tracked. elegant, Xsuite and Ocelot are the "
-                "codes that can."
+                "turn will be tracked. elegant, Xsuite, Ocelot and MAD-X are "
+                "the codes that can."
             )
 
     def check_turns_closed(self, tolerance: float = 1e-4) -> None:
@@ -1253,6 +1505,9 @@ class frameworkLattice(BaseModel):
         N-fold-symmetric ring is open on its own and closes after N of them.
         """
         if self.turns <= 1 and not self.periodic:
+            return
+        if self.nsuperperiods > 1:
+            self.check_superperiods_close()
             return
         try:
             entrance = self.startObject.physical.start
@@ -1285,8 +1540,30 @@ class frameworkLattice(BaseModel):
             message += (
                 f" Its net bend is a 1/{round(turn / angle)} fraction of a "
                 "turn, so if this is one superperiod of a symmetric ring, "
-                "track the whole ring instead."
+                f"set 'nsuperperiods: {round(turn / angle)}' or track the "
+                "whole ring instead."
             )
+        warn(message)
+
+    def check_superperiods_close(self) -> None:
+        """
+        Warn when the declared superperiod count and the geometry disagree.
+        """
+        count = self.nsuperperiods
+        angle = abs(self.net_bend_angle)
+        if angle <= 1e-9:
+            return
+        turns_of_bend = count * angle / (2 * math.pi)
+        if abs(round(turns_of_bend) - turns_of_bend) < 1e-3:
+            return
+        implied = (2 * math.pi) / angle
+        message = (
+            f"Line '{self.objectname}' declares {count} superperiods, but "
+            f"{count} of them bend through {turns_of_bend:.4g} turns rather "
+            "than a whole number, so they do not make a closed ring."
+        )
+        if abs(round(implied) - implied) < 1e-3:
+            message += f" Its net bend suggests {round(implied)} instead."
         warn(message)
 
     @property
@@ -2322,6 +2599,9 @@ class frameworkLattice(BaseModel):
         self.check_periodic_supported()
         self.check_radiation()
         self.check_single_particle_supported()
+        self.check_nsuperperiods_supported()
+        self.check_programs_supported()
+        self.check_programs_fit()
         self._apply_radiation_to_section()
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()
@@ -2842,14 +3122,14 @@ class frameworkLattice(BaseModel):
         """
         Perform transverse matching of the lattice using Ocelot's built-in matching algorithm.
 
-        The `params` dictionary should contain the following
-        keys:
-            - "variables": A list of element names (magnets only).
-            - "targets": A dictionary where keys are element names and values are dictionaries
-              with keys corresponding to Twiss parameters ("beta_x", "beta_y", "alpha_x",
-              "alpha_y", "eta_x", "eta_y", "eta_xp", "eta_yp", "mux", "muy") and their target values.
-            - "start": (optional) The name of the starting element for matching. Defaults to the first element.
-            - "end": (optional) The name of the ending element for matching. Defaults to the last element.
+        The `params` dictionary should contain the following keys:
+
+        - "variables": A list of element names (magnets only).
+        - "targets": A dictionary where keys are element names and values are dictionaries
+          with keys corresponding to Twiss parameters ("beta_x", "beta_y", "alpha_x",
+          "alpha_y", "eta_x", "eta_y", "eta_xp", "eta_yp", "mux", "muy") and their target values.
+        - "start": (optional) The name of the starting element for matching. Defaults to the first element.
+        - "end": (optional) The name of the ending element for matching. Defaults to the last element.
 
         The matching dictionary should have this structure within the lattice file block:
 

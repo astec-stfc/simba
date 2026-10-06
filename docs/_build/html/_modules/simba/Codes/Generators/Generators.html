@@ -1,0 +1,1017 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Generators.Generators &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Generators.Generators</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.Generators.Generators</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SIMBA Beam Generator module</span>
+
+<span class="sd">This module defines a class for generating a beam distribution. The beam properties, code and number of particles</span>
+<span class="sd">should be provided. The beam properties can either represent a photoinjector laser profile (if `cathode=True`) or</span>
+<span class="sd">beam sizes and distribution types for generating a 6D phase space.</span>
+
+<span class="sd">All of the possible attributes of the class are not generic to each code, and some codes require these properties to</span>
+<span class="sd">be defined. The ``&lt;code&gt;.yaml`` files defined below are fed into ``&lt;code&gt;_generator_keywords`` dictionaries, which</span>
+<span class="sd">exclude attributes that cannot be understood by that specific code. It is noted that not all possible options</span>
+<span class="sd">are provided for the beam generators every single code; specific options can be added on request.</span>
+
+<span class="sd">Other attributes have generic (human-readable) names, which are then translated to the names required for that code</span>
+<span class="sd">based on the definitions in ``aliases.yaml``, which is read into the ``aliases`` dictionary.</span>
+
+<span class="sd">These attributes can be loaded in from a .yaml file, or modified after the class is instantiated. The top-level</span>
+<span class="sd">:class:`~simba.Framework.Framework` class has a</span>
+<span class="sd">:attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the</span>
+<span class="sd">``&lt;master_lattice&gt;.Generators`` directory. Specific distributions can be specified therein.</span>
+
+<span class="sd">Example: loading generator defaults</span>
+
+<span class="sd">Prepare `defaults.yaml` file for generators in ``&lt;master_lattice&gt;/Generators/``</span>
+
+<span class="sd">.. code-block:: yaml</span>
+
+<span class="sd">    defaults:</span>
+<span class="sd">      combine_distributions: false</span>
+<span class="sd">      species: electron</span>
+<span class="sd">      probe_particle: true</span>
+<span class="sd">      noise_reduction: false</span>
+<span class="sd">      high_resolution: true</span>
+<span class="sd">      cathode: true</span>
+<span class="sd">      reference_position: 0</span>
+<span class="sd">      reference_time: 0</span>
+<span class="sd">      initial_momentum: 0</span>
+<span class="sd">      distribution_type_pz: i</span>
+<span class="sd">      thermal_emittance: 0.0009</span>
+<span class="sd">      distribution_type_x: radial</span>
+<span class="sd">      sigma_x: 0.00025</span>
+<span class="sd">      distribution_type_y: radial</span>
+<span class="sd">      sigma_y: 0.00025</span>
+<span class="sd">      offset_x: 0</span>
+<span class="sd">      offset_y: 0</span>
+<span class="sd">    laser_3ps_gaussian:</span>
+<span class="sd">      distribution_type_z: g</span>
+<span class="sd">      sigma_t: 0.000000000003</span>
+<span class="sd">      gaussian_cutoff_x: 3</span>
+<span class="sd">      gaussian_cutoff_y: 3</span>
+<span class="sd">      gaussian_cutoff_z: 3</span>
+<span class="sd">    laser_2ps_flattop:</span>
+<span class="sd">      distribution_type_z: p</span>
+<span class="sd">      plateau_bunch_length: 0.000000000002</span>
+<span class="sd">      plateau_rise_time: 0.0000000000002</span>
+
+
+<span class="sd">Define `generator` in `settings.def` file:</span>
+
+<span class="sd">.. code-block:: yaml</span>
+
+<span class="sd">    generator:</span>
+<span class="sd">      default: laser_2ps_flattop</span>
+<span class="sd">    files:</span>
+<span class="sd">      ...</span>
+
+
+<span class="sd">Load in generator settings</span>
+
+<span class="sd">.. code-block:: python</span>
+
+<span class="sd">    import simba.Framework as fw</span>
+
+<span class="sd">    framework = fw.Framework(</span>
+<span class="sd">            master_lattice=master_lattice,</span>
+<span class="sd">            simcodes=simcodes_location,</span>
+<span class="sd">            directory=directory,</span>
+<span class="sd">            generator_defaults=f&quot;defaults.yaml&quot;</span>
+<span class="sd">            clean=True,</span>
+<span class="sd">            verbose=False,</span>
+<span class="sd">        )</span>
+<span class="sd">    framework.loadSettings(&quot;Lattices/settings.def&quot;)</span>
+<span class="sd">    framework.change_generator(&quot;GPT&quot;)</span>
+<span class="sd">    framework.generator.load_defaults(&quot;laser_3ps_gaussian&quot;)</span>
+
+
+<span class="sd">Classes:</span>
+<span class="sd">     - :class:`~simba.Codes.Generators.frameworkGenerator`: Defines parameters to be fed into a beam generator for specific codes.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseModel</span><span class="p">,</span>
+    <span class="n">model_validator</span><span class="p">,</span>
+    <span class="n">field_validator</span><span class="p">,</span>
+    <span class="n">confloat</span><span class="p">,</span>
+    <span class="n">ConfigDict</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">easygdf</span><span class="w"> </span><span class="kn">import</span> <span class="n">load</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/astra.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">astra_generator_keywords</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/gpt.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">gpt_generator_keywords</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/elegant.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">elegant_generator_keywords</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;defaults&quot;</span><span class="p">:</span> <span class="p">{}}</span>
+    <span class="n">elegant_generator_keywords</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">))</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/opal.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">opal_generator_keywords</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/aliases.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">aliases</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;/species.yaml&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+    <span class="n">code_species</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+<span class="n">allowed_species</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;electron&quot;</span><span class="p">,</span> <span class="s2">&quot;proton&quot;</span><span class="p">,</span> <span class="s2">&quot;positron&quot;</span><span class="p">,</span> <span class="s2">&quot;hydrogen&quot;</span><span class="p">]</span>
+
+<span class="c1"># OPAL emits from a photocathode natively (DISTRIBUTION, EMITTED = TRUE with an</span>
+<span class="c1"># EMISSIONMODEL), which is how an OPAL section starting at the cathode generates</span>
+<span class="c1"># and accelerates the bunch in a single run.</span>
+<span class="n">cathode_codes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ASTRA&quot;</span><span class="p">,</span> <span class="s2">&quot;astra&quot;</span><span class="p">,</span> <span class="s2">&quot;GPT&quot;</span><span class="p">,</span> <span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;OPAL&quot;</span><span class="p">,</span> <span class="s2">&quot;opal&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="frameworkGenerator">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">frameworkGenerator</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for defining a beam generator.</span>
+<span class="sd">    This class defines the parameters to be fed into a beam generator for specific codes.</span>
+<span class="sd">    The parameters can be modified after the class is instantiated, and the defaults can be loaded in from a .yaml file.</span>
+<span class="sd">    The top-level :class:`~simba.Framework.Framework` class has a</span>
+<span class="sd">    :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the</span>
+<span class="sd">    `&lt;master_lattice&gt;.Generators` directory. Specific distributions can be specified therein.</span>
+
+<span class="sd">    Example: loading generator defaults.</span>
+
+<span class="sd">    Prepare `defaults.yaml` file for generators in `&lt;master_lattice&gt;/Generators/`:</span>
+
+<span class="sd">    .. code-block:: yaml</span>
+
+<span class="sd">        defaults:</span>
+<span class="sd">          combine_distributions: false</span>
+<span class="sd">          species: electron</span>
+<span class="sd">          probe_particle: true</span>
+<span class="sd">          noise_reduction: false</span>
+<span class="sd">          high_resolution: true</span>
+<span class="sd">          cathode: true</span>
+<span class="sd">          reference_position: 0</span>
+<span class="sd">          reference_time: 0</span>
+<span class="sd">          initial_momentum: 0</span>
+<span class="sd">          distribution_type_pz: i</span>
+<span class="sd">          thermal_emittance: 0.0009</span>
+<span class="sd">          distribution_type_x: radial</span>
+<span class="sd">          sigma_x: 0.00025</span>
+<span class="sd">          distribution_type_y: radial</span>
+<span class="sd">          sigma_y: 0.00025</span>
+<span class="sd">          offset_x: 0</span>
+<span class="sd">          offset_y: 0</span>
+
+<span class="sd">        laser_3ps_gaussian:</span>
+<span class="sd">          distribution_type_z: g</span>
+<span class="sd">          sigma_t: 0.000000000003</span>
+<span class="sd">          gaussian_cutoff_x: 3</span>
+<span class="sd">          gaussian_cutoff_y: 3</span>
+<span class="sd">          gaussian_cutoff_z: 3</span>
+
+<span class="sd">        laser_2ps_flattop:</span>
+<span class="sd">          distribution_type_z: p</span>
+<span class="sd">          plateau_bunch_length: 0.000000000002</span>
+<span class="sd">          plateau_rise_time: 0.0000000000002</span>
+
+<span class="sd">    Define `generator` in `settings.def` file:</span>
+
+<span class="sd">    .. code-block:: yaml</span>
+
+<span class="sd">        &lt;global&gt;:</span>
+<span class="sd">          ...</span>
+<span class="sd">        generator:</span>
+<span class="sd">          default: laser_2ps_flattop</span>
+<span class="sd">        files:</span>
+<span class="sd">          ...</span>
+
+<span class="sd">    Load in generator settings</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import simba.Framework as fw</span>
+
+<span class="sd">        framework = fw.Framework(</span>
+<span class="sd">            master_lattice=master_lattice,</span>
+<span class="sd">            simcodes=simcodes_location,</span>
+<span class="sd">            directory=directory,</span>
+<span class="sd">            generator_defaults=f&quot;defaults.yaml&quot;</span>
+<span class="sd">            clean=True,</span>
+<span class="sd">            verbose=False,</span>
+<span class="sd">        )</span>
+<span class="sd">        framework.loadSettings(&quot;Lattices/settings.def&quot;)</span>
+<span class="sd">        framework.change_generator(&quot;opal&quot;)</span>
+<span class="sd">        framework.generator.load_defaults(&quot;laser_3ps_gaussian&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;generator&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Name of this generator class&quot;&quot;&quot;</span>
+
+    <span class="n">code</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;ASTRA&quot;</span><span class="p">,</span> <span class="s2">&quot;astra&quot;</span><span class="p">,</span> <span class="s2">&quot;GPT&quot;</span><span class="p">,</span> <span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;OPAL&quot;</span><span class="p">,</span> <span class="s2">&quot;opal&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;generic&quot;</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">,</span> <span class="s2">&quot;simba&quot;</span><span class="p">,</span> <span class="s2">&quot;SIMBA&quot;</span><span class="p">,</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ASTRA&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simulation code to be used for generating distributions. </span>
+<span class="sd">    ``opal`` is supported only for beam generation and</span>
+<span class="sd">    acceleration in a single run with OPAL; see</span>
+<span class="sd">    :func:`~simba.Codes.OPAL.OPAL.opalLattice.all_in_one`.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal beam sigma [m]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_y</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical beam sigma [m]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Longitudinal beam size [m]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_px</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal beam momentum sigma [eV/c]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_py</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical beam momentum sigma [eV/c]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_pz</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Longitudinal beam momentum sigma [eV/c]&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_t</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Longitudinal beam size [s]&quot;&quot;&quot;</span>
+
+    <span class="n">number_of_particles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Number of particles&quot;&quot;&quot;</span>
+
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;generator.hdf5&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Beam distribution filename to be generated&quot;&quot;&quot;</span>
+
+    <span class="n">probe_particle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[ASTRA only] If true, 6 probe particles are generated&quot;&quot;&quot;</span>
+
+    <span class="n">noise_reduction</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[ASTRA only] If true, particle coordinates are generated quasi-randomly following a Hammersley sequence.&quot;&quot;&quot;</span>
+
+    <span class="n">high_resolution</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[ASTRA only] High-resolution cathode emission.&quot;&quot;&quot;</span>
+
+    <span class="n">combine_distributions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[ASTRA only] If true the input list has to be specified N_add times and N_add different </span>
+<span class="sd">    distributions will be added&quot;&quot;&quot;</span>
+
+    <span class="n">cathode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Emit the beam from a cathode?&quot;&quot;&quot;</span>
+
+    <span class="n">cathode_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Radius in case of a curved, i.e. non planar cathode</span>
+<span class="sd">    # TODO is this ever used?&quot;&quot;&quot;</span>
+
+    <span class="n">charge</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bunch charge&quot;&quot;&quot;</span>
+
+    <span class="n">species</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;electron&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Particle type&quot;&quot;&quot;</span>
+
+    <span class="c1"># emission_time: float = 1e-12 # TODO is this ever used?</span>
+
+    <span class="n">thermal_emittance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9e-3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thermal emittance of beam [um-rad/m]&quot;&quot;&quot;</span>
+
+    <span class="n">initial_momentum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mean initial momentum [eV/c]&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_z</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;plateau&quot;</span><span class="p">,</span> <span class="s2">&quot;flattop&quot;</span><span class="p">,</span> <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;i&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;g&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Longitudinal distribution type -- flattop or Gaussian available&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_x</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal distribution type -- flattop, uniform or Gaussian available&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_y</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical distribution type -- flattop, uniform or Gaussian available&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_pz</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span><span class="p">,</span> <span class="s2">&quot;i&quot;</span><span class="p">,</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;i&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Longitudinal momentum distribution type -- not sure about options</span>
+<span class="sd">    # TODO not sure what this means or what the other options are&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_px</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal momentum distribution type -- uniform or radial available</span>
+<span class="sd">    # TODO not sure what this means or what the other options are&quot;&quot;&quot;</span>
+
+    <span class="n">distribution_type_py</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;2dgaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical momentum distribution type -- uniform or radial available</span>
+<span class="sd">    # TODO not sure what this means or what the other options are&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in horizontal direction [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_y</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in vertical direction [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in longitudinal direction [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_px</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in horizontal momentum plane [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_py</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in vertical momentum plane [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">gaussian_cutoff_pz</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cut-off for Gaussian distribution in longitudinal momentum plane [sigma]&quot;&quot;&quot;</span>
+
+    <span class="n">plateau_bunch_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flat-top bunch length [s]&quot;&quot;&quot;</span>
+
+    <span class="n">plateau_rise_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rise-time for flat-top distribution [s]&quot;&quot;&quot;</span>
+
+    <span class="n">plateau_fall_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fall-time for flat-top distribution [s]&quot;&quot;&quot;</span>
+
+    <span class="n">plateau_rise_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># TODO deprecated?</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rise-distance for flat-top distribution [m] -- deprecated?&quot;&quot;&quot;</span>
+
+    <span class="n">offset_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal offset from axis [m]&quot;&quot;&quot;</span>
+
+    <span class="n">offset_y</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical offset from axis [m]&quot;&quot;&quot;</span>
+
+    <span class="n">offset_z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference beam position [m]&quot;&quot;&quot;</span>
+
+    <span class="n">reference_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference beam time [s]&quot;&quot;&quot;</span>
+
+    <span class="n">normalized_horizontal_emittance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0e-6</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalised horizontal emittance [m-rad]&quot;&quot;&quot;</span>
+
+    <span class="n">normalized_vertical_emittance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0e-6</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalised vertical emittance [m-rad]&quot;&quot;&quot;</span>
+
+    <span class="n">image_filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Image file used to generate transverse beam distribution (GPT only)&quot;&quot;&quot;</span>
+
+    <span class="n">longitudinal_profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;File used to generate longitudinal beam distribution (GPT only)&quot;&quot;&quot;</span>
+
+    <span class="n">longitudinal_fields</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fields defining longitudinal beam distribution (GPT only)&quot;&quot;&quot;</span>
+
+    <span class="n">correlation_px</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># TODO is this ever used?</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Horizontal momentum correlation (with what?)&quot;&quot;&quot;</span>
+
+    <span class="n">correlation_py</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># TODO is this ever used?</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Vertical momentum correlation (with what?)&quot;&quot;&quot;</span>
+
+    <span class="n">correlation_kinetic_energy</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># TODO is this ever used?</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Kinetic energy correlation (with what?)&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_kinetic_energy</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># TODO is this ever used?</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Average kinetic energy [units?]&quot;&quot;&quot;</span>
+
+    <span class="n">covariance_xxp</span><span class="p">:</span> <span class="n">confloat</span><span class="p">(</span><span class="n">lt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">gt</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Covariance of horizontal position and momentum [m-rad]&quot;&quot;&quot;</span>
+
+    <span class="n">covariance_yyp</span><span class="p">:</span> <span class="n">confloat</span><span class="p">(</span><span class="n">lt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">gt</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Covariance of horizontal position and momentum [m-rad]&quot;&quot;&quot;</span>
+
+    <span class="n">chirp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">list</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Energy chirp of the beam [eV/m] or list of higher-order chirps for each particle&quot;&quot;&quot;</span>
+
+    <span class="n">laser_energy</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Photoinjector laser energy [eV]&quot;&quot;&quot;</span>
+
+    <span class="n">work_function_ev</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Work function of photocathode [eV]&quot;&quot;&quot;</span>
+
+    <span class="n">fermi_energy_ev</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Fermi energy of photocathode [eV]&quot;&quot;&quot;</span>
+
+    <span class="n">cathode_temperature</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Photocathode temperature [K]&quot;&quot;&quot;</span>
+
+    <span class="n">rf_frequency</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.9985e9</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Photoinjector RF frequency [Hz] (not currently implemented)&quot;&quot;&quot;</span>
+
+    <span class="n">emission_model</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;ASTRA&quot;</span><span class="p">,</span> <span class="s2">&quot;NONEQUIL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ASTRA&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Photoemission model (not currently implemented)&quot;&quot;&quot;</span>
+
+    <span class="n">particle_mass</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Particle mass [kg]&quot;&quot;&quot;</span>
+
+    <span class="n">elementary_charge</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Elementary charge [C]&quot;&quot;&quot;</span>
+
+    <span class="n">charge_sign</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sign of charge (+1 for protons, -1 for electrons)&quot;&quot;&quot;</span>
+
+    <span class="n">speed_of_light</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Speed of light [m/s]&quot;&quot;&quot;</span>
+
+    <span class="n">tstep</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-15</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Time step for tracking [s]&quot;&quot;&quot;</span>
+
+    <span class="n">emission_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Number of emission steps.</span>
+
+<span class="sd">    This has to stay small enough that each step emits a useful number of</span>
+<span class="sd">    particles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">n_bin</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Number of energy bins&quot;&quot;&quot;</span>
+
+    <span class="n">max_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000000000</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[OPAL only] Max steps for tracking&quot;&quot;&quot;</span>
+
+    <span class="n">global_parameters</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Global parameters from :class:`~simba.Framework.Framework` class&quot;&quot;&quot;</span>
+
+    <span class="n">objectdefaults</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Seems not to be used&quot;&quot;&quot;</span>
+
+    <span class="n">executables</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generator executables from :class:`~simba.Framework.Framework` class&quot;&quot;&quot;</span>
+
+    <span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Additional arguments&quot;&quot;&quot;</span>
+
+    <span class="n">allowedKeyWords</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Is this ever used?&quot;&quot;&quot;</span>
+
+    <span class="n">generator_keywords</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generator keywords from :class:`~simba.Framework.Framework` class&quot;&quot;&quot;</span>
+
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span>
+        <span class="n">extra</span><span class="o">=</span><span class="s2">&quot;allow&quot;</span><span class="p">,</span>
+        <span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">validate_assignment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">populate_by_name</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+<div class="viewcode-block" id="frameworkGenerator.apply_alias_and_multiplier">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.apply_alias_and_multiplier">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_alias_and_multiplier</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dynamically apply alias and multiplier to fields to translate them to the required names for a specific code.</span>
+<span class="sd">        Multipliers are also applied, such as converting bunch length in seconds to nanoseconds as required for ASTRA.</span>
+<span class="sd">        Aliases are defined in `aliases.yaml`, where each `code` has strings to be translated.</span>
+
+<span class="sd">        These translated attributes are then set as new attributes to this class,</span>
+<span class="sd">        with the appropriate multipliers applied.</span>
+
+<span class="sd">        :param config: Dictionary read in from `aliases.yaml`</span>
+<span class="sd">        :param code: Name of code to convert attributes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">alias_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;aliases&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">alias_config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;multiplier&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;multiplier&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;alias&quot;</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+
+<div class="viewcode-block" id="frameworkGenerator.validate_generator">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.validate_generator">[docs]</a>
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_generator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cathode</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cathode_codes</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;cathode can only be used with </span><span class="si">{</span><span class="n">cathode_codes</span><span class="si">}</span><span class="s2">, not </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="c1"># @field_validator(&quot;charge&quot;, mode=&quot;before&quot;)</span>
+    <span class="c1"># @classmethod</span>
+    <span class="c1"># def validate_charge(cls, v: float) -&gt; float:</span>
+    <span class="c1">#     if v == 0:</span>
+    <span class="c1">#         raise ValueError(&quot;Bunch charge must be set to a non-zero value&quot;)</span>
+    <span class="c1">#     return v</span>
+
+<div class="viewcode-block" id="frameworkGenerator.validate_particle_mass">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.validate_particle_mass">[docs]</a>
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;species&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_particle_mass</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;s&quot;</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;electron&quot;</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;proton&quot;</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;positron&quot;</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;hydrogen&quot;</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;species must be in </span><span class="si">{</span><span class="n">allowed_species</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">v</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.validate_longitudinal_profile">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.validate_longitudinal_profile">[docs]</a>
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;longitudinal_profile&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_longitudinal_profile</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;.gdf&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Longitudinal profiles only defined for GPT; fields must be GDF format&quot;</span><span class="p">)</span>
+            <span class="n">fi</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">longitudinal_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">fi</span><span class="p">[</span><span class="s2">&quot;blocks&quot;</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">v</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.update_species">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.update_species">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_species</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cathode</span> <span class="ow">and</span> <span class="s2">&quot;electron&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cathode can only be used with electron&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;electron&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;proton&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;positron&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;hydrogen&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_p</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">charge_sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;name must be in </span><span class="si">{</span><span class="n">allowed_species</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">species</span> <span class="o">=</span> <span class="n">name</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.run">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.load_defaults">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.load_defaults">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defaults</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load in defaults settings either from a key in :attr:~`generator_keywords` or with a Dict.</span>
+<span class="sd">        Sets these parameters as attributes of this class.</span>
+
+<span class="sd">        :param defaults: Default generator settings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">defaults</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">defaults</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator_keywords</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator_keywords</span><span class="p">[</span><span class="n">defaults</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">defaults</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">defaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find </span><span class="si">{</span><span class="n">defaults</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">generator_keywords</span><span class="si">}</span><span class="s2"> or it is not a valid dictionary&quot;</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">particles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of particles</span>
+
+<span class="sd">        :getter: Number of particles</span>
+<span class="sd">        :setter: Set number of particles</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_particles</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_particles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">512</span>
+
+    <span class="nd">@particles</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">particles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">npart</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number_of_particles</span> <span class="o">=</span> <span class="n">npart</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">thermal_kinetic_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Thermal kinetic energy of electrons [eV] emitted from a photocathode based on :attr:`~thermal_emittance`.</span>
+<span class="sd">        See Eq. (39) of `Dowell &amp; Schmerge_`</span>
+
+<span class="sd">        .. _Dowell &amp; Schmerge: https://journals.aps.org/prab/abstract/10.1103/PhysRevSTAB.12.074201</span>
+
+<span class="sd">        :returns: thermal kinetic energy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="p">(</span>
+                    <span class="mi">3</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">thermal_emittance</span> <span class="o">**</span> <span class="mi">2</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">speed_of_light</span> <span class="o">**</span> <span class="mi">2</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_mass</span>
+            <span class="p">)</span>
+            <span class="o">/</span> <span class="mi">2</span>
+            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementary_charge</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">objectname</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Name of this object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+<div class="viewcode-block" id="frameworkGenerator.generate">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.generate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_momentum</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;initial_momentum must be set to a non-zero value&quot;</span><span class="p">)</span>
+        <span class="n">q_over_c</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">,</span> <span class="s2">&quot;C/c&quot;</span>
+        <span class="p">)</span>
+        <span class="n">xxp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_transverse_distribution</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">xxp</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="n">xxp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">yyp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_transverse_distribution</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">yyp</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">yp</span> <span class="o">=</span> <span class="n">yyp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">zpz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_longitudinal_distribution</span><span class="p">()</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">zpz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">pz</span> <span class="o">=</span> <span class="n">zpz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">q_over_c</span>
+        <span class="n">px</span> <span class="o">=</span> <span class="n">xp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_momentum</span> <span class="o">*</span> <span class="n">q_over_c</span>
+        <span class="n">py</span> <span class="o">=</span> <span class="n">yp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_momentum</span> <span class="o">*</span> <span class="n">q_over_c</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">()</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">px</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">py</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">pz</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">pz</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">5</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="o">-</span><span class="n">z</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Particles</span><span class="o">.</span><span class="n">set_total_charge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">charge</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">set_species</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">beam</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.write">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">beam</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">beam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate</span><span class="p">()</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+            <span class="n">beam</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+            <span class="n">toffset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reference_time</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.generate_transverse_distribution">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.generate_transverse_distribution">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_transverse_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a transverse distribution.</span>
+
+<span class="sd">        :param name: Name of the distribution</span>
+<span class="sd">        :return: Samples particles according to sigma_{name}, distribution_type_{name} and</span>
+<span class="sd">            gaussian_cutoff_{name} attributes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dist_i</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;distribution_type_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">dist_pi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;distribution_type_p</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">offset_i</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;offset_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sigma_i</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;sigma_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sigma_pi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;sigma_p</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_momentum</span>
+        <span class="n">cutoff_i</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;gaussian_cutoff_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">cutoff_pi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;gaussian_cutoff_p</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">cov_ipi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;covariance_</span><span class="si">{</span><span class="n">name</span><span class="si">}{</span><span class="n">name</span><span class="si">}</span><span class="s2">p&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sigma_i</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">sigma_pi</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Sigma for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> and p</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be set to a non-zero value&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist_i</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Distribution type </span><span class="si">{</span><span class="n">dist_i</span><span class="si">}</span><span class="s2"> not implemented for transverse distribution&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist_pi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Distribution type </span><span class="si">{</span><span class="n">dist_pi</span><span class="si">}</span><span class="s2"> not implemented for transverse distribution&quot;</span>
+            <span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">offset_i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">sigma_i</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">cov_ipi</span> <span class="o">*</span> <span class="n">sigma_i</span> <span class="o">*</span> <span class="n">sigma_pi</span><span class="p">],</span>
+                        <span class="p">[</span><span class="n">cov_ipi</span> <span class="o">*</span> <span class="n">sigma_i</span> <span class="o">*</span> <span class="n">sigma_pi</span><span class="p">,</span> <span class="n">sigma_pi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">]])</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">sample_2d_gaussian_with_axis_cutoffs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">particles</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">cov</span><span class="p">,</span> <span class="p">(</span><span class="n">cutoff_i</span><span class="p">,</span> <span class="n">cutoff_pi</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">samples</span></div>
+
+
+<div class="viewcode-block" id="frameworkGenerator.generate_longitudinal_distribution">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.generate_longitudinal_distribution">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_longitudinal_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a longitudinal distribution with optional chirp (nonlinear z–pz correlation).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Validate and convert input</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Both sigma_t and sigma_z are set, using sigma_z for longitudinal distribution&quot;</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Either sigma_t or sigma_z must be non-zero&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;sigma_z set to sigma_t * speed_of_light&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_pz</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;sigma_pz must be positive&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Generate z distribution</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;radial&quot;</span><span class="p">]:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">sample_gaussian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;flattop&quot;</span><span class="p">,</span> <span class="s2">&quot;i&quot;</span><span class="p">,</span> <span class="s2">&quot;plateau&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">]:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">sample_flat_top</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_z</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particles</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported z distribution: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">distribution_type_z</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Generate base centered pz</span>
+        <span class="n">pz_base</span> <span class="o">=</span> <span class="n">sample_gaussian</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_pz</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gaussian_cutoff_pz</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particles</span><span class="p">)</span>
+
+        <span class="c1"># Compute chirped curve</span>
+        <span class="n">chirp_coeffs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">chirp</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chirp</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chirp</span><span class="p">)</span>
+        <span class="n">chirped_curve</span> <span class="o">=</span> <span class="n">poly_curve</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">chirp_coeffs</span><span class="p">)</span>
+
+        <span class="c1"># Optionally center the chirp (if desired)</span>
+        <span class="n">chirped_curve</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">chirped_curve</span><span class="p">)</span>
+
+        <span class="c1"># Compose final pz: base momentum + chirped shape + Gaussian noise</span>
+        <span class="n">pz_chirped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_momentum</span> <span class="o">+</span> <span class="n">chirped_curve</span> <span class="o">+</span> <span class="n">pz_base</span>
+
+        <span class="c1"># Check for negative pz values if physical constraint applies</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">pz_chirped</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Some pz values are negative — consider reducing sigma_pz or curvature&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">z</span><span class="p">,</span> <span class="n">pz_chirped</span><span class="p">])</span></div>
+
+
+    <span class="c1"># TODO is this necessary?</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def parameters(self):</span>
+    <span class="c1">#     &quot;&quot;&quot;This returns a dictionary of parameter keys and values&quot;&quot;&quot;</span>
+    <span class="c1">#     return self.toDict()</span>
+
+    <span class="c1"># def __getattr__(self, a):</span>
+    <span class="c1">#     &quot;&quot;&quot;If key does not exist return None&quot;&quot;&quot;</span>
+    <span class="c1">#     if a in self.keys():</span>
+    <span class="c1">#         return self[a]</span>
+    <span class="c1">#     return None</span>
+
+<div class="viewcode-block" id="frameworkGenerator.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.frameworkGenerator.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">()</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">read_openpmd_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span>
+        <span class="p">)</span></div>
+</div>
+
+
+    <span class="c1"># TODO is this ever used?</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def save_lattice(self):</span>
+    <span class="c1">#     disallowed = [</span>
+    <span class="c1">#         &quot;allowedkeywords&quot;,</span>
+    <span class="c1">#         &quot;keyword_conversion_rules_elegant&quot;,</span>
+    <span class="c1">#         &quot;objectdefaults&quot;,</span>
+    <span class="c1">#         &quot;global_parameters&quot;,</span>
+    <span class="c1">#         &quot;objectname&quot;,</span>
+    <span class="c1">#         &quot;subelement&quot;,</span>
+    <span class="c1">#     ]</span>
+    <span class="c1">#     new = unmunchify(self)</span>
+    <span class="c1">#     latticedict = {</span>
+    <span class="c1">#         k.replace(&quot;object&quot;, &quot;&quot;): convert_numpy_types(new[k])</span>
+    <span class="c1">#         for k in new</span>
+    <span class="c1">#         if k not in disallowed</span>
+    <span class="c1">#     }</span>
+    <span class="c1">#     return latticedict</span>
+
+
+<div class="viewcode-block" id="poly_curve">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.poly_curve">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">poly_curve</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">c</span> <span class="o">*</span> <span class="n">x</span> <span class="o">**</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">coeffs</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="sample_2d_gaussian_with_axis_cutoffs">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.sample_2d_gaussian_with_axis_cutoffs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sample_2d_gaussian_with_axis_cutoffs</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">cov</span><span class="p">,</span> <span class="n">cutoffs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate N samples from 2D Gaussian with different per-axis cutoffs in whitened space.</span>
+<span class="sd">    cutoffs: tuple of (cutoff_x, cutoff_y) in standard deviation units.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>  <span class="c1"># Covariance decomposition</span>
+    <span class="n">L_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+
+    <span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">N</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">N</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># Standard normal</span>
+        <span class="c1"># Apply Cholesky to get correlated samples</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">z</span> <span class="o">@</span> <span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">mean</span>
+
+        <span class="c1"># Transform to whitened space</span>
+        <span class="n">z_white</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">@</span> <span class="n">L_inv</span><span class="o">.</span><span class="n">T</span>  <span class="c1"># Now z_white ~ N(0, I)</span>
+
+        <span class="c1"># Apply per-axis cutoffs</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z_white</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">cutoffs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span>
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z_white</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">cutoffs</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+
+        <span class="n">accepted</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">samples</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">accepted</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">samples</span><span class="p">[:</span><span class="n">N</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="sample_gaussian">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.sample_gaussian">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sample_gaussian</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">size</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">accepted</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">offset</span> <span class="o">+</span> <span class="p">(</span><span class="n">cutoff</span> <span class="o">*</span> <span class="n">sigma</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">accepted</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">accepted</span><span class="p">[:</span><span class="n">size</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="sample_flat_top">
+<a class="viewcode-back" href="../../../../simba.Codes.Generators.html#simba.Codes.Generators.Generators.sample_flat_top">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sample_flat_top</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">edge_width</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a flat-top distribution centered at 0,</span>
+<span class="sd">    with total half-width = cutoff * sigma, and soft edges of width `edge_width * sigma`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">total_width</span> <span class="o">=</span> <span class="n">cutoff</span> <span class="o">*</span> <span class="n">sigma</span>
+    <span class="n">ramp</span> <span class="o">=</span> <span class="n">edge_width</span> <span class="o">*</span> <span class="n">sigma</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">total_width</span><span class="p">,</span> <span class="n">total_width</span><span class="p">,</span> <span class="n">size</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="c1"># weight: flat center, cosine edges</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+        <span class="n">mask_ramp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">total_width</span> <span class="o">-</span> <span class="n">ramp</span><span class="p">)</span>
+        <span class="n">weight</span><span class="p">[</span><span class="n">mask_ramp</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="n">mask_ramp</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">total_width</span> <span class="o">-</span> <span class="n">ramp</span><span class="p">))</span> <span class="o">/</span> <span class="n">ramp</span><span class="p">))</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">weight</span>
+        <span class="n">final</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">final</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">final</span><span class="p">[:</span><span class="n">size</span><span class="p">]</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

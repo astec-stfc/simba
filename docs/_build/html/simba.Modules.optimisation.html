@@ -1,0 +1,310 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.optimisation package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Modules.plotting package" href="simba.Modules.plotting.html" />
+    <link rel="prev" title="simba.Modules.Twiss package" href="simba.Modules.Twiss.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Modules.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Beams.html">simba.Modules.Beams package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Fields.html">simba.Modules.Fields package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Matrices.html">simba.Modules.Matrices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Twiss.html">simba.Modules.Twiss package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Modules.optimisation package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.optimisation.constraints">simba.Modules.optimisation.constraints module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.optimisation.nelder_mead">simba.Modules.optimisation.nelder_mead module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.optimisation.optimiser">simba.Modules.optimisation.optimiser module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.optimisation.xopt">simba.Modules.optimisation.xopt module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.optimisation">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.plotting.html">simba.Modules.plotting package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.DeviceProgram">simba.Modules.DeviceProgram module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.MathParser">simba.Modules.MathParser module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.SDDSFile">simba.Modules.SDDSFile module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.constants">simba.Modules.constants module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.gdf_beam">simba.Modules.gdf_beam module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.gdf_emit">simba.Modules.gdf_emit module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.id_number">simba.Modules.id_number module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.id_number_server">simba.Modules.id_number_server module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.merge_two_dicts">simba.Modules.merge_two_dicts module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.pmd_units">simba.Modules.pmd_units module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#simba-modules-symmlinks-module">simba.Modules.symmlinks module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.units">simba.Modules.units module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Modules.html">simba.Modules package</a></li>
+      <li class="breadcrumb-item active">simba.Modules.optimisation package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Modules.optimisation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-modules-optimisation-package">
+<h1>simba.Modules.optimisation package<a class="headerlink" href="#simba-modules-optimisation-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Modules.optimisation.constraints">
+<span id="simba-modules-optimisation-constraints-module"></span><h2>simba.Modules.optimisation.constraints module<a class="headerlink" href="#module-simba.Modules.optimisation.constraints" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">constraintsClass</span></span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.constraints">
+<span class="sig-name descname"><span class="pre">constraints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">constraints</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.constraints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.constraints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.constraintsList">
+<span class="sig-name descname"><span class="pre">constraintsList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">constraints</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.constraintsList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.constraintsList" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.equalto">
+<span class="sig-name descname"><span class="pre">equalto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.equalto"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.equalto" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.formatDict">
+<span class="sig-name descname"><span class="pre">formatDict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.formatDict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.formatDict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.greaterthan">
+<span class="sig-name descname"><span class="pre">greaterthan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.greaterthan"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.greaterthan" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.constraints.constraintsClass.lessthan">
+<span class="sig-name descname"><span class="pre">lessthan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/constraints.html#constraintsClass.lessthan"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.constraints.constraintsClass.lessthan" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.optimisation.nelder_mead">
+<span id="simba-modules-optimisation-nelder-mead-module"></span><h2>simba.Modules.optimisation.nelder_mead module<a class="headerlink" href="#module-simba.Modules.optimisation.nelder_mead" title="Link to this heading"></a></h2>
+<p>Pure Python/Numpy implementation of the Nelder-Mead algorithm.
+Taken from <a class="reference external" href="https://github.com/fchollet/nelder-mead">fchollet</a>; also see <a class="reference external" href="https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method">Wikipedia entry</a></p>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.nelder_mead.nelder_mead">
+<span class="sig-name descname"><span class="pre">nelder_mead</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_improve_thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_improv_break</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">converged</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/nelder_mead.html#nelder_mead"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.nelder_mead.nelder_mead" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – Function to optimise; must return a scalar score and operate
+over a numpy array of the same dimensions as <code class="docutils literal notranslate"><span class="pre">x_start</span></code></p></li>
+<li><p><strong>x_start</strong> – Initial position, as a numpy array</p></li>
+<li><p><strong>step</strong> (<em>float</em>) – Look-around radius in the initial step</p></li>
+<li><p><strong>no_improve_thr</strong> (<em>float</em>) – Break after <code class="docutils literal notranslate"><span class="pre">no_improv_break</span></code> iterations with
+an improvement lower than this</p></li>
+<li><p><strong>no_improv_break</strong> (<em>int</em>) – Number of iterations without improvement to
+tolerate before breaking</p></li>
+<li><p><strong>max_iter</strong> (<em>int</em>) – Always break after this number of iterations; set it to
+0 to loop indefinitely</p></li>
+<li><p><strong>alpha</strong> (<em>float</em>) – Reflection coefficient</p></li>
+<li><p><strong>gamma</strong> (<em>float</em>) – Expansion coefficient</p></li>
+<li><p><strong>rho</strong> (<em>float</em>) – Contraction coefficient</p></li>
+<li><p><strong>sigma</strong> (<em>float</em>) – Shrink coefficient</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of the best parameter array and the best score</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.optimisation.optimiser">
+<span id="simba-modules-optimisation-optimiser-module"></span><h2>simba.Modules.optimisation.optimiser module<a class="headerlink" href="#module-simba.Modules.optimisation.optimiser" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">optimiser</span></span><a class="reference internal" href="_modules/simba/Modules/optimisation/optimiser.html#optimiser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser.eaMuPlusLambda">
+<span class="sig-name descname"><span class="pre">eaMuPlusLambda</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">population</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">toolbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cxpb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutpb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ngen</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">halloffame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hoffile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/optimiser.html#optimiser.eaMuPlusLambda"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser.eaMuPlusLambda" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser.eaSimple">
+<span class="sig-name descname"><span class="pre">eaSimple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">population</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">toolbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cxpb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutpb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ngen</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">halloffame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hoffile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/optimiser.html#optimiser.eaSimple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser.eaSimple" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser.finish_running">
+<span class="sig-name descname"><span class="pre">finish_running</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/optimiser.html#optimiser.finish_running"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser.finish_running" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser.gaSimple">
+<span class="sig-name descname"><span class="pre">gaSimple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pop</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">toolbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nSelect</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CXPB</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MUTPB</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ngen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">halloffame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hoffile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/optimiser.html#optimiser.gaSimple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser.gaSimple" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.optimiser.optimiser.interrupt">
+<span class="sig-name descname"><span class="pre">interrupt</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#simba.Modules.optimisation.optimiser.optimiser.interrupt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.optimisation.xopt">
+<span id="simba-modules-optimisation-xopt-module"></span><h2>simba.Modules.optimisation.xopt module<a class="headerlink" href="#module-simba.Modules.optimisation.xopt" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.optimisation.xopt.xopt_optimisation">
+<span class="sig-name descname"><span class="pre">xopt_optimisation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">settings</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_lattice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_lattice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('sigma_x',</span> <span class="pre">'sigma_y',</span> <span class="pre">'sigma_t',</span> <span class="pre">'sigma_z',</span> <span class="pre">'sigma_cp',</span> <span class="pre">'linear_chirp_z',</span> <span class="pre">'beta_x',</span> <span class="pre">'beta_y',</span> <span class="pre">'alpha_x',</span> <span class="pre">'alpha_y',</span> <span class="pre">'peak_current',</span> <span class="pre">'enx',</span> <span class="pre">'eny',</span> <span class="pre">'mean_cp')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photon_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('energy',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_interval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/optimisation/xopt.html#xopt_optimisation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.optimisation.xopt.xopt_optimisation" title="Link to this definition"></a></dt>
+<dd><p>Optimisation function for use with xopt.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>settings</strong> (<em>dict</em>) – Variables from the Xopt <cite>VOCS</cite>, i.e. parameters to be changed.
+The keys in this dictionary are formatted as <cite>elem:param</cite> with <cite>{elem}</cite> the name of the element
+and <cite>param</cite> the attribute to be changed. The values in the dictionary are the upper and lower bounds of <cite>param</cite>.</p></li>
+<li><p><strong>directory</strong> (<em>str</em>) – The root framework run directory. Each iteration of the optimisation will produce a subdirectory.</p></li>
+<li><p><strong>settings_file</strong> (<em>str</em>) – The .def file in &lt;master_lattice&gt;/Lattices/</p></li>
+<li><p><strong>start_lattice</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – The starting lattice line</p></li>
+<li><p><strong>end_lattice</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – The ending lattice line</p></li>
+<li><p><strong>prefix</strong> (<em>Optional</em><em>[</em><em>list</em><em>]</em>) – Used for <cite>framework.set_lattice_prefix(prefix[0], prefix[1])</cite>, with [0] the starting line and [1] the location
+of an existing beam file at the start of that section. <cite>prefix[0]</cite> will overwrite <cite>start_lattice</cite> if
+they are different.</p></li>
+<li><p><strong>params</strong> (<em>list = beam_evaluate</em>) – List of attributes of the <cite>beam</cite> objects in the line. These are possible variables to be optimised at
+every point along the beamline where a <cite>beam</cite> is dumped. Can be customised to be any <cite>float</cite> attribute
+available to <cite>beam</cite>.</p></li>
+<li><p><strong>photon_params</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>)</p></li>
+<li><p><strong>sample_interval</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of <cite>elem:param : val</cite> with <cite>elem</cite> the <cite>beam</cite> file names, and <cite>param</cite> in <cite>params</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.optimisation">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Modules.optimisation" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Modules.Twiss.html" class="btn btn-neutral float-left" title="simba.Modules.Twiss package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Modules.plotting.html" class="btn btn-neutral float-right" title="simba.Modules.plotting package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

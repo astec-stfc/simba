@@ -1,0 +1,1350 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Twiss &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Twiss</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Twiss</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Simframe Twiss Module</span>
+
+<span class="sd">Twiss module for reading and manipulating twiss parameters from various simulation codes.</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">  - :class:`~simba.Modules.Twiss.twiss`: Twiss object class</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseModel</span><span class="p">,</span>
+    <span class="n">ConfigDict</span><span class="p">,</span>
+    <span class="n">field_validator</span><span class="p">,</span>
+    <span class="n">ValidationInfo</span><span class="p">,</span>
+    <span class="n">model_validator</span><span class="p">,</span>
+    <span class="n">Field</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">munch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">hdf5</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">gpt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">astra</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">elegant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">ocelot</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">cheetah</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">opal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">xsuite</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">genesis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">madx</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">bmad</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot</span>
+
+    <span class="n">use_matplotlib</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">use_matplotlib</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+
+<span class="n">codes</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;elegant&quot;</span><span class="p">:</span> <span class="n">elegant</span><span class="o">.</span><span class="n">read_elegant_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;gpt&quot;</span><span class="p">:</span> <span class="n">gpt</span><span class="o">.</span><span class="n">read_gdf_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;astra&quot;</span><span class="p">:</span> <span class="n">astra</span><span class="o">.</span><span class="n">read_astra_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;ocelot&quot;</span><span class="p">:</span> <span class="n">ocelot</span><span class="o">.</span><span class="n">read_ocelot_twiss_files_hdf</span><span class="p">,</span>
+    <span class="c1"># &quot;ocelot_h5&quot;: ocelot.read_ocelot_twiss_files_hdf,</span>
+    <span class="s2">&quot;opal&quot;</span><span class="p">:</span> <span class="n">opal</span><span class="o">.</span><span class="n">read_opal_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;cheetah&quot;</span><span class="p">:</span> <span class="n">cheetah</span><span class="o">.</span><span class="n">read_cheetah_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;xsuite&quot;</span><span class="p">:</span> <span class="n">xsuite</span><span class="o">.</span><span class="n">read_xsuite_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;genesis&quot;</span><span class="p">:</span> <span class="n">genesis</span><span class="o">.</span><span class="n">read_genesis_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;madx&quot;</span><span class="p">:</span> <span class="n">madx</span><span class="o">.</span><span class="n">read_madx_twiss_files</span><span class="p">,</span>
+    <span class="s2">&quot;bmad&quot;</span><span class="p">:</span> <span class="n">bmad</span><span class="o">.</span><span class="n">read_bmad_twiss_files</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">code_signatures</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">[</span><span class="s2">&quot;elegant&quot;</span><span class="p">,</span> <span class="s2">&quot;.twi&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;elegant&quot;</span><span class="p">,</span> <span class="s2">&quot;.flr&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;elegant&quot;</span><span class="p">,</span> <span class="s2">&quot;.sig&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;GPT&quot;</span><span class="p">,</span> <span class="s2">&quot;emit.gdf&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;astra&quot;</span><span class="p">,</span> <span class="s2">&quot;Xemit.001&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;ocelot&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.npz&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;opal&quot;</span><span class="p">,</span> <span class="s2">&quot;opal_twiss.h5&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;ocelot_h5&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.oh5&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;cheetah&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.cheetah.hdf5&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;genesis&quot;</span><span class="p">,</span> <span class="s2">&quot;.out.h5&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;xsuite&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.csv&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;madx&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.madx.hdf5&quot;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s2">&quot;bmad&quot;</span><span class="p">,</span> <span class="s2">&quot;_twiss.bmad.hdf5&quot;</span><span class="p">],</span>
+<span class="p">]</span>
+
+<span class="n">twiss_defaults</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;kinetic_energy&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;kinetic_energy&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;gamma&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;cp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;cp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV/c&quot;</span><span class="p">},</span>
+    <span class="c1"># &quot;cp_eV&quot;: {&quot;name&quot;: &quot;cp_eV&quot;, &quot;unit&quot;: &quot;eV/c&quot;},</span>
+    <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ex&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ex&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;enx&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;enx&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ecnx&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ecnx&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ey&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ey&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eny&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eny&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ecny&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ecny&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m-rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ez&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ey&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV*s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;enz&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eny&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV*s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ecnz&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ecnz&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV*s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;beta_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;beta_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;gamma_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;gamma_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;alpha_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;alpha_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;beta_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;beta_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;gamma_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;gamma_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;alpha_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;alpha_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;beta_z&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;beta_z&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;gamma_z&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;gamma_z&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;alpha_z&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;alpha_z&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_xp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_xp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_yp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_yp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_t&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_t&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_z&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_z&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_p&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_p&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;kg*m/s&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;sigma_cp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sigma_cp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV/c&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;mean_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;mean_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;mean_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;mean_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;mean_cp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;mean_cp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;eV/c&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;mux&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;mux&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;2 pi&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;muy&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;muy&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;2 pi&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_x&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_xp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_xp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_y&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_yp&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_yp&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;element_name&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;element_name&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;U&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;lattice_name&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;lattice_name&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;U&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;turn&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;i&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_x_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_x_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_xp_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_xp_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_y_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_y_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;eta_yp_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;eta_yp_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;rad&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;beta_x_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;beta_x_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;alpha_x_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;alpha_x_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;beta_y_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;beta_y_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;alpha_y_beam&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;alpha_y_beam&quot;</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="twissParameter">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twissParameter">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">twissParameter</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to represent a twiss parameter with its name, unit, value, label, and data type.</span>
+<span class="sd">    This class is used to store and validate twiss parameters in the simulation framework.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The name of the twiss parameter, e.g., &#39;z&#39;, &#39;beta_x&#39;, etc.&quot;&quot;&quot;</span>
+
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The unit of the twiss parameter, e.g., &#39;m&#39;, &#39;s&#39;, &#39;eV&#39;, etc.&quot;&quot;&quot;</span>
+
+    <span class="n">val</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The value of the twiss parameter, stored as a list.&quot;&quot;&quot;</span>
+
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate_default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A label for the twiss parameter, used for plotting or display purposes.&quot;&quot;&quot;</span>
+
+    <span class="n">dtype</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;f&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The data type of the twiss parameter, default is &#39;f&#39; (float).&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="twissParameter.default_label">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twissParameter.default_label">[docs]</a>
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">default_label</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">ValidationInfo</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">v</span></div>
+
+
+<div class="viewcode-block" id="twissParameter.min">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twissParameter.min">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">min</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twissParameter.max">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twissParameter.max">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">max</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="initialTwiss">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.initialTwiss">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">initialTwiss</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to represent the initial twiss parameters of a beam.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">alpha_x</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha parameter in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_x</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta parameter in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_y</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha parameter in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_y</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta parameter in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">ex</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal emittance.&quot;&quot;&quot;</span>
+
+    <span class="n">ey</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical emittance.&quot;&quot;&quot;</span>
+
+    <span class="n">enx</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized horizontal emittance.&quot;&quot;&quot;</span>
+
+    <span class="n">eny</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized vertical emittance.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_x</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_xp</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion derivative.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_y</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_yp</span><span class="p">:</span> <span class="nb">float</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion derivative.&quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="twiss">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">twiss</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to represent the twiss parameters of a beam in a simulation framework.</span>
+<span class="sd">    This class includes various twiss parameters such as position, time, kinetic energy,</span>
+<span class="sd">    momentum, emittance, beta functions, and dispersion parameters.</span>
+
+<span class="sd">    It also provides methods to read twiss data from different simulation codes</span>
+<span class="sd">    (e.g., ELEGANT, GPT, ASTRA, Ocelot),</span>
+<span class="sd">    save twiss data to HDF5 files, and perform various operations such as interpolation,</span>
+<span class="sd">    sorting, and extracting values.</span>
+<span class="sd">    The class is designed to be flexible and extensible, allowing for the addition of</span>
+<span class="sd">    new parameters and methods as needed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">z</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The longitudinal position of the beam in the simulation.&quot;&quot;&quot;</span>
+
+    <span class="n">s</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The longitudinal position of the beam in the simulation.&quot;&quot;&quot;</span>
+
+    <span class="n">t</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The time coordinate of the beam in the simulation.&quot;&quot;&quot;</span>
+
+    <span class="n">kinetic_energy</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The kinetic energy of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">gamma</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The Lorentz factor of the beam, defined as E/mc^2.&quot;&quot;&quot;</span>
+
+    <span class="n">cp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The momentum of the beam in eV/c.&quot;&quot;&quot;</span>
+
+    <span class="c1"># cp_eV: &quot;twissParameter&quot; = None</span>
+    <span class="c1"># &quot;&quot;&quot;The momentum of the beam in eV/c, specifically for energy calculations.&quot;&quot;&quot;</span>
+
+    <span class="n">p</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The momentum of the beam in kg*m/s, calculated as cp * q_over_c.&quot;&quot;&quot;</span>
+
+    <span class="n">enx</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized horizontal emittance of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">ex</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal emittance of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">eny</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized vertical emittance of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">ey</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical emittance of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">enz</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized longitudinal emittance of the beam, typically in eV*s.&quot;&quot;&quot;</span>
+
+    <span class="n">ez</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The longitudinal emittance of the beam, typically in eV*s.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta function in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">gamma_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The twiss gamma function in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha function in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta function in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">gamma_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The twiss gamma function in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha function in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_z</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta function in the z-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">gamma_z</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The twiss gamma function in the z-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_z</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha function in the z-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_xp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in the xp-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_yp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in the yp-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_z</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in the z-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_t</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam in time.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_p</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam momentum in kg*m/s.&quot;&quot;&quot;</span>
+
+    <span class="n">sigma_cp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard deviation of the beam momentum in eV/c.&quot;&quot;&quot;</span>
+
+    <span class="n">mean_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The mean position of the beam in the x-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">mean_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The mean position of the beam in the y-direction.&quot;&quot;&quot;</span>
+
+    <span class="n">mean_cp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The mean value of the beam momentum in eV/c.&quot;&quot;&quot;</span>
+
+    <span class="n">mux</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal phase advance of the beam, in units of 2 pi.&quot;&quot;&quot;</span>
+
+    <span class="n">muy</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical phase advance of the beam, in units of 2 pi.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_x</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_xp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion derivative of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_y</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_yp</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion derivative of the beam.&quot;&quot;&quot;</span>
+
+    <span class="n">element_name</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The name of the element in the simulation.&quot;&quot;&quot;</span>
+
+    <span class="n">lattice_name</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The name of the lattice in the simulation.&quot;&quot;&quot;</span>
+
+    <span class="n">turn</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Which turn of a multi-turn run each row was measured on, 1-based.</span>
+
+<span class="sd">    Empty unless something filled it in --</span>
+<span class="sd">    :meth:`~simba.Framework.Framework.save_summary_files` does, from each</span>
+<span class="sd">    line&#39;s turn count.</span>
+
+<span class="sd">    A twiss file holds two kinds of column. The optics -- ``beta_x``, ``mux``,</span>
+<span class="sd">    the dispersions -- are a property of the lattice and its initial</span>
+<span class="sd">    conditions. The bunch statistics --</span>
+<span class="sd">    ``sigma_x``, the emittances, the centroids -- come from the tracked</span>
+<span class="sd">    particles, and every code writes **one** twiss file per line, from the</span>
+<span class="sd">    last turn.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ecnx</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized horizontal emittance of the beam, in m-mrad.&quot;&quot;&quot;</span>
+
+    <span class="n">ecny</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The normalized vertical emittance of the beam, in m-mrad.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_x_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion of the beam, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_xp_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The horizontal dispersion derivative of the beam, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_y_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion of the beam, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">eta_yp_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The vertical dispersion derivative of the beam, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_x_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta function in the x-direction, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">beta_y_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The beta function in the y-direction, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_x_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha function in the x-direction, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">alpha_y_beam</span><span class="p">:</span> <span class="s2">&quot;twissParameter&quot;</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The alpha function in the y-direction, specifically for beam parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">rest_mass</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The rest mass of the particle, in kg. If None, it will be set to the electron rest mass.&quot;&quot;&quot;</span>
+
+    <span class="n">codes</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="n">codes</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A dictionary of functions to read twiss data from different simulation codes.&quot;&quot;&quot;</span>
+
+    <span class="n">code_signatures</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">code_signatures</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A list of code signatures to identify twiss files from different simulation codes.&quot;&quot;&quot;</span>
+
+    <span class="n">sddsindex</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An index for SDDS files, used to track the current file being processed.&quot;&quot;&quot;</span>
+
+    <span class="n">q_over_c</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The charge over the speed of light, used for momentum calculations.&quot;&quot;&quot;</span>
+
+    <span class="n">E0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">m_e</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="o">**</span><span class="mi">2</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The rest energy of the particle, in Joules. Default is the electron rest mass energy.&quot;&quot;&quot;</span>
+
+    <span class="n">E0_eV</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">E0</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The rest energy of the particle, in eV. Default is the electron rest mass energy in eV.&quot;&quot;&quot;</span>
+
+    <span class="n">elegantTwiss</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A dictionary to store ELEGANT twiss data.&quot;&quot;&quot;</span>
+
+    <span class="n">elegantData</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A dictionary to store ELEGANT data.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rest_mass</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">twiss</span><span class="o">.</span><span class="n">rest_mass</span> <span class="o">=</span> <span class="n">rest_mass</span>
+        <span class="nb">super</span><span class="p">(</span>
+            <span class="n">twiss</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">rest_mass</span><span class="o">=</span><span class="n">rest_mass</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">codes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;elegant&quot;</span><span class="p">:</span> <span class="n">elegant</span><span class="o">.</span><span class="n">read_elegant_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;gpt&quot;</span><span class="p">:</span> <span class="n">gpt</span><span class="o">.</span><span class="n">read_gdf_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;astra&quot;</span><span class="p">:</span> <span class="n">astra</span><span class="o">.</span><span class="n">read_astra_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;ocelot&quot;</span><span class="p">:</span> <span class="n">ocelot</span><span class="o">.</span><span class="n">read_ocelot_twiss_files_hdf</span><span class="p">,</span>
+            <span class="c1"># &quot;ocelot_h5&quot;: ocelot.read_ocelot_twiss_files_hdf,</span>
+            <span class="s2">&quot;opal&quot;</span><span class="p">:</span> <span class="n">opal</span><span class="o">.</span><span class="n">read_opal_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;cheetah&quot;</span><span class="p">:</span> <span class="n">cheetah</span><span class="o">.</span><span class="n">read_cheetah_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;xsuite&quot;</span><span class="p">:</span> <span class="n">xsuite</span><span class="o">.</span><span class="n">read_xsuite_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;genesis&quot;</span><span class="p">:</span> <span class="n">genesis</span><span class="o">.</span><span class="n">read_genesis_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;madx&quot;</span><span class="p">:</span> <span class="n">madx</span><span class="o">.</span><span class="n">read_madx_twiss_files</span><span class="p">,</span>
+            <span class="s2">&quot;bmad&quot;</span><span class="p">:</span> <span class="n">bmad</span><span class="o">.</span><span class="n">read_bmad_twiss_files</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_signatures</span> <span class="o">=</span> <span class="n">code_signatures</span>
+
+<div class="viewcode-block" id="twiss.validate_fields">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.validate_fields">[docs]</a>
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_fields</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">values</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="n">twiss</span><span class="o">.</span><span class="n">model_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">twissParameter</span><span class="p">)</span>
+        <span class="p">}</span>
+
+<div class="viewcode-block" id="twiss.set_E0">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.set_E0">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_E0</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the rest energy of the particle.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        value: float</span>
+<span class="sd">            The rest energy in Joules to set for the particle.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">        -----------</span>
+<span class="sd">        None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E0</span> <span class="o">=</span> <span class="n">value</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="o">**</span><span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E0_eV</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span></div>
+
+
+    <span class="c1"># def __getitem__(self, key):</span>
+    <span class="c1">#     if key in super(twiss, self).__getitem__(&#39;data&#39;) and super(twiss, self).__getitem__(&#39;data&#39;) is not None:</span>
+    <span class="c1">#         return self.get(key)</span>
+    <span class="c1">#     else:</span>
+    <span class="c1">#         return super(twiss, self).__getitem__(key)</span>
+
+<div class="viewcode-block" id="twiss.read_astra_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_astra_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_astra_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">astra</span><span class="o">.</span><span class="n">read_astra_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_elegant_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_elegant_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_elegant_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">elegant</span><span class="o">.</span><span class="n">read_elegant_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_gdf_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_gdf_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_gdf_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_GPT_twiss_files</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_GPT_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_GPT_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_GPT_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">gpt</span><span class="o">.</span><span class="n">read_gdf_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_ocelot_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_ocelot_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_ocelot_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ocelot</span><span class="o">.</span><span class="n">read_ocelot_twiss_files_hdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_ocelot_twiss_files_hdf">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_ocelot_twiss_files_hdf">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_ocelot_twiss_files_hdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ocelot</span><span class="o">.</span><span class="n">read_ocelot_twiss_files_hdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_opal_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_opal_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_opal_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">opal</span><span class="o">.</span><span class="n">read_opal_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_xsuite_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_xsuite_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_xsuite_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">xsuite</span><span class="o">.</span><span class="n">read_xsuite_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_genesis_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_genesis_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_genesis_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">genesis</span><span class="o">.</span><span class="n">read_genesis_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_madx_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_madx_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_madx_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">madx</span><span class="o">.</span><span class="n">read_madx_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_bmad_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_bmad_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_bmad_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">bmad</span><span class="o">.</span><span class="n">read_bmad_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.save_HDF5_twiss_file">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.save_HDF5_twiss_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_HDF5_twiss_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">write_HDF5_twiss_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_cheetah_twiss_files">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_cheetah_twiss_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_cheetah_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cheetah</span><span class="o">.</span><span class="n">read_cheetah_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_HDF5_twiss_file">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_HDF5_twiss_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_HDF5_twiss_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">read_HDF5_twiss_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fields_set</span><span class="p">})</span>
+
+<div class="viewcode-block" id="twiss.stat">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.stat">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">twissParameter</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the value of a twiss parameter by its key.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        key: str</span>
+<span class="sd">            The key of the twiss parameter to retrieve, e.g., &#39;z&#39;, &#39;beta_x&#39;, etc.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        -----------</span>
+<span class="sd">        twissParameter:</span>
+<span class="sd">            The value of the twiss parameter associated with the given key.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.find_nearest_idx">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.find_nearest_idx">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_nearest_idx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the index of the nearest value in a sorted array.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        array: List</span>
+<span class="sd">            A sorted array to search within.</span>
+<span class="sd">        value: float</span>
+<span class="sd">            The value to find the nearest index for in the array.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int:</span>
+<span class="sd">            The index of the nearest value in the array.</span>
+<span class="sd">            If the value is exactly equal to an element, it returns that index.</span>
+<span class="sd">            If the value is less than the first element, it returns 0.</span>
+<span class="sd">            If the value is greater than the last element, it returns the last index.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">idx</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">idx</span></div>
+
+
+<div class="viewcode-block" id="twiss.find_nearest">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.find_nearest">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_nearest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the nearest value in a sorted array to a given value.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        array: List</span>
+<span class="sd">            A sorted array to search within.</span>
+<span class="sd">        value: float</span>
+<span class="sd">            The value to find the nearest element for in the array.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float:</span>
+<span class="sd">            The value in the array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">idx</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">math</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">array</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="twiss.reset_dicts">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.reset_dicts">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_dicts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reset the twiss parameters to their initial state.</span>
+<span class="sd">        This method initializes all twiss parameters to their default values</span>
+<span class="sd">        and clears the elegantTwiss dictionary.</span>
+<span class="sd">        This is useful for starting fresh with a new set of twiss parameters or when reloading data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">twiss</span><span class="o">.</span><span class="n">model_fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">twiss_defaults</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">twissParameter</span><span class="p">(</span><span class="o">**</span><span class="n">twiss_defaults</span><span class="p">[</span><span class="n">name</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elegantTwiss</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+
+<div class="viewcode-block" id="twiss.sort">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.sort">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="n">reverse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sort the twiss parameters based on a specified key.</span>
+<span class="sd">        This method sorts the twiss parameters in ascending order by default,</span>
+<span class="sd">        or in descending order if `reverse` is set to True.</span>
+<span class="sd">        The sorting is done based on the values of the specified key,</span>
+<span class="sd">        which should be one of the twiss parameters (e.g., &#39;z&#39;, &#39;beta_x&#39;, etc.).</span>
+<span class="sd">        If the key is not found, it raises an AttributeError.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        key: str</span>
+<span class="sd">            The key by which to sort all the Twiss parameters</span>
+<span class="sd">        reverse: bool, optional</span>
+<span class="sd">            Reverse the Twiss parameter arrays</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">flat</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">model_fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">twissParameter</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="n">flat</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">val</span>
+                    <span class="k">if</span> <span class="n">reverse</span><span class="p">:</span>
+                        <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">flat</span><span class="p">[</span><span class="n">index</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># try:</span>
+                        <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">flat</span><span class="p">[</span><span class="n">index</span><span class="p">[::</span><span class="mi">1</span><span class="p">]]</span></div>
+
+                        <span class="c1"># except Exception:</span>
+                        <span class="c1">#     print(f&quot;Error in sort k={getattr(self, k).val}, index={index}&quot;)</span>
+
+<div class="viewcode-block" id="twiss.append">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.append">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">List</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Append data to a specified twiss parameter array.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        array: str</span>
+<span class="sd">            Name of existing Twiss parameter array</span>
+<span class="sd">        data: List | np.ndarray</span>
+<span class="sd">            Data to append</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">newval</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">),</span> <span class="n">data</span><span class="p">]),</span>
+            <span class="n">units</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span><span class="o">.</span><span class="n">units</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">newval</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_which_code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine the function associated with a specific simulation code name.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name: str</span>
+<span class="sd">            The name of the code which produced the Twiss file</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        callable | None:</span>
+<span class="sd">            The function associated with the specified simulation code name, or None if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_determine_code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine the simulation code based on the filename.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename: str</span>
+<span class="sd">            Based on the filename, determine the code which produced it.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        callable | None:</span>
+<span class="sd">            The function associated with the simulation code if found, otherwise None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_signatures</span><span class="p">:</span>
+            <span class="n">cutl</span> <span class="o">=</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">filename</span><span class="p">[</span><span class="n">cutl</span><span class="p">:]:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="twiss.interpolate">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.interpolate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Interpolate a value at a given z position based on the twiss parameters.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        z: float or None, optional</span>
+<span class="sd">        value: str, optional</span>
+<span class="sd">        index: str, optional</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float:</span>
+<span class="sd">            The interpolated value at the specified z position.</span>
+<span class="sd">            If z is None, it returns the interpolated value for the entire range.</span>
+<span class="sd">            If z is greater than the maximum value in the index, it returns a large number (10^6).</span>
+<span class="sd">            Otherwise, it returns the interpolated value at the specified z position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">z</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mi">10</span><span class="o">**</span><span class="mi">6</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="twiss.extract_values">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.extract_values">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract values from a specified twiss parameter array between two z positions.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name: str</span>
+<span class="sd">            Name of Twiss parameter</span>
+<span class="sd">        start: float</span>
+<span class="sd">            Initial z position</span>
+<span class="sd">        end: float</span>
+<span class="sd">            Final z position</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray:</span>
+<span class="sd">            An array of values from the specified twiss parameter array between the start and end z positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">startidx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_nearest_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">start</span><span class="p">)</span>
+        <span class="n">endidx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_nearest_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)[</span><span class="n">startidx</span><span class="p">:</span><span class="n">endidx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="twiss.get_parameter_at_z">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.get_parameter_at_z">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_parameter_at_z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">UnitValue</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the value of a twiss parameter at a specific z position.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        param: str</span>
+<span class="sd">            The name of the Twiss parameter</span>
+<span class="sd">        z: float</span>
+<span class="sd">            The z position of interest</span>
+<span class="sd">        tol: float, optional</span>
+<span class="sd">            The z-position tolerance</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float:</span>
+<span class="sd">            The value of the specified twiss parameter at the given z position.</span>
+<span class="sd">            If z is exactly in the list of z positions, it returns the corresponding value.</span>
+<span class="sd">            If z is not found, it finds the nearest z position and checks if it&#39;s within the tolerance.</span>
+<span class="sd">            If it is, it returns the corresponding value; otherwise, it interpolates the value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">z</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">)[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nearest_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_nearest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">nearest_z</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">nearest_z</span><span class="p">)</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># print(&#39;interpolate!&#39;, z, self[&#39;z&#39;])</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">param</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.get_parameter_at_element">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.get_parameter_at_element">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_parameter_at_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">element_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the value of a twiss parameter at a specific element name.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        param: str</span>
+<span class="sd">            The Twiss parameter of interest</span>
+<span class="sd">        element_name: str</span>
+<span class="sd">            The element name</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float | None:</span>
+<span class="sd">            The value of the specified twiss parameter at the given element name.</span>
+<span class="sd">            If the element name is found, it returns the corresponding value; otherwise, it returns None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">element_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">element_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="twiss.get_twiss_dict">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.get_twiss_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_twiss_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a dictionary of twiss parameters at a specific index.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx: int</span>
+<span class="sd">            The index in the Twiss parameter list</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float]:</span>
+<span class="sd">            A dictionary containing the twiss parameters at the specified index.</span>
+<span class="sd">            The keys are the parameter names, and the values are the corresponding values at that index.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">twissdict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fields</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">twissdict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">twissdict</span></div>
+
+
+<div class="viewcode-block" id="twiss.get_twiss_at_element">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.get_twiss_at_element">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_twiss_at_element</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">element_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">before</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the twiss parameters at a specific element name.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        element_name: str</span>
+<span class="sd">            The name of the element</span>
+<span class="sd">        before:</span>
+<span class="sd">            Get the parameters before the specified element</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float] | None:</span>
+<span class="sd">            A dictionary of twiss parameters at the specified element name.</span>
+<span class="sd">            If the element name is found, it returns the corresponding twiss parameters;</span>
+<span class="sd">            otherwise, it returns None.</span>
+<span class="sd">            If `before` is True, it returns the parameters before the specified element.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">element_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">element_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">before</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_twiss_dict</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="twiss.get_twiss_at_z">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.get_twiss_at_z">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_twiss_at_z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the twiss parameters at a specific z position.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        z: float</span>
+<span class="sd">            The z-position of interest</span>
+<span class="sd">        tol: float, optional</span>
+<span class="sd">            Tolerance on the z-position</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float]:</span>
+<span class="sd">            A dictionary of twiss parameters at the specified z position.</span>
+<span class="sd">            If z is exactly in the list of z positions, it returns the corresponding twiss parameters.</span>
+<span class="sd">            If z is not found, it finds the nearest z position and checks if it&#39;s within the tolerance.</span>
+<span class="sd">            If it is, it returns the corresponding twiss parameters; otherwise, it interpolates the values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">z</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_twiss_dict</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nearest_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_nearest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">nearest_z</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">nearest_z</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_twiss_dict</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">twissdict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="p">[</span>
+                    <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fields</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">twissParameter</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="s2">&quot;f&quot;</span>
+                <span class="p">]:</span>
+                    <span class="n">twissdict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">param</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">twissdict</span></div>
+
+
+    <span class="k">if</span> <span class="n">use_matplotlib</span><span class="p">:</span>
+
+<div class="viewcode-block" id="twiss.plot">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.plot">[docs]</a>
+        <span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">plot</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.covariance">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.covariance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">covariance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">up</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the covariance between two twiss parameters.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        u: array-like</span>
+<span class="sd">            First Twiss parameter set</span>
+<span class="sd">        up: array-like</span>
+<span class="sd">            Second Twiss parameter set</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float:</span>
+<span class="sd">            The covariance between the two twiss parameters.</span>
+<span class="sd">            The covariance is calculated as the mean of the product of the deviations from their means.</span>
+<span class="sd">            If the input arrays are empty, it returns NaN.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">u2</span> <span class="o">=</span> <span class="n">u</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">up2</span> <span class="o">=</span> <span class="n">up</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">up</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">u2</span> <span class="o">*</span> <span class="n">up2</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">u2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">up2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="twiss.read_sdds_file">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.read_sdds_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_sdds_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ascii</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read an SDDS file and extract the twiss parameters.</span>
+<span class="sd">        #TODO deprecated????</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename: str</span>
+<span class="sd">            SDDS filename</span>
+<span class="sd">        ascii: bool, optional</span>
+<span class="sd">            Convert to ascii</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float]:</span>
+<span class="sd">            A dictionary containing the twiss parameters extracted from the SDDS file.</span>
+<span class="sd">            The dictionary is stored in the `elegantTwiss` attribute of the twiss object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sddsobject</span> <span class="o">=</span> <span class="n">munch</span><span class="o">.</span><span class="n">Munch</span><span class="p">()</span>
+        <span class="n">sddsobject</span><span class="o">.</span><span class="n">sddsindex</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">sddsobject</span><span class="o">.</span><span class="n">elegantTwiss</span> <span class="o">=</span> <span class="n">munch</span><span class="o">.</span><span class="n">Munch</span><span class="p">()</span>
+        <span class="n">elegant</span><span class="o">.</span><span class="n">read_sdds_file</span><span class="p">(</span><span class="n">sddsobject</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">ascii</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sddsobject</span><span class="o">.</span><span class="n">elegantTwiss</span></div>
+
+
+<div class="viewcode-block" id="twiss.load_directory">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.load_directory">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_directory</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+        <span class="n">types</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;elegant&quot;</span><span class="p">:</span> <span class="s2">&quot;.twi&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;GPT&quot;</span><span class="p">:</span> <span class="s2">&quot;emit.gdf&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ASTRA&quot;</span><span class="p">:</span> <span class="s2">&quot;Xemit.001&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ocelot&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.oh5&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;opal&quot;</span><span class="p">:</span> <span class="s2">&quot;opal_twiss.h5&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cheetah&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.cheetah.hdf5&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;xsuite&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.csv&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;genesis&quot;</span><span class="p">:</span> <span class="s2">&quot;.out.h5&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;madx&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.madx.hdf5&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;bmad&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.bmad.hdf5&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">preglob</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">sortkey</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;twiss&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load twiss files from a specified directory based on the provided types and preglob pattern.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        directory: str</span>
+<span class="sd">            The directory to load</span>
+<span class="sd">        types: Dict[str, str]</span>
+<span class="sd">            Keys for codes and the Twiss file extensions that they produce</span>
+<span class="sd">        preglob: str</span>
+<span class="sd">            Territorial globbing</span>
+<span class="sd">        verbose: bool, optional</span>
+<span class="sd">            Print out status of loading</span>
+<span class="sd">        sortkey: str, optional</span>
+<span class="sd">            Sort Twiss data by the key provided</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        twiss:</span>
+<span class="sd">            The twiss object with the loaded twiss parameters.</span>
+<span class="sd">            The method reads twiss files from the specified directory, processes them based on the types,</span>
+<span class="sd">            and sorts the parameters based on the specified sortkey.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Directory:&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">code</span><span class="p">,</span> <span class="n">string</span> <span class="ow">in</span> <span class="n">types</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">twiss_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">directory</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">preglob</span> <span class="o">+</span> <span class="n">string</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">preglob</span> <span class="o">+</span> <span class="n">string</span><span class="p">,</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">twiss_files</span><span class="p">])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_which_code</span><span class="p">(</span><span class="n">code</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">twiss_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_which_code</span><span class="p">(</span><span class="n">code</span><span class="p">)(</span><span class="bp">self</span><span class="p">,</span> <span class="n">twiss_files</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">sortkey</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="twiss.initialise_directory">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.twiss.initialise_directory">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">initialise_directory</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">load_directory</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">t</span></div>
+</div>
+
+
+    <span class="c1"># @property</span>
+    <span class="c1"># def cp_eV(self):</span>
+    <span class="c1">#     return self[&#39;cp&#39;]</span>
+    <span class="c1"># @property</span>
+    <span class="c1"># def cp_MeV(self):</span>
+    <span class="c1">#     return self[&#39;cp&#39;] / 1e6</span>
+
+
+<div class="viewcode-block" id="load_directory">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.load_directory">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_directory</span><span class="p">(</span>
+    <span class="n">directory</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+    <span class="n">types</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;elegant&quot;</span><span class="p">:</span> <span class="s2">&quot;.twi&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;GPT&quot;</span><span class="p">:</span> <span class="s2">&quot;emit.gdf&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ASTRA&quot;</span><span class="p">:</span> <span class="s2">&quot;Xemit.001&quot;</span><span class="p">,</span>
+        <span class="c1"># &quot;ocelot&quot;: &quot;_twiss.npz&quot;,</span>
+        <span class="s2">&quot;opal&quot;</span><span class="p">:</span> <span class="s2">&quot;opal_twiss.h5&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ocelot&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.oh5&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cheetah&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.cheetah.hdf5&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;xsuite&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.csv&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;genesis&quot;</span><span class="p">:</span> <span class="s2">&quot;.out.h5&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;madx&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.madx.hdf5&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;bmad&quot;</span><span class="p">:</span> <span class="s2">&quot;_twiss.bmad.hdf5&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="n">preglob</span><span class="o">=</span><span class="s2">&quot;*&quot;</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">sortkey</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">twiss</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load in all Twiss output files from a directory and create a</span>
+<span class="sd">    :class:`~simba.Modules.Twiss.twiss` object.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    directory: str</span>
+<span class="sd">        Directory from which to load the files</span>
+<span class="sd">    types: Dict</span>
+<span class="sd">        Codes and their file extensions</span>
+<span class="sd">    preglob: str</span>
+<span class="sd">        String for file pattern matching</span>
+<span class="sd">    verbose: bool</span>
+<span class="sd">        If true, print progress</span>
+<span class="sd">    sortkey: str</span>
+<span class="sd">        Key by which to sort Twiss parameters</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    :class:`~simba.Modules.Twiss.twiss`</span>
+<span class="sd">        A new `twiss` object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">twiss</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Directory:&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">code</span><span class="p">,</span> <span class="n">string</span> <span class="ow">in</span> <span class="n">types</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">twiss_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">directory</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">preglob</span> <span class="o">+</span> <span class="n">string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">twiss_files</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">_which_code</span><span class="p">(</span><span class="n">code</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">twiss_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">_which_code</span><span class="p">(</span><span class="n">code</span><span class="p">)(</span><span class="n">t</span><span class="p">,</span> <span class="n">twiss_files</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">sortkey</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">t</span></div>
+
+
+
+<div class="viewcode-block" id="load_file">
+<a class="viewcode-back" href="../../../simba.Modules.Twiss.html#simba.Modules.Twiss.load_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">twissobject</span> <span class="o">=</span> <span class="n">twiss</span><span class="p">()</span>
+    <span class="n">code</span> <span class="o">=</span> <span class="n">twissobject</span><span class="o">.</span><span class="n">_determine_code</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">code</span><span class="p">(</span><span class="n">twissobject</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">twissobject</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

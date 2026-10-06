@@ -1,0 +1,226 @@
+"""Xsuite multi-turn tracking, end to end through the framework.
+
+``test_madx_multiturn_run.py`` is the same test for MAD-X. Xsuite needs its
+own because its multi-turn path is a *different code path*, not the same one
+in a loop: a single-turn run walks the line element by element and records
+bunch statistics as it goes, while a multi-turn run hands the whole thing to
+``line.track(num_turns=N)``, which has no element-by-element stop.
+
+That difference was silently fatal. ``line.track`` collects no per-element
+statistics, so ``beam_data`` came back empty, and ``postProcess`` then
+indexed it::
+
+    self.beam_data[list(self.beam_data.keys())[0]]   # IndexError
+
+-- every multi-turn Xsuite run through the framework died there. No test
+caught it because none of them post-processed; the ring studies call ``run``
+and read the monitor. Guarding the index was not enough either: the twiss
+reader wants about a dozen ``beam_data``-derived columns and raises
+``KeyError: 'momentum'`` without them. The fix is
+:meth:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.collect_beam_data`, one
+diagnostic pass down the line over a *copy* of the final beam -- so these
+tests are mostly about that pass existing and not being mistaken for tracking.
+"""
+
+import os
+
+import numpy as np
+import pytest
+
+import simba.Framework as fw
+import simba.Modules.Beams as rbf
+from laura import LAURA
+from laura.exporters.yaml_exporter import export_machine
+from laura.models.element import Marker, Quadrupole
+from simba.Codes.Generators import frameworkGenerator
+from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
+
+TURNS = 4
+
+
+def _fodo_machine(tmp_path):
+    middle = [
+        Quadrupole(
+            name="QUAD1F", machine_area="FODO",
+            magnetic={"length": 1.0, "k1l": -1},
+            physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 0.75}},
+        ),
+        Quadrupole(
+            name="QUAD1D", machine_area="FODO",
+            magnetic={"length": 1.0, "k1l": 1.0},
+            physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 3.25}},
+        ),
+    ]
+    m1 = Marker(
+        name="M1", machine_area="FODO", hardware_class="Marker",
+        physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}},
+    )
+    end_z = middle[-1].physical.middle.z + middle[-1].physical.length
+    m3 = Marker(
+        name="M3", machine_area="FODO", hardware_class="Marker",
+        physical={"middle": {"x": 0.0, "y": 0.0, "z": end_z}},
+    )
+    names = ["M1"] + [e.name for e in middle] + ["M3"]
+    machine = LAURA(
+        element_list=[m1, *middle, m3],
+        layout={"default_layout": "line1", "layouts": {"line1": ["FODO"]}},
+        section={"sections": {"FODO": names}},
+    )
+    export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
+    return machine, names
+
+
+def _run(tmp_path, tracking):
+    """Track the FODO line through Xsuite with the given ``tracking`` block."""
+    pytest.importorskip("xtrack")
+    machine, names = _fodo_machine(tmp_path)
+
+    settings = fw.FrameworkSettings()
+    settings.files = {
+        "FODO": {
+            "code": "xsuite",
+            "charge": {"space_charge_mode": "False"},
+            "input": {},
+            "output": {"start_element": "M1", "end_element": "M3"},
+            "tracking": tracking,
+        }
+    }
+    settings.layout = machine.layout
+    settings.section = {"sections": {"FODO": names}}
+    settings.element_list = f"{tmp_path}/lattice"
+
+    framework = fw.Framework(
+        machine=machine, directory=str(tmp_path), clean=True, verbose=False,
+    )
+    framework.loadSettings(settings=settings)
+
+    frameworkGenerator(
+        global_parameters={"master_subdir": framework.subdirectory},
+        filename="M1.openpmd.hdf5",
+        initial_momentum=5e6,
+        sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3,
+        sigma_z=1e-3, sigma_pz=1e3,
+        gaussian_cutoff_x=3, gaussian_cutoff_y=3, gaussian_cutoff_z=3,
+        gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3,
+        charge=100e-12,
+    ).write()
+    framework.track()
+    return framework.subdirectory
+
+
+def _beam_files(subdir):
+    return sorted(f for f in os.listdir(subdir) if f.endswith(".openpmd.hdf5"))
+
+
+def _read(subdir, name):
+    beam = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, name))
+    return beam
+
+
+# --- the crash ------------------------------------------------------------
+
+
+def test_a_multi_turn_run_post_processes(tmp_path):
+    """The regression. It raised `IndexError` off an empty `beam_data`."""
+    subdir = _run(tmp_path, {"turns": TURNS})
+    assert os.path.isfile(os.path.join(subdir, "M3.openpmd.hdf5"))
+
+
+def test_a_multi_turn_run_writes_a_twiss_file(tmp_path):
+    """The second failure mode behind the first: guarding the index moved
+    the crash into the twiss reader, which wants the bunch columns."""
+    subdir = _run(tmp_path, {"turns": TURNS})
+    assert os.path.isfile(os.path.join(subdir, "FODO_twiss.csv"))
+
+
+def test_the_twiss_file_has_the_bunch_statistic_columns(tmp_path):
+    """`momentum` is the one that raised `KeyError`; the rest come with it."""
+    pd = pytest.importorskip("pandas")
+    subdir = _run(tmp_path, {"turns": TURNS})
+    df = pd.read_csv(os.path.join(subdir, "FODO_twiss.csv"))
+    for column in ("momentum", "sigma_x", "sigma_y", "emit_xn", "mean_x"):
+        assert column in df.columns, sorted(df.columns)
+
+
+def test_a_single_turn_run_still_works(tmp_path):
+    """The other code path, which was never broken and must stay that way."""
+    subdir = _run(tmp_path, {"turns": 1})
+    assert os.path.isfile(os.path.join(subdir, "FODO_twiss.csv"))
+
+
+# --- the diagnostic pass is not a tracking pass ---------------------------
+
+
+def test_the_beam_that_leaves_the_line_is_the_tracked_one(tmp_path):
+    """`collect_beam_data` walks a *copy*. If it walked the real beam, the
+    written beam would have gone round one extra time -- and would match a
+    five-turn run rather than a four-turn one."""
+    four = _read(_run(tmp_path / "four", {"turns": 4}), "M3.openpmd.hdf5")
+    five = _read(_run(tmp_path / "five", {"turns": 5}), "M3.openpmd.hdf5")
+    assert four.sigmas.sigma_x != pytest.approx(five.sigmas.sigma_x, rel=1e-12)
+
+
+def test_multi_turn_tracking_actually_advances(tmp_path):
+    """One turn and four turns must not land on the same beam."""
+    one = _read(_run(tmp_path / "one", {"turns": 1}), "M3.openpmd.hdf5")
+    many = _read(_run(tmp_path / "many", {"turns": TURNS}), "M3.openpmd.hdf5")
+    assert one.sigmas.sigma_x != pytest.approx(many.sigmas.sigma_x, rel=1e-9)
+
+
+# --- R21: which turn the file is ------------------------------------------
+
+
+def test_the_unsuffixed_file_says_it_is_the_last_turn(tmp_path):
+    subdir = _run(tmp_path, {"turns": TURNS})
+    assert _read(subdir, "M3.openpmd.hdf5").turn == TURNS
+
+
+def test_a_single_turn_run_says_turn_one(tmp_path):
+    subdir = _run(tmp_path, {"turns": 1})
+    assert _read(subdir, "M3.openpmd.hdf5").turn == 1
+
+
+def test_the_generated_input_beam_claims_no_turn(tmp_path):
+    """Nobody tracked it. `None` rather than a turn 1 it did not earn."""
+    subdir = _run(tmp_path, {"turns": TURNS})
+    assert _read(subdir, "M1.openpmd.hdf5").turn is None
+
+
+def test_per_turn_files_each_know_their_turn(tmp_path):
+    subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
+    written = _beam_files(subdir)
+    for turn in range(1, TURNS + 1):
+        name = f"M3{SEPARATOR}{turn}.openpmd.hdf5"
+        if name not in written:
+            continue
+        assert _read(subdir, name).turn == turn
+
+
+def test_the_unsuffixed_end_of_line_file_survives_per_turn_output(tmp_path):
+    """`link_handoff_beam`: what the next section reads by name."""
+    subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
+    assert os.path.isfile(os.path.join(subdir, "M3.openpmd.hdf5"))
+
+
+# --- the twiss turn column ------------------------------------------------
+
+
+def test_the_twiss_summary_records_the_turn(tmp_path):
+    """One twiss file per *line* however many turns ran, so the only thing
+    that can say which turn its bunch columns came from is the column."""
+    import simba.Modules.Twiss as rtf
+
+    subdir = _run(tmp_path, {"turns": TURNS})
+    t = rtf.twiss()
+    t.read_HDF5_twiss_file(os.path.join(subdir, "Twiss_Summary.hdf5"))
+    assert set(np.array(t.turn.val).tolist()) == {TURNS}
+
+
+def test_a_single_turn_run_records_turn_one(tmp_path):
+    import simba.Modules.Twiss as rtf
+
+    subdir = _run(tmp_path, {"turns": 1})
+    t = rtf.twiss()
+    t.read_HDF5_twiss_file(os.path.join(subdir, "Twiss_Summary.hdf5"))
+    assert set(np.array(t.turn.val).tolist()) == {1}

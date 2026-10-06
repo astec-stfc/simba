@@ -50,6 +50,7 @@ class FakeLine:
         return self._geometry
 
     periodic = frameworkLattice.periodic
+    closed_geometry = frameworkLattice.closed_geometry
     check_periodic_supported = frameworkLattice.check_periodic_supported
 
 

@@ -15,88 +15,88 @@ Advanced schemes such as EEHG are not yet supported.
 
 Classes:
     - :class:`~simba.Codes.Genesis.Genesis.genesisLattice`: The Genesis lattice object, used for
-    creating a string representation of the lattice suitable for Genesis input and lattice files.
+      creating a string representation of the lattice suitable for Genesis input and lattice files.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesisCommandFile`: Base class for defining
-    commands in a Genesis input file.
+      commands in a Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_setup_command`: Class for defining the
-    &setup portion of the Genesis input file.
+      &setup portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_alter_setup_command`: Class for defining the
-    &alter_setup portion of the Genesis input file.
+      &alter_setup portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_lattice_command`: Class for defining the
-    &lattice portion of the Genesis input file.
+      &lattice portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_time_command`: Class for defining the
-    &time portion of the Genesis input file.
+      &time portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_const_command`: Class for defining the
-    &profile_const portion of the Genesis input file.
+      &profile_const portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_gauss_command`: Class for defining the
-    &profile_gauss portion of the Genesis input file.
+      &profile_gauss portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_step_command`: Class for defining the
-    &profile_step portion of the Genesis input file.
+      &profile_step portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_polynom_command`: Class for defining the
-    &profile_polynom portion of the Genesis input file.
+      &profile_polynom portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_file_command`: Class for defining the
-    &profile_file portion of the Genesis input file.
+      &profile_file portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_const_command`: Class for defining the
-    &sequence_const portion of the Genesis input file.
+      &sequence_const portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_polynom_command`: Class for defining the
-    &sequence_polynom portion of the Genesis input file.
+      &sequence_polynom portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_power_command`: Class for defining the
-    &sequence_power portion of the Genesis input file.
+      &sequence_power portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_random_command`: Class for defining the
-    &sequence_random portion of the Genesis input file.
+      &sequence_random portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_beam_command`: Class for defining the
-    &beam portion of the Genesis input file.
+      &beam portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_alter_beam_command`: Class for defining the
-    &alter_beam portion of the Genesis input file.
+      &alter_beam portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`: Class for defining the
-    &field portion of the Genesis input file.
+      &field portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_importdistribution_command`: Class for defining the
-    &importdistribution portion of the Genesis input file.
+      &importdistribution portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_importbeam_command`: Class for defining the
-    &importbeam portion of the Genesis input file.
+      &importbeam portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_importfield_command`: Class for defining the
-    &importfield portion of the Genesis input file.
+      &importfield portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_importtransformation_command`: Class for defining the
-    &importtransformation portion of the Genesis input file.
+      &importtransformation portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_efield_command`: Class for defining the
-    &efield portion of the Genesis input file.
+      &efield portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sponrad_command`: Class for defining the
-    &sponrad portion of the Genesis input file.
+      &sponrad portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_wake_command`: Class for defining the
-    &wake portion of the Genesis input file.
+      &wake portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_sort_command`: Class for defining the
-    &sort portion of the Genesis input file.
+      &sort portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_write_command`: Class for defining the
-    &write portion of the Genesis input file.
+      &write portion of the Genesis input file.
 
     - :class:`~simba.Codes.Genesis.Genesis.genesis_track_command`: Class for defining the
-    &track portion of the Genesis input file.
+      &track portion of the Genesis input file.
 """
 
 import os

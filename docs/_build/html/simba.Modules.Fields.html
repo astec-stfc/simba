@@ -1,0 +1,869 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Fields package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Modules.Matrices package" href="simba.Modules.Matrices.html" />
+    <link rel="prev" title="simba.Modules.Beams.Particles package" href="simba.Modules.Beams.Particles.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Modules.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Beams.html">simba.Modules.Beams package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Modules.Fields package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.FieldParameter">simba.Modules.Fields.FieldParameter module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.astra">simba.Modules.Fields.astra module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.gdf">simba.Modules.Fields.gdf module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.hdf5">simba.Modules.Fields.hdf5 module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.opal">simba.Modules.Fields.opal module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields.sdds">simba.Modules.Fields.sdds module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Modules.Fields">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Matrices.html">simba.Modules.Matrices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.Twiss.html">simba.Modules.Twiss package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.optimisation.html">simba.Modules.optimisation package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Modules.plotting.html">simba.Modules.plotting package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.DeviceProgram">simba.Modules.DeviceProgram module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.MathParser">simba.Modules.MathParser module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.SDDSFile">simba.Modules.SDDSFile module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.constants">simba.Modules.constants module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.gdf_beam">simba.Modules.gdf_beam module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.gdf_emit">simba.Modules.gdf_emit module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.id_number">simba.Modules.id_number module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.id_number_server">simba.Modules.id_number_server module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.merge_two_dicts">simba.Modules.merge_two_dicts module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.pmd_units">simba.Modules.pmd_units module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#simba-modules-symmlinks-module">simba.Modules.symmlinks module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules.units">simba.Modules.units module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Modules.html#module-simba.Modules">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Modules.html">simba.Modules package</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Fields package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Modules.Fields.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-modules-fields-package">
+<h1>simba.Modules.Fields package<a class="headerlink" href="#simba-modules-fields-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Modules.Fields.FieldParameter">
+<span id="simba-modules-fields-fieldparameter-module"></span><h2>simba.Modules.Fields.FieldParameter module<a class="headerlink" href="#module-simba.Modules.Fields.FieldParameter" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Modules.Fields.FieldParameter.FieldParameter">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">FieldParameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/FieldParameter.html#FieldParameter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>FieldParameter class to represent a field parameter with a name and an optional value.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.FieldParameter.FieldParameter.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#simba.Modules.Fields.FieldParameter.FieldParameter.name" title="Link to this definition"></a></dt>
+<dd><p>The name of the field parameter.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.FieldParameter.FieldParameter.value">
+<span class="sig-name descname"><span class="pre">value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">UnitValue</span> <span class="pre">|</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#simba.Modules.Fields.FieldParameter.FieldParameter.value" title="Link to this definition"></a></dt>
+<dd><p>The value of the field parameter, which can be a UnitValue or None.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">value</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="simba.Modules.html#simba.Modules.units.UnitValue" title="simba.Modules.units.UnitValue"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitValue</span></code></a> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields.astra">
+<span id="simba-modules-fields-astra-module"></span><h2>simba.Modules.Fields.astra module<a class="headerlink" href="#module-simba.Modules.Fields.astra" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.astra.generate_astra_field_data">
+<span class="sig-name descname"><span class="pre">generate_astra_field_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/astra.html#generate_astra_field_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.astra.generate_astra_field_data" title="Link to this definition"></a></dt>
+<dd><p>Generate the field data in a format that is suitable for ASTRA, based on the
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object provided.
+The <cite>field_type</cite> parameter determines the format of the file.
+See the <a class="reference external" href="https://www.desy.de/~mpyflo/Astra_manual/Astra-Manual_V3.2.pdf">ASTRA manual</a> for more details.</p>
+<p>A warning is raised if the field type is not supported (perhaps elevate to a <cite>NotImplementedError</cite>?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The formatted field data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.astra.read_astra_field_file">
+<span class="sig-name descname"><span class="pre">read_astra_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cavity_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/astra.html#read_astra_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.astra.read_astra_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read a field file from ASTRA format and convert it into a
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object (self).
+Certain parameters must be included, particularly for RF cavities.</p>
+<p>See the <a class="reference external" href="https://www.desy.de/~mpyflo/Astra_manual/Astra-Manual_V3.2.pdf">ASTRA manual</a> for more details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object to be updated.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the ASTRA field file</p></li>
+<li><p><strong>field_type</strong> (<em>str</em>) – The name of the field, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_fields</span></code></p></li>
+<li><p><strong>cavity_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of RF cavity, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_cavities</span></code></p></li>
+<li><p><strong>frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – The frequency of the RF cavity.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>cavity_type</cite> is not provided</p></li>
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>frequency</cite> is not provided</p></li>
+<li><p><strong>NotImplementedError:</strong> – if a given <cite>field_type</cite> is not implemented</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.astra.write_astra_field_file">
+<span class="sig-name descname"><span class="pre">write_astra_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/astra.html#write_astra_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.astra.write_astra_field_file" title="Link to this definition"></a></dt>
+<dd><p>Write the field data in an ASTRA-compatible format, based on the
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object provided.
+The absolute location of the file to be written is generated using
+<code class="xref py py-func docutils literal notranslate"><span class="pre">_output_filename()</span></code>, which is parsed from the Master Lattice.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The converted filename</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields.gdf">
+<span id="simba-modules-fields-gdf-module"></span><h2>simba.Modules.Fields.gdf module<a class="headerlink" href="#module-simba.Modules.Fields.gdf" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.gdf.read_gdf_field_file">
+<span class="sig-name descname"><span class="pre">read_gdf_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cavity_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize_b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/gdf.html#read_gdf_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.gdf.read_gdf_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read a GDF field file and convert it into a <a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">simba.Modules.Fields.field</span></code></a> object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object to be updated.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the GDF field file</p></li>
+<li><p><strong>field_type</strong> (<em>str</em>) – The name of the field, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_fields</span></code></p></li>
+<li><p><strong>cavity_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of RF cavity, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_cavities</span></code></p></li>
+<li><p><strong>frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – The frequency of the RF cavity.</p></li>
+<li><p><strong>normalize_b</strong> (<em>bool</em><em>, </em><em>optional</em>) – Normalize Bx and By with respect to Bz (True by default)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>cavity_type</cite> is not provided</p></li>
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>frequency</cite> is not provided</p></li>
+<li><p><strong>NotImplementedError:</strong> – if a given <cite>field_type</cite> is not implemented</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.gdf.union">
+<span class="sig-name descname"><span class="pre">union</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/gdf.html#union"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.gdf.union" title="Link to this definition"></a></dt>
+<dd><p>Update the field data into a format compatible for easyGDF</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>blocks</strong> (<em>List</em><em>[</em><em>Dict</em><em>]</em>) – The field parameters, keyed by name</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of easyGDF-compatible dictionaries</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.gdf.write_gdf_field_file">
+<span class="sig-name descname"><span class="pre">write_gdf_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/gdf.html#write_gdf_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.gdf.write_gdf_field_file" title="Link to this definition"></a></dt>
+<dd><p>Generate the field data in a format that is suitable for GPT, based on the
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object provided.
+This is then written to a GDF file.
+The <cite>field_type</cite> parameter determines the format of the file.</p>
+<p>A warning is raised if the field type is not supported (perhaps elevate to a <cite>NotImplementedError</cite>?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The name of the GDF field file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields.hdf5">
+<span id="simba-modules-fields-hdf5-module"></span><h2>simba.Modules.Fields.hdf5 module<a class="headerlink" href="#module-simba.Modules.Fields.hdf5" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.hdf5.read_HDF5_field_file">
+<span class="sig-name descname"><span class="pre">read_HDF5_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/hdf5.html#read_HDF5_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.hdf5.read_HDF5_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read an HDF5 field file and convert it into a <a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">simba.Modules.Fields.field</span></code></a> object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the HDF5 field file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The name of the HDF5 file</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError:</strong> – if the <cite>cavity_type</cite> attribute is not in <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_cavities</span></code></p></li>
+<li><p><strong>KeyError:</strong> – if <cite>cavity_type==TravellingWave</cite> and all the required attributes are not defined in the file;
+     see <code class="xref py py-attr docutils literal notranslate"><span class="pre">tw_required_attrs</span></code></p></li>
+<li><p><strong>Warning:</strong> – if a given parameter in the field is not normalised to 1.0</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.hdf5.write_HDF5_field_file">
+<span class="sig-name descname"><span class="pre">write_HDF5_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/hdf5.html#write_HDF5_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.hdf5.write_HDF5_field_file" title="Link to this definition"></a></dt>
+<dd><p>Write the <a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">simba.Modules.Fields.field</span></code></a> object to an HDF5 file.
+All of the attributes of the class are read, and if they are defined and in the correct format,
+they are written to the file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object to be saved.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The name of the HDF5 file</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields.opal">
+<span id="simba-modules-fields-opal-module"></span><h2>simba.Modules.Fields.opal module<a class="headerlink" href="#module-simba.Modules.Fields.opal" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.opal.read_opal_field_file">
+<span class="sig-name descname"><span class="pre">read_opal_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cavity_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/opal.html#read_opal_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.opal.read_opal_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read an OPAL field file and convert it into a <a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">simba.Modules.Fields.field</span></code></a> object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object to be updated.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the OPAL field file</p></li>
+<li><p><strong>field_type</strong> (<em>str</em>) – The name of the field, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_fields</span></code></p></li>
+<li><p><strong>cavity_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of RF cavity, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_cavities</span></code></p></li>
+<li><p><strong>frequency</strong> (<em>float</em><em>, </em><em>optional</em>) – The frequency of the RF cavity.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>cavity_type</cite> is not provided</p></li>
+<li><p><strong>ValueError:</strong> – if the cavity <cite>field_type</cite> contains the string <cite>Electro</cite> and <cite>frequency</cite> is not provided</p></li>
+<li><p><strong>NotImplementedError:</strong> – if a given <cite>field_type</cite> is not implemented</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.opal.write_opal_field_file">
+<span class="sig-name descname"><span class="pre">write_opal_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourier</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/opal.html#write_opal_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.opal.write_opal_field_file" title="Link to this definition"></a></dt>
+<dd><p>Generate the field data in a format that is suitable for OPAL, based on the
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object provided.</p>
+<p>See the <a class="reference external" href="https://amas.web.psi.ch/opal/Documentation/master/OPAL_Manual.html">OPAL manual</a> for more details.</p>
+<p>This is then written to a text file.
+The <cite>field_type</cite> parameter determines the format of the file.</p>
+<p>A warning is raised if the field type is not supported (perhaps elevate to a <cite>NotImplementedError</cite>?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object</p></li>
+<li><p><strong>frequency</strong> (<em>float</em><em> | </em><em>None</em>) – The frequency of the field</p></li>
+<li><p><strong>radius</strong> (<em>float</em><em> | </em><em>None</em>) – The radius of the field, for 1D axially symmetric fields; defaults to 0.1</p></li>
+<li><p><strong>fourier</strong> (<em>int = 100</em>) – Number of fourier coefficients</p></li>
+<li><p><strong>orientation</strong> (<em>str</em><em> | </em><em>None</em>) – Orientation of the field (for 2D)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The name of the field file.
+Will return None if required parameters for certain fields are not provided.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str | None</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>Warning:</strong> – if too many or not enough fourier components are provided; will default to 1/100</p></li>
+<li><p><strong>Warning:</strong> – if the magnet radius is not provided; will default to 0.1</p></li>
+<li><p><strong>Warning:</strong> – if the RF frequency, radius or orientation is not provided for
+    <cite>1DElectroDynamic</cite> or <cite>2DElectrodynamic</cite>, return None</p></li>
+<li><p><strong>Warning:</strong> – if trying to use wakefields; these are tricky to get working with OPAL</p></li>
+<li><p><strong>Warning:</strong> – if a given <cite>field_type</cite> is not supported.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields.sdds">
+<span id="simba-modules-fields-sdds-module"></span><h2>simba.Modules.Fields.sdds module<a class="headerlink" href="#module-simba.Modules.Fields.sdds" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.sdds.read_SDDS_field_file">
+<span class="sig-name descname"><span class="pre">read_SDDS_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/sdds.html#read_SDDS_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.sdds.read_SDDS_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read an SDDS field file and convert it into a <a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">simba.Modules.Fields.field</span></code></a> object.
+Only works for wakefield files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object to be updated.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the SDDS field file</p></li>
+<li><p><strong>field_type</strong> (<em>str</em>) – The name of the field, see <code class="xref py py-attr docutils literal notranslate"><span class="pre">allowed_fields</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>NotImplementedError:</strong> – if a given <cite>field_type</cite> is not implemented</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Modules.Fields.sdds.write_SDDS_field_file">
+<span class="sig-name descname"><span class="pre">write_SDDS_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sddsindex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascii</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields/sdds.html#write_SDDS_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.sdds.write_SDDS_field_file" title="Link to this definition"></a></dt>
+<dd><p>Generate the field data in a format that is suitable for SDDS, based on the
+<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a> object provided.
+This is then written to an SDDS file.
+The <cite>field_type</cite> parameter determines the format of the file.</p>
+<p>A warning is raised if the field type is not supported (perhaps elevate to a <cite>NotImplementedError</cite>?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong> (<a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>) – The field object</p></li>
+<li><p><strong>sddsindex</strong> (<em>int</em>) – Must be provided for <code class="xref py py-class docutils literal notranslate"><span class="pre">SddsFile</span></code> class</p></li>
+<li><p><strong>ascii</strong> (<em>bool</em><em>, </em><em>optional</em>) – Convert to ascii?</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The name of the SDDS field file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-simba.Modules.Fields">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Modules.Fields" title="Link to this heading"></a></h2>
+<p>Simframe Fields Module</p>
+<p>This module defines the base class and utilities for representing electromagnetic fields,
+including RF structures, wakefields and magnets.</p>
+<p>Functions are provided to read in existing files, and to write them in the format
+required for specific codes.</p>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><a class="reference internal" href="#simba.Modules.Fields.field" title="simba.Modules.Fields.field"><code class="xref py py-class docutils literal notranslate"><span class="pre">field</span></code></a>: Generic field definition.</p></li>
+<li><p><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a>: Field parameter with a
+name and a <a class="reference internal" href="simba.Modules.html#simba.Modules.units.UnitValue" title="simba.Modules.units.UnitValue"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitValue</span></code></a> associated with it.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cavity_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ex</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ey</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ez</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Er</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Bx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">By</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Bz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Br</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Wx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Wy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Wz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Wr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">G</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><span class="pre">FieldParameter</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_cell_z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_cell_z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode_numerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode_denominator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_cells</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Base class for representing electromagnetic fields, including RF structures, wakefields,
+and magnets.
+This class provides methods to read and write field files in various formats,
+including ASTRA, SDDS, GDF, and OPAL.
+It also includes properties for accessing field parameters such as position, electric and
+magnetic fields, and wakefields.
+The class supports validation of field types and parameters, and allows for the
+initialization of field objects with specific attributes such as filename, field type,
+frequency, and cavity type.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Br">
+<span class="sig-name descname"><span class="pre">Br</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Br" title="Link to this definition"></a></dt>
+<dd><p>Radial magnetic field component.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Bx">
+<span class="sig-name descname"><span class="pre">Bx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Bx" title="Link to this definition"></a></dt>
+<dd><p>Magnetic field component in the X direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.By">
+<span class="sig-name descname"><span class="pre">By</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.By" title="Link to this definition"></a></dt>
+<dd><p>Magnetic field component in the Y direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Bz">
+<span class="sig-name descname"><span class="pre">Bz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Bz" title="Link to this definition"></a></dt>
+<dd><p>Magnetic field component in the Z direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Er">
+<span class="sig-name descname"><span class="pre">Er</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Er" title="Link to this definition"></a></dt>
+<dd><p>Radial electric field component.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Ex">
+<span class="sig-name descname"><span class="pre">Ex</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Ex" title="Link to this definition"></a></dt>
+<dd><p>Electric field component in the X direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Ey">
+<span class="sig-name descname"><span class="pre">Ey</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Ey" title="Link to this definition"></a></dt>
+<dd><p>Electric field component in the Y direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Ez">
+<span class="sig-name descname"><span class="pre">Ez</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Ez" title="Link to this definition"></a></dt>
+<dd><p>Electric field component in the Z direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.G">
+<span class="sig-name descname"><span class="pre">G</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.G" title="Link to this definition"></a></dt>
+<dd><p>Magnetic gradient.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Wr">
+<span class="sig-name descname"><span class="pre">Wr</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Wr" title="Link to this definition"></a></dt>
+<dd><p>Radial wakefield component.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Wx">
+<span class="sig-name descname"><span class="pre">Wx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Wx" title="Link to this definition"></a></dt>
+<dd><p>Wakefield component in the X direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Wy">
+<span class="sig-name descname"><span class="pre">Wy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Wy" title="Link to this definition"></a></dt>
+<dd><p>Wakefield component in the Y direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.Wz">
+<span class="sig-name descname"><span class="pre">Wz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.Wz" title="Link to this definition"></a></dt>
+<dd><p>Wakefield component in the Z direction.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.cavity_type">
+<span class="sig-name descname"><span class="pre">cavity_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'StandingWave'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'TravellingWave'</span></code><span class="pre">]]</span></em><a class="headerlink" href="#simba.Modules.Fields.field.cavity_type" title="Link to this definition"></a></dt>
+<dd><p>Type of the cavity, e.g., ‘StandingWave’, ‘TravellingWave’.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.end_cell_z">
+<span class="sig-name descname"><span class="pre">end_cell_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.end_cell_z" title="Link to this definition"></a></dt>
+<dd><p>Ending position of the cell in the Z direction, required for TravellingWave cavities.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.field_type">
+<span class="sig-name descname"><span class="pre">field_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'1DElectroStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'1DMagnetoStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'1DElectroDynamic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2DElectroStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2DMagnetoStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2DElectroDynamic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'3DElectroStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'3DMagnetoStatic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'3DElectroDynamic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'LongitudinalWake'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'TransverseWake'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'3DWake'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'1DQuadrupole'</span></code><span class="pre">]]</span></em><a class="headerlink" href="#simba.Modules.Fields.field.field_type" title="Link to this definition"></a></dt>
+<dd><p>Type of the field, e.g., ‘1DElectroStatic’, ‘1DMagnetoStatic’, etc.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.filename">
+<span class="sig-name descname"><span class="pre">filename</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.filename" title="Link to this definition"></a></dt>
+<dd><p>Filename of the field file.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.fourier">
+<span class="sig-name descname"><span class="pre">fourier</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.fourier" title="Link to this definition"></a></dt>
+<dd><p>Number of Fourier modes for the field, default is 100.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.frequency">
+<span class="sig-name descname"><span class="pre">frequency</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">int64</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.frequency" title="Link to this definition"></a></dt>
+<dd><p>Frequency of the field, if applicable.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.get_field_data">
+<span class="sig-name descname"><span class="pre">get_field_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">code</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field.get_field_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field.get_field_data" title="Link to this definition"></a></dt>
+<dd><p>Generate field data in a format suitable for the specified code.
+This method supports generating field data for ASTRA and Ocelot.
+If the field file has not been read in, it raises a warning and returns None.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>code</strong> (<em>str:</em>) – The code for which the field data is to be generated.
+Supported codes include ‘astra’ and ‘ocelot’.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The generated field data in the format required by the specified code,
+or None if the field file has not been read.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.length">
+<span class="sig-name descname"><span class="pre">length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.length" title="Link to this definition"></a></dt>
+<dd><p>Length of the field, if applicable.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.mode_denominator">
+<span class="sig-name descname"><span class="pre">mode_denominator</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.mode_denominator" title="Link to this definition"></a></dt>
+<dd><p>Denominator for the mode of the TravellingWave cavity.
+For TW linacs in ASTRA, the mode is 2π mode_numerator / mode_denominator</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.mode_numerator">
+<span class="sig-name descname"><span class="pre">mode_numerator</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.mode_numerator" title="Link to this definition"></a></dt>
+<dd><p>Numerator for the mode of the TravellingWave cavity.
+For TW linacs in ASTRA, the mode is 2π mode_numerator / mode_denominator</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.n_cells">
+<span class="sig-name descname"><span class="pre">n_cells</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.n_cells" title="Link to this definition"></a></dt>
+<dd><p>Number of cells in the field, if applicable.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.norm">
+<span class="sig-name descname"><span class="pre">norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.norm" title="Link to this definition"></a></dt>
+<dd><p>Normalization factor for the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.orientation">
+<span class="sig-name descname"><span class="pre">orientation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.orientation" title="Link to this definition"></a></dt>
+<dd><p>Orientation of the field, e.g., ‘horizontal’, ‘vertical’, etc.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.origin_code">
+<span class="sig-name descname"><span class="pre">origin_code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.origin_code" title="Link to this definition"></a></dt>
+<dd><p>Code that generated the field, e.g., ‘ASTRA’, ‘SDDS’, etc.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.r">
+<span class="sig-name descname"><span class="pre">r</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.r" title="Link to this definition"></a></dt>
+<dd><p>Radial position or coordinate of the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.radius">
+<span class="sig-name descname"><span class="pre">radius</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.radius" title="Link to this definition"></a></dt>
+<dd><p>Radius of the field, if applicable, defaults TO 10cm in write_opal_field_file.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.read">
+<span class="sig-name descname"><span class="pre">read</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.read" title="Link to this definition"></a></dt>
+<dd><p>Flag indicating whether the field file has been read.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.read_field_file">
+<span class="sig-name descname"><span class="pre">read_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cavity_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize_b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field.read_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field.read_field_file" title="Link to this definition"></a></dt>
+<dd><p>Read a field file and populate the field parameters based on the file type.
+This method supports various file formats including HDF5, ASTRA, SDDS, GDF, and OPAL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – The path to the field file to be read.</p></li>
+<li><p><strong>field_type</strong> (<em>fieldtype</em><em> | </em><em>None</em>) – The type of the field, e.g., ‘1DElectroStatic’, ‘1DMagnetoStatic’, etc.</p></li>
+<li><p><strong>cavity_type</strong> (<em>cavitytype</em><em> | </em><em>None</em>) – The type of the cavity, e.g., ‘StandingWave’, ‘TravellingWave’.</p></li>
+<li><p><strong>frequency</strong> (<em>float</em><em> | </em><em>None</em>) – The frequency of the field, if applicable.</p></li>
+<li><p><strong>normalize_b</strong> (<em>bool</em>) – Normalize Bx and By with respect to Bz (True by default)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The method modifies the field object in place, populating its parameters based on the file content.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.reset_dicts">
+<span class="sig-name descname"><span class="pre">reset_dicts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field.reset_dicts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field.reset_dicts" title="Link to this definition"></a></dt>
+<dd><p>Reset the field parameters to their default values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.start_cell_z">
+<span class="sig-name descname"><span class="pre">start_cell_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Modules.Fields.field.start_cell_z" title="Link to this definition"></a></dt>
+<dd><p>Starting position of the cell in the Z direction, required for TravellingWave cavities.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.t">
+<span class="sig-name descname"><span class="pre">t</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.t" title="Link to this definition"></a></dt>
+<dd><p>Time parameter of the field.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.t_values">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">t_values</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#simba.Modules.Fields.field.t_values" title="Link to this definition"></a></dt>
+<dd><p>Returns the time values of the field.
+If the Z parameter is set and time is not, it calculates time based on Z and speed of light.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of time values if available, otherwise None.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[float] | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.validate_fields">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">validate_fields</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field.validate_fields"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field.validate_fields" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.write_field_file">
+<span class="sig-name descname"><span class="pre">write_field_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Modules/Fields.html#field.write_field_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Modules.Fields.field.write_field_file" title="Link to this definition"></a></dt>
+<dd><p>Write the field data to a file in the format required by the specified code.
+This method supports writing field data for ASTRA, SDDS, GDF, and OPAL.
+If the field file has not been read in, it raises a warning and returns None.
+If a location is provided, it uses that as the base directory;
+otherwise, it defaults to the directory of the current field file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>code</strong> (<em>str:</em>) – The code for which the field data is to be written.
+Supported codes include ‘astra’, ‘sdds’, ‘opal’, and ‘gdf’.</p></li>
+<li><p><strong>location</strong> (<em>str</em><em> | </em><em>None:</em>) – Optional; if provided, it specifies the directory where the output file will be saved.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The path to the written field file, or None if the field file has not been read.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.x">
+<span class="sig-name descname"><span class="pre">x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.x" title="Link to this definition"></a></dt>
+<dd><p>X position or coordinate of the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.y">
+<span class="sig-name descname"><span class="pre">y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.y" title="Link to this definition"></a></dt>
+<dd><p>Y position or coordinate of the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.z">
+<span class="sig-name descname"><span class="pre">z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#simba.Modules.Fields.FieldParameter.FieldParameter" title="simba.Modules.Fields.FieldParameter.FieldParameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldParameter</span></code></a></em><a class="headerlink" href="#simba.Modules.Fields.field.z" title="Link to this definition"></a></dt>
+<dd><p>Z position or coordinate of the field.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Modules.Fields.field.z_values">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">z_values</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#simba.Modules.Fields.field.z_values" title="Link to this definition"></a></dt>
+<dd><p>Returns the Z values of the field.
+If the time parameter is set and Z is not, it calculates Z based on the time and speed of light.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of Z values if available, otherwise None.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[float] | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Modules.Beams.Particles.html" class="btn btn-neutral float-left" title="simba.Modules.Beams.Particles package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Modules.Matrices.html" class="btn btn-neutral float-right" title="simba.Modules.Matrices package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

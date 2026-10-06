@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.CSRTrack.CSRTrack &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.CSRTrack.CSRTrack</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.CSRTrack.CSRTrack</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SIMBA CSRTrack Module</span>
+
+<span class="sd">Various objects and functions to handle CSRTrack lattices and commands. See `CSRTrack manual`_ for more details.</span>
+
+<span class="sd">    .. _CSRTrack manual: https://www.desy.de/xfel-beam/csrtrack/files/CSRtrack_User_Guide_(actual).pdf</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrackLattice`: The CSRTrack lattice object, used for</span>
+<span class="sd">      converting the :class:`~simba.Framework_objects.frameworkLattice` into a string representation of</span>
+<span class="sd">      the lattice suitable for a CSRTrack input file.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Framework_objects</span><span class="w"> </span><span class="kn">import</span> <span class="n">frameworkLattice</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...FrameworkHelperFunctions</span><span class="w"> </span><span class="kn">import</span> <span class="n">saveFile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">laura.translator.converters.codes.csrtrack</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CsrTrackParticles</span><span class="p">,</span>
+    <span class="n">CsrTrackForces</span><span class="p">,</span>
+    <span class="n">CsrTrackTrackStep</span><span class="p">,</span>
+    <span class="n">CsrTrackTracker</span><span class="p">,</span>
+    <span class="n">CsrTrackMonitor</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="csrtrackLattice">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">csrtrackLattice</span><span class="p">(</span><span class="n">frameworkLattice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for defining the CSRTrack lattice object, used for</span>
+<span class="sd">    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the</span>
+<span class="sd">    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of</span>
+<span class="sd">    the lattice suitable for a CSRTrack input file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;csrtrack&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;String indicating the lattice object type&quot;&quot;&quot;</span>
+
+    <span class="n">particle_definition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;String representing the initial particle distribution&quot;&quot;&quot;</span>
+
+    <span class="n">CSRTrackelementObjects</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dictionary representing all CSRTrack object namelists&quot;&quot;&quot;</span>
+
+    <span class="n">csrtrack_headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_particles_filename</span><span class="p">()</span>
+
+<div class="viewcode-block" id="csrtrackLattice.set_particles_filename">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.set_particles_filename">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_particles_filename</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up the `CSRTrackelementObjects namelist for the initial particle distribution,</span>
+<span class="sd">        based on the `particle_definition` and the `global_parameters` of the lattice.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackParticles</span><span class="p">(</span>
+            <span class="n">particle_definition</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span><span class="p">,</span>
+            <span class="n">global_parameters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">,</span>
+            <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;astra&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">==</span> <span class="s2">&quot;initial_distribution&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="s2">&quot;laser.astra&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">array</span> <span class="o">=</span> <span class="s2">&quot;#file{</span><span class="se">\n</span><span class="s2">name=laser.astra</span><span class="se">\n</span><span class="s2">}&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">array</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;#file{</span><span class="se">\n</span><span class="s2">name=&quot;</span>
+                <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+                <span class="o">+</span> <span class="s2">&quot;.astra&quot;</span>
+                <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">}&quot;</span>
+            <span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dipoles_screens_and_bpms</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a list of the dipoles, screens and BPMs sorted by their position in the lattice</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        List</span>
+<span class="sd">            A sorted list of dipoles, screens and BPMs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;dipole&quot;</span><span class="p">)</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;screen&quot;</span><span class="p">)</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">getElementType</span><span class="p">(</span><span class="s2">&quot;beam_position_monitor&quot;</span><span class="p">),</span>
+            <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">position_end</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="csrtrackLattice.setCSRMode">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.setCSRMode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setCSRMode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up the `forces` key in `CSRTrackelementObjects based on the `csr_mode` defined in the settings</span>
+<span class="sd">        file for this lattice section. `csr_mode` can be either [&quot;csr_g_to_p&quot; (2D) or &quot;projected&quot; (1D)]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;csr&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span> <span class="ow">and</span> <span class="s2">&quot;csr_mode&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;csr&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;csr&quot;</span><span class="p">][</span><span class="s2">&quot;csr_mode&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;3D&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackForces</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;csr_g_to_p&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;csr&quot;</span><span class="p">][</span><span class="s2">&quot;csr_mode&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;1D&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackForces</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;projected&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">CSRTrackelementObjects</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackForces</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.writeElements">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.writeElements">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">writeElements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the lattice elements defined in this object into a CSRTrack-compatible format; see</span>
+<span class="sd">        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.</span>
+
+<span class="sd">        The appropriate headers required for ASTRA are written at the top of the file, see the `_write_CSRTrack`</span>
+<span class="sd">        function in :class:`~simba.Codes.CSRTrack.csrtrack_element`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            The lattice represented as a string compatible with CSRTrack</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_particles_filename</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setCSRMode</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;track_step&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackTrackStep</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;tracker&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackTracker</span><span class="p">(</span>
+            <span class="n">end_time_marker</span><span class="o">=</span><span class="s2">&quot;screen&quot;</span>
+            <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">screens</span><span class="p">))</span>
+            <span class="o">+</span> <span class="s2">&quot;a&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;monitor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">CsrTrackMonitor</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">+</span> <span class="s2">&quot;.fmt2&quot;</span><span class="p">,</span> <span class="n">global_parameters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">csrtrack_headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">to_csrtrack</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.write">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes the CSRTrack input file from :func:`~simba.Codes.CSRTrack.csrtrackLattice.writeElements`</span>
+<span class="sd">        to &lt;master_subdir&gt;/csrtrk.in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">code_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/csrtrk.in&quot;</span>
+        <span class="n">saveFile</span><span class="p">(</span><span class="n">code_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeElements</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.preProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.preProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">preProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the beam file from the previous lattice section into CSRTrack format and set the number of</span>
+<span class="sd">        particles based on the input distribution, see</span>
+<span class="sd">        :func:`~simba.Codes.CSRTrack.csrtrack_particles.hdf5_to_astra`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">preProcess</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prefix</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_input_file</span><span class="p">(</span>
+            <span class="n">prefix</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.astra&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hdf5_to_astra</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.hdf5_to_astra">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.hdf5_to_astra">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hdf5_to_astra</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert HDF5 particle distribution to ASTRA format, suitable for inputting to CSRTrack.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefix: str</span>
+<span class="sd">            Prefix for filename</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">astrabeamfilename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;particles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">+</span> <span class="s2">&quot;.astra&quot;</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">astra</span><span class="o">.</span><span class="n">write_astra_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">astrabeamfilename</span><span class="p">,</span>
+            <span class="n">normaliseZ</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">astrabeamfilename</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the beam file from the CSRTrack output into HDF5 format, see</span>
+<span class="sd">        :func:`~simba.Codes.CSRTrack.csrtrack_monitor.csrtrack_to_hdf5`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">postProcess</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_to_hdf5</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="csrtrackLattice.csrtrack_to_hdf5">
+<a class="viewcode-back" href="../../../../simba.Codes.CSRTrack.html#simba.Codes.CSRTrack.CSRTrack.csrtrackLattice.csrtrack_to_hdf5">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">csrtrack_to_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the particle distribution from a CSRTrack monitor into HDF5 format,</span>
+<span class="sd">        and write it to `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">csrtrackbeamfilename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrtrack_headers</span><span class="p">[</span><span class="s2">&quot;monitor&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">astrabeamfilename</span> <span class="o">=</span> <span class="n">csrtrackbeamfilename</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.fmt2&quot;</span><span class="p">,</span> <span class="s2">&quot;.astra&quot;</span><span class="p">)</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">astra</span><span class="o">.</span><span class="n">convert_csrtrackfile_to_astrafile</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">csrtrackbeamfilename</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">astrabeamfilename</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">astra</span><span class="o">.</span><span class="n">read_astra_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">astrabeamfilename</span><span class="p">,</span>
+            <span class="n">normaliseZ</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">HDF5filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.openpmd.hdf5&quot;</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">HDF5filename</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

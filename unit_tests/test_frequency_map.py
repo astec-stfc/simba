@@ -55,7 +55,12 @@ def test_bmad_can_too_by_the_other_route():
     cannot.
 
     So the grid is written as an explicit particle file and tracked a turn
-    at a time, feeding the bunch back with `set beam beginning = END`.
+    at a time, feeding the bunch back by rewriting that file.
+
+    This test only says the capability is claimed. Whether the turns
+    actually advance is a different question, and asserting the flag while
+    the loop did nothing is how that went unnoticed for a release; it is
+    measured in `test_bmad_turn_handback.py`.
     """
     from simba.Codes.Bmad.Bmad import bmadLattice
 

@@ -7,9 +7,9 @@ Various objects and functions to handle OCELOT lattices and commands. See `Ocelo
 
 Classes:
     - :class:`~simba.Codes.Ocelot.Ocelot.ocelotLattice`: The Ocelot lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into an Ocelot lattice object,
+      and for tracking through it.
 
 """
 
@@ -17,7 +17,7 @@ from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from copy import deepcopy
-from numpy import array, linspace, save, interp, searchsorted, clip, mean
+from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi
 import os
 from yaml import safe_load
 
@@ -27,8 +27,14 @@ with open(
 ) as infile:
     oceglobal = safe_load(infile)
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import Dict, List, Any, ClassVar
+from typing import Dict, List, Any, ClassVar, TYPE_CHECKING
 from warnings import warn
+
+if TYPE_CHECKING:
+    from ocelot.cpbd.beam import Twiss
+    from ocelot.cpbd.navi import Navigator
+    from ocelot.cpbd.physics_proc import BeamTransform
+    from ocelot.cpbd.sc import LSC, SpaceCharge
 
 
 class ocelotLattice(frameworkLattice):
@@ -62,6 +68,10 @@ class ocelotLattice(frameworkLattice):
     supports_dynamic_aperture: ClassVar[bool] = True
     """Using ``cpbd.track.track_nturns``."""
 
+    supports_nsuperperiods: ClassVar[bool] = True
+    """``track_nturns`` takes ``nsuperperiods`` directly, and the bunch loop
+    in :meth:`run` repeats the sector itself."""
+
     supports_radiation: ClassVar[bool] = True
     """``cpbd.physics_proc.SpontanRadEffects`` with ``type="dipole"``, one per
     bend; see :meth:`physproc_radiation`."""
@@ -69,6 +79,9 @@ class ocelotLattice(frameworkLattice):
     supports_periodic: ClassVar[bool] = True
     """``cpbd.optics.twiss`` with ``tws0=None``, which defers to
     ``lattice.periodic_twiss``."""
+
+    supports_programs: ClassVar[bool] = True
+    """By setting the attribute on the sequence element between turns."""
 
     otm_convention: ClassVar[str] = "x, xp, y, yp, tau, p"
     """One-turn map convention"""
@@ -163,6 +176,13 @@ class ocelotLattice(frameworkLattice):
     ref_idx: int = None
     """Reference particle index"""
 
+    _s_values: Dict | None = None
+    """Cached :meth:`section.get_s_values`, both ends, for
+    :attr:`_s_values_section`. See :meth:`section_s_values`."""
+
+    _s_values_section: Any = None
+    """The section :attr:`_s_values` was computed for."""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.oceglobal = (
@@ -192,6 +212,35 @@ class ocelotLattice(frameworkLattice):
         else:
             self.particle_definition = self.start
         self.grids = getGrids()
+
+    def section_s_values(self, at_entrance: bool) -> Dict:
+        """
+        ``section.get_s_values``, computed once per section.
+        :meth:`navi_setup` runs once a turn per superperiod and asks for
+        both ends every time.
+
+        Keyed on the section object:
+        :attr:`section` rebuilds itself when ``start``/``end`` change, and
+        a new object misses the cache on its own.
+
+        Parameters
+        ----------
+        at_entrance: bool
+            Whether to measure each element at its entrance or its exit.
+
+        Returns
+        -------
+        Dict
+            Element name to s position.
+        """
+        section = self.section
+        if self._s_values_section is not section:
+            self._s_values_section = section
+            self._s_values = {
+                end: section.get_s_values(as_dict=True, at_entrance=end)
+                for end in (True, False)
+            }
+        return self._s_values[at_entrance]
 
     def writeElements(self) -> None:
         """
@@ -247,6 +296,39 @@ class ocelotLattice(frameworkLattice):
             s_start=self.ref_s
         )
 
+    def apply_programs(self, turn: int) -> None:
+        """
+        Set each programmed element's attribute for `turn`; see
+        :attr:`supports_programs`.
+        ``angle`` is the default attribute but is can be overridden
+        by ``program.parameter`` if it is in :attr:`programs`.
+
+        Parameters
+        ----------
+        turn: int
+            Turn number, 1-based
+        """
+        for program in self.programs:
+            matches = [e for e in self.lat_obj.sequence if str(e.id) == program.element]
+            if not matches:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}', "
+                    "which is not in the Ocelot lattice. Nothing is varied."
+                )
+                continue
+            value = program.value_at(turn)
+            for element in matches:
+                attribute = program.parameter or "angle"
+                if not hasattr(element, attribute):
+                    warn(
+                        f"Line '{self.objectname}' programs '{program.element}', "
+                        f"an Ocelot {type(element).__name__}, which has no "
+                        f"'{attribute}' to set. Name the attribute with "
+                        "'parameter:' in the program."
+                    )
+                    continue
+                setattr(element, attribute, value)
+
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
@@ -258,18 +340,22 @@ class ocelotLattice(frameworkLattice):
         wanted = dict(self.output_turns())
         for turn in range(1, self.turns + 1):
             key = turn if self.turns > 1 else None
-            navi = self.navi_setup(
-                turn=wanted.get(key), write_beams=key in wanted
-            )
-            navi.go_to_start()
-            self.tws, self.pout = track(
-                self.lat_obj,
-                pin,
-                navi=navi,
-                calc_tws=True,
-                twiss_disp_correction=False,
-            )
-            pin = self.pout
+            self.apply_programs(turn)
+            for sector in range(1, self.nsuperperiods + 1):
+                navi = self.navi_setup(
+                    turn=wanted.get(key),
+                    write_beams=sector == self.nsuperperiods and key in wanted,
+                    beam_turn=turn,
+                )
+                navi.go_to_start()
+                self.tws, self.pout = track(
+                    self.lat_obj,
+                    pin,
+                    navi=navi,
+                    calc_tws=True,
+                    twiss_disp_correction=False,
+                )
+                pin = self.pout
         if self.periodic:
             self.tws = self._periodic_twiss()
 
@@ -417,6 +503,7 @@ class ocelotLattice(frameworkLattice):
             self.lat_obj,
             self.turns,
             track_list,
+            nsuperperiods=self.nsuperperiods,
             save_track=True,
             print_progress=False,
         )
@@ -465,6 +552,7 @@ class ocelotLattice(frameworkLattice):
             self.lat_obj,
             self.turns,
             track_list,
+            nsuperperiods=self.nsuperperiods,
             save_track=False,
             print_progress=False,
         )
@@ -490,7 +578,12 @@ class ocelotLattice(frameworkLattice):
             [orbit[0] + nudge], [orbit[2] + nudge], [0.0], energy=energy_gev
         )
         track_list = track_nturns(
-            self.lat_obj, self.turns, track_list, save_track=True, print_progress=False
+            self.lat_obj,
+            self.turns,
+            track_list,
+            nsuperperiods=self.nsuperperiods,
+            save_track=True,
+            print_progress=False,
         )
         if not len(track_list) or len(track_list[0].p_list) < 2:
             warn(
@@ -498,7 +591,7 @@ class ocelotLattice(frameworkLattice):
                 "survive, so there is no trajectory."
             )
             return {}
-        record = track_list[0].p_list
+        record = track_list[0].p_list[1:]
         return {
             name: array([step[index] for step in record])
             for index, name in enumerate(("x", "px", "y", "py"))
@@ -551,16 +644,24 @@ class ocelotLattice(frameworkLattice):
         return out
 
     def navi_setup(
-        self, turn: int | None = None, write_beams: bool = True
+        self,
+        turn: int | None = None,
+        write_beams: bool = True,
+        beam_turn: int | None = None,
     ) -> "Navigator":
         """
         Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
 
-        ``turn`` is passed to :meth:`output_basename` for the ``SaveBeamOpenPMD``
-        processes, so each turn of a multi-turn run writes its own files rather
-        than overwriting the last. The navigator is rebuilt per turn.
-
         .. _Navigator: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/navi.py
+
+        Parameters
+        ----------
+        turn: int, optional
+            Number of turns; passed to :meth:`output_basename` for saving beams
+        write_beams: bool, optional
+            Whether to write beam files at each turn
+        beam_turn: int, optional
+            The turn the beam is on
 
         Returns
         -------
@@ -654,8 +755,8 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
-        sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
-        sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
+        sval_in = self.section_s_values(at_entrance=True)
+        sval_out = self.section_s_values(at_entrance=False)
         for bend, loc, radius in self.physproc_radiation():
             navi_processes += [bend]
             navi_locations_start += [loc]
@@ -675,6 +776,7 @@ class ocelotLattice(frameworkLattice):
                     zstart=w.physical.start.z,
                     sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
+                    beam_turn=beam_turn,
                 )
             ]
             navi_locations_start += [loc]
@@ -693,6 +795,7 @@ class ocelotLattice(frameworkLattice):
                     zstart=self.endObject.physical.end.z,
                     sstart=self.entrance_s + sval_out[self.end],
                     ref_idx=self.ref_idx,
+                    beam_turn=beam_turn,
                 )
             ]
             navi_locations_start += [loc]
@@ -706,7 +809,7 @@ class ocelotLattice(frameworkLattice):
         """
         Get an Ocelot `LSC`_ physics process
 
-        .. LSC: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/sc.py
+        .. _LSC: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/sc.py
 
         Returns
         -------
@@ -829,7 +932,7 @@ class ocelotLattice(frameworkLattice):
         """
         Get an Ocelot `BeamTransform`_ physics process based on the wakefield provided.
 
-        .. _Wake: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/physproc.py
+        .. _BeamTransform: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/physproc.py
 
         Parameters
         ----------

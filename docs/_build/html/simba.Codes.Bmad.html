@@ -1,0 +1,491 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Bmad package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Codes.CSRTrack package" href="simba.Codes.CSRTrack.html" />
+    <link rel="prev" title="simba.Codes.ASTRA package" href="simba.Codes.ASTRA.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Codes.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.ASTRA.html">simba.Codes.ASTRA package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Codes.Bmad package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Bmad.Bmad">simba.Codes.Bmad.Bmad module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Bmad">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.CSRTrack.html">simba.Codes.CSRTrack package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Cheetah.html">simba.Codes.Cheetah package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Elegant.html">simba.Codes.Elegant package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.GPT.html">simba.Codes.GPT package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Generators.html">simba.Codes.Generators package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Genesis.html">simba.Codes.Genesis package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.MADX.html">simba.Codes.MADX package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.OPAL.html">simba.Codes.OPAL package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Ocelot.html">simba.Codes.Ocelot package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Wake_T.html">simba.Codes.Wake_T package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Xsuite.html">simba.Codes.Xsuite package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes.Executables">simba.Codes.Executables module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Codes.html">simba.Codes package</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Bmad package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Codes.Bmad.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-codes-bmad-package">
+<h1>simba.Codes.Bmad package<a class="headerlink" href="#simba-codes-bmad-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Codes.Bmad.Bmad">
+<span id="simba-codes-bmad-bmad-module"></span><h2>simba.Codes.Bmad.Bmad module<a class="headerlink" href="#module-simba.Codes.Bmad.Bmad" title="Link to this heading"></a></h2>
+<p>SIMBA Bmad Module</p>
+<p>Various objects and functions to handle Bmad lattices and commands. See <a class="reference external" href="https://www.classe.cornell.edu/bmad/manual.html">Bmad manual</a>
+and <a class="reference external" href="https://www.classe.cornell.edu/bmad/tao.html">Tao manual</a> for more details.</p>
+<blockquote>
+<div></div></blockquote>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><a class="reference internal" href="#simba.Codes.Bmad.Bmad.bmadLattice" title="simba.Codes.Bmad.Bmad.bmadLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">bmadLattice</span></code></a>: The Bmad lattice object, used for
+converting the <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkObject" title="simba.Framework_objects.frameworkObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkObject</span></code></a> s defined in the
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a> into a Bmad lattice,
+and for tracking through it using PyTao.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py data">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.BEAM_TWISS">
+<span class="sig-name descname"><span class="pre">BEAM_TWISS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'beam_alpha_a':</span> <span class="pre">'twiss_alpha_a',</span> <span class="pre">'beam_alpha_b':</span> <span class="pre">'twiss_alpha_b',</span> <span class="pre">'beam_alpha_x':</span> <span class="pre">'twiss_alpha_x',</span> <span class="pre">'beam_alpha_y':</span> <span class="pre">'twiss_alpha_y',</span> <span class="pre">'beam_alpha_z':</span> <span class="pre">'twiss_alpha_z',</span> <span class="pre">'beam_beta_a':</span> <span class="pre">'twiss_beta_a',</span> <span class="pre">'beam_beta_b':</span> <span class="pre">'twiss_beta_b',</span> <span class="pre">'beam_beta_x':</span> <span class="pre">'twiss_beta_x',</span> <span class="pre">'beam_beta_y':</span> <span class="pre">'twiss_beta_y',</span> <span class="pre">'beam_beta_z':</span> <span class="pre">'twiss_beta_z',</span> <span class="pre">'beam_charge':</span> <span class="pre">'charge_live',</span> <span class="pre">'beam_delta':</span> <span class="pre">'centroid_vec_6',</span> <span class="pre">'beam_emit_x':</span> <span class="pre">'twiss_emit_x',</span> <span class="pre">'beam_emit_y':</span> <span class="pre">'twiss_emit_y',</span> <span class="pre">'beam_emit_z':</span> <span class="pre">'twiss_emit_z',</span> <span class="pre">'beam_eta_x':</span> <span class="pre">'twiss_eta_x',</span> <span class="pre">'beam_eta_y':</span> <span class="pre">'twiss_eta_y',</span> <span class="pre">'beam_etap_x':</span> <span class="pre">'twiss_etap_x',</span> <span class="pre">'beam_etap_y':</span> <span class="pre">'twiss_etap_y',</span> <span class="pre">'beam_gamma_x':</span> <span class="pre">'twiss_gamma_x',</span> <span class="pre">'beam_gamma_y':</span> <span class="pre">'twiss_gamma_y',</span> <span class="pre">'beam_gamma_z':</span> <span class="pre">'twiss_gamma_z',</span> <span class="pre">'beam_n_particle':</span> <span class="pre">'n_particle_live',</span> <span class="pre">'beam_norm_emit_a':</span> <span class="pre">'twiss_norm_emit_a',</span> <span class="pre">'beam_norm_emit_b':</span> <span class="pre">'twiss_norm_emit_b',</span> <span class="pre">'beam_norm_emit_x':</span> <span class="pre">'twiss_norm_emit_x',</span> <span class="pre">'beam_norm_emit_y':</span> <span class="pre">'twiss_norm_emit_y',</span> <span class="pre">'beam_norm_emit_z':</span> <span class="pre">'twiss_norm_emit_z',</span> <span class="pre">'beam_p0c':</span> <span class="pre">'centroid_p0c',</span> <span class="pre">'beam_sigma_delta':</span> <span class="pre">'twiss_sigma_p_z',</span> <span class="pre">'beam_sigma_t':</span> <span class="pre">'sigma_t',</span> <span class="pre">'beam_sigma_x':</span> <span class="pre">'twiss_sigma_x',</span> <span class="pre">'beam_sigma_xp':</span> <span class="pre">'twiss_sigma_p_x',</span> <span class="pre">'beam_sigma_y':</span> <span class="pre">'twiss_sigma_y',</span> <span class="pre">'beam_sigma_yp':</span> <span class="pre">'twiss_sigma_p_y',</span> <span class="pre">'beam_sigma_z':</span> <span class="pre">'twiss_sigma_z',</span> <span class="pre">'beam_t':</span> <span class="pre">'centroid_t',</span> <span class="pre">'beam_x':</span> <span class="pre">'centroid_vec_1',</span> <span class="pre">'beam_y':</span> <span class="pre">'centroid_vec_3'}</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.BEAM_TWISS" title="Link to this definition"></a></dt>
+<dd><p>Bunch parameters to extract from Tao, keyed by their name in the twiss file</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.LATTICE_TWISS">
+<span class="sig-name descname"><span class="pre">LATTICE_TWISS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'design_alpha_x':</span> <span class="pre">'ele.a.alpha',</span> <span class="pre">'design_alpha_y':</span> <span class="pre">'ele.b.alpha',</span> <span class="pre">'design_beta_x':</span> <span class="pre">'ele.a.beta',</span> <span class="pre">'design_beta_y':</span> <span class="pre">'ele.b.beta',</span> <span class="pre">'design_eta_x':</span> <span class="pre">'ele.x.eta',</span> <span class="pre">'design_eta_y':</span> <span class="pre">'ele.y.eta',</span> <span class="pre">'design_etap_x':</span> <span class="pre">'ele.x.etap',</span> <span class="pre">'design_etap_y':</span> <span class="pre">'ele.y.etap',</span> <span class="pre">'design_gamma_x':</span> <span class="pre">'ele.a.gamma',</span> <span class="pre">'design_gamma_y':</span> <span class="pre">'ele.b.gamma',</span> <span class="pre">'e_tot':</span> <span class="pre">'ele.e_tot',</span> <span class="pre">'mu_x':</span> <span class="pre">'ele.a.phi',</span> <span class="pre">'mu_y':</span> <span class="pre">'ele.b.phi',</span> <span class="pre">'p0c':</span> <span class="pre">'ele.p0c',</span> <span class="pre">'s':</span> <span class="pre">'ele.s'}</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.LATTICE_TWISS" title="Link to this definition"></a></dt>
+<dd><p>Lattice functions to extract from Tao, keyed by their name in the twiss file</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bmadLattice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a></p>
+<p>Class for defining the Bmad lattice object, used for
+converting the <code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code> into a Bmad lattice,
+and for tracking through it using PyTao.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.apply_programs">
+<span class="sig-name descname"><span class="pre">apply_programs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">turn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.apply_programs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.apply_programs" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">element</span></code> each programmed element’s attribute for <cite>turn</cite>.</p>
+<p>Called from inside the Tao turn loops, which are the only place
+Bmad tracks a line more than once here.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>turn</strong> (<em>int</em>) – Turn number, 1-based</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.chromaticity_delta">
+<span class="sig-name descname"><span class="pre">chromaticity_delta</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.chromaticity_delta" title="Link to this definition"></a></dt>
+<dd><p>Momentum step for the Bmad chromaticity finite difference. Matches
+Tao’s own <code class="docutils literal notranslate"><span class="pre">delta_e_chrom</span></code> default.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.code">
+<span class="sig-name descname"><span class="pre">code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.code" title="Link to this definition"></a></dt>
+<dd><p>String indicating the lattice type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.input_beam_file">
+<span class="sig-name descname"><span class="pre">input_beam_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.input_beam_file" title="Link to this definition"></a></dt>
+<dd><p>Input beam file name</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.lattice_file">
+<span class="sig-name descname"><span class="pre">lattice_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.lattice_file" title="Link to this definition"></a></dt>
+<dd><p>Lattice file name</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.libtao">
+<span class="sig-name descname"><span class="pre">libtao</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.libtao" title="Link to this definition"></a></dt>
+<dd><p>Location of libtao.so</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.otm_convention">
+<span class="sig-name descname"><span class="pre">otm_convention</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'x,</span> <span class="pre">px,</span> <span class="pre">y,</span> <span class="pre">py,</span> <span class="pre">z,</span> <span class="pre">pz'</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.otm_convention" title="Link to this definition"></a></dt>
+<dd><p>One-turn map convention.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.otm_longitudinal_scale">
+<span class="sig-name descname"><span class="pre">otm_longitudinal_scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.otm_longitudinal_scale" title="Link to this definition"></a></dt>
+<dd><p>this is the convention the others convert to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Canonical by definition</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.otm_longitudinal_sign">
+<span class="sig-name descname"><span class="pre">otm_longitudinal_sign</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.otm_longitudinal_sign" title="Link to this definition"></a></dt>
+<dd><p>One-turn map longitudinal sign (i.e. R56)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.particle_definition">
+<span class="sig-name descname"><span class="pre">particle_definition</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.particle_definition" title="Link to this definition"></a></dt>
+<dd><p>Initial particle distribution as a string</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the outputs from Bmad and save them to <cite>master_subdir</cite>,
+and the twiss parameters along the lattice in HDF5 format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.preProcess">
+<span class="sig-name descname"><span class="pre">preProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.preProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.preProcess" title="Link to this definition"></a></dt>
+<dd><p>Get the initial particle distribution defined in <cite>file_block[‘input’][‘prefix’]</cite> if it exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.program_attributes">
+<span class="sig-name descname"><span class="pre">program_attributes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'ac_kicker':</span> <span class="pre">('bl_hkick',</span> <span class="pre">'bl_vkick'),</span> <span class="pre">'hkicker':</span> <span class="pre">('kick',</span> <span class="pre">'kick'),</span> <span class="pre">'kicker':</span> <span class="pre">('hkick',</span> <span class="pre">'vkick'),</span> <span class="pre">'vkicker':</span> <span class="pre">('kick',</span> <span class="pre">'kick')}</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.program_attributes" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">(horizontal,</span> <span class="pre">vertical)</span></code> Bmad attribute an unqualified program
+sets, per element type.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.radiates_by_default">
+<span class="sig-name descname"><span class="pre">radiates_by_default</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.radiates_by_default" title="Link to this definition"></a></dt>
+<dd><p>Flag to state that Bmad radiates by default (based on LAURA).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.read_closed_orbit">
+<span class="sig-name descname"><span class="pre">read_closed_orbit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.read_closed_orbit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.read_closed_orbit" title="Link to this definition"></a></dt>
+<dd><p>Tao’s <code class="docutils literal notranslate"><span class="pre">orbit.vec.N</span></code> at the start of the lattice.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.read_one_turn_map">
+<span class="sig-name descname"><span class="pre">read_one_turn_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.read_one_turn_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.read_one_turn_map" title="Link to this definition"></a></dt>
+<dd><p>Tao’s <code class="docutils literal notranslate"><span class="pre">matrix</span></code> with the same element at both ends.</p>
+<p>Tao documents that as the one-turn map, which only means anything on
+a <code class="docutils literal notranslate"><span class="pre">geometry</span> <span class="pre">=</span> <span class="pre">closed</span></code> lattice – the condition
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.periodic" title="simba.Framework_objects.frameworkLattice.periodic"><code class="xref py py-meth docutils literal notranslate"><span class="pre">periodic()</span></code></a> already
+gates on.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The 6x6 <code class="docutils literal notranslate"><span class="pre">mat6</span></code>, or None if Tao gave nothing back.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy.ndarray | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.read_optics_summary">
+<span class="sig-name descname"><span class="pre">read_optics_summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.read_optics_summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.read_optics_summary" title="Link to this definition"></a></dt>
+<dd><p>Tune and chromaticity from Tao.</p>
+<p>Chromaticity is <code class="docutils literal notranslate"><span class="pre">dQ/ddelta</span></code>, so it is measured the way it is
+defined: shift the closed orbit to <code class="docutils literal notranslate"><span class="pre">+/-</span> <span class="pre">delta</span></code> with
+<code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">particle_start</span> <span class="pre">pz</span></code> and difference the tunes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.ref_idx">
+<span class="sig-name descname"><span class="pre">ref_idx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.ref_idx" title="Link to this definition"></a></dt>
+<dd><p>Reference particle index</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.ref_s">
+<span class="sig-name descname"><span class="pre">ref_s</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.ref_s" title="Link to this definition"></a></dt>
+<dd><p>S position at the start of the lattice</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.run" title="Link to this definition"></a></dt>
+<dd><p>Run the code via PyTao.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.run_dynamic_aperture">
+<span class="sig-name descname"><span class="pre">run_dynamic_aperture</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.run_dynamic_aperture"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.run_dynamic_aperture" title="Link to this definition"></a></dt>
+<dd><p>Tao’s dynamic-aperture scan, read back through the raw pipe.
+Needs lattice apertures to work.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y,</span> <span class="pre">turns_survived)</span></code> along the aperture boundary. As with
+elegant this is a boundary rather than a survival grid, so the
+turn count is <code class="xref py py-meth docutils literal notranslate"><span class="pre">turns()</span></code> for every point on it.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.run_frequency_map">
+<span class="sig-name descname"><span class="pre">run_frequency_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.run_frequency_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.run_frequency_map" title="Link to this definition"></a></dt>
+<dd><p>Tune footprint by tracking the grid turn by turn through Tao.</p>
+<p>Track one turn, read the bunch at <code class="docutils literal notranslate"><span class="pre">END</span></code>, write it back into
+<code class="docutils literal notranslate"><span class="pre">beam_init%position_file</span></code> and repeat; see
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_track_grid_turn_by_turn()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y,</span> <span class="pre">tune_x,</span> <span class="pre">tune_y,</span> <span class="pre">diffusion)</span></code> per surviving grid point.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.space_charge_n_bin">
+<span class="sig-name descname"><span class="pre">space_charge_n_bin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.space_charge_n_bin" title="Link to this definition"></a></dt>
+<dd><p>Number of space-charge bins</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.supports_dynamic_aperture">
+<span class="sig-name descname"><span class="pre">supports_dynamic_aperture</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.supports_dynamic_aperture" title="Link to this definition"></a></dt>
+<dd><p>Tao’s own scan, configured by a <code class="docutils literal notranslate"><span class="pre">&amp;tao_dynamic_aperture</span></code> namelist in
+the init file; see <code class="xref py py-meth docutils literal notranslate"><span class="pre">_tao_dynamic_aperture_namelist()</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.supports_frequency_map">
+<span class="sig-name descname"><span class="pre">supports_frequency_map</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.supports_frequency_map" title="Link to this definition"></a></dt>
+<dd><p>By tracking the grid a turn at a time and feeding the bunch back
+through <code class="docutils literal notranslate"><span class="pre">beam_init%position_file</span></code>; see
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_track_grid_turn_by_turn()</span></code>, which records why the hand-back cannot
+go through <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">beam</span> <span class="pre">beginning</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.supports_periodic">
+<span class="sig-name descname"><span class="pre">supports_periodic</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.supports_periodic" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">parameter[geometry]</span> <span class="pre">=</span> <span class="pre">closed</span></code>, which LAURA writes from the section’s
+own <code class="docutils literal notranslate"><span class="pre">geometry</span></code>; Bmad then takes the Twiss from the one-turn map.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.supports_programs">
+<span class="sig-name descname"><span class="pre">supports_programs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.supports_programs" title="Link to this definition"></a></dt>
+<dd><p>By <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">element</span></code> inside the Tao turn loops; see <a class="reference internal" href="#simba.Codes.Bmad.Bmad.bmadLattice.apply_programs" title="simba.Codes.Bmad.Bmad.bmadLattice.apply_programs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_programs()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.supports_radiation">
+<span class="sig-name descname"><span class="pre">supports_radiation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.supports_radiation" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">bmad_com[radiation_damping_on]</span></code> and <code class="docutils literal notranslate"><span class="pre">[radiation_fluctuations_on]</span></code>,
+which LAURA writes from the section’s own <code class="docutils literal notranslate"><span class="pre">sr_enable</span></code>/<code class="docutils literal notranslate"><span class="pre">isr_enable</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.tao">
+<span class="sig-name descname"><span class="pre">tao</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.tao" title="Link to this definition"></a></dt>
+<dd><p>PyTao instance</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.tao_init_file">
+<span class="sig-name descname"><span class="pre">tao_init_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.tao_init_file" title="Link to this definition"></a></dt>
+<dd><p>Tao initialization file name</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.track_reference_particle">
+<span class="sig-name descname"><span class="pre">track_reference_particle</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.track_reference_particle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.track_reference_particle" title="Link to this definition"></a></dt>
+<dd><p>One particle, recorded every turn, through the same beam loop the
+frequency map uses.</p>
+<p>Reuses <a class="reference internal" href="#simba.Codes.Bmad.Bmad.bmadLattice.run_frequency_map" title="simba.Codes.Bmad.Bmad.bmadLattice.run_frequency_map"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_frequency_map()</span></code></a>’s machinery with a one-point grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Bmad.Bmad.bmadLattice.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Bmad/Bmad.html#bmadLattice.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Bmad.Bmad.bmadLattice.write" title="Link to this definition"></a></dt>
+<dd><p>Create the lattice file using the LAURA <code class="docutils literal notranslate"><span class="pre">SectionLatticeTranslator</span></code>
+and save it to <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.Bmad">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Codes.Bmad" title="Link to this heading"></a></h2>
+<p>Bmad backend.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Codes.ASTRA.html" class="btn btn-neutral float-left" title="simba.Codes.ASTRA package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Codes.CSRTrack.html" class="btn btn-neutral float-right" title="simba.Codes.CSRTrack package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

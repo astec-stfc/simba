@@ -1,0 +1,463 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Beams.astra &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../Beams.html">simba.Modules.Beams</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Beams.astra</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Beams.astra</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+
+
+<div class="viewcode-block" id="read_csv_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.read_csv_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_csv_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">line</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span>
+                    <span class="n">f</span><span class="p">,</span>
+                    <span class="n">delimiter</span><span class="o">=</span><span class="n">delimiter</span><span class="p">,</span>
+                    <span class="n">quoting</span><span class="o">=</span><span class="n">csv</span><span class="o">.</span><span class="n">QUOTE_NONNUMERIC</span><span class="p">,</span>
+                    <span class="n">skipinitialspace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+
+<div class="viewcode-block" id="write_csv_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.write_csv_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_csv_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span>
+                <span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">quoting</span><span class="o">=</span><span class="n">csv</span><span class="o">.</span><span class="n">QUOTE_NONNUMERIC</span><span class="p">,</span> <span class="n">skipinitialspace</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="p">[</span><span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span>
+                <span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">quoting</span><span class="o">=</span><span class="n">csv</span><span class="o">.</span><span class="n">QUOTE_NONNUMERIC</span><span class="p">,</span> <span class="n">skipinitialspace</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="p">[</span><span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="read_astra_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.read_astra_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_astra_beam_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">normaliseZ</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">keepLost</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">read_csv_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+    <span class="n">interpret_astra_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">normaliseZ</span><span class="o">=</span><span class="n">normaliseZ</span><span class="p">,</span> <span class="n">keepLost</span><span class="o">=</span><span class="n">keepLost</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="interpret_astra_data">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.interpret_astra_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">interpret_astra_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">normaliseZ</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">keepLost</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">keepLost</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">cpx</span><span class="p">,</span> <span class="n">cpy</span><span class="p">,</span> <span class="n">cpz</span><span class="p">,</span> <span class="n">clock</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">zref</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># s-position of the beam is the z-position of the reference-particle (!)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">zref</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;ASTRA&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle_index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">toffset</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="mf">1e-9</span> <span class="o">*</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">6</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;z&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_reference</span> <span class="o">=</span> <span class="s2">&quot;z&quot;</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_to_ref_particle</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">cpz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_to_ref_particle</span><span class="p">(</span><span class="n">cpz</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">clock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_to_ref_particle</span><span class="p">(</span><span class="n">clock</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">pz</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpz</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">clock</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="mf">1.0e-9</span> <span class="o">*</span> <span class="n">clock</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="mf">1.0e-9</span> <span class="o">*</span> <span class="n">charge</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_index</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">index</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg&quot;</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;J&quot;</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy_eV</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">charge_sign_index</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">index</span><span class="p">],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># print self.Bz</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="p">(</span>
+                <span class="n">clock</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="k">else</span> <span class="p">((</span><span class="n">z</span> <span class="o">-</span> <span class="n">zref</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">))</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">status</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">Bz</span><span class="p">,</span> <span class="n">clock</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bz</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">clock</span>
+            <span class="p">)</span>
+        <span class="p">],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># self._beam[&#39;t&#39;] = self.z / (1 * self.Bz * constants.speed_of_light)#[time if status is -1 else 0 for time, status in zip(clock, status)]#</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>  <span class="c1"># - self.xp * (self.t - np.mean(self.t))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>  <span class="c1"># - self.yp * (self.t - np.mean(self.t))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mf">1.0e-9</span> <span class="o">*</span> <span class="n">charge</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">nmacro</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_charge</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_species</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">species_name</span><span class="p">[</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span></div>
+
+
+
+<div class="viewcode-block" id="read_csrtrack_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.read_csrtrack_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_csrtrack_beam_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_csv_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;CSRTrack&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle_index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_reference</span> <span class="o">=</span> <span class="s2">&quot;z&quot;</span>
+    <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">cpz</span><span class="p">,</span> <span class="n">cpx</span><span class="p">,</span> <span class="n">cpy</span><span class="p">,</span> <span class="n">charge</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_to_ref_particle</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">cpz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_to_ref_particle</span><span class="p">(</span><span class="n">cpz</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">pz</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpz</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">clock</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">clock</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e-9</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">([</span><span class="n">constants</span><span class="o">.</span><span class="n">m_e</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_mass</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;J&quot;</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy_eV</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_rest_energy</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span><span class="p">,</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;eV/c&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">([</span><span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span>
+    <span class="p">)</span>  <span class="c1"># [time if status is -1 else 0 for time, status in zip(clock, self._beam[&#39;status&#39;])]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">charge</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_pacey_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.read_pacey_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_pacey_beam_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">250e-12</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_csv_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;TPaceyASTRA&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_reference</span> <span class="o">=</span> <span class="s2">&quot;z&quot;</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">cpx</span><span class="p">,</span> <span class="n">cpy</span><span class="p">,</span> <span class="n">cpz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="c1"># cp = np.sqrt(cpx**2 + cpy**2 + cpz**2)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">px</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">py</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">pz</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">cpz</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;kg*m/s&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span>
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bz</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)),</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># self._beam[&#39;t&#39;] = self.z / (1 * self.Bz * constants.speed_of_light)#[time if status is -1 else 0 for time, status in zip(clock, status)]#</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">charge</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">charge</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="convert_csrtrackfile_to_astrafile">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.convert_csrtrackfile_to_astrafile">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">convert_csrtrackfile_to_astrafile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csrtrackfile</span><span class="p">,</span> <span class="n">astrafile</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">read_csv_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csrtrackfile</span><span class="p">)</span>
+    <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">cpz</span><span class="p">,</span> <span class="n">cpx</span><span class="p">,</span> <span class="n">cpy</span><span class="p">,</span> <span class="n">charge</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="n">charge</span> <span class="o">=</span> <span class="o">-</span><span class="n">charge</span> <span class="o">*</span> <span class="mf">1e9</span>
+    <span class="n">clock0</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e9</span>
+    <span class="n">clock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">clock</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">clock0</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">cpx</span><span class="p">,</span> <span class="n">cpy</span><span class="p">,</span> <span class="n">cpz</span><span class="p">,</span> <span class="n">clock</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">status</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+    <span class="n">write_csv_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">astrafile</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="cdist">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.cdist">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cdist</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="find_nearest_vector">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.find_nearest_vector">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_nearest_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodes</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">cdist</span><span class="p">([</span><span class="n">node</span><span class="p">],</span> <span class="n">nodes</span><span class="p">)</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="rms">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.rms">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="create_ref_particle">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.create_ref_particle">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_ref_particle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">subtractmean</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">if</span> <span class="n">subtractmean</span><span class="p">:</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">array</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">array</span></div>
+
+
+
+<div class="viewcode-block" id="write_astra_beam_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Beams.html#simba.Modules.Beams.astra.write_astra_beam_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_astra_beam_file</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">status</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">normaliseZ</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">zoffset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">fn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;.ocelot&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;.openpmd&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.astra&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">):</span>
+            <span class="n">chargevector</span> <span class="o">=</span> <span class="mf">1e9</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">charge</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chargevector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="mf">1e9</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">total_charge</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">indexvector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="n">index</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># print(&#39;write_astra_beam_file: index not found&#39;)</span>
+        <span class="n">indexvector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">particle_index</span>
+    <span class="c1"># print(&#39;write_astra_beam_file: index =&#39;, indexvector)</span>
+    <span class="c1"># exit()</span>
+    <span class="n">statusvector</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">status</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="p">(</span>
+            <span class="n">status</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span>
+            <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="c1"># print(&quot;write_astra&quot;, self._beam.status, statusvector)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; if a particle is emitting from the cathode it&#39;s z value is 0 and it&#39;s clock value is finite, otherwise z is finite and clock is irrelevant (thus zero) &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">longitudinal_reference</span> <span class="o">==</span> <span class="s2">&quot;t&quot;</span><span class="p">:</span>
+        <span class="n">zvector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="mi">0</span> <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">t</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">z</span>
+            <span class="k">for</span> <span class="n">status</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">statusvector</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">zvector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">z</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; if the clock value is finite, we calculate it from the z value, using Betaz &quot;&quot;&quot;</span>
+    <span class="c1"># clockvector = [1e9*z / (1 * Bz * constants.speed_of_light) if status == -1 and t == 0 else 1.0e9*t for status, z, t, Bz in zip(statusvector, self.z, self.t, self.Bz)]</span>
+    <span class="n">clockvector</span> <span class="o">=</span> <span class="mf">1.0e9</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; this is the ASTRA array in all it&#39;s glory &quot;&quot;&quot;</span>
+    <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">zvector</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">cpx</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">cpy</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">cpz</span><span class="p">,</span>
+            <span class="n">clockvector</span><span class="p">,</span>
+            <span class="n">chargevector</span><span class="p">,</span>
+            <span class="n">indexvector</span><span class="p">,</span>
+            <span class="n">statusvector</span><span class="p">,</span>
+        <span class="p">]</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ref_particle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle</span>
+        <span class="c1"># print(f&#39;ASTRA Write we have a reference particle! idx = {self.reference_particle_index} pz = {ref_particle[5]}&#39;)</span>
+    <span class="c1">#     # np.insert(array, 0, ref_particle, axis=0)</span>
+    <span class="k">else</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; Offset the z position to the nominal starting position &quot;&quot;&quot;</span>
+        <span class="n">array</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">zoffset</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;take the rms - if the rms is 0 set it to 1, so we don&#39;t get a divide by error&quot;&quot;&quot;</span>
+        <span class="n">rms_vector</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">rms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; normalise the array &quot;&quot;&quot;</span>
+        <span class="n">norm_array</span> <span class="o">=</span> <span class="n">array</span> <span class="o">/</span> <span class="n">rms_vector</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; take the meen of the normalised array &quot;&quot;&quot;</span>
+        <span class="n">mean_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">norm_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; find the index of the vector that is closest to the mean - if you read in an ASTRA file, this should actually return the reference particle! &quot;&quot;&quot;</span>
+        <span class="n">nearest_idx</span> <span class="o">=</span> <span class="n">find_nearest_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">norm_array</span><span class="p">,</span> <span class="n">mean_vector</span><span class="p">)</span>
+        <span class="n">ref_particle</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="n">nearest_idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle</span> <span class="o">=</span> <span class="n">ref_particle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reference_particle_index</span> <span class="o">=</span> <span class="n">nearest_idx</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; set the closest mean vector to be in position 0 in the array &quot;&quot;&quot;</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">nearest_idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; normalise Z to the reference particle &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">ref_particle</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; should we leave Z as the reference value, set it to 0, or set it to be some offset? &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">normaliseZ</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">normaliseZ</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+        <span class="c1"># print(&#39;Setting z offset&#39;, normaliseZ)</span>
+        <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">normaliseZ</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; normalise pz and the clock &quot;&quot;&quot;</span>
+    <span class="c1"># print(&#39;Mean pz = &#39;, np.mean(array[:,5]))</span>
+    <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">ref_particle</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+    <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span> <span class="o">+</span> <span class="n">ref_particle</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span>
+        <span class="n">filename</span><span class="p">,</span>
+        <span class="n">array</span><span class="p">,</span>
+        <span class="n">fmt</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%.12e</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

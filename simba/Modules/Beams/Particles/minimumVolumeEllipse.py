@@ -8,8 +8,9 @@ def getMinVolEllipse(P=None, tolerance=0.01):
 
     Based on work by `Nima Moshtagh`_
 
-    Here, P is a numpy array of N dimensional points like this:
-    P = [[x,y,z,...], <-- one point per line
+    Here, P is a numpy array of N dimensional points like this::
+
+        P = [[x,y,z,...], <-- one point per line
          [x,y,z,...],
          [x,y,z,...]]
 

@@ -126,6 +126,7 @@ class GPTGenerator(frameworkGenerator):
         :param x: The first parameter to check.
         :param y: The second parameter to check.
         :param default: The default value to set if both parameters are None.
+
         #TODO This appears not to be used in the code, consider removing it.
         """
         x_val, y_val = getattr(self, x, None), getattr(self, y, None)
@@ -231,7 +232,7 @@ class GPTGenerator(frameworkGenerator):
         Generate a name for the image file based on the provided parameter.
         This function expands the parameter substitution, checks if the file exists,
         and creates a symbolic link or copies the file to the master subdirectory.
-        This is used for image-based distributions in the beam generation in :function:`generate_radial_distribution`.
+        This is used for image-based distributions in the beam generation in :func:`generate_radial_distribution`.
 
         :param param: The parameter containing the image filename.
         :return: The basename of the image file.
@@ -447,6 +448,7 @@ setGBphidist("beam","u", 0, 2*pi);
         are used to generate the input file, with the appropriate aliases and multipliers applied for the GPT code.
 
         :return: None
+
         #TODO Filenames are hardcoded for simplicity and they shouldn't be.
         """
         # try:

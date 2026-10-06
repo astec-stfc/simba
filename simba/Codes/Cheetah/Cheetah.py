@@ -7,9 +7,9 @@ Various objects and functions to handle Cheetah lattices and commands. See `Chee
 
 Classes:
     - :class:`~simba.Codes.Cheetah.Cheetah.cheetahLattice`: The Cheetah lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
+      and for tracking through it.
 
 """
 from torch import Tensor
@@ -83,12 +83,12 @@ class cheetahLattice(frameworkLattice):
     """
 
     pin: Any | None = None
-    """Initial particle distribution as a Cheetah `ParticleArray`_
+    """Initial particle distribution as a Cheetah `ParticleBeam`_
 
     .. _ParticleBeam: https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py"""
 
     pout: Any | None = None
-    """Final particle distribution as a Cheetah `ParticleArray`_"""
+    """Final particle distribution as a Cheetah `ParticleBeam`_"""
 
     tws: tuple[Tensor, ...] | Tensor | None = None
     """Tensor or tuple of Tensors containing Twiss parameters"""

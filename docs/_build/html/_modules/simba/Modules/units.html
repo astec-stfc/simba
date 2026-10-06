@@ -1,0 +1,742 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.units &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.units</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.units</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.pmd_units</span><span class="w"> </span><span class="kn">import</span> <span class="n">unit</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">VisibleDeprecationWarning</span><span class="p">)</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+<span class="c1"># Dicts for prefixes</span>
+<span class="n">PREFIX_FACTOR</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;yocto-&quot;</span><span class="p">:</span> <span class="mf">1e-24</span><span class="p">,</span>
+    <span class="s2">&quot;zepto-&quot;</span><span class="p">:</span> <span class="mf">1e-21</span><span class="p">,</span>
+    <span class="s2">&quot;atto-&quot;</span><span class="p">:</span> <span class="mf">1e-18</span><span class="p">,</span>
+    <span class="s2">&quot;femto-&quot;</span><span class="p">:</span> <span class="mf">1e-15</span><span class="p">,</span>
+    <span class="s2">&quot;pico-&quot;</span><span class="p">:</span> <span class="mf">1e-12</span><span class="p">,</span>
+    <span class="s2">&quot;nano-&quot;</span><span class="p">:</span> <span class="mf">1e-9</span><span class="p">,</span>
+    <span class="s2">&quot;micro-&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span>
+    <span class="s2">&quot;milli-&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+    <span class="s2">&quot;centi-&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="s2">&quot;deci-&quot;</span><span class="p">:</span> <span class="mf">1e-1</span><span class="p">,</span>
+    <span class="s2">&quot;deca-&quot;</span><span class="p">:</span> <span class="mf">1e1</span><span class="p">,</span>
+    <span class="s2">&quot;hecto-&quot;</span><span class="p">:</span> <span class="mf">1e2</span><span class="p">,</span>
+    <span class="s2">&quot;kilo-&quot;</span><span class="p">:</span> <span class="mf">1e3</span><span class="p">,</span>
+    <span class="s2">&quot;mega-&quot;</span><span class="p">:</span> <span class="mf">1e6</span><span class="p">,</span>
+    <span class="s2">&quot;giga-&quot;</span><span class="p">:</span> <span class="mf">1e9</span><span class="p">,</span>
+    <span class="s2">&quot;tera-&quot;</span><span class="p">:</span> <span class="mf">1e12</span><span class="p">,</span>
+    <span class="s2">&quot;peta-&quot;</span><span class="p">:</span> <span class="mf">1e15</span><span class="p">,</span>
+    <span class="s2">&quot;exa-&quot;</span><span class="p">:</span> <span class="mf">1e18</span><span class="p">,</span>
+    <span class="s2">&quot;zetta-&quot;</span><span class="p">:</span> <span class="mf">1e21</span><span class="p">,</span>
+    <span class="s2">&quot;yotta-&quot;</span><span class="p">:</span> <span class="mf">1e24</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">PREFIX</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">PREFIX_FACTOR</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+<span class="n">SHORT_PREFIX_FACTOR</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="mf">1e-24</span><span class="p">,</span>
+    <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="mf">1e-21</span><span class="p">,</span>
+    <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mf">1e-18</span><span class="p">,</span>
+    <span class="s2">&quot;f&quot;</span><span class="p">:</span> <span class="mf">1e-15</span><span class="p">,</span>
+    <span class="s2">&quot;p&quot;</span><span class="p">:</span> <span class="mf">1e-12</span><span class="p">,</span>
+    <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mf">1e-9</span><span class="p">,</span>
+    <span class="s2">&quot;µ&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span>
+    <span class="s2">&quot;m&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+    <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="mf">1e-1</span><span class="p">,</span>
+    <span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;da&quot;</span><span class="p">:</span> <span class="mf">1e1</span><span class="p">,</span>
+    <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="mf">1e2</span><span class="p">,</span>
+    <span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="mf">1e3</span><span class="p">,</span>
+    <span class="s2">&quot;M&quot;</span><span class="p">:</span> <span class="mf">1e6</span><span class="p">,</span>
+    <span class="s2">&quot;G&quot;</span><span class="p">:</span> <span class="mf">1e9</span><span class="p">,</span>
+    <span class="s2">&quot;T&quot;</span><span class="p">:</span> <span class="mf">1e12</span><span class="p">,</span>
+    <span class="s2">&quot;P&quot;</span><span class="p">:</span> <span class="mf">1e15</span><span class="p">,</span>
+    <span class="s2">&quot;E&quot;</span><span class="p">:</span> <span class="mf">1e18</span><span class="p">,</span>
+    <span class="s2">&quot;Z&quot;</span><span class="p">:</span> <span class="mf">1e21</span><span class="p">,</span>
+    <span class="s2">&quot;Y&quot;</span><span class="p">:</span> <span class="mf">1e24</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="c1"># Inverse</span>
+<span class="n">SHORT_PREFIX</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="nice_scale_prefix">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.nice_scale_prefix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nice_scale_prefix</span><span class="p">(</span><span class="n">scale</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a nice factor and a SI prefix string</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        scale = 2e-10</span>
+
+<span class="sd">        f, u = nice_scale_prefix(scale)</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">scale</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">p10</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">scale</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">p10</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">2</span> <span class="ow">or</span> <span class="n">p10</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">p10</span> <span class="o">//</span> <span class="mi">3</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">SHORT_PREFIX</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">SHORT_PREFIX</span><span class="p">[</span><span class="n">f</span><span class="p">]</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="nice_array">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.nice_array">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nice_array</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a scaled array, the scaling, and a unit prefix</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        nice_array( np.array([2e-10, 3e-10]) )</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (array([200., 300.]), 1e-12, &#39;p&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">a</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="n">fac</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">a</span> <span class="o">/</span> <span class="n">fac</span><span class="p">,</span> <span class="n">fac</span><span class="p">,</span> <span class="n">prefix</span></div>
+
+
+
+<div class="viewcode-block" id="set_nice_array">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.set_nice_array">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">set_nice_array</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">prefix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a scaled array, the scaling, for a unit prefix</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        set_nice_array( np.array([2e-3, 3e-3]), prefix=&quot;m&quot;)</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (array([2., 3.]), 1e-3, &#39;m&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="p">:</span>
+        <span class="n">fac</span> <span class="o">=</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">PREFIX_FACTOR</span><span class="p">:</span>
+        <span class="n">fac</span> <span class="o">=</span> <span class="n">PREFIX_FACTOR</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;prefix </span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> does not exist!&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">a</span> <span class="o">/</span> <span class="n">fac</span><span class="p">,</span> <span class="n">fac</span><span class="p">,</span> <span class="n">prefix</span></div>
+
+
+
+<div class="viewcode-block" id="unit_power">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_power">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_power</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;# Takes a string in the form &#39;a^x&#39; and returns (&#39;a&#39;, x)&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">string</span>
+    <span class="k">if</span> <span class="s2">&quot;^&quot;</span> <span class="ow">in</span> <span class="n">string</span><span class="p">:</span>
+        <span class="n">pre</span><span class="p">,</span> <span class="n">power</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;^&quot;</span><span class="p">)</span>
+        <span class="n">power</span> <span class="o">=</span> <span class="n">power</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">power</span><span class="p">:</span>
+            <span class="n">powers</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">power</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)]</span>
+            <span class="n">power</span> <span class="o">=</span> <span class="n">powers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">powers</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">power</span> <span class="o">/=</span> <span class="n">p</span>
+        <span class="k">return</span> <span class="n">pre</span><span class="p">,</span> <span class="n">power_factor</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">power</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">string</span><span class="p">,</span> <span class="n">power_factor</span></div>
+
+
+
+<div class="viewcode-block" id="unit_power_multiply">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_power_multiply">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_power_multiply</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">string2</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Takes two strings in the form (&#39;a&#39;, x) and (&#39;a&#39;, y) and returns (&#39;a&#39;, (x+y))&quot;&quot;&quot;</span>
+    <span class="n">unit1</span><span class="p">,</span> <span class="n">power1</span> <span class="o">=</span> <span class="n">unit_power</span><span class="p">(</span><span class="n">string1</span><span class="p">)</span>
+    <span class="n">unit2</span><span class="p">,</span> <span class="n">power2</span> <span class="o">=</span> <span class="n">unit_power</span><span class="p">(</span><span class="n">string2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">unit1</span> <span class="o">==</span> <span class="n">unit2</span><span class="p">:</span>
+        <span class="n">power</span> <span class="o">=</span> <span class="n">power_factor</span> <span class="o">*</span> <span class="p">(</span><span class="n">power1</span> <span class="o">+</span> <span class="n">power2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">power</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">power</span><span class="p">)</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">unit1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">power</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">unit1</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">power</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="unit_power_string">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_power_string">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_power_string</span><span class="p">(</span><span class="n">power_list</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a unit in (&#39;a&#39;, x) format and makes a unit string&quot;&quot;&quot;</span>
+    <span class="n">unit</span><span class="p">,</span> <span class="n">power</span> <span class="o">=</span> <span class="n">power_list</span>
+    <span class="n">power</span> <span class="o">=</span> <span class="n">power_factor</span> <span class="o">*</span> <span class="n">power</span>
+    <span class="k">if</span> <span class="n">power</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">power</span><span class="p">)</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">power</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">unit</span>
+        <span class="k">return</span> <span class="n">unit</span> <span class="o">+</span> <span class="s2">&quot;^&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">power</span><span class="p">))</span>
+    <span class="n">num</span><span class="p">,</span> <span class="n">denom</span> <span class="o">=</span> <span class="n">power</span><span class="o">.</span><span class="n">as_integer_ratio</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">unit</span> <span class="o">+</span> <span class="s2">&quot;^(&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">denom</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="unit_fraction">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_fraction">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_fraction</span><span class="p">(</span><span class="n">string</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;split a tring into numerator and denominator taking into account () - input is string in form &#39;a^x*b/c^y&#39;&quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">denom</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">substrings</span> <span class="o">=</span> <span class="n">num</span>
+    <span class="n">substring</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">inhat</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">inbracket</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">individe</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">string</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">inhat</span><span class="p">:</span>
+                <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">individe</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                    <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+                <span class="n">substring</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">individe</span> <span class="ow">and</span> <span class="n">inbracket</span><span class="p">:</span>
+                    <span class="n">substrings</span> <span class="o">=</span> <span class="n">nom</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">substrings</span> <span class="o">=</span> <span class="n">denom</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">inhatdivide</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">inhatdivide</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                        <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+                    <span class="n">substring</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                    <span class="k">if</span> <span class="n">individe</span> <span class="ow">and</span> <span class="n">inbracket</span><span class="p">:</span>
+                        <span class="n">substrings</span> <span class="o">=</span> <span class="n">num</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">substrings</span> <span class="o">=</span> <span class="n">denom</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">substring</span> <span class="o">+=</span> <span class="n">s</span>
+        <span class="k">elif</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;*&quot;</span><span class="p">:</span>
+            <span class="n">individe</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">inhat</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+            <span class="n">substring</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">inbracket</span><span class="p">:</span>
+                <span class="n">substrings</span> <span class="o">=</span> <span class="n">num</span>
+        <span class="k">elif</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot; &quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">inhat</span><span class="p">:</span>
+                <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="n">substring</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span><span class="p">:</span>
+                    <span class="n">individe</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">substring</span> <span class="o">=</span> <span class="n">substring</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">inhat</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+            <span class="n">substring</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">individe</span><span class="p">:</span>
+                <span class="n">substrings</span> <span class="o">=</span> <span class="n">denom</span>
+        <span class="k">elif</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;(&quot;</span><span class="p">:</span>
+            <span class="n">inbracket</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;)&quot;</span><span class="p">:</span>
+            <span class="n">inbracket</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;^&quot;</span><span class="p">:</span>
+            <span class="n">inhat</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">substring</span> <span class="o">+=</span> <span class="n">s</span>
+        <span class="k">elif</span> <span class="n">inhat</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+            <span class="n">inhat</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">inhatdivide</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">substring</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span><span class="p">:</span>
+                <span class="n">individe</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">substring</span> <span class="o">=</span> <span class="n">substring</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+            <span class="n">substring</span> <span class="o">=</span> <span class="n">s</span>
+            <span class="k">if</span> <span class="n">individe</span><span class="p">:</span>
+                <span class="n">substrings</span> <span class="o">=</span> <span class="n">denom</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">substring</span> <span class="o">+=</span> <span class="n">s</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">substring</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">substring</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="n">substrings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substring</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">num</span><span class="p">,</span> <span class="n">denom</span></div>
+
+
+
+<div class="viewcode-block" id="expand_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.expand_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">expand_units</span><span class="p">(</span><span class="n">unit_list</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Takes a list of units (normally numerator or denominator) and collects units and powers</span>
+<span class="sd">    Returns units (&#39;a^x&#39;) and unitnames ((&#39;a&#39;,x))&quot;&quot;&quot;</span>
+
+    <span class="c1"># if isinstance(unit_list[0], (list, tuple)):</span>
+    <span class="c1">#     return [expand_units(ul) for ul in unit_list]</span>
+
+    <span class="n">unitnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">unit_power</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="n">power_factor</span><span class="p">)</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">unit_list</span><span class="p">]</span>
+    <span class="n">unique_units</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">unitnames</span><span class="p">]))</span>
+    <span class="n">units</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">uu</span> <span class="ow">in</span> <span class="n">unique_units</span><span class="p">:</span>
+        <span class="n">subunits</span> <span class="o">=</span> <span class="p">[</span><span class="n">u</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">unitnames</span> <span class="k">if</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">uu</span><span class="p">]</span>
+        <span class="n">unit</span> <span class="o">=</span> <span class="n">subunits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subunits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">subunits</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">unit_power_multiply</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">unit</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">units</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">units</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">units</span></div>
+
+
+
+<div class="viewcode-block" id="collect_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.collect_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collect_units</span><span class="p">(</span><span class="n">unit_powers</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Collects units into numerator ands denominator and uses &#39;*&#39; and &#39;/&#39; correctly&quot;&quot;&quot;</span>
+    <span class="n">combined_list</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">unit_powers</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">combined_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">finalunit</span> <span class="o">=</span> <span class="n">unit_power_string</span><span class="p">(</span><span class="n">combined_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">combined_list</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="k">if</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">finalunit</span> <span class="o">+=</span> <span class="s2">&quot;*&quot;</span> <span class="o">+</span> <span class="n">unit_power_string</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">finalunit</span> <span class="o">+=</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">unit_power_string</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">finalunit</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">finalunit</span></div>
+
+
+
+<div class="viewcode-block" id="unit_powers">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_powers">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_powers</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">num</span><span class="p">,</span> <span class="n">denom</span> <span class="o">=</span> <span class="n">unit_fraction</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+    <span class="c1"># print(expand_units(num), expand_units(denom))</span>
+    <span class="k">return</span> <span class="n">expand_units</span><span class="p">(</span>
+        <span class="n">expand_units</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="n">power_factor</span><span class="p">)</span>
+        <span class="o">+</span> <span class="n">expand_units</span><span class="p">(</span><span class="n">denom</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">power_factor</span><span class="p">))</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="unit_multiply">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_multiply">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_multiply</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">string2</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">divide</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;multiply/divide two unit strings&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">divide</span><span class="p">:</span>
+        <span class="n">pf</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pf</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">up1</span> <span class="o">=</span> <span class="n">expand_units</span><span class="p">(</span><span class="n">unit_powers</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="n">pf</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">string2</span><span class="p">:</span>
+        <span class="n">up2</span> <span class="o">=</span> <span class="n">expand_units</span><span class="p">(</span><span class="n">unit_powers</span><span class="p">(</span><span class="n">string2</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="n">pf</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">up2</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># print(expand_units(up1 + up2))</span>
+    <span class="k">return</span> <span class="n">collect_units</span><span class="p">(</span><span class="n">expand_units</span><span class="p">(</span><span class="n">up1</span> <span class="o">+</span> <span class="n">up2</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="unit_to_the_power">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.unit_to_the_power">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unit_to_the_power</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">power</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;raise units to a power&quot;&quot;&quot;</span>
+    <span class="n">up1</span> <span class="o">=</span> <span class="n">expand_units</span><span class="p">(</span><span class="n">unit_powers</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">power_factor</span><span class="o">=</span><span class="n">power</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">collect_units</span><span class="p">(</span><span class="n">up1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_base_units">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.get_base_units">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_base_units</span><span class="p">(</span><span class="n">string</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="p">(</span><span class="n">UnitValue</span><span class="p">)):</span>
+        <span class="n">string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">units</span>
+    <span class="c1"># if string is None:</span>
+    <span class="c1">#     return np.array((0,0,0,0,0,0,0))</span>
+    <span class="n">units_powers</span> <span class="o">=</span> <span class="n">unit_powers</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">unit</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">unitDimension</span><span class="p">)</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">units_powers</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="are_units_equal">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.are_units_equal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">are_units_equal</span><span class="p">(</span><span class="n">string1</span><span class="p">,</span> <span class="n">string2</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">get_base_units</span><span class="p">(</span><span class="n">string1</span><span class="p">)</span> <span class="o">==</span> <span class="n">get_base_units</span><span class="p">(</span><span class="n">string2</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="UnitValue">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UnitValue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Subclass of ndarray MUST be initialized with a numpy array as first argument.&quot;&quot;&quot;</span>
+
+    <span class="n">nounits</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;cos&quot;</span><span class="p">,</span> <span class="s2">&quot;tan&quot;</span><span class="p">,</span> <span class="s2">&quot;arcsin&quot;</span><span class="p">,</span> <span class="s2">&quot;arccos&quot;</span><span class="p">,</span> <span class="s2">&quot;arctan&quot;</span><span class="p">,</span> <span class="s2">&quot;arctan2&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">input_array</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">input_array</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">units</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__array_finalize__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># __new__ handles instantiation</span>
+            <span class="k">return</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;we essentially need to set all our attributes that are set in __new__ here again (including their default values).</span>
+<span class="sd">        Otherwise numpy&#39;s view-casting and new-from-template mechanisms would break our class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;units&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># def __array_wrap__(self, obj, context=None):</span>
+    <span class="c1">#     result = obj.view(type(self))</span>
+    <span class="c1">#     # try:</span>
+    <span class="c1">#     #     print(context[0].__name__)</span>
+    <span class="c1">#     # except:</span>
+    <span class="c1">#     #     print(context)</span>
+    <span class="c1">#     if context is not None:</span>
+    <span class="c1">#         if context[0].__name__ == &#39;sqrt&#39;:</span>
+    <span class="c1">#             result.units = unit_to_the_power(obj.units, 0.5)</span>
+    <span class="c1">#         if context[0].__name__ == &#39;square&#39;:</span>
+    <span class="c1">#             result.units = unit_to_the_power(obj.units, 2)</span>
+    <span class="c1">#     return result</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__array_ufunc__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>  <span class="c1"># this method is called whenever you use a ufunc</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;this implementation of __array_ufunc__ makes sure that all custom attributes are maintained when a ufunc operation is performed on our class.&quot;&quot;&quot;</span>
+
+        <span class="c1"># convert inputs and outputs of class ArraySubclass to np.ndarray to prevent infinite recursion</span>
+        <span class="c1"># print(ufunc)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">((</span><span class="n">i</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">UnitValue</span><span class="p">)</span> <span class="k">else</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">)</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">outputs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;out&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">UnitValue</span><span class="p">)</span> <span class="k">else</span> <span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">outputs</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">ufunc</span><span class="o">.</span><span class="n">nout</span>
+        <span class="c1"># call numpys implementation of __array_ufunc__</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__array_ufunc__</span><span class="p">(</span>
+            <span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>  <span class="c1"># pylint: disable=no-member</span>
+        <span class="c1"># print(results)</span>
+        <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;at&quot;</span><span class="p">:</span>
+            <span class="c1"># method == &#39;at&#39; means that the operation is performed in-place. Therefore, we are done.</span>
+            <span class="k">return</span>
+        <span class="c1"># now we need to make sure that outputs that where specified with the &#39;out&#39; argument are handled corectly:</span>
+        <span class="k">if</span> <span class="n">ufunc</span><span class="o">.</span><span class="n">nout</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">(</span><span class="n">results</span><span class="p">,)</span>
+
+        <span class="n">units</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;units&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ufunc</span><span class="o">.</span><span class="vm">__name__</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nounits</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ufunc</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">results</span><span class="p">,</span>
+                    <span class="n">units</span><span class="o">=</span><span class="n">unit_to_the_power</span><span class="p">(</span><span class="n">units</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">ufunc</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;square&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span>
+                    <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">results</span><span class="p">,</span>
+                    <span class="n">units</span><span class="o">=</span><span class="n">unit_to_the_power</span><span class="p">(</span><span class="n">units</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">results</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">units</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_copy_attrs_to</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">output</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">result</span><span class="p">,</span> <span class="n">output</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">results</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_copy_attrs_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;copies all attributes of self to the target object. target must be a (subclass of) ndarray&quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">UnitValue</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">target</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">target</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_isint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;int&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_isfloat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;float&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isint</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isfloat</span><span class="p">:</span>
+                <span class="n">f</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isint</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span>
+                        <span class="nb">int</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="n">f</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span>
+                    <span class="p">)</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span>
+                    <span class="nb">float</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="n">f</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;, units=&#39;&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">+</span> <span class="s2">&quot;&#39;)&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_mul_div_units</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">newval</span><span class="p">,</span> <span class="n">divide</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">newval</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">newval</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="s2">&quot;units&quot;</span><span class="p">):</span>
+            <span class="n">newunit</span> <span class="o">=</span> <span class="n">unit_multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">divide</span><span class="o">=</span><span class="n">divide</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="n">newunit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mul_div_units</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">newarr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__rmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__rmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mul_div_units</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">newarr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mul_div_units</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">newarr</span><span class="p">,</span> <span class="n">divide</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_add_sub_units</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">newval</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">newval</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">newval</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="s2">&quot;units&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">are_units_equal</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># print(&#39;Incompatible Units - ignoring units&#39;, m.units, self.units)</span>
+                <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_sub_units</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">newarr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_sub_units</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">newarr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__pow__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="fm">__pow__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">newval</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">newval</span>
+        <span class="n">newunit</span> <span class="o">=</span> <span class="n">unit_to_the_power</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="n">newunit</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__round__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+        <span class="n">newval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">newval</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">newval</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">newval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UnitValue.mean">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.mean">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="UnitValue.std">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.std">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">std</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="UnitValue.var">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.var">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">unit_to_the_power</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="UnitValue.sum">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.sum">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="UnitValue.sqrt">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.sqrt">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">unit_to_the_power</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">val</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">nice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">=</span> <span class="n">nice_scale_prefix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="n">f</span><span class="p">,</span> <span class="n">prefix</span>
+
+<div class="viewcode-block" id="UnitValue.in_units_of">
+<a class="viewcode-back" href="../../../simba.Modules.html#simba.Modules.units.UnitValue.in_units_of">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">in_units_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">):</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="k">if</span> <span class="n">prefix</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;-&quot;</span> <span class="k">else</span> <span class="n">prefix</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">SHORT_PREFIX_FACTOR</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">PREFIX_FACTOR</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">PREFIX_FACTOR</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">/</span> <span class="n">f</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

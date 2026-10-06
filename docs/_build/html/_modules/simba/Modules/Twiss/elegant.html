@@ -1,0 +1,305 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Twiss.elegant &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../Twiss.html">simba.Modules.Twiss</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Twiss.elegant</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Twiss.elegant</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..SDDSFile</span><span class="w"> </span><span class="kn">import</span> <span class="n">SDDSFile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+
+<div class="viewcode-block" id="read_elegant_floor_file">
+<a class="viewcode-back" href="../../../../simba.Modules.Twiss.html#simba.Modules.Twiss.elegant.read_elegant_floor_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_elegant_floor_file</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">rotation</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="n">reset</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="n">elegantObject</span> <span class="o">=</span> <span class="n">SDDSFile</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span><span class="p">))</span>
+    <span class="n">elegantObject</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="n">elegantData</span> <span class="o">=</span> <span class="n">elegantObject</span><span class="o">.</span><span class="n">data</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;x&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;X&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;y&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Y&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;z&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;theta&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">theta</span> <span class="o">+</span> <span class="n">rotation</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">theta</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;radians&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;phi&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">phi</span> <span class="o">+</span> <span class="n">rotation</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">phi</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;phi&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;radians&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;psi&quot;</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">psi</span> <span class="o">+</span> <span class="n">rotation</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">psi</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;psi&quot;</span><span class="p">]],</span>
+        <span class="n">units</span><span class="o">=</span><span class="s2">&quot;radians&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">))</span>
+    <span class="n">thetaphipsi</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ElementName&quot;</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="n">xyz</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">xyz</span><span class="p">,</span> <span class="n">thetaphipsi</span><span class="p">))[</span>
+        <span class="mi">1</span><span class="p">:</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="read_elegant_twiss_files">
+<a class="viewcode-back" href="../../../../simba.Modules.Twiss.html#simba.Modules.Twiss.elegant.read_elegant_twiss_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_elegant_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">startS</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">reset</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="c1"># print(&#39;reading new file&#39;, f)</span>
+            <span class="n">read_elegant_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="n">pre</span><span class="p">,</span> <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">lattice_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">pre</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">elegantObject</span> <span class="o">=</span> <span class="n">SDDSFile</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span><span class="p">))</span>
+        <span class="n">elegantObject</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">pre</span> <span class="o">+</span> <span class="s2">&quot;.flr&quot;</span><span class="p">)</span>
+        <span class="n">elegantObject</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">pre</span> <span class="o">+</span> <span class="s2">&quot;.sig&quot;</span><span class="p">)</span>
+        <span class="n">elegantObject</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">pre</span> <span class="o">+</span> <span class="s2">&quot;.twi&quot;</span><span class="p">)</span>
+        <span class="n">elegantObject</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">pre</span> <span class="o">+</span> <span class="s2">&quot;.cen&quot;</span><span class="p">)</span>
+        <span class="n">elegantData</span> <span class="o">=</span> <span class="n">elegantObject</span><span class="o">.</span><span class="n">data</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">elegantData</span><span class="p">:</span>
+            <span class="c1"># handling for multiple elegant runs per file (e.g. error simulations)</span>
+            <span class="c1"># by default extract only the first run (in ELEGANT this is the fiducial)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">]</span>
+        <span class="c1"># z += self.z.val[-1] if len(self.z.val) &gt; 0 else 0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">])</span>
+        <span class="n">cp</span> <span class="o">=</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;pCentral0&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0</span>
+        <span class="c1"># self.append(&#39;cp&#39;, cp)</span>
+        <span class="n">ke</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">E0</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cp</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0</span><span class="p">)</span> <span class="o">/</span> <span class="n">constants</span><span class="o">.</span><span class="n">elementary_charge</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">ke</span><span class="p">)</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">ke</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0_eV</span>
+        <span class="n">cp</span> <span class="o">=</span> <span class="n">ke</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">gamma</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">gamma</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">cp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">cp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enx</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enx</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;enx&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ex</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ex</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ex&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eny</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eny</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;eny&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ey</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ey</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ey&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betax&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphax&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betay&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphay&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Sx&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Sy&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_xp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_xp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Sxp&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_yp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_yp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Syp&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;St&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Cx&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Cy&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;etax&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_xp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_xp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;etaxp&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;etay&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_yp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_yp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;etayp&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_p</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_p</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Sdelta&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betaxBeam&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betayBeam&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alpha_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphaxBeam&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alpha_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphayBeam&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecnx</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecnx</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ecnx&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecny</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecny</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ecny&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enz</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enz</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">])))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ez</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ez</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">])))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gamma_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphax&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betax&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gamma_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;alphay&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;betay&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">])))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">])))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">])))</span>
+
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">gamma</span><span class="o">**-</span><span class="mi">2</span><span class="p">))</span>
+        <span class="c1"># print &#39;len(z) = &#39;, len(z), &#39;  len(beta) = &#39;, len(beta)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="n">beta</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;St&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">beta</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="c1"># self.append(&#39;sigma_cp&#39;, elegantData[&#39;Sdelta&#39;] * cp )</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sigma_cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Sdelta&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">cp</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mean_cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">cp</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;Cdelta&quot;</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="c1"># print(&#39;elegant = &#39;, (elegantData[&#39;Sdelta&#39;] * cp / constants.elementary_charge)[-1)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mux</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mux</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;psix&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">muy</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">muy</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;psiy&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ElementName&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_name</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lattice_name</span><span class="o">.</span><span class="n">val</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;ElementName&quot;</span><span class="p">]),</span> <span class="n">lattice_name</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="c1"># ## BEAM parameters</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eta_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s16&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s6&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_xp_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eta_xp_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s26&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s6&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eta_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s36&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s6&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eta_yp_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eta_yp_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s46&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">elegantData</span><span class="p">[</span><span class="s2">&quot;s6&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

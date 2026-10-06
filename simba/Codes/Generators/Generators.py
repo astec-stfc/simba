@@ -671,7 +671,7 @@ class frameworkGenerator(BaseModel):
 
         :param name: Name of the distribution
         :return: Samples particles according to sigma_{name}, distribution_type_{name} and
-        gaussian_cutoff_{name} attributes.
+            gaussian_cutoff_{name} attributes.
         """
         dist_i = getattr(self, f"distribution_type_{name}")
         dist_pi = getattr(self, f"distribution_type_p{name}")

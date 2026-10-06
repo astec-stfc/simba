@@ -1,0 +1,337 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Cheetah package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Codes.Elegant package" href="simba.Codes.Elegant.html" />
+    <link rel="prev" title="simba.Codes.CSRTrack package" href="simba.Codes.CSRTrack.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Codes.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.ASTRA.html">simba.Codes.ASTRA package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Bmad.html">simba.Codes.Bmad package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.CSRTrack.html">simba.Codes.CSRTrack package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Codes.Cheetah package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Cheetah.Cheetah">simba.Codes.Cheetah.Cheetah module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Cheetah">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Elegant.html">simba.Codes.Elegant package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.GPT.html">simba.Codes.GPT package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Generators.html">simba.Codes.Generators package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Genesis.html">simba.Codes.Genesis package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.MADX.html">simba.Codes.MADX package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.OPAL.html">simba.Codes.OPAL package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Ocelot.html">simba.Codes.Ocelot package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Wake_T.html">simba.Codes.Wake_T package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Xsuite.html">simba.Codes.Xsuite package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes.Executables">simba.Codes.Executables module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Codes.html">simba.Codes package</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Cheetah package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Codes.Cheetah.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-codes-cheetah-package">
+<h1>simba.Codes.Cheetah package<a class="headerlink" href="#simba-codes-cheetah-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Codes.Cheetah.Cheetah">
+<span id="simba-codes-cheetah-cheetah-module"></span><h2>simba.Codes.Cheetah.Cheetah module<a class="headerlink" href="#module-simba.Codes.Cheetah.Cheetah" title="Link to this heading"></a></h2>
+<p>SIMBA Cheetah Module</p>
+<p>Various objects and functions to handle Cheetah lattices and commands. See <a class="reference external" href="https://github.com/desy-ml/cheetah">Cheetah github</a> for more details.</p>
+<blockquote>
+<div></div></blockquote>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice" title="simba.Codes.Cheetah.Cheetah.cheetahLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">cheetahLattice</span></code></a>: The Cheetah lattice object, used for
+converting the <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkObject" title="simba.Framework_objects.frameworkObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkObject</span></code></a> s defined in the
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a> into a Cheetah lattice object,
+and for tracking through it.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cheetahLattice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a></p>
+<p>Class for defining the Cheetah lattice object, used for
+converting the <code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code> into a Cheetah lattice object,
+and for tracking through it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.cheetahglobal">
+<span class="sig-name descname"><span class="pre">cheetahglobal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.cheetahglobal" title="Link to this definition"></a></dt>
+<dd><p>Global settings for Cheetah, read in from <cite>cheetahLattice.settings[“global”][“Cheetahsettings”]</cite> and
+<cite>cheetah_defaults.yaml</cite></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.code">
+<span class="sig-name descname"><span class="pre">code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.code" title="Link to this definition"></a></dt>
+<dd><p>String indicating the lattice object type</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.hdf5_to_openpmd">
+<span class="sig-name descname"><span class="pre">hdf5_to_openpmd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.hdf5_to_openpmd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.hdf5_to_openpmd" title="Link to this definition"></a></dt>
+<dd><p>Convert the initial HDF5 particle distribution to OpenPMD format and set
+<a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.pin" title="simba.Codes.Cheetah.Cheetah.cheetahLattice.pin"><code class="xref py py-attr docutils literal notranslate"><span class="pre">pin</span></code></a> accordingly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prefix</strong> (<em>str</em>) – Prefix for particle file</p></li>
+<li><p><strong>write</strong> (<em>bool</em>) – Flag to indicate whether to save the file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.particle_definition">
+<span class="sig-name descname"><span class="pre">particle_definition</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.particle_definition" title="Link to this definition"></a></dt>
+<dd><p>Initial particle distribution as a string</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.pin">
+<span class="sig-name descname"><span class="pre">pin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.pin" title="Link to this definition"></a></dt>
+<dd><p>Initial particle distribution as a Cheetah <a class="reference external" href="https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py">ParticleBeam</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Convert the outputs from Cheetah to HDF5 format and save them to <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.pout">
+<span class="sig-name descname"><span class="pre">pout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.pout" title="Link to this definition"></a></dt>
+<dd><p>Final particle distribution as a Cheetah <a class="reference external" href="https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py">ParticleBeam</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.preProcess">
+<span class="sig-name descname"><span class="pre">preProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.preProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.preProcess" title="Link to this definition"></a></dt>
+<dd><p>Get the initial particle distribution defined in <cite>file_block[‘input’][‘prefix’]</cite> if it exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.ref_idx">
+<span class="sig-name descname"><span class="pre">ref_idx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.ref_idx" title="Link to this definition"></a></dt>
+<dd><p>Reference particle index</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.ref_s">
+<span class="sig-name descname"><span class="pre">ref_s</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.ref_s" title="Link to this definition"></a></dt>
+<dd><p>Reference s position</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.run" title="Link to this definition"></a></dt>
+<dd><p>Run the code, and set <a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.tws" title="simba.Codes.Cheetah.Cheetah.cheetahLattice.tws"><code class="xref py py-attr docutils literal notranslate"><span class="pre">tws</span></code></a> and <a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.pout" title="simba.Codes.Cheetah.Cheetah.cheetahLattice.pout"><code class="xref py py-attr docutils literal notranslate"><span class="pre">pout</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.screen_threaded_function">
+<span class="sig-name descname"><span class="pre">screen_threaded_function</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">ClassVar</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">ScatterGatherDescriptor</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.screen_threaded_function" title="Link to this definition"></a></dt>
+<dd><p>Function for converting all screen outputs from ELEGANT into the SIMBA generic
+<a class="reference internal" href="simba.Modules.Beams.html#simba.Modules.Beams.beam" title="simba.Modules.Beams.beam"><code class="xref py py-class docutils literal notranslate"><span class="pre">beam</span></code></a> object and writing files</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.segment">
+<span class="sig-name descname"><span class="pre">segment</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.segment" title="Link to this definition"></a></dt>
+<dd><p>Lattice elements arranged into a Cheetah <a class="reference external" href="https://github.com/desy-ml/cheetah/blob/master/cheetah/accelerator/segment.py">Segment</a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.trackBeam">
+<span class="sig-name descname"><span class="pre">trackBeam</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.trackBeam" title="Link to this definition"></a></dt>
+<dd><p>Flag to indicate whether to track the beam</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.tws">
+<span class="sig-name descname"><span class="pre">tws</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code><span class="pre">,</span> <code class="xref py py-data docutils literal notranslate"><span class="pre">...</span></code><span class="pre">]</span> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.tws" title="Link to this definition"></a></dt>
+<dd><p>Tensor or tuple of Tensors containing Twiss parameters</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.write" title="Link to this definition"></a></dt>
+<dd><p>Create the lattice object via <a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements" title="simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements"><code class="xref py py-func docutils literal notranslate"><span class="pre">writeElements()</span></code></a>
+and save it as a JSON file to <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements">
+<span class="sig-name descname"><span class="pre">writeElements</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Cheetah/Cheetah.html#cheetahLattice.writeElements"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements" title="Link to this definition"></a></dt>
+<dd><p>Create Cheetah objects for all the elements in the lattice and set the
+<a class="reference internal" href="#simba.Codes.Cheetah.Cheetah.cheetahLattice.segment" title="simba.Codes.Cheetah.Cheetah.cheetahLattice.segment"><code class="xref py py-attr docutils literal notranslate"><span class="pre">segment</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if successful</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.Cheetah">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Codes.Cheetah" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Codes.CSRTrack.html" class="btn btn-neutral float-left" title="simba.Codes.CSRTrack package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Codes.Elegant.html" class="btn btn-neutral float-right" title="simba.Codes.Elegant package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

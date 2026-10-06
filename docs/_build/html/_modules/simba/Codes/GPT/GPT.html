@@ -1,0 +1,956 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.GPT.GPT &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Codes.GPT.GPT</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Codes.GPT.GPT</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Simframe GPT Module</span>
+
+<span class="sd">Various objects and functions to handle GPT lattices and commands.</span>
+
+<span class="sd">Classes:</span>
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gptLattice`: The GPT lattice object, used for</span>
+<span class="sd">      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the</span>
+<span class="sd">      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of</span>
+<span class="sd">      the lattice suitable for GPT input and lattice files.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_element`: Base class for defining</span>
+<span class="sd">      commands in a GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_setfile`: Class for defining the</span>
+<span class="sd">      input files for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_charge`: Class for defining the</span>
+<span class="sd">      bunch charge for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.GptSetReduce`: Class for reducing the</span>
+<span class="sd">      number of particles for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_accuracy`: Class for setting the</span>
+<span class="sd">      accuracy for GPT tracking.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_spacecharge`: Class for defining the</span>
+<span class="sd">      space charge setup for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.GptTout`: Class for defining the</span>
+<span class="sd">      number of steps for particle distribution output for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_csr1d`: Class for defining the</span>
+<span class="sd">      CSR calculations for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_writefloorplan`: Class for setting up the</span>
+<span class="sd">      writing of the lattice floor plan for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_Zminmax`: Class for defining the</span>
+<span class="sd">      minimum and maximum z-positions for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_forwardscatter`: Class for defining</span>
+<span class="sd">      scattering parameters for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_scatterplate`: Class for defining a</span>
+<span class="sd">      scattering object for the GPT input file.</span>
+
+<span class="sd">    - :class:`~simba.Codes.GPT.GPT.gpt_dtmaxt`: Class for defining the</span>
+<span class="sd">      step size(s) for the GPT input file.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">laura.models.diagnostic</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiagnosticElement</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Framework_objects</span><span class="w"> </span><span class="kn">import</span> <span class="n">frameworkLattice</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...FrameworkHelperFunctions</span><span class="w"> </span><span class="kn">import</span> <span class="n">saveFile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams</span> <span class="k">as</span> <span class="n">rbf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">speed_of_light</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...Modules.gdf_beam</span><span class="w"> </span><span class="kn">import</span> <span class="n">gdf_beam</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">laura.translator.converters.codes.gpt</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GptSetFile</span><span class="p">,</span>
+    <span class="n">GptCharge</span><span class="p">,</span>
+    <span class="n">GptSetReduce</span><span class="p">,</span>
+    <span class="n">GptAccuracy</span><span class="p">,</span>
+    <span class="n">GptSpaceCharge</span><span class="p">,</span>
+    <span class="n">GptTout</span><span class="p">,</span>
+    <span class="n">GptCsr1D</span><span class="p">,</span>
+    <span class="n">GptWriteFloorPlan</span><span class="p">,</span>
+    <span class="n">GptZMinMax</span><span class="p">,</span>
+    <span class="n">GptForwardScatter</span><span class="p">,</span>
+    <span class="n">GptScatterPlate</span><span class="p">,</span>
+    <span class="n">GptDtMaxT</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">gpt_defaults</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<div class="viewcode-block" id="gptLattice">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">gptLattice</span><span class="p">(</span><span class="n">frameworkLattice</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for defining the GPT lattice object, used for</span>
+<span class="sd">    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the</span>
+<span class="sd">    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of</span>
+<span class="sd">    the lattice suitable for a GPT input file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpt&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;String indicating the lattice object type&quot;&quot;&quot;</span>
+
+    <span class="n">allow_negative_drifts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flag to indicate whether negative drifts are allowed&quot;&quot;&quot;</span>
+
+    <span class="n">bunch_charge</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bunch charge&quot;&quot;&quot;</span>
+
+    <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Headers to be included in the GPT lattice file&quot;&quot;&quot;</span>
+
+    <span class="n">ignore_start_screen</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flag to indicate whether to ignore the first screen in the lattice&quot;&quot;&quot;</span>
+
+    <span class="n">screen_step_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Step size for screen output&quot;&quot;&quot;</span>
+
+    <span class="n">time_step_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5e-10</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Interval between ``tout`` beam dumps [s].</span>
+<span class="sd">    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`.&quot;&quot;&quot;</span>
+
+    <span class="n">override_meanBz</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set the average particle longitudinal velocity manually&quot;&quot;&quot;</span>
+
+    <span class="n">override_tout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set the time step output manually&quot;&quot;&quot;</span>
+
+    <span class="n">accuracy</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tracking accuracy&quot;&quot;&quot;</span>
+
+    <span class="n">endScreenObject</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Final screen object for dumping particle distributions&quot;&quot;&quot;</span>
+
+    <span class="n">Brho</span><span class="p">:</span> <span class="n">UnitValue</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Magnetic rigidity&quot;&quot;&quot;</span>
+
+    <span class="n">particle_definition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initial particle definition&quot;&quot;&quot;</span>
+
+    <span class="n">dtmin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Integration time step size&quot;&quot;&quot;</span>
+
+    <span class="n">crest_scan_particles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Particles retained during a crest scan (:func:`~find_crest`). The crest is</span>
+<span class="sd">    a single-particle property of the RF, so a handful is enough.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_post_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">__context</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">model_post_init</span><span class="p">(</span><span class="n">__context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;input&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span>
+            <span class="ow">and</span> <span class="s2">&quot;particle_definition&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span><span class="s2">&quot;particle_definition&quot;</span><span class="p">]</span>
+                <span class="o">==</span> <span class="s2">&quot;initial_distribution&quot;</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="s2">&quot;laser&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">][</span>
+                    <span class="s2">&quot;particle_definition&quot;</span>
+                <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptSetFile</span><span class="p">(</span>
+            <span class="nb">set</span><span class="o">=</span><span class="s1">&#39;&quot;beam&quot;&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;&quot;&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.gdf&quot;&#39;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;floorplan&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptWriteFloorPlan</span><span class="p">(</span>
+            <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;&quot;&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s1">&#39;_floor.gdf&quot;&#39;</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">space_charge_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the space charge mode based on</span>
+<span class="sd">        :attr:`~simba.Framework_objects.frameworkLattice.globalSettings` or</span>
+<span class="sd">        :attr:`~simba.Framework_objects.frameworkLattice.file_block`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Space charge mode as string, or None if not provided.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;charge&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span>
+            <span class="ow">and</span> <span class="s2">&quot;space_charge_mode&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">][</span><span class="s2">&quot;space_charge_mode&quot;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="s2">&quot;charge&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span>
+            <span class="ow">and</span> <span class="s2">&quot;space_charge_mode&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">][</span><span class="s2">&quot;space_charge_mode&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@space_charge_mode</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">space_charge_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;2d&quot;</span><span class="p">,</span> <span class="s2">&quot;3d&quot;</span><span class="p">,</span> <span class="s2">&quot;2D&quot;</span><span class="p">,</span> <span class="s2">&quot;3D&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the space charge mode manually [&quot;2D&quot;, &quot;3D&quot;].</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        mode: Literal[&quot;2d&quot;, &quot;3d&quot;, &quot;2D&quot;, &quot;3D&quot;]</span>
+<span class="sd">            The space charge calculation mode</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;charge&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">][</span><span class="s2">&quot;space_charge_mode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mode</span>
+
+<div class="viewcode-block" id="gptLattice.writeElements">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.writeElements">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">writeElements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the lattice elements defined in this object into a GPT-compatible format; see</span>
+<span class="sd">        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.</span>
+
+<span class="sd">        The appropriate headers required for GPT are written at the top of the file, see the `write_GPT`</span>
+<span class="sd">        function in :class:`~simba.Codes.GPT.gpt_element`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            The lattice represented as a string compatible with GPT</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;accuracy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptAccuracy</span><span class="p">(</span><span class="n">accuracy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">accuracy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;charge&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="s2">&quot;charge&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">space_charge_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_block</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalSettings</span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">]</span>
+        <span class="n">space_charge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span> <span class="o">|</span> <span class="n">space_charge_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;spacecharge&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptSpaceCharge</span><span class="p">(</span><span class="o">**</span><span class="n">space_charge</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">==</span> <span class="s2">&quot;laser&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">space_charge_mode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;spacecharge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">npart</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;spacecharge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sample_interval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_interval</span>
+            <span class="c1"># self.headers[&quot;spacecharge&quot;].space_charge_mode = &quot;cathode&quot;</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csr_enable</span>
+            <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dipoles</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="ow">and</span> <span class="nb">max</span><span class="p">([</span><span class="nb">abs</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">magnetic</span><span class="o">.</span><span class="n">KnL</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dipoles</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">):</span>  <span class="c1"># and not os.name == &#39;nt&#39;:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;csr1d&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptCsr1D</span><span class="p">()</span>
+            <span class="c1"># print(&#39;CSR Enabled!&#39;, self.objectname, len(self.dipoles))</span>
+        <span class="c1"># self.headers[&#39;forwardscatter&#39;] = GptForwardScatter(ECS=&#39;&quot;wcs&quot;, &quot;I&quot;&#39;, name=&#39;cathode&#39;, probability=0)</span>
+        <span class="c1"># self.headers[&#39;scatterplate&#39;] = GptScatterPlate(ECS=&#39;&quot;wcs&quot;, &quot;z&quot;, -1e-6&#39;, model=&#39;cathode&#39;, a=1, b=1)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">gpt_headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_pass_rigidity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">Brho</span><span class="p">)</span>
+        <span class="n">fulltext</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">section</span><span class="o">.</span><span class="n">to_gpt</span><span class="p">(</span>
+            <span class="n">startz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">startObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">endz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">Brho</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">Brho</span><span class="p">,</span>
+            <span class="n">dtmin</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtmin</span>
+            <span class="c1"># screen_step_size=self.screen_step_size,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">fulltext</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.write">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.write">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes the GPT input file from :func:`~simba.Codes.GPT.gptLattice.writeElements`</span>
+<span class="sd">        to &lt;master_subdir&gt;/&lt;self.objectname&gt;.in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">code_file</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.in&quot;</span>
+        <span class="p">)</span>
+        <span class="n">saveFile</span><span class="p">(</span><span class="n">code_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">writeElements</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code_file</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cavity_phase_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the GPT variable holding the RF phase of a named cavity.</span>
+
+<span class="sd">        The converter names a cavity&#39;s variables after its position with the</span>
+<span class="sd">        decimal point stripped. The ``map1D_TM`` lines are parsed and matched</span>
+<span class="sd">        against the element&#39;s own start position.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name: str</span>
+<span class="sd">            Name of the cavity element.</span>
+<span class="sd">        text: str</span>
+<span class="sd">            Contents of the generated GPT input file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            The name of the phase variable, e.g. ``phi119357``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">element</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">zpos</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">r</span><span class="s1">&#39;map1D_TM\(\s*&quot;[^&quot;]*&quot;\s*,\s*&quot;[^&quot;]*&quot;\s*,\s*([-\d.eE+]+)\s*,&#39;</span>
+            <span class="sa">r</span><span class="s1">&#39;[^)]*?,\s*(phi\w+)\s*,&#39;</span>
+        <span class="p">)</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">var</span><span class="p">)</span> <span class="k">for</span> <span class="n">z</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">text</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no map1D_TM cavity found in the GPT input for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">z</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">matches</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">zpos</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">zpos</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;no GPT cavity within 1 mm of </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> at z = </span><span class="si">{</span><span class="n">zpos</span><span class="si">}</span><span class="s2">; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;closest is </span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2"> at z = </span><span class="si">{</span><span class="n">z</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">var</span>
+
+<div class="viewcode-block" id="gptLattice.find_crest">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.find_crest">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_crest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">phase_range</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">350.0</span><span class="p">),</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">refine</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the crest phase of an RF cavity by scanning it with GPT&#39;s ``mr``.</span>
+<span class="sd">        ``mr`` runs GPT once per phase and concatenates the output, and ``gdfa``</span>
+<span class="sd">        reduces each run to an average Lorentz factor, so the crest is simply the</span>
+<span class="sd">        phase of maximum ``avgG``.</span>
+
+<span class="sd">        The converter writes ``phi = (crest + 90 - phase)``, so running on crest</span>
+<span class="sd">        means ``phase = 0`` and therefore ``phi = crest + 90``. A scan peaking at</span>
+<span class="sd">        ``phi*`` gives ``crest = phi* - 90``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name: str</span>
+<span class="sd">            Name of the cavity element to phase.</span>
+<span class="sd">        phase_range: tuple</span>
+<span class="sd">            ``(from, to)`` of the coarse scan in degrees.</span>
+<span class="sd">        step: float</span>
+<span class="sd">            Coarse scan step in degrees.</span>
+<span class="sd">        refine: bool</span>
+<span class="sd">            Follow the coarse scan with a finer one, one coarse step either side</span>
+<span class="sd">            of the peak, to a tenth of the step.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            The measured crest phase in degrees, also written back onto the</span>
+<span class="sd">            element.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="n">subdir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">subdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="s2">&quot;.in&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cavity_phase_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+        <span class="c1"># The scanned symbol has to be *undefined* in the input file: mr supplies</span>
+        <span class="c1"># it on the GPT command line, and a local assignment would shadow it.</span>
+        <span class="n">scan_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+            <span class="sa">rf</span><span class="s2">&quot;^\s*</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">\s*=.*$&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2"> = crestscan/deg;&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;crestscan&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scan_text</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;could not substitute the phase assignment for </span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">collective</span> <span class="ow">in</span> <span class="p">(</span><span class="sa">r</span><span class="s2">&quot;spacecharge\w*&quot;</span><span class="p">,</span> <span class="s2">&quot;wakefield&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;csr\w*&quot;</span><span class="p">,</span> <span class="s2">&quot;Wakefield&quot;</span><span class="p">):</span>
+            <span class="n">scan_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                <span class="sa">rf</span><span class="s2">&quot;^\s*</span><span class="si">{</span><span class="n">collective</span><span class="si">}</span><span class="s2">\(.*$&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">scan_text</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span>
+            <span class="p">)</span>
+        <span class="n">scan_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^\s*tout\(.*$&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">scan_text</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+        <span class="n">scan_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+            <span class="sa">r</span><span class="s1">&#39;^(\s*setfile\(.*)$&#39;</span><span class="p">,</span>
+            <span class="sa">rf</span><span class="s1">&#39;\1\nsetreduce(&quot;beam&quot;,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">crest_scan_particles</span><span class="si">}</span><span class="s1">);&#39;</span><span class="p">,</span>
+            <span class="n">scan_text</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">scan</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="n">dx</span><span class="p">):</span>
+            <span class="n">saveFile</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="s2">&quot;_crest.in&quot;</span><span class="p">,</span> <span class="n">scan_text</span><span class="p">)</span>
+            <span class="n">saveFile</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="s2">&quot;_crest.mr&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;crestscan </span><span class="si">{</span><span class="n">lo</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">hi</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">dx</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">gpt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">]</span>
+            <span class="n">mr</span> <span class="o">=</span> <span class="p">[</span><span class="n">gpt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;mr&quot;</span><span class="p">)]</span>
+            <span class="n">gdfa</span> <span class="o">=</span> <span class="p">[</span><span class="n">gpt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;gdfa&quot;</span><span class="p">)]</span>
+            <span class="n">env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">env</span><span class="p">[</span><span class="s2">&quot;OMP_WAIT_POLICY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PASSIVE&quot;</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">mr</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_crest_out.gdf&quot;</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_crest.mr&quot;</span><span class="p">]</span>
+                <span class="o">+</span> <span class="n">gpt</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_crest.in&quot;</span><span class="p">,</span>
+                         <span class="s2">&quot;GPTLICENSE=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;GPTLICENSE&quot;</span><span class="p">])],</span>
+                <span class="n">cwd</span><span class="o">=</span><span class="n">subdir</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">gdfa</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_crest_avg.gdf&quot;</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_crest_out.gdf&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;crestscan&quot;</span><span class="p">,</span> <span class="s2">&quot;avgG&quot;</span><span class="p">,</span> <span class="s2">&quot;numpar&quot;</span><span class="p">],</span>
+                <span class="n">cwd</span><span class="o">=</span><span class="n">subdir</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_crest_scan</span><span class="p">(</span><span class="n">base</span> <span class="o">+</span> <span class="s2">&quot;_crest_avg.gdf&quot;</span><span class="p">,</span> <span class="n">z_eval</span><span class="p">)</span>
+
+        <span class="n">z_eval</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+        <span class="n">phases</span><span class="p">,</span> <span class="n">energies</span> <span class="o">=</span> <span class="n">scan</span><span class="p">(</span><span class="n">phase_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">step</span><span class="p">)</span>
+        <span class="n">peak</span> <span class="o">=</span> <span class="n">phases</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">energies</span><span class="p">))]</span>
+        <span class="k">if</span> <span class="n">refine</span><span class="p">:</span>
+            <span class="n">fine_p</span><span class="p">,</span> <span class="n">fine_e</span> <span class="o">=</span> <span class="n">scan</span><span class="p">(</span><span class="n">peak</span> <span class="o">-</span> <span class="n">step</span><span class="p">,</span> <span class="n">peak</span> <span class="o">+</span> <span class="n">step</span><span class="p">,</span> <span class="n">step</span> <span class="o">/</span> <span class="mf">10.0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fine_e</span><span class="p">):</span>
+                <span class="n">peak</span> <span class="o">=</span> <span class="n">fine_p</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">fine_e</span><span class="p">))]</span>
+
+        <span class="n">element</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">crest</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">peak</span><span class="p">)</span> <span class="o">-</span> <span class="mf">90.0</span><span class="p">)</span> <span class="o">%</span> <span class="mf">360.0</span>
+        <span class="n">element</span><span class="o">.</span><span class="n">crest</span> <span class="o">=</span> <span class="n">crest</span>
+        <span class="k">return</span> <span class="n">crest</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.autophase">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.autophase">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">autophase</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">names</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">phase_range</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">350.0</span><span class="p">),</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">refine</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Phase every RF cavity in the section, upstream to downstream.</span>
+
+<span class="sd">        The order matters and the cavities cannot be done independently. While</span>
+<span class="sd">        the beam is still slow, the time it arrives at a cavity depends on how</span>
+<span class="sd">        much energy it gained in the ones before it, so the crest of the second</span>
+<span class="sd">        cavity is only meaningful once the first is already on crest. Scanning</span>
+<span class="sd">        them in isolation, or in the wrong order, measures the crest of a beam</span>
+<span class="sd">        that will never exist.</span>
+
+<span class="sd">        Each cavity is therefore scanned with every upstream cavity already set</span>
+<span class="sd">        to its measured crest -- which happens naturally, because</span>
+<span class="sd">        :func:`~find_crest` writes the result back onto the element and the input</span>
+<span class="sd">        file is regenerated for the next scan.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        names: list or None</span>
+<span class="sd">            Cavities to phase, in any order; they are sorted by position. When</span>
+<span class="sd">            None, every cavity in the section is phased.</span>
+<span class="sd">        phase_range: tuple</span>
+<span class="sd">            ``(from, to)`` of the coarse scan in degrees.</span>
+<span class="sd">        step: float</span>
+<span class="sd">            Coarse scan step in degrees.</span>
+<span class="sd">        refine: bool</span>
+<span class="sd">            Follow each coarse scan with a finer one around the peak.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            ``{name: crest}`` in the order the cavities were phased.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># elementObjects spans the whole machine, so restrict to accelerating</span>
+            <span class="c1"># cavities that actually sit inside this section. Deflecting cavities</span>
+            <span class="c1"># are excluded: they are not run on crest and their energy gain is</span>
+            <span class="c1"># nominally zero, so an avgG scan says nothing about them.</span>
+            <span class="n">z0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">startObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+            <span class="n">z1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+            <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">&quot;crest&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">&quot;field_amplitude&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">z</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">z0</span> <span class="o">-</span> <span class="mf">1e-6</span> <span class="o">&lt;=</span> <span class="n">z</span> <span class="o">&lt;=</span> <span class="n">z1</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">:</span>
+                    <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">ordered</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementObjects</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">z</span><span class="p">))</span>
+        <span class="n">crests</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">ordered</span><span class="p">:</span>
+            <span class="n">crests</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_crest</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">phase_range</span><span class="o">=</span><span class="n">phase_range</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span> <span class="n">refine</span><span class="o">=</span><span class="n">refine</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">crests</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_read_crest_scan</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">z_eval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pull the scanned phase and average Lorentz factor out of a ``gdfa``</span>
+<span class="sd">        aggregate, which nests them one level below the screen position.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename: str</span>
+<span class="sd">            The ``gdfa`` aggregate file.</span>
+<span class="sd">        z_eval: float or None</span>
+<span class="sd">            Preferred evaluation position; the screen at or just beyond it is</span>
+<span class="sd">            used. When None the furthest downstream screen is taken.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">easygdf</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">easygdf</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;blocks&quot;</span><span class="p">]:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">block</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="s2">&quot;crestscan&quot;</span> <span class="ow">in</span> <span class="n">children</span> <span class="ow">and</span> <span class="s2">&quot;avgG&quot;</span> <span class="ow">in</span> <span class="n">children</span><span class="p">:</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">npar</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;numpar&quot;</span><span class="p">)</span>
+                <span class="n">found</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">pos</span><span class="p">,</span> <span class="n">children</span><span class="p">[</span><span class="s2">&quot;crestscan&quot;</span><span class="p">],</span> <span class="n">children</span><span class="p">[</span><span class="s2">&quot;avgG&quot;</span><span class="p">],</span> <span class="n">npar</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">if</span> <span class="n">z_eval</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pos</span><span class="p">,</span> <span class="n">ph</span><span class="p">,</span> <span class="n">en</span><span class="p">,</span> <span class="n">npar</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">found</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">downstream</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">found</span> <span class="k">if</span> <span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">z_eval</span> <span class="o">-</span> <span class="mf">1e-6</span><span class="p">]</span>
+            <span class="n">pos</span><span class="p">,</span> <span class="n">ph</span><span class="p">,</span> <span class="n">en</span><span class="p">,</span> <span class="n">npar</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="n">downstream</span> <span class="ow">or</span> <span class="n">found</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">z_eval</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">npar</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">npar</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">en</span><span class="p">):</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">npar</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">npar</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">keep</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">ph</span><span class="p">,</span> <span class="n">en</span> <span class="o">=</span> <span class="n">ph</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">en</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ph</span><span class="p">,</span> <span class="n">en</span>
+
+<div class="viewcode-block" id="gptLattice.preProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.preProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">preProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the beam file from the previous lattice section into GPT format and set the number of</span>
+<span class="sd">        particles based on the input distribution, see</span>
+<span class="sd">        :func:`~simba.Codes.GPT.GPT.gptLattice.hdf5_to_astra`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">preProcess</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.gdf&quot;</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prefix</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hdf5_to_gdf</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.run">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the code with input &#39;filename&#39;</span>
+
+<span class="sd">        `GPTLICENSE` must be provided in</span>
+<span class="sd">        :attr:`~simba.Framework_objects.frameworkLattice.global_parameters`.</span>
+
+<span class="sd">        Average properties of the distribution are also calculated and written</span>
+<span class="sd">        to an `&lt;&gt;emit.gdf` file in `master_subdir`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">main_command</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;GPTLICENSE=&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;GPTLICENSE&quot;</span><span class="p">]]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.in&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">my_env</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">my_env</span><span class="p">[</span><span class="s2">&quot;LD_LIBRARY_PATH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">my_env</span><span class="p">[</span><span class="s2">&quot;LD_LIBRARY_PATH&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;:/opt/GPT3.3.6/lib/&quot;</span>
+            <span class="k">if</span> <span class="s2">&quot;LD_LIBRARY_PATH&quot;</span> <span class="ow">in</span> <span class="n">my_env</span>
+            <span class="k">else</span> <span class="s2">&quot;/opt/GPT3.3.6/lib/&quot;</span>
+        <span class="p">)</span>
+        <span class="n">my_env</span><span class="p">[</span><span class="s2">&quot;OMP_WAIT_POLICY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PASSIVE&quot;</span>
+        <span class="n">post_command</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;gdfa&quot;</span><span class="p">)]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_emit.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span>
+                <span class="s2">&quot;position&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Q&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdBx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdBy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdt&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemixrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemiyrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemizrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;numpar&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemirrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgG&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgp&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdG&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgt&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSalphax&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSalphay&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSbetax&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSbetay&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">post_command_t</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;gdfa&quot;</span><span class="p">)]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_emitt.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span>
+                <span class="s2">&quot;time&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Q&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdBx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdBy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemixrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemiyrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemizrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;numpar&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;nemirrms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgG&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgp&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;stdG&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgBz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSalphax&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSalphay&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSbetax&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CSbetay&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfBx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfEx&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfBy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfEy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfBz&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;avgfEz&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">post_command_traj</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">executables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;gpt&quot;</span><span class="p">,</span> <span class="s2">&quot;gdfa&quot;</span><span class="p">)]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;traj.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">,</span> <span class="s2">&quot;Q&quot;</span><span class="p">,</span> <span class="s2">&quot;avgx&quot;</span><span class="p">,</span> <span class="s2">&quot;avgy&quot;</span><span class="p">,</span> <span class="s2">&quot;avgz&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.bat&quot;</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;w&quot;</span><span class="p">,</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">batfile</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">command</span> <span class="ow">in</span> <span class="p">[</span>
+                <span class="n">main_command</span><span class="p">,</span>
+                <span class="n">post_command</span><span class="p">,</span>
+                <span class="n">post_command_t</span><span class="p">,</span>
+                <span class="n">post_command_traj</span><span class="p">,</span>
+            <span class="p">]:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="s1">&#39;&quot;&#39;</span> <span class="o">+</span> <span class="n">command</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;&quot; &#39;</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">command</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                    <span class="n">output</span> <span class="o">+=</span> <span class="n">c</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="n">batfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.log&quot;</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;w&quot;</span><span class="p">,</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="c1"># print(&#39;gpt command = &#39;, command)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">main_command</span><span class="p">,</span>
+                <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+                <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span>
+                <span class="n">env</span><span class="o">=</span><span class="n">my_env</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">post_command</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">post_command_t</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="n">post_command_traj</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.postProcess">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.postProcess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">postProcess</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the beam file(s) from the GPT output into HDF5 format, see</span>
+<span class="sd">        :func:`~simba.Elements.screen.screen.gdf_to_hdf5`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">postProcess</span><span class="p">()</span>
+        <span class="n">cathode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">==</span> <span class="s2">&quot;laser&quot;</span>
+        <span class="n">svals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getSValues</span><span class="p">(</span><span class="n">at_entrance</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_s</span>
+        <span class="n">zvals</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getZValues</span><span class="p">()]</span>
+        <span class="n">gdfbeam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">gdf</span><span class="o">.</span><span class="n">read_gdf_beam_file_object</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span><span class="si">}</span><span class="s1">_out.gdf&#39;</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">screens_and_markers_and_bpms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">e</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+                <span class="n">sval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">zvals</span><span class="p">,</span> <span class="n">svals</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gdf_to_hdf5</span><span class="p">(</span>
+                    <span class="n">gptbeamfilename</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">,</span>
+                    <span class="n">screen</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+                    <span class="n">cathode</span><span class="o">=</span><span class="n">cathode</span><span class="p">,</span>
+                    <span class="n">gdf</span><span class="o">=</span><span class="n">gdfbeam</span><span class="p">,</span>
+                    <span class="n">t0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">,</span>
+                    <span class="n">sval</span><span class="o">=</span><span class="n">sval</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="c1"># else:</span>
+            <span class="c1"># print(&#39;Ignoring&#39;, self.ignore_start_screen.objectname)</span>
+        <span class="n">sval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">zvals</span><span class="p">,</span> <span class="n">svals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gdf_to_hdf5</span><span class="p">(</span>
+            <span class="n">gptbeamfilename</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;_out.gdf&quot;</span><span class="p">,</span>
+            <span class="n">screen</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="p">,</span>
+            <span class="n">cathode</span><span class="o">=</span><span class="n">cathode</span><span class="p">,</span>
+            <span class="n">gdf</span><span class="o">=</span><span class="n">gdfbeam</span><span class="p">,</span>
+            <span class="n">t0</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">,</span>
+            <span class="n">sval</span><span class="o">=</span><span class="n">sval</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.hdf5_to_gdf">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.hdf5_to_gdf">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hdf5_to_gdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the HDF5 beam distribution to GDF format.</span>
+
+<span class="sd">        Certain properties of this class, including</span>
+<span class="sd">        :attr:`~simba.Codes.GPT.GPT.gptLattice.sample_interval`,</span>
+<span class="sd">        :attr:`~simba.Codes.GPT.GPT.gptLattice.override_meanBz`,</span>
+<span class="sd">        :attr:`~simba.Codes.GPT.GPT.gptLattice.override_tout` are also</span>
+<span class="sd">        used to update</span>
+<span class="sd">        :attr:`~simba.Codes.GPT.GPT.gptLattice.headers`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefix: str</span>
+<span class="sd">            HDF5 file prefix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_input_file</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">==</span> <span class="s2">&quot;laser&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="mi">0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setfile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_interval</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;setreduce&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptSetReduce</span><span class="p">(</span>
+                <span class="nb">set</span><span class="o">=</span><span class="s1">&#39;&quot;beam&quot;&#39;</span><span class="p">,</span>
+                <span class="n">setreduce</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_interval</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">override_meanBz</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">override_meanBz</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">meanBz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">override_meanBz</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">meanBz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">Bz</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meanBz</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+                <span class="n">meanBz</span> <span class="o">=</span> <span class="mf">0.75</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">override_tout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">override_tout</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;tout&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptTout</span><span class="p">(</span>
+                <span class="n">starttime</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">endpos</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">override_tout</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_step_size</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">endpos</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">findS</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endObject</span><span class="o">.</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">findS</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">startObject</span><span class="o">.</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;tout&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">GptTout</span><span class="p">(</span>
+                <span class="n">starttime</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">endpos</span><span class="o">=</span><span class="n">endpos</span> <span class="o">/</span> <span class="n">meanBz</span> <span class="o">/</span> <span class="n">speed_of_light</span><span class="p">,</span>
+                <span class="n">step</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_step_size</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchXPlane</span><span class="p">(</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;horizontal&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rematchYPlane</span><span class="p">(</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_twiss</span><span class="p">[</span><span class="s2">&quot;vertical&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">gdfbeamfilename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectname</span> <span class="o">+</span> <span class="s2">&quot;.gdf&quot;</span>
+        <span class="n">cathode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">particle_definition</span> <span class="o">==</span> <span class="s2">&quot;laser&quot;</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">gdf</span><span class="o">.</span><span class="n">write_gdf_beam_file</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">gdfbeamfilename</span><span class="p">,</span>
+            <span class="n">normaliseX</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">startObject</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+            <span class="n">cathode</span><span class="o">=</span><span class="n">cathode</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Brho</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">Brho</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">gdfbeamfilename</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="gptLattice.gdf_to_hdf5">
+<a class="viewcode-back" href="../../../../simba.Codes.GPT.html#simba.Codes.GPT.GPT.gptLattice.gdf_to_hdf5">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gdf_to_hdf5</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">screen</span><span class="p">:</span> <span class="n">DiagnosticElement</span><span class="p">,</span>
+            <span class="n">gptbeamfilename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">cathode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">gdf</span><span class="p">:</span> <span class="n">gdf_beam</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">t0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">sval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert the GDF beam file to HDF5 format and write the beam file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        screen: laura.models.diagnostic.DiagnosticElement</span>
+<span class="sd">            Diagnostic element</span>
+<span class="sd">        gptbeamfilename: str</span>
+<span class="sd">            Name of GPT beam file</span>
+<span class="sd">        cathode: bool</span>
+<span class="sd">            True if beam was emitted from a cathode</span>
+<span class="sd">        gdf: gdfbeam or None</span>
+<span class="sd">            GDF beam object</span>
+<span class="sd">        t0: float</span>
+<span class="sd">            Initial time co-ordinate</span>
+<span class="sd">        sval: float</span>
+<span class="sd">            S-position of screen</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># gptbeamfilename = self.objectname + &#39;.&#39; + str(int(round((self.allElementObjects[self.end].position_end[2])*100))).zfill(4) + &#39;.&#39; + str(master_run_no).zfill(3)</span>
+        <span class="c1"># try:</span>
+        <span class="c1"># print(&#39;Converting screen&#39;, self.objectname,&#39;at&#39;, self.gpt_screen_position)</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">rbf</span><span class="o">.</span><span class="n">beam</span><span class="p">()</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">gdf</span><span class="o">.</span><span class="n">read_gdf_beam_file</span><span class="p">(</span>
+            <span class="n">beam</span><span class="p">,</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span> <span class="n">gptbeamfilename</span><span class="p">),</span>
+            <span class="n">position</span><span class="o">=</span><span class="n">screen</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">middle</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">gdfbeam</span><span class="o">=</span><span class="n">gdf</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span> <span class="o">+</span> <span class="n">t0</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">)</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">_beam</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="n">UnitValue</span><span class="p">(</span><span class="n">sval</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;m&quot;</span><span class="p">)</span>
+        <span class="n">HDF5filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_basename</span><span class="p">(</span><span class="n">screen</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.openpmd.hdf5&quot;</span>
+        <span class="n">rbf</span><span class="o">.</span><span class="n">openpmd</span><span class="o">.</span><span class="n">write_openpmd_beam_file</span><span class="p">(</span>
+            <span class="n">beam</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">HDF5filename</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># except:</span>
+        <span class="c1">#     print(&#39;Error with screen&#39;, self.objectname,&#39;at&#39;, self.gpt_screen_position)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;delete_tracking_files&quot;</span><span class="p">]:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">global_parameters</span><span class="p">[</span><span class="s2">&quot;master_subdir&quot;</span><span class="p">],</span> <span class="n">gptbeamfilename</span>
+                    <span class="p">)</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+            <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

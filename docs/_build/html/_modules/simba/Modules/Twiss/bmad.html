@@ -1,0 +1,246 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Twiss.bmad &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../Twiss.html">simba.Modules.Twiss</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Twiss.bmad</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Twiss.bmad</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+
+<div class="viewcode-block" id="save_bmad_twiss_hdf">
+<a class="viewcode-back" href="../../../../simba.Modules.Twiss.html#simba.Modules.Twiss.bmad.save_bmad_twiss_hdf">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_bmad_twiss_hdf</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">twiss</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Write the twiss data extracted from Tao to an HDF5 file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename: str</span>
+<span class="sd">        Name of the file to write.</span>
+<span class="sd">    twiss: dict</span>
+<span class="sd">        Twiss data, as produced by</span>
+<span class="sd">        :func:`~simba.Codes.Bmad.Bmad.bmadLattice._twiss_data`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">grp_name</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">twiss</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;U&quot;</span><span class="p">,</span> <span class="s2">&quot;S&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span>
+                    <span class="n">grp_name</span><span class="p">,</span>
+                    <span class="n">data</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">h5py</span><span class="o">.</span><span class="n">string_dtype</span><span class="p">(),</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">grp_name</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">return</span></div>
+
+
+
+<div class="viewcode-block" id="read_bmad_twiss_files">
+<a class="viewcode-back" href="../../../../simba.Modules.Twiss.html#simba.Modules.Twiss.bmad.read_bmad_twiss_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_bmad_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">reset</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_dicts</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">read_bmad_twiss_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="n">lattice_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">fdat</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">h5py</span><span class="o">.</span><span class="n">check_string_dtype</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">dtype</span><span class="p">):</span>
+                    <span class="n">fdat</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">asstr</span><span class="p">()[:]})</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fdat</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)})</span>
+        <span class="n">interpret_bmad_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lattice_name</span><span class="p">,</span> <span class="n">fdat</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="interpret_bmad_data">
+<a class="viewcode-back" href="../../../../simba.Modules.Twiss.html#simba.Modules.Twiss.bmad.interpret_bmad_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">interpret_bmad_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lattice_name</span><span class="p">,</span> <span class="n">fdat</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Populate the twiss object from the contents of a Bmad twiss file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">])</span>
+    <span class="n">cp</span> <span class="o">=</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;p0c&quot;</span><span class="p">]</span>
+    <span class="n">ke</span> <span class="o">=</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;e_tot&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0_eV</span>
+    <span class="n">gamma</span> <span class="o">=</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;e_tot&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">E0_eV</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">gamma</span><span class="o">**-</span><span class="mi">2</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_energy</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">ke</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">cp</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">cp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_over_c</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_t&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enx</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enx</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_norm_emit_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ex</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ex</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_emit_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eny</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eny</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_norm_emit_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ey</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ey</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_emit_y&quot;</span><span class="p">])</span>
+    <span class="n">longitudinal</span> <span class="o">=</span> <span class="n">cp</span> <span class="o">/</span> <span class="p">(</span><span class="n">beta</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">speed_of_light</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enz</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enz</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_norm_emit_z&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">longitudinal</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ez</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ez</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_emit_z&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">longitudinal</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_beta_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_alpha_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gamma_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_gamma_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">beta_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_beta_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_alpha_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gamma_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_gamma_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">beta_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_beta_z&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_alpha_z&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gamma_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_gamma_z&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_xp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_xp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_xp&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_yp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_yp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_yp&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_t</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_t&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_z</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_z&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mean_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mean_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_p</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma_p</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_delta&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigma_cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_sigma_delta&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_p0c&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mean_cp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_cp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_p0c&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_delta&quot;</span><span class="p">])</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mux</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mux</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;mu_x&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">muy</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">muy</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;mu_y&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_x</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_x</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_eta_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_xp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_xp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_etap_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_y</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_y</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_eta_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_yp</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_yp</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_etap_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">element_name</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;element_name&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">lattice_name</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_name</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">]),</span> <span class="n">lattice_name</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ecnx</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecnx</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_norm_emit_a&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ecny</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecny</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_norm_emit_b&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_eta_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_xp_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_xp_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_etap_x&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_eta_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">eta_yp_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eta_yp_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_etap_y&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">beta_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_beta_a&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">beta_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_beta_b&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_x_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_x_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_alpha_a&quot;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_y_beam</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha_y_beam</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">fdat</span><span class="p">[</span><span class="s2">&quot;beam_alpha_b&quot;</span><span class="p">])</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

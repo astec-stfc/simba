@@ -1,0 +1,1356 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.Generators package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Codes.Genesis package" href="simba.Codes.Genesis.html" />
+    <link rel="prev" title="simba.Codes.GPT package" href="simba.Codes.GPT.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Codes.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.ASTRA.html">simba.Codes.ASTRA package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Bmad.html">simba.Codes.Bmad package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.CSRTrack.html">simba.Codes.CSRTrack package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Cheetah.html">simba.Codes.Cheetah package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Elegant.html">simba.Codes.Elegant package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.GPT.html">simba.Codes.GPT package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Codes.Generators package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#simba-codes-generators-generators-module">simba.Codes.Generators.Generators module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Generators.astra">simba.Codes.Generators.astra module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Generators.gpt">simba.Codes.Generators.gpt module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Generators.opal">simba.Codes.Generators.opal module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.Generators">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Genesis.html">simba.Codes.Genesis package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.MADX.html">simba.Codes.MADX package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.OPAL.html">simba.Codes.OPAL package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Ocelot.html">simba.Codes.Ocelot package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Wake_T.html">simba.Codes.Wake_T package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Xsuite.html">simba.Codes.Xsuite package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes.Executables">simba.Codes.Executables module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Codes.html">simba.Codes package</a></li>
+      <li class="breadcrumb-item active">simba.Codes.Generators package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Codes.Generators.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-codes-generators-package">
+<h1>simba.Codes.Generators package<a class="headerlink" href="#simba-codes-generators-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="simba-codes-generators-generators-module">
+<h2>simba.Codes.Generators.Generators module<a class="headerlink" href="#simba-codes-generators-generators-module" title="Link to this heading"></a></h2>
+<p id="module-simba.Codes.Generators.Generators"><span id="generator-class"></span>SIMBA Beam Generator module</p>
+<p>This module defines a class for generating a beam distribution. The beam properties, code and number of particles
+should be provided. The beam properties can either represent a photoinjector laser profile (if <cite>cathode=True</cite>) or
+beam sizes and distribution types for generating a 6D phase space.</p>
+<p>All of the possible attributes of the class are not generic to each code, and some codes require these properties to
+be defined. The <code class="docutils literal notranslate"><span class="pre">&lt;code&gt;.yaml</span></code> files defined below are fed into <code class="docutils literal notranslate"><span class="pre">&lt;code&gt;_generator_keywords</span></code> dictionaries, which
+exclude attributes that cannot be understood by that specific code. It is noted that not all possible options
+are provided for the beam generators every single code; specific options can be added on request.</p>
+<p>Other attributes have generic (human-readable) names, which are then translated to the names required for that code
+based on the definitions in <code class="docutils literal notranslate"><span class="pre">aliases.yaml</span></code>, which is read into the <code class="docutils literal notranslate"><span class="pre">aliases</span></code> dictionary.</p>
+<p>These attributes can be loaded in from a .yaml file, or modified after the class is instantiated. The top-level
+<a class="reference internal" href="Framework.html#simba.Framework.Framework" title="simba.Framework.Framework"><code class="xref py py-class docutils literal notranslate"><span class="pre">Framework</span></code></a> class has a
+<a class="reference internal" href="Framework.html#simba.Framework.Framework.generator_defaults" title="simba.Framework.Framework.generator_defaults"><code class="xref py py-attr docutils literal notranslate"><span class="pre">generator_defaults</span></code></a> attribute which points to a .yaml file in the
+<code class="docutils literal notranslate"><span class="pre">&lt;master_lattice&gt;.Generators</span></code> directory. Specific distributions can be specified therein.</p>
+<p>Example: loading generator defaults</p>
+<p>Prepare <cite>defaults.yaml</cite> file for generators in <code class="docutils literal notranslate"><span class="pre">&lt;master_lattice&gt;/Generators/</span></code></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">defaults</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">combine_distributions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">species</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">electron</span>
+<span class="w">  </span><span class="nt">probe_particle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">noise_reduction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">high_resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">cathode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">reference_position</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">reference_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">initial_momentum</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">distribution_type_pz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">i</span>
+<span class="w">  </span><span class="nt">thermal_emittance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0009</span>
+<span class="w">  </span><span class="nt">distribution_type_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">radial</span>
+<span class="w">  </span><span class="nt">sigma_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.00025</span>
+<span class="w">  </span><span class="nt">distribution_type_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">radial</span>
+<span class="w">  </span><span class="nt">sigma_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.00025</span>
+<span class="w">  </span><span class="nt">offset_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">offset_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="nt">laser_3ps_gaussian</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">distribution_type_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">g</span>
+<span class="w">  </span><span class="nt">sigma_t</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.000000000003</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="nt">laser_2ps_flattop</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">distribution_type_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">p</span>
+<span class="w">  </span><span class="nt">plateau_bunch_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.000000000002</span>
+<span class="w">  </span><span class="nt">plateau_rise_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0000000000002</span>
+</pre></div>
+</div>
+<p>Define <cite>generator</cite> in <cite>settings.def</cite> file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">generator</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">laser_2ps_flattop</span>
+<span class="nt">files</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</pre></div>
+</div>
+<p>Load in generator settings</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">simba.Framework</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fw</span>
+
+<span class="n">framework</span> <span class="o">=</span> <span class="n">fw</span><span class="o">.</span><span class="n">Framework</span><span class="p">(</span>
+        <span class="n">master_lattice</span><span class="o">=</span><span class="n">master_lattice</span><span class="p">,</span>
+        <span class="n">simcodes</span><span class="o">=</span><span class="n">simcodes_location</span><span class="p">,</span>
+        <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span>
+        <span class="n">generator_defaults</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;defaults.yaml&quot;</span>
+        <span class="n">clean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">loadSettings</span><span class="p">(</span><span class="s2">&quot;Lattices/settings.def&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">change_generator</span><span class="p">(</span><span class="s2">&quot;GPT&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">load_defaults</span><span class="p">(</span><span class="s2">&quot;laser_3ps_gaussian&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkGenerator</span></code>: Defines parameters to be fed into a beam generator for specific codes.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">frameworkGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Base class for defining a beam generator.
+This class defines the parameters to be fed into a beam generator for specific codes.
+The parameters can be modified after the class is instantiated, and the defaults can be loaded in from a .yaml file.
+The top-level <a class="reference internal" href="Framework.html#simba.Framework.Framework" title="simba.Framework.Framework"><code class="xref py py-class docutils literal notranslate"><span class="pre">Framework</span></code></a> class has a
+<a class="reference internal" href="Framework.html#simba.Framework.Framework.generator_defaults" title="simba.Framework.Framework.generator_defaults"><code class="xref py py-attr docutils literal notranslate"><span class="pre">generator_defaults</span></code></a> attribute which points to a .yaml file in the
+<cite>&lt;master_lattice&gt;.Generators</cite> directory. Specific distributions can be specified therein.</p>
+<p>Example: loading generator defaults.</p>
+<p>Prepare <cite>defaults.yaml</cite> file for generators in <cite>&lt;master_lattice&gt;/Generators/</cite>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">defaults</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">combine_distributions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">species</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">electron</span>
+<span class="w">  </span><span class="nt">probe_particle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">noise_reduction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">high_resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">cathode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">reference_position</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">reference_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">initial_momentum</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">distribution_type_pz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">i</span>
+<span class="w">  </span><span class="nt">thermal_emittance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0009</span>
+<span class="w">  </span><span class="nt">distribution_type_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">radial</span>
+<span class="w">  </span><span class="nt">sigma_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.00025</span>
+<span class="w">  </span><span class="nt">distribution_type_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">radial</span>
+<span class="w">  </span><span class="nt">sigma_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.00025</span>
+<span class="w">  </span><span class="nt">offset_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">offset_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+
+<span class="nt">laser_3ps_gaussian</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">distribution_type_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">g</span>
+<span class="w">  </span><span class="nt">sigma_t</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.000000000003</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_x</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_y</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">gaussian_cutoff_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+
+<span class="nt">laser_2ps_flattop</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">distribution_type_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">p</span>
+<span class="w">  </span><span class="nt">plateau_bunch_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.000000000002</span>
+<span class="w">  </span><span class="nt">plateau_rise_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0000000000002</span>
+</pre></div>
+</div>
+<p>Define <cite>generator</cite> in <cite>settings.def</cite> file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;global&gt;</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">generator</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">laser_2ps_flattop</span>
+<span class="nt">files</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</pre></div>
+</div>
+<p>Load in generator settings</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">simba.Framework</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fw</span>
+
+<span class="n">framework</span> <span class="o">=</span> <span class="n">fw</span><span class="o">.</span><span class="n">Framework</span><span class="p">(</span>
+    <span class="n">master_lattice</span><span class="o">=</span><span class="n">master_lattice</span><span class="p">,</span>
+    <span class="n">simcodes</span><span class="o">=</span><span class="n">simcodes_location</span><span class="p">,</span>
+    <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span>
+    <span class="n">generator_defaults</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;defaults.yaml&quot;</span>
+    <span class="n">clean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">loadSettings</span><span class="p">(</span><span class="s2">&quot;Lattices/settings.def&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">change_generator</span><span class="p">(</span><span class="s2">&quot;opal&quot;</span><span class="p">)</span>
+<span class="n">framework</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">load_defaults</span><span class="p">(</span><span class="s2">&quot;laser_3ps_gaussian&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.allowedKeyWords">
+<span class="sig-name descname"><span class="pre">allowedKeyWords</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.allowedKeyWords" title="Link to this definition"></a></dt>
+<dd><p>Is this ever used?</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.apply_alias_and_multiplier">
+<span class="sig-name descname"><span class="pre">apply_alias_and_multiplier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">code</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.apply_alias_and_multiplier"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.apply_alias_and_multiplier" title="Link to this definition"></a></dt>
+<dd><p>Dynamically apply alias and multiplier to fields to translate them to the required names for a specific code.
+Multipliers are also applied, such as converting bunch length in seconds to nanoseconds as required for ASTRA.
+Aliases are defined in <cite>aliases.yaml</cite>, where each <cite>code</cite> has strings to be translated.</p>
+<p>These translated attributes are then set as new attributes to this class,
+with the appropriate multipliers applied.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Dictionary read in from <cite>aliases.yaml</cite></p></li>
+<li><p><strong>code</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Name of code to convert attributes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.cathode">
+<span class="sig-name descname"><span class="pre">cathode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.cathode" title="Link to this definition"></a></dt>
+<dd><p>Emit the beam from a cathode?</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.cathode_radius">
+<span class="sig-name descname"><span class="pre">cathode_radius</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.cathode_radius" title="Link to this definition"></a></dt>
+<dd><p>Radius in case of a curved, i.e. non planar cathode
+# TODO is this ever used?</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.cathode_temperature">
+<span class="sig-name descname"><span class="pre">cathode_temperature</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.cathode_temperature" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Photocathode temperature [K]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.charge">
+<span class="sig-name descname"><span class="pre">charge</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.charge" title="Link to this definition"></a></dt>
+<dd><p>Bunch charge</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.charge_sign">
+<span class="sig-name descname"><span class="pre">charge_sign</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.charge_sign" title="Link to this definition"></a></dt>
+<dd><p>Sign of charge (+1 for protons, -1 for electrons)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.chirp">
+<span class="sig-name descname"><span class="pre">chirp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.chirp" title="Link to this definition"></a></dt>
+<dd><p>Energy chirp of the beam [eV/m] or list of higher-order chirps for each particle</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.code">
+<span class="sig-name descname"><span class="pre">code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'ASTRA'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'astra'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'GPT'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gpt'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'OPAL'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'opal'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'generic'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'framework'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'simba'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'SIMBA'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.code" title="Link to this definition"></a></dt>
+<dd><p>Simulation code to be used for generating distributions.
+<code class="docutils literal notranslate"><span class="pre">opal</span></code> is supported only for beam generation and
+acceleration in a single run with OPAL; see
+<a class="reference internal" href="simba.Codes.OPAL.html#simba.Codes.OPAL.OPAL.opalLattice.all_in_one" title="simba.Codes.OPAL.OPAL.opalLattice.all_in_one"><code class="xref py py-func docutils literal notranslate"><span class="pre">all_in_one()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.combine_distributions">
+<span class="sig-name descname"><span class="pre">combine_distributions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.combine_distributions" title="Link to this definition"></a></dt>
+<dd><p>[ASTRA only] If true the input list has to be specified N_add times and N_add different
+distributions will be added</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.correlation_kinetic_energy">
+<span class="sig-name descname"><span class="pre">correlation_kinetic_energy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.correlation_kinetic_energy" title="Link to this definition"></a></dt>
+<dd><p>Kinetic energy correlation (with what?)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.correlation_px">
+<span class="sig-name descname"><span class="pre">correlation_px</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.correlation_px" title="Link to this definition"></a></dt>
+<dd><p>Horizontal momentum correlation (with what?)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.correlation_py">
+<span class="sig-name descname"><span class="pre">correlation_py</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.correlation_py" title="Link to this definition"></a></dt>
+<dd><p>Vertical momentum correlation (with what?)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.covariance_xxp">
+<span class="sig-name descname"><span class="pre">covariance_xxp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Annotated</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.covariance_xxp" title="Link to this definition"></a></dt>
+<dd><p>Covariance of horizontal position and momentum [m-rad]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.covariance_yyp">
+<span class="sig-name descname"><span class="pre">covariance_yyp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Annotated</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.covariance_yyp" title="Link to this definition"></a></dt>
+<dd><p>Covariance of horizontal position and momentum [m-rad]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_px">
+<span class="sig-name descname"><span class="pre">distribution_type_px</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2dgaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'u'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'r'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'radial'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_px" title="Link to this definition"></a></dt>
+<dd><p>Horizontal momentum distribution type – uniform or radial available
+# TODO not sure what this means or what the other options are</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_py">
+<span class="sig-name descname"><span class="pre">distribution_type_py</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2dgaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'u'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'r'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'radial'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_py" title="Link to this definition"></a></dt>
+<dd><p>Vertical momentum distribution type – uniform or radial available
+# TODO not sure what this means or what the other options are</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_pz">
+<span class="sig-name descname"><span class="pre">distribution_type_pz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2dgaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'u'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'r'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'radial'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'i'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_pz" title="Link to this definition"></a></dt>
+<dd><p>Longitudinal momentum distribution type – not sure about options
+# TODO not sure what this means or what the other options are</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_x">
+<span class="sig-name descname"><span class="pre">distribution_type_x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2dgaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'u'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'r'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'radial'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_x" title="Link to this definition"></a></dt>
+<dd><p>Horizontal distribution type – flattop, uniform or Gaussian available</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_y">
+<span class="sig-name descname"><span class="pre">distribution_type_y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'2dgaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'u'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'r'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'radial'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_y" title="Link to this definition"></a></dt>
+<dd><p>Vertical distribution type – flattop, uniform or Gaussian available</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_z">
+<span class="sig-name descname"><span class="pre">distribution_type_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'p'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'plateau'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'flattop'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'g'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'i'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.distribution_type_z" title="Link to this definition"></a></dt>
+<dd><p>Longitudinal distribution type – flattop or Gaussian available</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.elementary_charge">
+<span class="sig-name descname"><span class="pre">elementary_charge</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.elementary_charge" title="Link to this definition"></a></dt>
+<dd><p>Elementary charge [C]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.emission_model">
+<span class="sig-name descname"><span class="pre">emission_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'ASTRA'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'NONEQUIL'</span></code><span class="pre">]</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.emission_model" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Photoemission model (not currently implemented)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.emission_steps">
+<span class="sig-name descname"><span class="pre">emission_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.emission_steps" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Number of emission steps.</p>
+<p>This has to stay small enough that each step emits a useful number of
+particles.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.executables">
+<span class="sig-name descname"><span class="pre">executables</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.executables" title="Link to this definition"></a></dt>
+<dd><p>Generator executables from <a class="reference internal" href="Framework.html#simba.Framework.Framework" title="simba.Framework.Framework"><code class="xref py py-class docutils literal notranslate"><span class="pre">Framework</span></code></a> class</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.fermi_energy_ev">
+<span class="sig-name descname"><span class="pre">fermi_energy_ev</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.fermi_energy_ev" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Fermi energy of photocathode [eV]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.filename">
+<span class="sig-name descname"><span class="pre">filename</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.filename" title="Link to this definition"></a></dt>
+<dd><p>Beam distribution filename to be generated</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_px">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_px</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_px" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in horizontal momentum plane [sigma]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_py">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_py</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_py" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in vertical momentum plane [sigma]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_pz">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_pz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_pz" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in longitudinal momentum plane [sigma]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_x">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_x" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in horizontal direction [sigma]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_y">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_y" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in vertical direction [sigma]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_z">
+<span class="sig-name descname"><span class="pre">gaussian_cutoff_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.gaussian_cutoff_z" title="Link to this definition"></a></dt>
+<dd><p>Cut-off for Gaussian distribution in longitudinal direction [sigma]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.generate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.generate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.generate_longitudinal_distribution">
+<span class="sig-name descname"><span class="pre">generate_longitudinal_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.generate_longitudinal_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.generate_longitudinal_distribution" title="Link to this definition"></a></dt>
+<dd><p>Generate a longitudinal distribution with optional chirp (nonlinear z–pz correlation).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.generate_transverse_distribution">
+<span class="sig-name descname"><span class="pre">generate_transverse_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.generate_transverse_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.generate_transverse_distribution" title="Link to this definition"></a></dt>
+<dd><p>Generate a transverse distribution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Name of the distribution</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Samples particles according to sigma_{name}, distribution_type_{name} and
+gaussian_cutoff_{name} attributes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.generator_keywords">
+<span class="sig-name descname"><span class="pre">generator_keywords</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.generator_keywords" title="Link to this definition"></a></dt>
+<dd><p>Generator keywords from <a class="reference internal" href="Framework.html#simba.Framework.Framework" title="simba.Framework.Framework"><code class="xref py py-class docutils literal notranslate"><span class="pre">Framework</span></code></a> class</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.global_parameters">
+<span class="sig-name descname"><span class="pre">global_parameters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.global_parameters" title="Link to this definition"></a></dt>
+<dd><p>Global parameters from <a class="reference internal" href="Framework.html#simba.Framework.Framework" title="simba.Framework.Framework"><code class="xref py py-class docutils literal notranslate"><span class="pre">Framework</span></code></a> class</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.high_resolution">
+<span class="sig-name descname"><span class="pre">high_resolution</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.high_resolution" title="Link to this definition"></a></dt>
+<dd><p>[ASTRA only] High-resolution cathode emission.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.image_filename">
+<span class="sig-name descname"><span class="pre">image_filename</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.image_filename" title="Link to this definition"></a></dt>
+<dd><p>Image file used to generate transverse beam distribution (GPT only)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.initial_momentum">
+<span class="sig-name descname"><span class="pre">initial_momentum</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.initial_momentum" title="Link to this definition"></a></dt>
+<dd><p>Mean initial momentum [eV/c]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.kwargs">
+<span class="sig-name descname"><span class="pre">kwargs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.kwargs" title="Link to this definition"></a></dt>
+<dd><p>Additional arguments</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.laser_energy">
+<span class="sig-name descname"><span class="pre">laser_energy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.laser_energy" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Photoinjector laser energy [eV]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.load_defaults">
+<span class="sig-name descname"><span class="pre">load_defaults</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">defaults</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.load_defaults"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.load_defaults" title="Link to this definition"></a></dt>
+<dd><p>Load in defaults settings either from a key in :attr:~`generator_keywords` or with a Dict.
+Sets these parameters as attributes of this class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>defaults</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>]</span>) – Default generator settings</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.longitudinal_fields">
+<span class="sig-name descname"><span class="pre">longitudinal_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.longitudinal_fields" title="Link to this definition"></a></dt>
+<dd><p>Fields defining longitudinal beam distribution (GPT only)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.longitudinal_profile">
+<span class="sig-name descname"><span class="pre">longitudinal_profile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.longitudinal_profile" title="Link to this definition"></a></dt>
+<dd><p>File used to generate longitudinal beam distribution (GPT only)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.max_steps">
+<span class="sig-name descname"><span class="pre">max_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.max_steps" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Max steps for tracking</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.n_bin">
+<span class="sig-name descname"><span class="pre">n_bin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.n_bin" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Number of energy bins</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.name" title="Link to this definition"></a></dt>
+<dd><p>Name of this generator class</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.noise_reduction">
+<span class="sig-name descname"><span class="pre">noise_reduction</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.noise_reduction" title="Link to this definition"></a></dt>
+<dd><p>[ASTRA only] If true, particle coordinates are generated quasi-randomly following a Hammersley sequence.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.normalized_horizontal_emittance">
+<span class="sig-name descname"><span class="pre">normalized_horizontal_emittance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.normalized_horizontal_emittance" title="Link to this definition"></a></dt>
+<dd><p>Normalised horizontal emittance [m-rad]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.normalized_vertical_emittance">
+<span class="sig-name descname"><span class="pre">normalized_vertical_emittance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.normalized_vertical_emittance" title="Link to this definition"></a></dt>
+<dd><p>Normalised vertical emittance [m-rad]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.number_of_particles">
+<span class="sig-name descname"><span class="pre">number_of_particles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.number_of_particles" title="Link to this definition"></a></dt>
+<dd><p>Number of particles</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.objectdefaults">
+<span class="sig-name descname"><span class="pre">objectdefaults</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.objectdefaults" title="Link to this definition"></a></dt>
+<dd><p>Seems not to be used</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.objectname">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">objectname</span></span><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.objectname" title="Link to this definition"></a></dt>
+<dd><p>Name of this object</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.offset_x">
+<span class="sig-name descname"><span class="pre">offset_x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.offset_x" title="Link to this definition"></a></dt>
+<dd><p>Horizontal offset from axis [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.offset_y">
+<span class="sig-name descname"><span class="pre">offset_y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.offset_y" title="Link to this definition"></a></dt>
+<dd><p>Vertical offset from axis [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.offset_z">
+<span class="sig-name descname"><span class="pre">offset_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.offset_z" title="Link to this definition"></a></dt>
+<dd><p>Reference beam position [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.particle_mass">
+<span class="sig-name descname"><span class="pre">particle_mass</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.particle_mass" title="Link to this definition"></a></dt>
+<dd><p>Particle mass [kg]</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.particles">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">particles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.particles" title="Link to this definition"></a></dt>
+<dd><p>Number of particles</p>
+<dl class="field-list simple">
+<dt class="field-odd">Getter<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Number of particles</p>
+</dd>
+<dt class="field-even">Setter<span class="colon">:</span></dt>
+<dd class="field-even"><p>Set number of particles</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.plateau_bunch_length">
+<span class="sig-name descname"><span class="pre">plateau_bunch_length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.plateau_bunch_length" title="Link to this definition"></a></dt>
+<dd><p>Flat-top bunch length [s]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.plateau_fall_time">
+<span class="sig-name descname"><span class="pre">plateau_fall_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.plateau_fall_time" title="Link to this definition"></a></dt>
+<dd><p>Fall-time for flat-top distribution [s]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.plateau_rise_distance">
+<span class="sig-name descname"><span class="pre">plateau_rise_distance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.plateau_rise_distance" title="Link to this definition"></a></dt>
+<dd><p>Rise-distance for flat-top distribution [m] – deprecated?</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.plateau_rise_time">
+<span class="sig-name descname"><span class="pre">plateau_rise_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.plateau_rise_time" title="Link to this definition"></a></dt>
+<dd><p>Rise-time for flat-top distribution [s]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.postProcess" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.probe_particle">
+<span class="sig-name descname"><span class="pre">probe_particle</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.probe_particle" title="Link to this definition"></a></dt>
+<dd><p>[ASTRA only] If true, 6 probe particles are generated</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.reference_time">
+<span class="sig-name descname"><span class="pre">reference_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.reference_time" title="Link to this definition"></a></dt>
+<dd><p>Reference beam time [s]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.rf_frequency">
+<span class="sig-name descname"><span class="pre">rf_frequency</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.rf_frequency" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Photoinjector RF frequency [Hz] (not currently implemented)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.run" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_kinetic_energy">
+<span class="sig-name descname"><span class="pre">sigma_kinetic_energy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_kinetic_energy" title="Link to this definition"></a></dt>
+<dd><p>Average kinetic energy [units?]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_px">
+<span class="sig-name descname"><span class="pre">sigma_px</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_px" title="Link to this definition"></a></dt>
+<dd><p>Horizontal beam momentum sigma [eV/c]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_py">
+<span class="sig-name descname"><span class="pre">sigma_py</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_py" title="Link to this definition"></a></dt>
+<dd><p>Vertical beam momentum sigma [eV/c]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_pz">
+<span class="sig-name descname"><span class="pre">sigma_pz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_pz" title="Link to this definition"></a></dt>
+<dd><p>Longitudinal beam momentum sigma [eV/c]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_t">
+<span class="sig-name descname"><span class="pre">sigma_t</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_t" title="Link to this definition"></a></dt>
+<dd><p>Longitudinal beam size [s]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_x">
+<span class="sig-name descname"><span class="pre">sigma_x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_x" title="Link to this definition"></a></dt>
+<dd><p>Horizontal beam sigma [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_y">
+<span class="sig-name descname"><span class="pre">sigma_y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_y" title="Link to this definition"></a></dt>
+<dd><p>Vertical beam sigma [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.sigma_z">
+<span class="sig-name descname"><span class="pre">sigma_z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.sigma_z" title="Link to this definition"></a></dt>
+<dd><p>Longitudinal beam size [m]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.species">
+<span class="sig-name descname"><span class="pre">species</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.species" title="Link to this definition"></a></dt>
+<dd><p>Particle type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.speed_of_light">
+<span class="sig-name descname"><span class="pre">speed_of_light</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.speed_of_light" title="Link to this definition"></a></dt>
+<dd><p>Speed of light [m/s]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.thermal_emittance">
+<span class="sig-name descname"><span class="pre">thermal_emittance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.thermal_emittance" title="Link to this definition"></a></dt>
+<dd><p>Thermal emittance of beam [um-rad/m]</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.thermal_kinetic_energy">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">thermal_kinetic_energy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.thermal_kinetic_energy" title="Link to this definition"></a></dt>
+<dd><p>Thermal kinetic energy of electrons [eV] emitted from a photocathode based on <a class="reference internal" href="#simba.Codes.Generators.Generators.frameworkGenerator.thermal_emittance" title="simba.Codes.Generators.Generators.frameworkGenerator.thermal_emittance"><code class="xref py py-attr docutils literal notranslate"><span class="pre">thermal_emittance</span></code></a>.
+See Eq. (39) of <cite>Dowell &amp; Schmerge_</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>thermal kinetic energy</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.tstep">
+<span class="sig-name descname"><span class="pre">tstep</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.tstep" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Time step for tracking [s]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.update_species">
+<span class="sig-name descname"><span class="pre">update_species</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.update_species"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.update_species" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.validate_generator">
+<span class="sig-name descname"><span class="pre">validate_generator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.validate_generator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.validate_generator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.validate_longitudinal_profile">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">validate_longitudinal_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.validate_longitudinal_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.validate_longitudinal_profile" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>v</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.validate_particle_mass">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">validate_particle_mass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.validate_particle_mass"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.validate_particle_mass" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>v</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.work_function_ev">
+<span class="sig-name descname"><span class="pre">work_function_ev</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.work_function_ev" title="Link to this definition"></a></dt>
+<dd><p>[OPAL only] Work function of photocathode [eV]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.frameworkGenerator.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beam</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#frameworkGenerator.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.frameworkGenerator.write" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.poly_curve">
+<span class="sig-name descname"><span class="pre">poly_curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeffs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#poly_curve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.poly_curve" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.sample_2d_gaussian_with_axis_cutoffs">
+<span class="sig-name descname"><span class="pre">sample_2d_gaussian_with_axis_cutoffs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cov</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoffs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#sample_2d_gaussian_with_axis_cutoffs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.sample_2d_gaussian_with_axis_cutoffs" title="Link to this definition"></a></dt>
+<dd><p>Generate N samples from 2D Gaussian with different per-axis cutoffs in whitened space.
+cutoffs: tuple of (cutoff_x, cutoff_y) in standard deviation units.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.sample_flat_top">
+<span class="sig-name descname"><span class="pre">sample_flat_top</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#sample_flat_top"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.sample_flat_top" title="Link to this definition"></a></dt>
+<dd><p>Create a flat-top distribution centered at 0,
+with total half-width = cutoff * sigma, and soft edges of width <cite>edge_width * sigma</cite></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="simba.Codes.Generators.Generators.sample_gaussian">
+<span class="sig-name descname"><span class="pre">sample_gaussian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/Generators.html#sample_gaussian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.Generators.sample_gaussian" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-simba.Codes.Generators.astra">
+<span id="simba-codes-generators-astra-module"></span><h2>simba.Codes.Generators.astra module<a class="headerlink" href="#module-simba.Codes.Generators.astra" title="Link to this heading"></a></h2>
+<p>This file generates an ASTRA beam file from the provided parameters.</p>
+<p>It includes methods to run the ASTRA generator, write the input file, and post-process the generated beam data.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ASTRAGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/astra.html#ASTRAGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#simba.Codes.Generators.Generators.frameworkGenerator" title="simba.Codes.Generators.Generators.frameworkGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkGenerator</span></code></a></p>
+<p>A class to generate an ASTRA beam file from the provided parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>executables</strong> – Dictionary containing the paths to the executables.</p></li>
+<li><p><strong>global_parameters</strong> – Dictionary containing global parameters for the simulation.</p></li>
+<li><p><strong>generator_keywords</strong> – Dictionary containing keywords for the generator.</p></li>
+<li><p><strong>kwargs</strong> – Additional keyword arguments for the generator.</p></li>
+<li><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Variables<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>objectname</strong> – Name of the object to be generated.</p></li>
+<li><p><strong>filename</strong> – Name of the output file.</p></li>
+<li><p><strong>thermal_kinetic_energy</strong> – Thermal kinetic energy of the particles.</p></li>
+<li><p><strong>aliases</strong> – Aliases for the parameters.</p></li>
+<li><p><strong>code</strong> – Code identifier for the generator.</p></li>
+<li><p><strong>apply_alias_and_multiplier</strong> – Method to apply aliases and multipliers to the parameters.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator.Lprompt">
+<span class="sig-name descname"><span class="pre">Lprompt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator.Lprompt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator.filename">
+<span class="sig-name descname"><span class="pre">filename</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator.filename" title="Link to this definition"></a></dt>
+<dd><p>Name of the output file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/astra.html#ASTRAGenerator.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Post-process the generated ASTRA beam file to create an HDF5 beam file.
+This method reads the ASTRA beam file and writes it to an HDF5 format.
+#TODO Filenames are hardcoded for simplicity and they shouldn’t be.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/astra.html#ASTRAGenerator.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator.run" title="Link to this definition"></a></dt>
+<dd><p>Run the ASTRA generator to create the beam file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.astra.ASTRAGenerator.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/astra.html#ASTRAGenerator.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.astra.ASTRAGenerator.write" title="Link to this definition"></a></dt>
+<dd><p>Write the ASTRA input file to the specified directory.
+#TODO Filenames are hardcoded for simplicity and they shouldn’t be.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.Generators.gpt">
+<span id="simba-codes-generators-gpt-module"></span><h2>simba.Codes.Generators.gpt module<a class="headerlink" href="#module-simba.Codes.Generators.gpt" title="Link to this heading"></a></h2>
+<p>This file generates a GPT beam file from the provided parameters.</p>
+<p>It includes methods to run the GPT generator, write the input file, and post-process the generated beam data.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">GPTGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#simba.Codes.Generators.Generators.frameworkGenerator" title="simba.Codes.Generators.Generators.frameworkGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkGenerator</span></code></a></p>
+<p>A class to generate a GPT beam file from the provided parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>executables</strong> – Dictionary containing the paths to the executables.</p></li>
+<li><p><strong>global_parameters</strong> – Dictionary containing global parameters for the simulation.</p></li>
+<li><p><strong>generator_keywords</strong> – Dictionary containing keywords for the generator.</p></li>
+<li><p><strong>kwargs</strong> – Additional keyword arguments for the generator.</p></li>
+<li><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Variables<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>filename</strong> – Name of the output file.</p></li>
+<li><p><strong>code</strong> – Code identifier for the generator.</p></li>
+<li><p><strong>allowedKeyWords</strong> – List of allowed keywords for the generator.</p></li>
+<li><p><strong>generator_keywords</strong> – Keywords specific to the GPT generator.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.check_xy_parameters">
+<span class="sig-name descname"><span class="pre">check_xy_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.check_xy_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.check_xy_parameters" title="Link to this definition"></a></dt>
+<dd><p>Check if the parameters x and y are set correctly.
+If one of them is None and the other is not, set the None parameter to the value of the other.
+If both are None, set both to the default value.
+:type x: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>
+:param x: The first parameter to check.
+:type y: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>
+:param y: The second parameter to check.
+:type default: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>
+:param default: The default value to set if both parameters are None.</p>
+<p>#TODO This appears not to be used in the code, consider removing it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_correlated_divergences">
+<span class="sig-name descname"><span class="pre">generate_correlated_divergences</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_correlated_divergences"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_correlated_divergences" title="Link to this definition"></a></dt>
+<dd><p>Generate correlated divergences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>String representing x-px and y-py divergences to be applied</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_image_name">
+<span class="sig-name descname"><span class="pre">generate_image_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_image_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_image_name" title="Link to this definition"></a></dt>
+<dd><p>Generate a name for the image file based on the provided parameter.
+This function expands the parameter substitution, checks if the file exists,
+and creates a symbolic link or copies the file to the master subdirectory.
+This is used for image-based distributions in the beam generation in <a class="reference internal" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_radial_distribution" title="simba.Codes.Generators.gpt.GPTGenerator.generate_radial_distribution"><code class="xref py py-func docutils literal notranslate"><span class="pre">generate_radial_distribution()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>param</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The parameter containing the image filename.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The basename of the image file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_longitudinal_distribution">
+<span class="sig-name descname"><span class="pre">generate_longitudinal_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_longitudinal_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_longitudinal_distribution" title="Link to this definition"></a></dt>
+<dd><p>Generate the longitudinal distribution for the beam based on the distribution type and parameters.</p>
+<p>If the distribution type is ‘gaussian’, it generates a command for a Gaussian distribution with the
+specified sigma.
+If the distribution type is not ‘gaussian’, it generates a command for a plateau bunch length distribution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the longitudinal distribution command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_offset_transform">
+<span class="sig-name descname"><span class="pre">generate_offset_transform</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_offset_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_offset_transform" title="Link to this definition"></a></dt>
+<dd><p>Generate the offset transform command for the beam.</p>
+<p>This command sets the transformation of the beam in the WCS (World Coordinate System)
+with the specified offsets in x and y (i.e. if the beam is offset from the nominal axis).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the offset transform command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_output">
+<span class="sig-name descname"><span class="pre">generate_output</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_output" title="Link to this definition"></a></dt>
+<dd><p>Generate the output command for the GPT input file at z=0.
+This command sets the screen for the beam output, specifying the type and position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the output command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_particles">
+<span class="sig-name descname"><span class="pre">generate_particles</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_particles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_particles" title="Link to this definition"></a></dt>
+<dd><p>Generate the basic beam parameters for the GPT input file.
+These include the thermal kinetic energy, charge, and number of particles.
+:return: A string representation of the basic beam parameters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_phase_space_distribution">
+<span class="sig-name descname"><span class="pre">generate_phase_space_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_phase_space_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_phase_space_distribution" title="Link to this definition"></a></dt>
+<dd><p>Generate the initial phase-space distribution for the beam.</p>
+<p>A uniform distribution is set for z, theta, and phi.
+#TODO Should these be configurable parameters?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the initial phase-space distribution command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_radial_distribution">
+<span class="sig-name descname"><span class="pre">generate_radial_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_radial_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_radial_distribution" title="Link to this definition"></a></dt>
+<dd><p>Generate the radial distribution for the beam based on the parameters provided.</p>
+<p>This function checks the distribution type and sigma values for both x and y dimensions.
+If the distribution type is ‘image’, it generates a command to set the beam distribution from an image file.
+If the sigma values for x and y are equal and the distribution types are the same, it generates a command
+to set a circular distribution.</p>
+<p>If the sigma values are different but the distribution types are the same, it generates a command
+to set an elliptical distribution. If the distribution types are different, it returns an empty string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the radial distribution command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.generate_thermal_emittance">
+<span class="sig-name descname"><span class="pre">generate_thermal_emittance</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.generate_thermal_emittance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.generate_thermal_emittance" title="Link to this definition"></a></dt>
+<dd><p>Generate the thermal emittance for the beam based on the distribution type and sigma values.</p>
+<p>If the distribution type is ‘image’, it returns an empty string.
+If the sigma values for x and y are different, it generates separate commands for x and y emittance.
+If the sigma values are equal, it generates a command for circular emittance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A string representation of the thermal emittance command for the GPT input file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.load_longitudinal_profile">
+<span class="sig-name descname"><span class="pre">load_longitudinal_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.load_longitudinal_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.load_longitudinal_profile" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>v</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Post-process the generated beam data to create an HDF5 file.</p>
+<p>This method reads the GPT beam file and writes it to an HDF5 format.
+The Z component of the beam is set to zero, and the status of the particles is initialized to -1.
+The output HDF5 file is named ‘laser.hdf5’ and is saved in the master subdirectory.
+#TODO Filenames are hardcoded for simplicity and they shouldn’t be.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.run" title="Link to this definition"></a></dt>
+<dd><p>Run the GPT generator to create the beam file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.gpt.GPTGenerator.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/gpt.html#GPTGenerator.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.gpt.GPTGenerator.write" title="Link to this definition"></a></dt>
+<dd><p>Write the GPT input file with the parameters defined in the class.</p>
+<p>Base attributes of <code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkGenerator</span></code>
+are used to generate the input file, with the appropriate aliases and multipliers applied for the GPT code.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+<p>#TODO Filenames are hardcoded for simplicity and they shouldn’t be.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.Generators.opal">
+<span id="simba-codes-generators-opal-module"></span><h2>simba.Codes.Generators.opal module<a class="headerlink" href="#module-simba.Codes.Generators.opal" title="Link to this heading"></a></h2>
+<p>This file generates an OPAL beam file from the provided parameters.</p>
+<p>It includes methods to run the OPAL generator, write the input file, and post-process the generated beam data.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">OPALGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/opal.html#OPALGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#simba.Codes.Generators.Generators.frameworkGenerator" title="simba.Codes.Generators.Generators.frameworkGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkGenerator</span></code></a></p>
+<p>A class to generate an OPAL beam file from the provided parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>executables</strong> – Dictionary containing the paths to the executables.</p></li>
+<li><p><strong>global_parameters</strong> – Dictionary containing global parameters for the simulation.</p></li>
+<li><p><strong>generator_keywords</strong> – Dictionary containing keywords for the generator.</p></li>
+<li><p><strong>kwargs</strong> – Additional keyword arguments for the generator.</p></li>
+<li><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Variables<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>filename</strong> – Name of the output file.</p></li>
+<li><p><strong>code</strong> – Code identifier for the generator.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.MIN_EMISSION_STEPS">
+<span class="sig-name descname"><span class="pre">MIN_EMISSION_STEPS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.MIN_EMISSION_STEPS" title="Link to this definition"></a></dt>
+<dd><p>Floor on the emission step count, so a small bunch still resolves the
+shape of the laser pulse.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.MIN_PARTICLES_PER_EMISSION_STEP">
+<span class="sig-name descname"><span class="pre">MIN_PARTICLES_PER_EMISSION_STEP</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.MIN_PARTICLES_PER_EMISSION_STEP" title="Link to this definition"></a></dt>
+<dd><p>Fewest particles an emission step may emit before
+<a class="reference internal" href="#simba.Codes.Generators.opal.OPALGenerator.capped_emission_steps" title="simba.Codes.Generators.opal.OPALGenerator.capped_emission_steps"><code class="xref py py-func docutils literal notranslate"><span class="pre">capped_emission_steps()</span></code></a> starts reducing the step count.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.breakstr">
+<span class="sig-name descname"><span class="pre">breakstr</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.breakstr" title="Link to this definition"></a></dt>
+<dd><p>String to indicate a new section of the generator txt file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.capped_emission_steps">
+<span class="sig-name descname"><span class="pre">capped_emission_steps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">requested</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/opal.html#OPALGenerator.capped_emission_steps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.capped_emission_steps" title="Link to this definition"></a></dt>
+<dd><p>Limit the emission steps so each one emits a useful number of particles.</p>
+<p>OPAL solves the space charge afresh at every emission step. If the step
+count is large relative to the bunch, each step adds only a handful of
+particles and the emitted slice is vanishingly thin next to the spot
+size, so the solver works on an absurd aspect ratio and injects spurious
+emittance at the cathode.</p>
+<p>This only ever lowers the value – an explicit setting is respected
+wherever it is already sensible for the particle count.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>requested</strong> (<em>int</em>) – The configured number of emission steps.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The number of emission steps to actually use.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.initial_gamma">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">initial_gamma</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.initial_gamma" title="Link to this definition"></a></dt>
+<dd><p>Calculate the initial Lorentz factor (gamma) of the particles based on their thermal kinetic energy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The initial Lorentz factor (gamma) of the particles.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.opalglobal">
+<span class="sig-name descname"><span class="pre">opalglobal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.opalglobal" title="Link to this definition"></a></dt>
+<dd><p>Global settings for OPAL</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/opal.html#OPALGenerator.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Convert the output from OPAL to standard HDF5 format.</p>
+<p>#TODO filename is hardcoded and it shouldn’t be.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/opal.html#OPALGenerator.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.run" title="Link to this definition"></a></dt>
+<dd><p>Run the OPAL generator to create the beam file.
+This method constructs the command to run the OPAL executable with the input file
+and executes it in the specified working directory.
+:rtype: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.Generators.opal.OPALGenerator.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/Generators/opal.html#OPALGenerator.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.Generators.opal.OPALGenerator.write" title="Link to this definition"></a></dt>
+<dd><p>Write the OPAL commands to an input file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.Generators">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Codes.Generators" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Codes.GPT.html" class="btn btn-neutral float-left" title="simba.Codes.GPT package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Codes.Genesis.html" class="btn btn-neutral float-right" title="simba.Codes.Genesis package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

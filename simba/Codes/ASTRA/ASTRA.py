@@ -7,24 +7,24 @@ Various objects and functions to handle ASTRA lattices and commands. See `ASTRA 
 
 Classes:
     - :class:`~simba.Codes.ASTRA.ASTRA.astraLattice`: The ASTRA lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for an ASTRA input file.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
+      the lattice suitable for an ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_header`: Class for defining the &HEADER portion
-    of the ASTRA input file.
+      of the ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_newrun`: Class for defining the &NEWRUN portion
-    of the ASTRA input file.
+      of the ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_charge`: Class for defining the &CHARGE portion
-    of the ASTRA input file.
+      of the ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_output`: Class for defining the &OUTPUT portion
-    of the ASTRA input file.
+      of the ASTRA input file.
 
     - :class:`~simba.Codes.ASTRA.ASTRA.astra_errors`: Class for defining the &ERRORS portion
-    of the ASTRA input file.
+      of the ASTRA input file.
 """
 
 import os

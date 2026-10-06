@@ -65,7 +65,7 @@ class Particles(BaseModel):
     - [:attr:`~xp`, :attr:`~yp`] -- horizontal and vertical angular distributions.
 
     - [:attr:`~xc`, :attr:`~xpc`, :attr:`~yc`, :attr:`~ypc`] -- horizontal and vertical positions and
-    angular distributions, corrected for dispersion.
+      angular distributions, corrected for dispersion.
 
     - [:attr:`~cpx`, :attr:`~cpy`, :attr:`~cpz`] -- the beam momenta in eV/c.
 

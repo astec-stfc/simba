@@ -122,6 +122,7 @@ twiss_defaults = {
     "eta_yp": {"name": "eta_yp", "unit": "rad"},
     "element_name": {"name": "element_name", "unit": "", "dtype": "U"},
     "lattice_name": {"name": "lattice_name", "unit": "", "dtype": "U"},
+    "turn": {"name": "turn", "unit": "", "dtype": "i"},
     "eta_x_beam": {"name": "eta_x_beam", "unit": "m"},
     "eta_xp_beam": {"name": "eta_xp_beam", "unit": "rad"},
     "eta_y_beam": {"name": "eta_y_beam", "unit": "m"},
@@ -356,6 +357,12 @@ class twiss(BaseModel):
 
     lattice_name: "twissParameter" = None
     """The name of the lattice in the simulation."""
+
+    turn: "twissParameter" = None
+    """Which turn of a multi-turn run each row was measured on, 1-based.
+    A twiss file holds two kinds of column. The optics and the bunch statistics,
+    the latter of which come from the tracked particles.
+    """
 
     ecnx: "twissParameter" = None
     """The normalized horizontal emittance of the beam, in m-mrad."""

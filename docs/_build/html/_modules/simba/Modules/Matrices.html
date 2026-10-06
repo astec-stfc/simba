@@ -1,0 +1,736 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Modules.Matrices &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.html">simba package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Codes.html">simba.Codes package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">simba.Modules.Matrices</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for simba.Modules.Matrices</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">interpolate</span>
+
+    <span class="n">use_interpolate</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">use_interpolate</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">nafflib</span>
+
+    <span class="n">use_naff</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># optional: `tune_from_trajectory` falls back to an FFT</span>
+    <span class="n">use_naff</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">munch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">hdf5</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">elegant</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitValue</span>
+
+<span class="n">PLANES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Row/column of the 6x6 map each transverse plane starts at.&quot;&quot;&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_block</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">PLANES</span><span class="p">[</span><span class="n">plane</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[</span><span class="n">index</span> <span class="p">:</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">index</span> <span class="p">:</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="tune_from_trajectory">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.tune_from_trajectory">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tune_from_trajectory</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">momenta</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fractional tune from one particle&#39;s turn-by-turn motion.</span>
+
+<span class="sd">    The code-independent half of a frequency map: any backend that can hand</span>
+<span class="sd">    back a trajectory gets a tune from the same arithmetic, which is what</span>
+<span class="sd">    makes a footprint comparable across codes.</span>
+
+<span class="sd">    Uses NAFF (``nafflib``) when it is installed and momenta are given, and</span>
+<span class="sd">    an interpolated FFT peak otherwise.</span>
+
+<span class="sd">    With positions alone the spectrum of a real signal</span>
+<span class="sd">    is symmetric. The analytic signal</span>
+<span class="sd">    ``x - i*px`` breaks the degeneracy and gives the full ``[0, 1)``.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The tune, in ``[0, 1)`` with momenta and ``[0, 0.5]`` without, or</span>
+<span class="sd">        NaN for a trajectory too short, flat or not finite.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">values</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">values</span> <span class="o">-</span> <span class="n">values</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+    <span class="n">slopes</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">momenta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">slopes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">momenta</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">slopes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">slopes</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+        <span class="n">slopes</span> <span class="o">=</span> <span class="n">slopes</span> <span class="o">-</span> <span class="n">slopes</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">use_naff</span> <span class="ow">and</span> <span class="n">slopes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">nafflib</span><span class="o">.</span><span class="n">tune</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">slopes</span><span class="p">))</span> <span class="o">%</span> <span class="mf">1.0</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># fall through to the FFT, which needs nothing installed</span>
+    <span class="n">window</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hanning</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">slopes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">spectrum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">values</span> <span class="o">*</span> <span class="n">window</span><span class="p">))</span>
+        <span class="n">spectrum</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">spectrum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">((</span><span class="n">values</span> <span class="o">-</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">slopes</span><span class="p">)</span> <span class="o">*</span> <span class="n">window</span><span class="p">))</span>
+    <span class="n">peak</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">spectrum</span><span class="p">))</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">spectrum</span><span class="p">)</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">spectrum</span><span class="p">[(</span><span class="n">peak</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">size</span><span class="p">]</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">spectrum</span><span class="p">[(</span><span class="n">peak</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">size</span><span class="p">]</span>
+    <span class="n">denominator</span> <span class="o">=</span> <span class="n">left</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">spectrum</span><span class="p">[</span><span class="n">peak</span><span class="p">]</span> <span class="o">+</span> <span class="n">right</span>
+    <span class="n">refined</span> <span class="o">=</span> <span class="n">peak</span> <span class="o">+</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">left</span> <span class="o">-</span> <span class="n">right</span><span class="p">)</span> <span class="o">/</span> <span class="n">denominator</span> <span class="k">if</span> <span class="n">denominator</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">refined</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">))</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="probe_grid">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.probe_grid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">probe_grid</span><span class="p">(</span><span class="n">centroid</span><span class="p">,</span> <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The 13 particles a single-particle run tracks instead of a bunch.</span>
+
+<span class="sd">    The centroid, plus a pair straddling it along each of the six</span>
+<span class="sd">    coordinates. Linear map is created by finite differences</span>
+<span class="sd">    (:func:`map_from_probes`).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    centroid: array-like</span>
+<span class="sd">        Six coordinates of the reference particle.</span>
+<span class="sd">    delta: float</span>
+<span class="sd">        Finite-difference step.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        ``6 x 13``, the centroid first.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">centre</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">centroid</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">delta</span><span class="p">))</span>
+    <span class="n">probes</span> <span class="o">=</span> <span class="p">[</span><span class="n">centre</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">sign</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">probe</span> <span class="o">=</span> <span class="n">centre</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">probe</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+=</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">step</span>
+            <span class="n">probes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">probe</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">probes</span><span class="p">)</span><span class="o">.</span><span class="n">T</span></div>
+
+
+
+<div class="viewcode-block" id="map_from_probes">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.map_from_probes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">map_from_probes</span><span class="p">(</span><span class="n">tracked</span><span class="p">,</span> <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Centroid and 6x6 map recovered from a tracked :func:`probe_grid`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    tracked: array-like</span>
+<span class="sd">        ``6 x 13`` of the probes&#39; coordinates at the observation point, in</span>
+<span class="sd">        the order :func:`probe_grid` produced them.</span>
+<span class="sd">    delta: float</span>
+<span class="sd">        The same step the probes were built with.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple</span>
+<span class="sd">        ``(centroid, R)``, or ``(None, None)`` if any probe is missing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">tracked</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">13</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">values</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">delta</span><span class="p">))</span>
+    <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
+        <span class="n">matrix</span><span class="p">[:,</span> <span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">values</span><span class="p">[:,</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">values</span><span class="p">[:,</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">index</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">step</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">values</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">matrix</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="transform_distribution">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.transform_distribution">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">transform_distribution</span><span class="p">(</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">centroid_in</span><span class="p">,</span> <span class="n">centroid_out</span><span class="p">,</span> <span class="n">matrix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Push a full distribution through a map without tracking it.</span>
+
+<span class="sd">    ``z_out = c_out + R (z_in - c_in)``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">centroid_out</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+        <span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+    <span class="p">)</span> <span class="o">@</span> <span class="p">(</span><span class="n">values</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">centroid_in</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="normalise_coordinates">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.normalise_coordinates">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalise_coordinates</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">momenta</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">orbit</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Courant-Snyder normalisation of one plane&#39;s turn-by-turn motion.</span>
+
+<span class="sd">    ``X = (x - x_co) / sqrt(beta)`` and</span>
+<span class="sd">    ``PX = (alpha * (x - x_co) + beta * (px - px_co)) / sqrt(beta)``.</span>
+
+<span class="sd">    Normalising turns the betatron ellipse into a circle, leaving a single</span>
+<span class="sd">    line. Subtracting the closed orbit is the other half: on a ring with errors</span>
+<span class="sd">    an amplitude measured from the axis is measured from the wrong centre.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">-</span> <span class="n">orbit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">slopes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">momenta</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">-</span> <span class="n">orbit</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">beta</span><span class="p">)))</span> <span class="ow">or</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">offsets</span> <span class="o">/</span> <span class="n">root</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">offsets</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span> <span class="o">*</span> <span class="n">slopes</span><span class="p">)</span> <span class="o">/</span> <span class="n">root</span></div>
+
+
+
+<div class="viewcode-block" id="tune_diffusion">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.tune_diffusion">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tune_diffusion</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">px</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">py</span><span class="p">,</span> <span class="n">twiss</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tunes and a diffusion index from one particle&#39;s turn-by-turn motion. The</span>
+<span class="sd">    record is split into two consecutive halves and a tune taken from each;</span>
+<span class="sd">    a particle on regular motion gives the same tune twice, one near a</span>
+<span class="sd">    resonance does not. The index is</span>
+
+<span class="sd">    ``D = log10(sqrt(dQx**2 + dQy**2))``</span>
+
+<span class="sd">    so more negative is more regular. The tune difference is taken</span>
+<span class="sd">    *circularly* -- ``(q2 - q1 + 0.5) % 1 - 0.5``</span>
+<span class="sd">    Needs the momenta, and really wants NAFF.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    twiss: dict | None</span>
+<span class="sd">        ``beta_x``/``alpha_x``/``beta_y``/``alpha_y``, and optionally</span>
+<span class="sd">        ``closed_orbit_x``/``_px``/``_y``/``_py``. Given these the motion is</span>
+<span class="sd">        Courant-Snyder normalised first; see :func:`normalise_coordinates`</span>
+<span class="sd">        for why that sharpens the line.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple</span>
+<span class="sd">        ``(tune_x, tune_y, D)`` from the **first** window, or NaNs if either</span>
+<span class="sd">        window has no usable tune.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">px</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">py</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">twiss</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalise_coordinates</span><span class="p">(</span>
+                <span class="n">arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">twiss</span><span class="p">[</span><span class="s2">&quot;beta_x&quot;</span><span class="p">],</span>
+                <span class="n">twiss</span><span class="p">[</span><span class="s2">&quot;alpha_x&quot;</span><span class="p">],</span>
+                <span class="p">(</span><span class="n">twiss</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;closed_orbit_x&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">twiss</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;closed_orbit_px&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
+            <span class="p">)</span>
+            <span class="n">arrays</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">arrays</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalise_coordinates</span><span class="p">(</span>
+                <span class="n">arrays</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="n">arrays</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                <span class="n">twiss</span><span class="p">[</span><span class="s2">&quot;beta_y&quot;</span><span class="p">],</span>
+                <span class="n">twiss</span><span class="p">[</span><span class="s2">&quot;alpha_y&quot;</span><span class="p">],</span>
+                <span class="p">(</span><span class="n">twiss</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;closed_orbit_y&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">twiss</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;closed_orbit_py&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="k">pass</span>  <span class="c1"># un-normalised still gives a tune, just a blunter line</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">half</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+    <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">half</span><span class="p">),</span> <span class="nb">slice</span><span class="p">(</span><span class="n">half</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">half</span><span class="p">)</span>
+    <span class="n">tunes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">):</span>
+        <span class="n">tunes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">tune_from_trajectory</span><span class="p">(</span><span class="n">arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">window</span><span class="p">],</span> <span class="n">arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">window</span><span class="p">]),</span>
+                <span class="n">tune_from_trajectory</span><span class="p">(</span><span class="n">arrays</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">window</span><span class="p">],</span> <span class="n">arrays</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">window</span><span class="p">]),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">(</span><span class="n">qx1</span><span class="p">,</span> <span class="n">qy1</span><span class="p">),</span> <span class="p">(</span><span class="n">qx2</span><span class="p">,</span> <span class="n">qy2</span><span class="p">)</span> <span class="o">=</span> <span class="n">tunes</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">q</span><span class="p">)</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">qx1</span><span class="p">,</span> <span class="n">qy1</span><span class="p">,</span> <span class="n">qx2</span><span class="p">,</span> <span class="n">qy2</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">))</span>
+    <span class="n">shift_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">qx2</span> <span class="o">-</span> <span class="n">qx1</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">%</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">0.5</span>
+    <span class="n">shift_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">qy2</span> <span class="o">-</span> <span class="n">qy1</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">%</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">0.5</span>
+    <span class="n">drift</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">hypot</span><span class="p">(</span><span class="n">shift_x</span><span class="p">,</span> <span class="n">shift_y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">qx1</span><span class="p">,</span> <span class="n">qy1</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">drift</span><span class="p">,</span> <span class="mf">1e-16</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="is_stable">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.is_stable">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_stable</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Whether motion in ``plane`` is bounded turn after turn.</span>
+<span class="sd">    ``|trace / 2| &lt;= 1`` is the condition.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    plane: str</span>
+<span class="sd">        Plane to check</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True is the plane is stable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">_block</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">abs</span><span class="p">((</span><span class="n">block</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">block</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="phase_advance">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.phase_advance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">phase_advance</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    One turn&#39;s phase advance in ``plane``, radians in ``[0, 2*pi)``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    plane: str</span>
+<span class="sd">        Plane to check</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The phase advance in radians.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">_block</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_stable</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">acos</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">block</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">block</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">mu</span> <span class="k">if</span> <span class="n">block</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">mu</span></div>
+
+
+
+<div class="viewcode-block" id="fractional_tune">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.fractional_tune">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fractional_tune</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The fractional tune in ``plane``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    plane: str</span>
+<span class="sd">        Plane to check</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The fractional tune in ``plane``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">phase_advance</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="periodic_twiss">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.periodic_twiss">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">periodic_twiss</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The periodic ``beta``, ``alpha`` and ``gamma`` in ``plane``.</span>
+
+<span class="sd">    The Twiss the lattice itself determines, as opposed to whatever the</span>
+<span class="sd">    incoming beam happened to have.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    plane: str</span>
+<span class="sd">        Plane to check</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        ``beta``, ``alpha``, ``gamma``, all NaN if the plane is unstable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">_block</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">phase_advance</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">plane</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span> <span class="ow">or</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)}</span>
+    <span class="n">sin_mu</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">block</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">sin_mu</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="p">(</span><span class="n">block</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">block</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">sin_mu</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">beta</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">alpha</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">beta</span><span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="slip_factor">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.slip_factor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">slip_factor</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">circumference</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``eta``, the fractional change in revolution period per unit ``delta``.</span>
+
+<span class="sd">    The map is in canonical coordinates, so pass</span>
+<span class="sd">    :meth:`~simba.Framework_objects.frameworkLattice.one_turn_map_canonical`,</span>
+<span class="sd">    not the raw map.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    circumference: float</span>
+<span class="sd">        Ring circumference</span>
+<span class="sd">    step: float, optional</span>
+<span class="sd">        Step size for finite difference, by default 1e-3</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The slip factor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">solve_matrix</span> <span class="o">=</span> <span class="n">matrix</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+    <span class="n">solve_matrix</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">solve_matrix</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">step</span><span class="p">])</span>
+    <span class="n">orbit</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">solve_matrix</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">dzeta</span> <span class="o">=</span> <span class="p">(</span><span class="n">matrix</span> <span class="o">@</span> <span class="n">orbit</span><span class="p">)[</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="n">orbit</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    <span class="k">return</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">dzeta</span><span class="p">)</span> <span class="o">/</span> <span class="n">step</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">circumference</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="momentum_compaction">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.momentum_compaction">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">momentum_compaction</span><span class="p">(</span>
+    <span class="n">matrix</span><span class="p">,</span> <span class="n">circumference</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">gamma0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``alpha_c``, the fractional change in path length per unit ``delta``.</span>
+
+<span class="sd">    ``alpha_c = eta + 1 / gamma0**2``; see :func:`slip_factor`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix: Any</span>
+<span class="sd">        Data containing matrix information</span>
+<span class="sd">    circumference: float</span>
+<span class="sd">        Ring circumference</span>
+<span class="sd">    step: float, optional</span>
+<span class="sd">        Step size for finite difference, by default 1e-3</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The momentum compaction factor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">slip_factor</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">circumference</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">gamma0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="matrices">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">matrices</span><span class="p">(</span><span class="n">munch</span><span class="o">.</span><span class="n">Munch</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for dealing with R-matrices produced by Elegant.</span>
+
+<span class="sd">    Usage::</span>
+
+<span class="sd">        mat = matrices()</span>
+<span class="sd">        mat.load(&lt;filename&gt;, reset=False, cumulative=True)</span>
+
+<span class="sd">    ``load`` reads the sdds output file from the ``matrix_output`` command, with</span>
+<span class="sd">    ``reset`` resetting all parameters to ``None`` and ``cumulative`` saying</span>
+<span class="sd">    whether the R-matrices are cumulative or element-by-element.</span>
+
+<span class="sd">    ``mat.R``</span>
+<span class="sd">        The nx6x6 R-matrices that have been loaded, where ``n`` is the number of</span>
+<span class="sd">        elements.</span>
+
+<span class="sd">    ``mat.cumulativeR``</span>
+<span class="sd">        The cumulative R-matrices for the loaded R-matrices in order.</span>
+
+<span class="sd">    ``mat.elementR``</span>
+<span class="sd">        The element-by-element R-matrices for the loaded R-matrices in order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># self.reset_dicts()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">codes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;elegant&quot;</span><span class="p">:</span> <span class="n">elegant</span><span class="o">.</span><span class="n">read_elegant_matrix_files</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_signatures</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;elegant&quot;</span><span class="p">,</span> <span class="s2">&quot;.mat&quot;</span><span class="p">]]</span>
+
+<div class="viewcode-block" id="matrices.read_elegant_matrix_files">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.read_elegant_matrix_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_elegant_matrix_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">elegant</span><span class="o">.</span><span class="n">read_elegant_matrix_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+    <span class="c1"># def save_HDF5_twiss_file(self, *args, **kwargs):</span>
+    <span class="c1">#     with warnings.catch_warnings():</span>
+    <span class="c1">#         warnings.simplefilter(&quot;ignore&quot;)</span>
+    <span class="c1">#         return hdf5.write_HDF5_twiss_file(self, *args, **kwargs)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
+
+<div class="viewcode-block" id="matrices.units">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.units">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">units</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">units</span></div>
+
+
+<div class="viewcode-block" id="matrices.append">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.append">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">[</span><span class="n">array</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">self</span><span class="p">[</span><span class="n">array</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">units</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="matrices.initialize_array">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.initialize_array">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">initialize_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">[</span><span class="n">array</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">UnitValue</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">units</span><span class="p">)]</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_which_code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_determine_code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_signatures</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">filename</span><span class="p">[</span><span class="n">l</span><span class="p">:]:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="matrices.load">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.load">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cumulative</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sddsindex</span><span class="p">]</span> <span class="o">=</span> <span class="n">cumulative</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_determine_code</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_determine_code</span><span class="p">(</span><span class="n">filename</span><span class="p">)(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="n">reset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="matrices.generate_R_matrix">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.generate_R_matrix">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_R_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;R11&quot;</span><span class="p">][</span><span class="n">index</span><span class="p">]),</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;R11&quot;</span><span class="p">][</span><span class="n">index</span><span class="p">])):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+                    <span class="n">mat</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;R&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">))[</span><span class="n">index</span><span class="p">]</span>
+                    <span class="n">R</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">R</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">R</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">generate_R_matrix</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R11</span><span class="p">))]</span>
+
+<div class="viewcode-block" id="matrices.flatten1">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.flatten1">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">flatten1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span>
+        <span class="n">newarr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ar</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">ar</span><span class="p">:</span>
+                <span class="n">newarr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">newarr</span></div>
+
+
+<div class="viewcode-block" id="matrices.cumulativeR">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.cumulativeR">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cumulativeR</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">combined</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">cR</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">combined</span><span class="p">:</span>
+            <span class="n">ir</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flatten1</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">individualR</span><span class="p">())))</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">ir</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">ir</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+                <span class="n">cR</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R11</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                    <span class="n">cR</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ir</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">ir</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">ir</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+                    <span class="n">cR</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cR</span></div>
+
+
+<div class="viewcode-block" id="matrices.matrixsolve">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.matrixsolve">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">matrixsolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">elist</span><span class="p">):</span>
+        <span class="n">elist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">b</span></div>
+
+
+<div class="viewcode-block" id="matrices.individualR">
+<a class="viewcode-back" href="../../../simba.Modules.Matrices.html#simba.Modules.Matrices.matrices.individualR">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">individualR</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">iR</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R11</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative</span><span class="p">:</span>
+                <span class="n">element_matrices</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">reduce</span><span class="p">(</span>
+                    <span class="k">lambda</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrixsolve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">element_matrices</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">element_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                <span class="n">iR</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element_matrices</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">iR</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">iR</span></div>
+</div>
+
+
+
+<span class="c1"># def load_directory(directory=&#39;.&#39;, types={&#39;elegant&#39;:&#39;.twi&#39;, &#39;GPT&#39;: &#39;emit.gdf&#39;,&#39;ASTRA&#39;: &#39;Xemit.001&#39;}, preglob=&#39;*&#39;, verbose=False, sortkey=&#39;z&#39;):</span>
+<span class="c1">#     t = twiss()</span>
+<span class="c1">#     if verbose:</span>
+<span class="c1">#         print(&#39;Directory:&#39;,directory)</span>
+<span class="c1">#     for code, string in types.items():</span>
+<span class="c1">#         twiss_files = glob.glob(directory+&#39;/&#39;+preglob+string)</span>
+<span class="c1">#         if verbose:</span>
+<span class="c1">#             print(code, [os.path.basename(t) for t in twiss_files])</span>
+<span class="c1">#         if t._which_code(code) is not None and len(twiss_files) &gt; 0:</span>
+<span class="c1">#             t._which_code(code)(t, twiss_files, reset=False)</span>
+<span class="c1">#     t.sort(key=sortkey)</span>
+<span class="c1">#     return t</span>
+<span class="c1">#</span>
+<span class="c1"># def load_file(filename, *args, **kwargs):</span>
+<span class="c1">#     twissobject = twiss()</span>
+<span class="c1">#     code = twissobject._determine_code(filename)</span>
+<span class="c1">#     if code is not None:</span>
+<span class="c1">#         code(twissobject, filename, reset=False)</span>
+<span class="c1">#     return twissobject</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

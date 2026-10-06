@@ -358,6 +358,32 @@ def test_ocelot_horizontal_chromaticity_is_the_outlier():
     assert abs(ocelot_x / float(tw.dqx) - 1) > 0.3
 
 
+def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
+    """`read_optics_summary` is the only route by which a ring's tune
+    reaches simba from Ocelot, and until now it raised `NameError: name
+    'pi' is not defined` on its first line -- `pi` was never imported into
+    `Ocelot.py`. Nothing caught it: `postProcess` does not guard the call,
+    so every Ocelot ring run died there, and every test went through
+    `ocelot_twiss` directly instead of through simba's own method.
+
+    So this drives the real method. The value is checked against the
+    independent Xsuite tune, not against Ocelot's own.
+    """
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    _, tw = xsuite_ring()
+    _, _, lattice = ocelot_ring()
+
+    class FakeOcelot:
+        read_optics_summary = ocelotLattice.read_optics_summary
+        objectname = "ring"
+        lat_obj = lattice
+
+    summary = FakeOcelot().read_optics_summary()
+    assert summary["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-4)
+    assert summary["tune_y_total"] == pytest.approx(float(tw.qy), rel=1e-4)
+
+
 def test_bmad_agrees_on_the_tune_including_the_integer():
     _, tw = xsuite_ring()
     assert bmad_ring()["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-6)

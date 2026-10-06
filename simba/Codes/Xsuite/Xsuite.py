@@ -7,9 +7,9 @@ Various objects and functions to handle Xsuite lattices and commands. See `Xsuit
 
 Classes:
     - :class:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice`: The Xsuite lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
+      and for tracking through it.
 
 """
 try:
@@ -79,6 +79,16 @@ class xsuiteLattice(frameworkLattice):
     supports_periodic: ClassVar[bool] = True
     """``line.twiss()`` with no initial conditions."""
 
+    supports_nsuperperiods: ClassVar[bool] = True
+    """A superperiod is an extra factor on ``num_turns``: Xtrack has no
+    separate notion of a sector, so N passes are asked for per turn and
+    everything counted per turn is converted back."""
+
+    supports_programs: ClassVar[bool] = True
+    """Natively, and without simba looping: an element attribute bound to a
+    ``FunctionPieceWiseLinear`` of ``t_turn_s`` varies inside a single
+    ``line.track(num_turns=N)`` call."""
+
     otm_convention: ClassVar[str] = "x, px, y, py, zeta, delta"
     """One-turn-map convention"""
 
@@ -137,6 +147,20 @@ class xsuiteLattice(frameworkLattice):
 
     ref_idx: int = None
     """Reference particle index"""
+
+    program_attributes: ClassVar[dict] = {
+        "Magnet": ("knl[0]", "ksl[0]"),
+        "Multipole": ("knl[0]", "ksl[0]"),
+        "ACDipole": ("volt", "volt"),
+    }
+    """``(horizontal, vertical)`` attribute an unqualified program sets, per
+    Xtrack class."""
+
+    program_signs: ClassVar[dict] = {
+        "knl[0]": -1.0,
+        "ksl[0]": 1.0,
+    }
+    """What a lattice deflection angle becomes in that attribute."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -300,6 +324,73 @@ class xsuiteLattice(frameworkLattice):
         self.line.particle_ref = particle_ref
         self.names = self.line.element_names
 
+    @property
+    def revolution_period(self) -> float:
+        """
+        Seconds per turn, as Xsuite itself counts them:
+        ``line_length / (beta0 * clight)``.
+
+        That expression is what ``t_turn_s`` advances by per *pass*, so with
+        superperiods it is multiplied by
+        :meth:`~simba.Framework_objects.frameworkLattice.passes_per_turn`.
+        """
+        from ...Modules.constants import speed_of_light
+
+        beta0 = float(np.atleast_1d(self.line.particle_ref.beta0)[0])
+        pass_time = self.line.get_length() / (beta0 * speed_of_light)
+        return self.passes_per_turn * pass_time
+
+    def bind_programs(self) -> None:
+        """
+        Bind each programmed element's attribute to a function of ``t_turn_s``.
+        Done once, before tracking, rather than per turn.
+        """
+        import xtrack as xt
+
+        if not self.programs:
+            return
+        period = self.revolution_period
+        bound = False
+        for program in self.programs:
+            if program.element not in self.line.element_names:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}', "
+                    "which is not in the Xsuite line. Nothing is varied."
+                )
+                continue
+            element = self.line.element_dict[program.element]
+            vertical = self.program_is_vertical(program.element)
+            attribute = program.parameter
+            if attribute is None:
+                planes = self.program_attributes.get(type(element).__name__)
+                attribute = planes[1] if vertical else planes[0] if planes else None
+            if attribute is None:
+                warn(
+                    f"Line '{self.objectname}' programs '{program.element}', "
+                    f"an Xtrack {type(element).__name__}, and simba has no "
+                    "default attribute for that class. Name it with "
+                    "'parameter:' in the program."
+                )
+                continue
+            sign = self.program_signs.get(attribute, 1.0) if not program.parameter else 1.0
+            times, values = program.time_knots(period)
+            name = f"{program.element}_simba_program"
+            self.line.functions[name] = xt.FunctionPieceWiseLinear(
+                x=times, y=[sign * value for value in values]
+            )
+            target = self.line.element_refs[program.element]
+            *path, last = attribute.replace("]", "").split("[")
+            for piece in path:
+                target = target[int(piece)] if piece.isdigit() else getattr(target, piece)
+            expression = self.line.functions[name](self.line.vars["t_turn_s"])
+            if last.isdigit():
+                target[int(last)] = expression
+            else:
+                setattr(target, last, expression)
+            bound = True
+        if bound:
+            self.line.enable_time_dependent_vars = True
+
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
@@ -310,40 +401,81 @@ class xsuiteLattice(frameworkLattice):
             self.line.configure_radiation(model=self.radiation)
         self.line.freeze_longitudinal(state=False)
         self.line.freeze_energy(state=False, force=True)
+        self.bind_programs()
         pin = deepcopy(self.pin)
 
         if self.turns > 1:
-            self.line.track(pin, num_turns=self.turns)
+            self.line.track(pin, num_turns=self.turns * self.passes_per_turn)
             self.pout = pin
+            self.collect_beam_data(deepcopy(pin))
             self.tws = self._twiss()
             return
 
         for el, name in zip(self.line.elements, self.line.element_names):
             pin.zeta -= np.mean(pin.zeta)  # Center zeta
             el.track(pin, increment_at_element=True)  # Track in-place
-            stats = {
-                'mean_x': np.mean(pin.x),
-                'mean_y': np.mean(pin.y),
-                'sigma_x': np.std(pin.x),
-                'sigma_px': np.std(pin.px),
-                'sigma_y': np.std(pin.y),
-                'sigma_py': np.std(pin.py),
-                'sigma_zeta': np.std(pin.zeta),
-                'sigma_delta': np.std(pin.delta),
-                'momentum': np.mean(pin.energy) - pin.mass0,
-                'emit_xn': np.mean(self.compute_norm_emit(pin.x, pin.px, pin)),
-                'emit_yn': np.mean(self.compute_norm_emit(pin.y, pin.py, pin)),
-                'emit_xn_corrected': np.mean(
-                    self.compute_norm_emit_corrected(pin.x, pin.px, pin)
-                ),
-                'emit_yn_corrected': np.mean(
-                    self.compute_norm_emit_corrected(pin.y, pin.py, pin)
-                ),
-            }
-            self.beam_data.update({name: stats})
-        self.beam_data.update({"_end_point": stats})
+            self.beam_data.update({name: self.bunch_statistics(pin)})
+        self.beam_data.update({"_end_point": self.bunch_statistics(pin)})
         self.pout = pin
         self.tws = self._twiss()
+
+    def bunch_statistics(self, particles) -> dict:
+        """Per-element bunch statistics, as the twiss file wants them;
+        based on tracking rather than optics via ``line.twiss()``.
+
+        Parameters
+        ----------
+        particles: xtrack.Particles
+            The distribution at one point in the line
+
+        Returns
+        -------
+        dict
+            One row of :attr:`beam_data`
+        """
+        return {
+            'mean_x': np.mean(particles.x),
+            'mean_y': np.mean(particles.y),
+            'sigma_x': np.std(particles.x),
+            'sigma_px': np.std(particles.px),
+            'sigma_y': np.std(particles.y),
+            'sigma_py': np.std(particles.py),
+            'sigma_zeta': np.std(particles.zeta),
+            'sigma_delta': np.std(particles.delta),
+            'momentum': np.mean(particles.energy) - particles.mass0,
+            'emit_xn': np.mean(
+                self.compute_norm_emit(particles.x, particles.px, particles)
+            ),
+            'emit_yn': np.mean(
+                self.compute_norm_emit(particles.y, particles.py, particles)
+            ),
+            'emit_xn_corrected': np.mean(
+                self.compute_norm_emit_corrected(
+                    particles.x, particles.px, particles
+                )
+            ),
+            'emit_yn_corrected': np.mean(
+                self.compute_norm_emit_corrected(
+                    particles.y, particles.py, particles
+                )
+            ),
+        }
+
+    def collect_beam_data(self, particles) -> None:
+        """Fill :attr:`beam_data` by walking ``particles`` down the line.
+
+        Parameters
+        ----------
+        particles: xtrack.Particles
+            A copy of the beam entering the pass
+        """
+        stats = None
+        for el, name in zip(self.line.elements, self.line.element_names):
+            el.track(particles, increment_at_element=True)
+            stats = self.bunch_statistics(particles)
+            self.beam_data.update({name: stats})
+        if stats is not None:
+            self.beam_data.update({"_end_point": stats})
 
     def _twiss(self):
         """
@@ -376,6 +508,12 @@ class xsuiteLattice(frameworkLattice):
         """
         One particle on the closed orbit, recorded every turn.
         Launched a hair off the closed orbit rather than on it.
+        One sample per *completed* turn.
+
+        Returns
+        -------
+        dict
+            ``x``/``px``/``y``/``py``, each of length :meth:`turns`.
         """
         import xtrack as xt
 
@@ -389,15 +527,20 @@ class xsuiteLattice(frameworkLattice):
             y=np.array([orbit[2] + nudge]),
             py=np.array([orbit[3]]),
         )
+        passes = self.turns * self.passes_per_turn
         monitor = xt.ParticlesMonitor(
             _context=self.context,
             start_at_turn=0,
-            stop_at_turn=self.turns,
+            stop_at_turn=passes,
             num_particles=1,
         )
-        self.line.track(particles, num_turns=self.turns, turn_by_turn_monitor=monitor)
+        self.line.track(particles, num_turns=passes, turn_by_turn_monitor=monitor)
+        stride = self.passes_per_turn
         return {
-            name: np.asarray(getattr(monitor, name))[0]
+            name: np.append(
+                np.asarray(getattr(monitor, name))[0][stride::stride],
+                float(np.atleast_1d(getattr(particles, name))[0]),
+            )
             for name in ("x", "px", "y", "py")
         }
 
@@ -423,9 +566,9 @@ class xsuiteLattice(frameworkLattice):
             ``(x, y, turns_survived)`` per grid point.
         """
         grid_x, grid_y, particles = self._da_particles()
-        self.line.track(particles, num_turns=self.turns)
+        self.line.track(particles, num_turns=self.turns * self.passes_per_turn)
         order = np.argsort(particles.particle_id)
-        turns = np.asarray(particles.at_turn)[order]
+        turns = np.asarray(particles.at_turn)[order] // self.passes_per_turn
         self.dynamic_aperture = [
             (float(x), float(y), int(turn))
             for x, y, turn in zip(grid_x, grid_y, turns)
@@ -451,23 +594,25 @@ class xsuiteLattice(frameworkLattice):
         from ...Modules.Matrices import tune_diffusion
 
         grid_x, grid_y, particles = self._da_particles()
+        passes = self.turns * self.passes_per_turn
         monitor = xt.ParticlesMonitor(
             _context=self.context,
             start_at_turn=0,
-            stop_at_turn=self.turns,
+            stop_at_turn=passes,
             num_particles=len(grid_x),
         )
-        self.line.track(particles, num_turns=self.turns, turn_by_turn_monitor=monitor)
+        self.line.track(particles, num_turns=passes, turn_by_turn_monitor=monitor)
+        stride = self.passes_per_turn
         twiss = self.normalisation_twiss()
         footprint = []
         for index in range(len(grid_x)):
             if int(np.asarray(particles.state)[index]) <= 0:
                 continue
             tune_x, tune_y, diffusion = tune_diffusion(
-                np.asarray(monitor.x)[index],
-                np.asarray(monitor.px)[index],
-                np.asarray(monitor.y)[index],
-                np.asarray(monitor.py)[index],
+                np.asarray(monitor.x)[index][::stride],
+                np.asarray(monitor.px)[index][::stride],
+                np.asarray(monitor.y)[index][::stride],
+                np.asarray(monitor.py)[index][::stride],
                 twiss=twiss,
             )
             if math.isnan(tune_x):
@@ -597,6 +742,8 @@ class xsuiteLattice(frameworkLattice):
             s=svals[self.end],
             ref_index=self.ref_idx
         )
+        # the beam leaving the line is the last turn's, by definition
+        beam.turn = self.turns
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             f'{self.global_parameters["master_subdir"]}/'
@@ -621,6 +768,7 @@ class xsuiteLattice(frameworkLattice):
                     s=svals[elem.name],
                     ref_index=self.ref_idx,
                 )
+                beam.turn = self.beam_turn(data_turn)
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
                     f'{self.global_parameters["master_subdir"]}/'
@@ -633,6 +781,7 @@ class xsuiteLattice(frameworkLattice):
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         df["z"] = np.interp(df["s"], svals, zvals)
-        for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
-            df[k] = [x[k] for x in self.beam_data.values()]
+        if self.beam_data:
+            for k in next(iter(self.beam_data.values())).keys():
+                df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')

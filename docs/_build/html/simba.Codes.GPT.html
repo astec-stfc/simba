@@ -1,0 +1,496 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>simba.Codes.GPT package &mdash; SIMBA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="simba.Codes.Generators package" href="simba.Codes.Generators.html" />
+    <link rel="prev" title="simba.Codes.Elegant package" href="simba.Codes.Elegant.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SIMBA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started with SIMBA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loading-a-lattice.html">Loading in a Lattice File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ring-studies.html">Ring Studies and the <code class="docutils literal notranslate"><span class="pre">tracking</span></code> Block</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SimCodes.html">SimCodes</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/beams_example.html">SIMBA Beams Module examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks/utility_functions.html">Utility Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Framework.html">Framework</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_objects.html">Framework Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Framework_elements.html">Framework Elements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simba.html">simba package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simba.Codes.html">simba.Codes package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simba.Codes.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.ASTRA.html">simba.Codes.ASTRA package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Bmad.html">simba.Codes.Bmad package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.CSRTrack.html">simba.Codes.CSRTrack package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Cheetah.html">simba.Codes.Cheetah package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Elegant.html">simba.Codes.Elegant package</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">simba.Codes.GPT package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.GPT.GPT">simba.Codes.GPT.GPT module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-simba.Codes.GPT">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Generators.html">simba.Codes.Generators package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Genesis.html">simba.Codes.Genesis package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.MADX.html">simba.Codes.MADX package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.OPAL.html">simba.Codes.OPAL package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Ocelot.html">simba.Codes.Ocelot package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Wake_T.html">simba.Codes.Wake_T package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="simba.Codes.Xsuite.html">simba.Codes.Xsuite package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes.Executables">simba.Codes.Executables module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simba.Codes.html#module-simba.Codes">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simba.Modules.html">simba.Modules package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SIMBA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="simba.Codes.html">simba.Codes package</a></li>
+      <li class="breadcrumb-item active">simba.Codes.GPT package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/simba.Codes.GPT.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simba-codes-gpt-package">
+<h1>simba.Codes.GPT package<a class="headerlink" href="#simba-codes-gpt-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-simba.Codes.GPT.GPT">
+<span id="simba-codes-gpt-gpt-module"></span><h2>simba.Codes.GPT.GPT module<a class="headerlink" href="#module-simba.Codes.GPT.GPT" title="Link to this heading"></a></h2>
+<p>Simframe GPT Module</p>
+<p>Various objects and functions to handle GPT lattices and commands.</p>
+<dl class="simple">
+<dt>Classes:</dt><dd><ul class="simple">
+<li><p><a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice" title="simba.Codes.GPT.GPT.gptLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">gptLattice</span></code></a>: The GPT lattice object, used for
+converting the <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkObject" title="simba.Framework_objects.frameworkObject"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkObject</span></code></a> s defined in the
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a> into a string representation of
+the lattice suitable for GPT input and lattice files.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_element</span></code>: Base class for defining
+commands in a GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_setfile</span></code>: Class for defining the
+input files for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_charge</span></code>: Class for defining the
+bunch charge for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GptSetReduce</span></code>: Class for reducing the
+number of particles for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_accuracy</span></code>: Class for setting the
+accuracy for GPT tracking.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_spacecharge</span></code>: Class for defining the
+space charge setup for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GptTout</span></code>: Class for defining the
+number of steps for particle distribution output for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_csr1d</span></code>: Class for defining the
+CSR calculations for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_writefloorplan</span></code>: Class for setting up the
+writing of the lattice floor plan for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_Zminmax</span></code>: Class for defining the
+minimum and maximum z-positions for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_forwardscatter</span></code>: Class for defining
+scattering parameters for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_scatterplate</span></code>: Class for defining a
+scattering object for the GPT input file.</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_dtmaxt</span></code>: Class for defining the
+step size(s) for the GPT input file.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">gptLattice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice" title="simba.Framework_objects.frameworkLattice"><code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code></a></p>
+<p>Class for defining the GPT lattice object, used for
+converting the <code class="xref py py-class docutils literal notranslate"><span class="pre">frameworkLattice</span></code> into a string representation of
+the lattice suitable for a GPT input file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.Brho">
+<span class="sig-name descname"><span class="pre">Brho</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="simba.Modules.html#simba.Modules.units.UnitValue" title="simba.Modules.units.UnitValue"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitValue</span></code></a> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.Brho" title="Link to this definition"></a></dt>
+<dd><p>Magnetic rigidity</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.accuracy">
+<span class="sig-name descname"><span class="pre">accuracy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.accuracy" title="Link to this definition"></a></dt>
+<dd><p>Tracking accuracy</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.allow_negative_drifts">
+<span class="sig-name descname"><span class="pre">allow_negative_drifts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.allow_negative_drifts" title="Link to this definition"></a></dt>
+<dd><p>Flag to indicate whether negative drifts are allowed</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.autophase">
+<span class="sig-name descname"><span class="pre">autophase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.0,</span> <span class="pre">350.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.autophase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.autophase" title="Link to this definition"></a></dt>
+<dd><p>Phase every RF cavity in the section, upstream to downstream.</p>
+<p>The order matters and the cavities cannot be done independently. While
+the beam is still slow, the time it arrives at a cavity depends on how
+much energy it gained in the ones before it, so the crest of the second
+cavity is only meaningful once the first is already on crest. Scanning
+them in isolation, or in the wrong order, measures the crest of a beam
+that will never exist.</p>
+<p>Each cavity is therefore scanned with every upstream cavity already set
+to its measured crest – which happens naturally, because
+<a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.find_crest" title="simba.Codes.GPT.GPT.gptLattice.find_crest"><code class="xref py py-func docutils literal notranslate"><span class="pre">find_crest()</span></code></a> writes the result back onto the element and the input
+file is regenerated for the next scan.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>names</strong> (<em>list</em><em> or </em><em>None</em>) – Cavities to phase, in any order; they are sorted by position. When
+None, every cavity in the section is phased.</p></li>
+<li><p><strong>phase_range</strong> (<em>tuple</em>) – <code class="docutils literal notranslate"><span class="pre">(from,</span> <span class="pre">to)</span></code> of the coarse scan in degrees.</p></li>
+<li><p><strong>step</strong> (<em>float</em>) – Coarse scan step in degrees.</p></li>
+<li><p><strong>refine</strong> (<em>bool</em>) – Follow each coarse scan with a finer one around the peak.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">{name:</span> <span class="pre">crest}</span></code> in the order the cavities were phased.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.bunch_charge">
+<span class="sig-name descname"><span class="pre">bunch_charge</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.bunch_charge" title="Link to this definition"></a></dt>
+<dd><p>Bunch charge</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.code">
+<span class="sig-name descname"><span class="pre">code</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.code" title="Link to this definition"></a></dt>
+<dd><p>String indicating the lattice object type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.crest_scan_particles">
+<span class="sig-name descname"><span class="pre">crest_scan_particles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.crest_scan_particles" title="Link to this definition"></a></dt>
+<dd><p>Particles retained during a crest scan (<a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.find_crest" title="simba.Codes.GPT.GPT.gptLattice.find_crest"><code class="xref py py-func docutils literal notranslate"><span class="pre">find_crest()</span></code></a>). The crest is
+a single-particle property of the RF, so a handful is enough.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.dtmin">
+<span class="sig-name descname"><span class="pre">dtmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.dtmin" title="Link to this definition"></a></dt>
+<dd><p>Integration time step size</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.endScreenObject">
+<span class="sig-name descname"><span class="pre">endScreenObject</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.endScreenObject" title="Link to this definition"></a></dt>
+<dd><p>Final screen object for dumping particle distributions</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.find_crest">
+<span class="sig-name descname"><span class="pre">find_crest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.0,</span> <span class="pre">350.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.find_crest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.find_crest" title="Link to this definition"></a></dt>
+<dd><p>Find the crest phase of an RF cavity by scanning it with GPT’s <code class="docutils literal notranslate"><span class="pre">mr</span></code>.
+<code class="docutils literal notranslate"><span class="pre">mr</span></code> runs GPT once per phase and concatenates the output, and <code class="docutils literal notranslate"><span class="pre">gdfa</span></code>
+reduces each run to an average Lorentz factor, so the crest is simply the
+phase of maximum <code class="docutils literal notranslate"><span class="pre">avgG</span></code>.</p>
+<p>The converter writes <code class="docutils literal notranslate"><span class="pre">phi</span> <span class="pre">=</span> <span class="pre">(crest</span> <span class="pre">+</span> <span class="pre">90</span> <span class="pre">-</span> <span class="pre">phase)</span></code>, so running on crest
+means <code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">=</span> <span class="pre">0</span></code> and therefore <code class="docutils literal notranslate"><span class="pre">phi</span> <span class="pre">=</span> <span class="pre">crest</span> <span class="pre">+</span> <span class="pre">90</span></code>. A scan peaking at
+<code class="docutils literal notranslate"><span class="pre">phi*</span></code> gives <code class="docutils literal notranslate"><span class="pre">crest</span> <span class="pre">=</span> <span class="pre">phi*</span> <span class="pre">-</span> <span class="pre">90</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – Name of the cavity element to phase.</p></li>
+<li><p><strong>phase_range</strong> (<em>tuple</em>) – <code class="docutils literal notranslate"><span class="pre">(from,</span> <span class="pre">to)</span></code> of the coarse scan in degrees.</p></li>
+<li><p><strong>step</strong> (<em>float</em>) – Coarse scan step in degrees.</p></li>
+<li><p><strong>refine</strong> (<em>bool</em>) – Follow the coarse scan with a finer one, one coarse step either side
+of the peak, to a tenth of the step.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The measured crest phase in degrees, also written back onto the
+element.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.gdf_to_hdf5">
+<span class="sig-name descname"><span class="pre">gdf_to_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">screen</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gptbeamfilename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cathode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.gdf_to_hdf5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.gdf_to_hdf5" title="Link to this definition"></a></dt>
+<dd><p>Convert the GDF beam file to HDF5 format and write the beam file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>screen</strong> (<em>laura.models.diagnostic.DiagnosticElement</em>) – Diagnostic element</p></li>
+<li><p><strong>gptbeamfilename</strong> (<em>str</em>) – Name of GPT beam file</p></li>
+<li><p><strong>cathode</strong> (<em>bool</em>) – True if beam was emitted from a cathode</p></li>
+<li><p><strong>gdf</strong> (<em>gdfbeam</em><em> or </em><em>None</em>) – GDF beam object</p></li>
+<li><p><strong>t0</strong> (<em>float</em>) – Initial time co-ordinate</p></li>
+<li><p><strong>sval</strong> (<em>float</em>) – S-position of screen</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.hdf5_to_gdf">
+<span class="sig-name descname"><span class="pre">hdf5_to_gdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.hdf5_to_gdf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.hdf5_to_gdf" title="Link to this definition"></a></dt>
+<dd><p>Convert the HDF5 beam distribution to GDF format.</p>
+<p>Certain properties of this class, including
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">sample_interval</span></code>,
+<a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.override_meanBz" title="simba.Codes.GPT.GPT.gptLattice.override_meanBz"><code class="xref py py-attr docutils literal notranslate"><span class="pre">override_meanBz</span></code></a>,
+<a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.override_tout" title="simba.Codes.GPT.GPT.gptLattice.override_tout"><code class="xref py py-attr docutils literal notranslate"><span class="pre">override_tout</span></code></a> are also
+used to update
+<a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.headers" title="simba.Codes.GPT.GPT.gptLattice.headers"><code class="xref py py-attr docutils literal notranslate"><span class="pre">headers</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>prefix</strong> (<em>str</em>) – HDF5 file prefix</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.headers">
+<span class="sig-name descname"><span class="pre">headers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.headers" title="Link to this definition"></a></dt>
+<dd><p>Headers to be included in the GPT lattice file</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.ignore_start_screen">
+<span class="sig-name descname"><span class="pre">ignore_start_screen</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.ignore_start_screen" title="Link to this definition"></a></dt>
+<dd><p>Flag to indicate whether to ignore the first screen in the lattice</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.override_meanBz">
+<span class="sig-name descname"><span class="pre">override_meanBz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.override_meanBz" title="Link to this definition"></a></dt>
+<dd><p>Set the average particle longitudinal velocity manually</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.override_tout">
+<span class="sig-name descname"><span class="pre">override_tout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> <span class="pre">|</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> <span class="pre">|</span> <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.override_tout" title="Link to this definition"></a></dt>
+<dd><p>Set the time step output manually</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.particle_definition">
+<span class="sig-name descname"><span class="pre">particle_definition</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.particle_definition" title="Link to this definition"></a></dt>
+<dd><p>Initial particle definition</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.postProcess">
+<span class="sig-name descname"><span class="pre">postProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.postProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.postProcess" title="Link to this definition"></a></dt>
+<dd><p>Convert the beam file(s) from the GPT output into HDF5 format, see
+<code class="xref py py-func docutils literal notranslate"><span class="pre">gdf_to_hdf5()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.preProcess">
+<span class="sig-name descname"><span class="pre">preProcess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.preProcess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.preProcess" title="Link to this definition"></a></dt>
+<dd><p>Convert the beam file from the previous lattice section into GPT format and set the number of
+particles based on the input distribution, see
+<code class="xref py py-func docutils literal notranslate"><span class="pre">hdf5_to_astra()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.run" title="Link to this definition"></a></dt>
+<dd><p>Run the code with input ‘filename’</p>
+<p><cite>GPTLICENSE</cite> must be provided in
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.global_parameters" title="simba.Framework_objects.frameworkLattice.global_parameters"><code class="xref py py-attr docutils literal notranslate"><span class="pre">global_parameters</span></code></a>.</p>
+<p>Average properties of the distribution are also calculated and written
+to an <cite>&lt;&gt;emit.gdf</cite> file in <cite>master_subdir</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.screen_step_size">
+<span class="sig-name descname"><span class="pre">screen_step_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.screen_step_size" title="Link to this definition"></a></dt>
+<dd><p>Step size for screen output</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.space_charge_mode">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">space_charge_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.space_charge_mode" title="Link to this definition"></a></dt>
+<dd><p>Get the space charge mode based on
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.globalSettings" title="simba.Framework_objects.frameworkLattice.globalSettings"><code class="xref py py-attr docutils literal notranslate"><span class="pre">globalSettings</span></code></a> or
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.file_block" title="simba.Framework_objects.frameworkLattice.file_block"><code class="xref py py-attr docutils literal notranslate"><span class="pre">file_block</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Space charge mode as string, or None if not provided.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.time_step_size">
+<span class="sig-name descname"><span class="pre">time_step_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.time_step_size" title="Link to this definition"></a></dt>
+<dd><p>Interval between <code class="docutils literal notranslate"><span class="pre">tout</span></code> beam dumps [s].
+Diagnostic only – GPT integrates adaptively under <a class="reference internal" href="#simba.Codes.GPT.GPT.gptLattice.accuracy" title="simba.Codes.GPT.GPT.gptLattice.accuracy"><code class="xref py py-attr docutils literal notranslate"><span class="pre">accuracy</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.write" title="Link to this definition"></a></dt>
+<dd><p>Writes the GPT input file from <code class="xref py py-func docutils literal notranslate"><span class="pre">writeElements()</span></code>
+to &lt;master_subdir&gt;/&lt;self.objectname&gt;.in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="simba.Codes.GPT.GPT.gptLattice.writeElements">
+<span class="sig-name descname"><span class="pre">writeElements</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/simba/Codes/GPT/GPT.html#gptLattice.writeElements"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#simba.Codes.GPT.GPT.gptLattice.writeElements" title="Link to this definition"></a></dt>
+<dd><p>Write the lattice elements defined in this object into a GPT-compatible format; see
+<a class="reference internal" href="Framework_objects.html#simba.Framework_objects.frameworkLattice.elementObjects" title="simba.Framework_objects.frameworkLattice.elementObjects"><code class="xref py py-attr docutils literal notranslate"><span class="pre">elementObjects</span></code></a>.</p>
+<p>The appropriate headers required for GPT are written at the top of the file, see the <cite>write_GPT</cite>
+function in <code class="xref py py-class docutils literal notranslate"><span class="pre">gpt_element</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The lattice represented as a string compatible with GPT</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-simba.Codes.GPT">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-simba.Codes.GPT" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simba.Codes.Elegant.html" class="btn btn-neutral float-left" title="simba.Codes.Elegant package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simba.Codes.Generators.html" class="btn btn-neutral float-right" title="simba.Codes.Generators package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, STFC ASTeC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
