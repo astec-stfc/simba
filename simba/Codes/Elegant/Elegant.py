@@ -86,6 +86,11 @@ from laura.translator.converters.converter import translate_elements
 from laura.translator.utils.functions import sanitize_string
 
 
+def elegant_element_name(name: str) -> str:
+    """The name ELEGANT knows an element by."""
+    return sanitize_string(name).upper()
+
+
 class elegantLattice(frameworkLattice):
     """
     Class for defining the ELEGANT lattice object, used for
@@ -295,7 +300,7 @@ class elegantLattice(frameworkLattice):
             key = f"rf_phase_{name}"
             command = elegantCommandFile(objectname=key, objecttype="modulate_elements")
             for prop, value in (
-                ("name", name),
+                ("name", elegant_element_name(element)),
                 ("item", "PHASE"),
                 ("filename", f'"{basename}"'),
                 ("time_column", '"t"'),
@@ -657,7 +662,7 @@ class elegantLattice(frameworkLattice):
                     item=item,
                     **{key: value},
                 )
-                command.add_property("name", name)
+                command.add_property("name", elegant_element_name(program.element))
                 commands[key_name] = command
         return commands
 
@@ -712,7 +717,7 @@ class elegantLattice(frameworkLattice):
                             elegantCommandFile(
                                 objectname="error_element",
                                 objecttype="error_element",
-                                name=e,
+                                name=elegant_element_name(e),
                                 item=item,
                                 allow_missing_elements=1,
                                 **elementErrors[e][item],
@@ -730,7 +735,7 @@ class elegantLattice(frameworkLattice):
                 )
                 self.commandFiles["scan_elements"] = elegant_scan_elements_command(
                     # lattice=self,
-                    name=elementScan["name"],
+                    name=elegant_element_name(elementScan["name"]),
                     item=elementScan["item"],
                     enumeration_file=elementScan["enumeration_file"],
                     enumeration_column=elementScan["enumeration_column"],
@@ -854,6 +859,7 @@ class elegantLattice(frameworkLattice):
             lattice=os.path.join("..", f"{self.objectname}.lte"),
             p_central=self.reference_p0c / self.rest_energy,
             use_beamline=self.objectname,
+            **({"always_change_p0": 0} if self.fixed_reference else {}),
         )
         twiss = elegant_twiss_output_command(
             beam=self.global_parameters["beam"], matched=1

@@ -826,7 +826,7 @@ class bmadLattice(frameworkLattice):
 
         Chromaticity is ``dQ/ddelta``, so it is measured the way it is
         defined: shift the closed orbit to ``+/- delta`` with
-        ``set particle_start pz`` and difference the tunes.
+        ``set particle_start pz`` and difference the tunes. RF is off while it does.
         """
         if self.tao is None:
             return {}
@@ -838,13 +838,23 @@ class bmadLattice(frameworkLattice):
             for plane, tune in self._tao_tunes().items():
                 summary[f"tune_{plane}_total"] = tune
             delta = self.chromaticity_delta
+            rf_on = next(
+                (
+                    line.split(";")[2]
+                    for line in self.tao.cmd("pipe global")
+                    if line.startswith("rf_on;")
+                ),
+                "T",
+            )
             try:
+                self.tao.cmd("set global rf_on = F")
                 self.tao.cmd(f"set particle_start pz = {delta}")
                 plus = self._tao_tunes()
                 self.tao.cmd(f"set particle_start pz = {-delta}")
                 minus = self._tao_tunes()
             finally:
                 self.tao.cmd("set particle_start pz = 0")
+                self.tao.cmd(f"set global rf_on = {rf_on}")
             for plane in ("x", "y"):
                 if plane in plus and plane in minus:
                     summary[f"chromaticity_{plane}"] = (

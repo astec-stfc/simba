@@ -433,7 +433,7 @@ class madxLattice(frameworkLattice):
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
                 estr = d.to_madx(at=at).strip()
                 if d.hardware_type.lower() == "rfcavity":
-                    if self.cavity_model.lower() == "rsmatrix":
+                    if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
                         estr, self._design_energy = self.rs_matrix_cavity(
                             estr, d.physical.length, at, self._design_energy
                         )

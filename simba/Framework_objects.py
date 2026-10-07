@@ -773,8 +773,12 @@ class frameworkLattice(BaseModel):
         """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block.
 
         Whether CSR and LSC are worth modelling is a property of the line, not
-        of the elements in it.
+        of the elements in it. A ring (closed or periodic) defaults CSR off.
         """
+        if self.file_block.get("csr_enable") is None and (
+            self.closed_geometry or self.periodic
+        ):
+            self.csr_enable = False
         for flag in ("csr_enable", "lsc_enable"):
             stated = self.file_block.get(flag)
             if stated is not None:
@@ -1656,7 +1660,7 @@ class frameworkLattice(BaseModel):
                 rf_phase_slip(self.rf_mode, *args)
                 - rf_phase_slip(self.native_rf or "synchronous", *args)
             )
-            if np.max(np.abs(correction)) > 1e-9:
+            if np.max(np.abs(correction)) > 1e-4:
                 corrections[name] = correction
         if corrections and self.native_rf is None:
             warn(exceptions.RFPhasesUnsupportedWarning(

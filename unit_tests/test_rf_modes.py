@@ -186,6 +186,14 @@ def test_off_the_harmonic_a_follower_is_moved_even_without_a_ramp():
     assert set(line.rf_phase_corrections()) == {"CAV"}
 
 
+def test_a_slip_too_small_to_matter_over_the_run_is_left_alone():
+    """CLIC DR's frequency, worked out with MAD-X's electron mass, sat 1.5e-11
+    off SIMBA's harmonic: microradians over the run, and binding the cavity's
+    lag to time cost Xsuite its closed orbit and every ring parameter."""
+    line = FakeLine({"turns": 20}, "synchronous", frequency=(1 + 1.5e-11) * HARMONIC)
+    assert line.rf_phase_corrections() == {}
+
+
 def test_a_cavity_with_no_voltage_is_never_moved():
     """It does nothing at any phase. Moving it would still have cost MAD-X
     its native turn loop: LAURA's default cavity is 3 GHz at 0 V, off the

@@ -369,6 +369,49 @@ def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
     assert summary["tune_y_total"] == pytest.approx(float(tw.qy), rel=1e-4)
 
 
+def test_bmad_chromaticity_survives_a_live_cavity():
+    """With RF on, Tao's closed orbit is 6D and pins ``pz``, so simba's
+    finite difference read a chromaticity of zero on any ring with a cavity."""
+    from pytao import Tao
+
+    from simba.Codes.Bmad.Bmad import bmadLattice
+
+    expected = bmad_ring()  # no cavity
+    directory = tempfile.mkdtemp()
+    path = os.path.join(directory, "ring_rf.bmad")
+    with open(path, "w") as handle:
+        handle.write(
+            "parameter[particle] = electron\n"
+            "parameter[geometry] = closed\n"
+            f"parameter[p0c] = {PC}\n"
+            f"qf: quadrupole, l = {QUAD_L}, k1 = {QUAD_K1}\n"
+            f"qd: quadrupole, l = {QUAD_L}, k1 = {-QUAD_K1}\n"
+            f"b: sbend, l = {BEND_L}, angle = {ANGLE!r}\n"
+            f"d: drift, l = {DRIFT_L}\n"
+            "rf: rfcavity, l = 0, voltage = 1e6, harmon = 40, phi0 = 0.5\n"
+            "cell: line = (qf, d, b, d, qd, d)\n"
+            f"lat: line = (rf, {NCELL}*cell)\n"
+            "use, lat\n"
+        )
+
+    class FakeBmad:
+        read_optics_summary = bmadLattice.read_optics_summary
+        _tao_tunes = bmadLattice._tao_tunes
+        objectname = "ring"
+        lattice_file = path
+        chromaticity_delta = 1e-4
+        tao = Tao(lattice_file=path, so_lib=BMAD_SO, noplot=True)
+
+    lattice = FakeBmad()
+    summary = lattice.read_optics_summary()
+    for plane in ("x", "y"):
+        assert summary[f"chromaticity_{plane}"] == pytest.approx(
+            expected[f"chromaticity_{plane}"], rel=1e-3
+        )
+    # and the RF is left as it was found
+    assert "rf_on;LOGIC;T;T" in lattice.tao.cmd("pipe global")
+
+
 def test_bmad_agrees_on_the_tune_including_the_integer():
     _, tw = xsuite_ring()
     assert bmad_ring()["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-6)

@@ -194,6 +194,19 @@ def test_getElement(sample_framework):
     with pytest.warns(UserWarning):
         assert fw_obj.getElement("NonExistent") == {}
 
+def test_original_elements_are_copies_sharing_one_trajectory(framework_with_machine):
+    """The originals ``save_changes_file`` compares against are independent of
+    the live elements, but copied in one go: per element, each copied the shared
+    section trajectory, and CLIC DR's 5324 elements needed 8.8 GB."""
+    fw_obj = framework_with_machine
+    names = [n for n in fw_obj.elementObjects if fw_obj.elementObjects[n].physical._trajectory]
+    assert len(names) > 1
+    originals = [fw_obj.original_elementObjects[n] for n in names]
+    assert all(o is not fw_obj.elementObjects[n] for o, n in zip(originals, names))
+    assert len({id(o.physical._trajectory) for o in originals}) == 1
+    assert originals[0].physical._trajectory is not fw_obj.elementObjects[names[0]].physical._trajectory
+
+
 def test_getElementType(framework_with_machine):
     fw_obj = framework_with_machine
     quads = fw_obj.getElementType("Quadrupole")

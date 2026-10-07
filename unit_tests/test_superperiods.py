@@ -363,16 +363,30 @@ def test_ocelot_hands_the_count_to_track_nturns():
     """The single-particle paths take it natively, so there is no loop to
     write: `track_nturns` has had the argument all along.
 
-    Asserted as the invariant -- *every* call site passes it -- rather than
-    as a count of them, which is the mistake three earlier tests here made
-    and which breaks the moment a fourth legitimate call appears.
+    Every call goes through ``_track_nturns`` (which also supplies the aperture
+    limits Ocelot cannot solve with a cavity in the ring), so that one place is
+    driven and what reaches Ocelot recorded -- not the source text counted,
+    which this test used to do and which broke when the calls were gathered.
     """
-    import inspect
+    import ocelot.cpbd.track as octrack
 
-    source = inspect.getsource(ocelotLattice)
-    calls = source.count("track_nturns(")
-    assert calls
-    assert source.count("nsuperperiods=self.nsuperperiods") == calls
+    seen = {}
+
+    def recorder(lat, nturns, track_list, nsuperperiods=1, **kwargs):
+        seen.update(nturns=nturns, nsuperperiods=nsuperperiods)
+        return track_list
+
+    class FakeOcelot:
+        _track_nturns = ocelotLattice._track_nturns
+        lat_obj, turns, nsuperperiods = object(), 7, 4
+
+    original = octrack.track_nturns
+    octrack.track_nturns = recorder
+    try:
+        FakeOcelot()._track_nturns([], save_track=False)
+    finally:
+        octrack.track_nturns = original
+    assert seen == {"nturns": 7, "nsuperperiods": 4}
 
 
 class TurnLine:

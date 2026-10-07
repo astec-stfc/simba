@@ -656,12 +656,9 @@ class Framework(BaseModel):
                 self.read_Lattice(name, lattice)
 
             self.apply_changes(changes)
-
-            self.original_elementObjects = {}
-            for e in self.elementObjects:
-                self.original_elementObjects[e] = deepcopy(self.elementObjects[e])
-            self.original_elementObjects["generator"] = deepcopy(self.generator)
-
+            self.original_elementObjects = deepcopy(
+                {**self.elementObjects, "generator": self.generator}
+            )
             self.updateGlobalParameters()
 
     def save_settings(

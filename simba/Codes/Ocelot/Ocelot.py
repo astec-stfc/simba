@@ -18,6 +18,7 @@ from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from copy import deepcopy
+from inspect import signature
 from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi, sqrt
 import os
 from yaml import safe_load
@@ -317,7 +318,9 @@ class ocelotLattice(frameworkLattice):
             value = program.value_at(turn)
             for element in matches:
                 attribute = program.parameter or "angle"
-                if not hasattr(element, attribute):
+                if attribute not in ("dx", "dy", "tilt") and (
+                    attribute not in signature(type(element).__init__).parameters
+                ):
                     warn(
                         f"Line '{self.objectname}' programs '{program.element}', "
                         f"an Ocelot {type(element).__name__}, which has no "
@@ -452,6 +455,39 @@ class ocelotLattice(frameworkLattice):
         self._periodic = ocelot_twiss(self.lat_obj, tws0=tws0) or []
         return self._periodic
 
+    def _track_nturns(self, track_list, save_track: bool):
+        """
+        Ocelot's ``track_nturns``, with its aperture limits taken from
+        :meth:`_ocelot_periodic`.
+        """
+        import ocelot.cpbd.track as octrack
+
+        def aperture_limit(lat, xlim=1, ylim=1):
+            tws = self._ocelot_periodic()
+            bxmax = max(t.beta_x for t in tws)
+            bymax = max(t.beta_y for t in tws)
+            bx0, by0 = tws[0].beta_x, tws[0].beta_y
+            return (
+                float(xlim) * sqrt(bx0 / bxmax),
+                float(ylim) * sqrt(by0 / bymax),
+                float(xlim) / sqrt(bxmax * bx0),
+                float(ylim) / sqrt(bymax * by0),
+            )
+
+        original = octrack.aperture_limit
+        octrack.aperture_limit = aperture_limit
+        try:
+            return octrack.track_nturns(
+                self.lat_obj,
+                self.turns,
+                track_list,
+                nsuperperiods=self.nsuperperiods,
+                save_track=save_track,
+                print_progress=False,
+            )
+        finally:
+            octrack.aperture_limit = original
+
     def read_closed_orbit(self):
         """
         Ocelot's periodic Twiss carries the orbit on its first element.
@@ -552,7 +588,7 @@ class ocelotLattice(frameworkLattice):
         list
             ``(x, y, tune_x, tune_y)`` per surviving grid point.
         """
-        from ocelot.cpbd.track import create_track_list, track_nturns
+        from ocelot.cpbd.track import create_track_list
 
         import math
 
@@ -561,14 +597,7 @@ class ocelotLattice(frameworkLattice):
         xs, ys = self.da_grid()
         energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
-        track_list = track_nturns(
-            self.lat_obj,
-            self.turns,
-            track_list,
-            nsuperperiods=self.nsuperperiods,
-            save_track=True,
-            print_progress=False,
-        )
+        track_list = self._track_nturns(track_list, save_track=True)
         twiss = self.normalisation_twiss()
         footprint = []
         for particle in track_list:
@@ -605,19 +634,12 @@ class ocelotLattice(frameworkLattice):
         list
             ``(x, y, turns_survived)`` per grid point.
         """
-        from ocelot.cpbd.track import create_track_list, track_nturns
+        from ocelot.cpbd.track import create_track_list
 
         xs, ys = self.da_grid()
         energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
-        track_list = track_nturns(
-            self.lat_obj,
-            self.turns,
-            track_list,
-            nsuperperiods=self.nsuperperiods,
-            save_track=False,
-            print_progress=False,
-        )
+        track_list = self._track_nturns(track_list, save_track=False)
         self.dynamic_aperture = [
             (float(p.x), float(p.y), int(p.turn)) for p in track_list
         ]
@@ -629,7 +651,7 @@ class ocelotLattice(frameworkLattice):
         Launched slightly off the closed
         orbit, since a particle sitting on it has no oscillation to show.
         """
-        from ocelot.cpbd.track import create_track_list, track_nturns
+        from ocelot.cpbd.track import create_track_list
 
         orbit = self.read_closed_orbit()
         if orbit is None:
@@ -639,14 +661,7 @@ class ocelotLattice(frameworkLattice):
         track_list = create_track_list(
             [orbit[0] + nudge], [orbit[2] + nudge], [0.0], energy=energy_gev
         )
-        track_list = track_nturns(
-            self.lat_obj,
-            self.turns,
-            track_list,
-            nsuperperiods=self.nsuperperiods,
-            save_track=True,
-            print_progress=False,
-        )
+        track_list = self._track_nturns(track_list, save_track=True)
         if not len(track_list) or len(track_list[0].p_list) < 2:
             warn(
                 f"Line '{self.objectname}': the reference particle did not "

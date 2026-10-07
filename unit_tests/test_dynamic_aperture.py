@@ -211,6 +211,32 @@ def test_second_order_maps_produce_a_real_boundary():
     assert max(survived) < min(lost)
 
 
+def test_ocelot_single_particles_track_on_a_ring_with_rf():
+    """Ocelot's own ``track_nturns`` asks ``twiss`` for its aperture limits with
+    no energy, which Ocelot refuses once a cavity is in the lattice: the
+    reference particle, dynamic aperture and frequency map failed on every
+    ring with RF (CLIC DR's, after 23 minutes of bunch tracking)."""
+    import ocelot.cpbd.elements as oc
+    from ocelot.cpbd.magnetic_lattice import MagneticLattice
+    from ocelot.cpbd.transformations import SecondTM
+
+    ring = ocelot_ring(SecondTM, k2=0.0)
+    cells = list(ring.sequence) + [oc.Cavity(l=0.1, v=1e-4, freq=5e8, phi=90.0)]
+
+    class FakeOcelot:
+        track_reference_particle = ocelotLattice.track_reference_particle
+        _track_nturns = ocelotLattice._track_nturns
+        _ocelot_periodic = ocelotLattice._ocelot_periodic
+        read_closed_orbit = ocelotLattice.read_closed_orbit
+        lat_obj = MagneticLattice(cells, method={"global": SecondTM})
+        objectname, turns, nsuperperiods, da_settings = "ring", 20, 1, {}
+        reference_energy = 1e9
+        _periodic = None
+
+    trajectory = FakeOcelot().track_reference_particle()
+    assert len(trajectory["x"]) == 20
+
+
 def test_laura_builds_ocelot_lattices_second_order():
     """Which is why simba does not fall into the trap above. Pinned rather
     than guarded in code, because LAURA already does the right thing."""
