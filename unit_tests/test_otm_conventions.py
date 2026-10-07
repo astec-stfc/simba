@@ -1,20 +1,4 @@
-"""The codes do not agree on what a one-turn map's coordinates mean.
-
-These tests pin the conversions by *measuring* them -- running the real codes
-on a 2 m drift, whose map is known in closed form -- rather than reading five
-manuals and hoping. Four of the five are importable as libraries (Ocelot,
-Xsuite, cpymad) or installed as a binary (elegant), so this runs for real.
-
-What it establishes:
-
-* The transverse blocks need no conversion. `x'` and `px` differ by a
-  Jacobian that is the identity at the closed orbit.
-* Ocelot's `tau` is sign-flipped against the rest.
-* Xsuite's `(zeta, delta)` and MAD-X's `(t, pt)` differ by `beta0**2`.
-* elegant is not a rescale at all: its fifth coordinate is geometric path
-  length, so a drift has `R56 = 0`. This is the one that would be silently
-  wrong if everything were normalised with a scale factor.
-"""
+"""The codes do not agree on what a one-turn map's coordinates mean."""
 
 import tempfile
 from functools import lru_cache
@@ -31,11 +15,6 @@ from simba.Framework_objects import frameworkLattice
 
 L = 2.0
 MC2 = 0.510998950e6
-
-# Two energies, because one will not do: at beta0 = 1 the conventions coincide
-# and nothing can be told apart, so `PC_SLOW` is low enough that beta0 factors
-# are visible and `PC_FAST` is the relativistic cross-check. Every code here
-# takes its energy argument differently -- see each fixture.
 PC_SLOW = 0.4e6
 PC_FAST = 100e6
 

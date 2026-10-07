@@ -4,27 +4,6 @@ A real ring is usually built as N identical sectors, and writing the lattice
 out N times is both tedious and a lie about what the machine is. ``tracking:
 {nsuperperiods: N}`` says the line is one sector, and the backends traverse it
 N times before calling it a turn.
-
-**A turn is N passes, and stays one turn.** That is the whole convention, and
-it was measured rather than assumed, in both codes that have a native notion
-of it:
-
-* Ocelot's ``track_nturns(..., nsuperperiods=N)`` on a sector is bit-identical
-  to ``nsuperperiods=1`` on N copies of that sector, and both record one point
-  per turn rather than one per pass.
-* Xtrack has no notion of a sector at all, so ``num_turns`` is multiplied and
-  everything counted per turn is converted back. The final state is
-  bit-identical to N copies tracked once per turn; ``at_turn`` counts passes
-  and is floor-divided; and a ``ParticlesMonitor`` records the state at the
-  *start* of each pass -- the first sample is the launch condition -- so the
-  sector boundaries fall at 0, N, 2N and the stride starts from zero. Taking
-  ``[N-1::N]`` instead is off by one sector and silently measures a different
-  trajectory, which is why it is pinned below.
-
-The failure this guards against is not a crash. A sector tracked once per turn
-runs, converges, and describes one Nth of a ring -- a machine that does not
-exist. Hence ``check_nsuperperiods_supported`` being loud, and
-``check_superperiods_close`` checking the declared count against the geometry.
 """
 
 import math
@@ -196,11 +175,6 @@ def test_it_is_checked_during_preprocessing():
 
 
 # --- the declared count against the geometry ----------------------------
-#
-# Getting the count wrong is otherwise invisible: six sectors of a four-fold
-# ring tracks perfectly and models nothing. The net bend answers it --
-# N * angle should be a whole number of turns.
-
 from laura.models.element import Dipole, Drift
 from laura.models.element_list import MachineModel
 
@@ -324,9 +298,6 @@ def test_one_turn_never_checks_anything():
 
 
 # --- the revolution period is the ring's, not the sector's --------------
-#
-# This is what device programs convert against, so getting it wrong puts a
-# kicker in the wrong turn rather than merely the wrong place.
 
 
 class PeriodLine:
@@ -521,12 +492,6 @@ def test_xsuite_converts_at_turn_back_into_turns():
 # --- measured against the codes themselves ------------------------------
 
 
-# Ocelot's `track_nturns` calls `aperture_limit`, which traces the lattice on
-# a 1000-point grid and walks off the end of the sequence when the total
-# length is not a round number -- an IndexError from deep inside `trace_z`,
-# nothing to do with superperiods. Every length below is therefore 1 m.
-
-
 def _xtrack_sector(copies=1):
     """A FODO cell with sextupoles, repeated `copies` times."""
     import xtrack as xt
@@ -675,23 +640,10 @@ def test_ocelot_records_one_point_per_turn_not_per_pass():
 
 
 # --- one sample per completed turn, in every code -----------------------
-#
-# Found while striding the Xsuite monitor: the codes did not agree on what
-# `track_reference_particle` returns. elegant reads one WATCH page per pass
-# and Bmad reads the bunch at END once per turn, so both give `turns` samples
-# at the ends of turns. Ocelot's `p_list` opens with the launch condition and
-# is `turns + 1` long, and the Xsuite monitor samples the start of each pass,
-# so it gave the launch and then turns 1..turns-1 -- the same length as the
-# others and shifted a turn earlier. They are all end-of-turn now.
 
 
 class FakeXsuiteRing:
-    """Enough of `xsuiteLattice` to call `track_reference_particle` for real.
-
-    The method reads a line, a closed orbit, an aperture scan and a turn
-    count, and nothing else -- so the trajectory it returns can be measured
-    rather than the source inspected for how it was written.
-    """
+    """Enough of `xsuiteLattice` to call `track_reference_particle` for real."""
 
     track_reference_particle = xsuiteLattice.track_reference_particle
     single_particle_line = xsuiteLattice.single_particle_line

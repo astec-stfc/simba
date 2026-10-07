@@ -1,26 +1,4 @@
-"""Xsuite multi-turn tracking, end to end through the framework.
-
-``test_madx_multiturn_run.py`` is the same test for MAD-X. Xsuite needs its
-own because its multi-turn path is a *different code path*, not the same one
-in a loop: a single-turn run walks the line element by element and records
-bunch statistics as it goes, while a multi-turn run hands the whole thing to
-``line.track(num_turns=N)``, which has no element-by-element stop.
-
-That difference was silently fatal. ``line.track`` collects no per-element
-statistics, so ``beam_data`` came back empty, and ``postProcess`` then
-indexed it::
-
-    self.beam_data[list(self.beam_data.keys())[0]]   # IndexError
-
--- every multi-turn Xsuite run through the framework died there. No test
-caught it because none of them post-processed; the ring studies call ``run``
-and read the monitor. Guarding the index was not enough either: the twiss
-reader wants about a dozen ``beam_data``-derived columns and raises
-``KeyError: 'momentum'`` without them. The fix is
-:meth:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.collect_beam_data`, one
-diagnostic pass down the line over a *copy* of the final beam -- so these
-tests are mostly about that pass existing and not being mistaken for tracking.
-"""
+"""Xsuite multi-turn tracking, end to end through the framework."""
 
 import os
 

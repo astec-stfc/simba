@@ -1,29 +1,4 @@
-"""``tracking: {rf: follow | fixed}``: how the RF keeps time, the same in every code.
-
-Measured first, 2026-10: left to themselves, elegant's ``RFCA`` is a
-free-running oscillator on absolute time, and MAD-X, Xsuite and Ocelot phase
-their cavities to the reference afresh every pass. On a ring whose reference
-speed never changes, and whose cavity sits on a harmonic, the two cannot be
-told apart -- which is why it went unnoticed -- but they differ under a ramp,
-where the reference speeds up, and on a flat ring with a cavity off the
-harmonic, where elegant's beam slips and the others' never did.
-
-So ``rf`` says what the RF does, and each code is moved, pass by pass, from
-what it does natively to that; see
-:meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`.
-
-The ring is ``test_madx_native_turns``'s FODO cell with a 0.2 m cavity
-(Ocelot's cannot be thin): h = 10, 20 kV at 60 deg, so about 10 keV a turn.
-The ramp is 5 -> 5.04 MeV/c over 10 turns, 4.4 keV a turn, which that
-cavity can supply. Over those 10 turns, ``fixed`` and ``follow`` part by
-450 eV a turn, 5%; the codes agree to 30 eV, which is their spread on the
-flat ring too.
-
-Also here, because it was found by the same runs: Ocelot's cavity always
-moved the reference energy, so on a ring the beam never slipped
-(:class:`~simba.Codes.Ocelot.fixedreference.FixedReference`), and Ocelot
-could not find a ring's periodic optics with a cavity in it at all.
-"""
+"""``tracking: {rf: follow | fixed}``: how the RF keeps time, the same in every code."""
 
 import os
 import shutil

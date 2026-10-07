@@ -1,31 +1,4 @@
-"""MAD-X running its own turn loop, against simba running it.
-
-``test_madx_turns.py`` showed bare ``RUN, TURNS=N`` and an N-times Python
-loop agree to 1e-18 on a hand-built lattice. That measurement was taken as
-licence to keep the Python loop, which was a mistake: nobody had measured
-what the loop *cost*. It costs ~12 ms a turn at 512 particles, against 0.8 s
-for all 20 000 turns of the same line natively, and the gap grows with the
-turn count because the native side is nearly flat in it.
-
-So the loop is now the fallback and MAD-X's own turn count is the default
-(:func:`~simba.Codes.MADX.MADX.madxLattice.use_native_turns`). This file is
-what makes that safe: the same framework run, down both paths, compared.
-``native_turns: false`` in the ``tracking`` block selects the old one, which
-is what lets a test hold everything else fixed.
-
-Two things had to change for the native path to be reachable at all, and
-both are tested here:
-
-* A ring is no longer split at its RF cavities. The splitting is a linac
-  measure -- an accelerating cavity moves the reference momentum, which is
-  fixed per MAD-X ``BEAM`` statement -- and a storage-ring cavity does not
-  accelerate. Splitting a ring bought nothing and cost everything, because
-  a segment boundary is a hand-back to Python and so forbids ``TURNS=N``.
-* ``FFILE`` carries :meth:`output_turns` down into MAD-X, so the
-  ``trackone`` table holds the turns that were asked for rather than all of
-  them. Without it the table is ~2M rows per 1000 turns at 512 particles and
-  the native path trades a time problem for a memory one.
-"""
+"""MAD-X running its own turn loop, against simba running it."""
 
 import os
 import shutil

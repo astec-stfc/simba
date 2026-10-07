@@ -1,12 +1,4 @@
-"""A BPM never writes an elegant beam file, and that is not a problem.
-
-LAURA writes a `Beam_Position_Monitor` as elegant's `moni`, which puts the
-centroid in the .cen file and never dumps particles. The conversion pass walks
-every screen, marker and BPM looking for a .SDDS to turn into HDF5, so on a
-line like the LCLS dump -- 57 BPMs in one stage -- it used to print 57 warnings
-about a file that was never going to exist. A `watch` with no file is still
-worth hearing about.
-"""
+"""A BPM never writes an elegant beam file, and that is not a problem."""
 
 import types
 

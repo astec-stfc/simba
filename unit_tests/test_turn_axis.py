@@ -1,36 +1,4 @@
-"""Which turn a result came from, carried by the result rather than its name.
-
-Before this, a turn number lived in exactly one place: the *filename*, and
-only when ``tracking: {write_turns: true}`` put it there. With the default
-off, a four-turn run writes one unsuffixed beam file per screen holding the
-fourth turn, and nothing in or around that file said so -- it is
-indistinguishable on disk from a single-turn run. The twiss file is worse,
-because there is one per *line* however many turns were tracked, and it mixes
-two kinds of column.
-
-What was measured, on a five-element FODO line tracked from one fixed input
-beam so the comparison is not confounded by a fresh random distribution per
-case:
-
-* Of the 68 columns in an Xsuite twiss file, **57 are turn-independent** --
-  every optics quantity, identical between a 1-turn and a 4-turn run. The
-  eleven that moved are all bunch statistics (``sigma_*``, ``mean_*``,
-  ``emit_*n``), and they come from :meth:`bunch_statistics` on the particles
-  the last turn left behind. (``momentum`` and ``sigma_delta`` are bunch
-  statistics too; they happen not to move on a line with no cavity.) So the
-  turn belongs on the twiss object as a *column*, not as a correction to the
-  optics.
-* ``write_turns: true`` used to **delete the handoff**: Ocelot wrote
-  ``M3-t1`` … ``M3-t4`` and no unsuffixed ``M3.openpmd.hdf5``, which is what
-  the next section reads by name. :meth:`link_handoff_beam` restores it.
-* MAD-X wrote the end of the line **once**, however many turns were tracked,
-  because ``self.end`` was excluded from per-turn writing outright. For a ring
-  that is the one place a per-turn record is most wanted, so the exclusion is
-  now conditional on the name being unsuffixed.
-
-The turn is an ``int | None`` on a beam -- ``None`` meaning nobody said -- and
-an integer column on a twiss object, where ``0`` has to mean the same thing.
-"""
+"""Which turn a result came from, carried by the result rather than its name."""
 
 import os
 
@@ -102,12 +70,7 @@ def test_the_default_multi_turn_pair_is_unsuffixed_and_resolves_to_the_last():
 
 @pytest.fixture
 def generated_beam(tmp_path):
-    """A real generated distribution, read back off disk.
-
-    Built with the generator rather than by hand because openPMD writing
-    wants a complete beam -- weights, species, rest mass -- and the point
-    here is the one extra field, not the other thirty.
-    """
+    """A real generated distribution, read back off disk."""
     frameworkGenerator(
         global_parameters={"master_subdir": str(tmp_path)},
         filename="seed.openpmd.hdf5",
@@ -232,12 +195,6 @@ def test_nothing_to_copy_is_not_an_error(tmp_path):
 def test_no_run_directory_is_not_an_error():
     """`postProcess` can be called on a lattice that was never run."""
     FakeLine(turns=4, write_turns=True, directory=None).link_handoff_beam()
-
-
-# MAD-X writing the end of the line per turn is measured end to end, against
-# a real MAD-X run, in `test_madx_multiturn_run.py` -- the guard is three
-# levels inside `run_segments` and there is nothing honest to unit-test it
-# against short of re-stating it.
 
 
 # --- the twiss turn column -----------------------------------------------

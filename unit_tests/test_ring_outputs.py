@@ -1,25 +1,4 @@
-"""What a ring run writes, and where, the same in every code.
-
-Found by measuring the ring codes side by side, 2026-10:
-
-* **Markers.** elegant, MAD-X and Bmad write a beam at every screen, marker
-  and BPM. Xsuite wrote one only at screens (LAURA gives markers and BPMs no
-  monitor, and a BPM record crashed ``postProcess``) and Ocelot only at
-  screens and BPMs. Both now record at all three, on every turn asked for.
-* **Superperiods in Xsuite.** A turn is several passes, and the screen
-  monitors were sized to ``turns``, so they stopped part-way through the
-  run. Turn ``k`` is now the last of its passes, as MAD-X records it.
-* **The end of the line, per turn, in Xsuite.** Only the last turn's was
-  written; ``write_turns`` now writes every one.
-* **cp in Xsuite.** ``p0c * (1 + delta)`` is the total momentum and was read
-  back as ``pz``, adding ``P (x'^2 + y'^2) / 2`` to every particle (1 eV at
-  5 MeV and 6e-4 rad).
-* **Rematching** to ``input: twiss`` was done by some codes and not others;
-  it is now :meth:`~simba.Framework_objects.frameworkLattice.load_input_beam`.
-* **s** is the lattice's own position in the machine,
-  :attr:`~simba.Framework_objects.frameworkLattice.entrance_s`, and never the
-  incoming beam's ``s``.
-"""
+"""What a ring run writes, and where, the same in every code."""
 
 import json
 import os
@@ -299,11 +278,6 @@ def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
 
 
 def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
-    """MAD-X's program reached neither turn 1 (set before the segment
-    existed, with a warning it was not there) nor any later one (``MAKETHIN``
-    slices keep the strength they were cut with). What the program moves the
-    beam size by, turn by turn, is now Xsuite's: measured to 3%, where the
-    sizes themselves differ by MAD-X's thin-lens 2%."""
     program = {"element": "QUAD1F", "parameter": "k1",
                "turns": [1, TURNS], "values": [-1.05, -0.9]}
 
@@ -382,9 +356,6 @@ def test_every_code_reads_the_input_beam_it_is_given(
 def test_an_electron_only_code_refuses_anything_else(
     code, refused, species, tmp_path, seed_beam
 ):
-    """elegant, Ocelot and Cheetah tracked any beam as electrons: Ocelot's and
-    Cheetah's readers made every charge negative, and simba never tells
-    elegant the particle."""
     beam = _read(seed_beam)
     beam.set_species(species)
     (tmp_path / "beam").mkdir()
@@ -449,10 +420,6 @@ def test_every_code_writes_the_input_charge(code, element, runs, seed_beam):
 
 
 def test_xsuite_macroparticles_carry_the_bunchs_charge(seed_beam, tmp_path):
-    """xfields' space charge takes the bunch's charge from the particles'
-    ``weight``. simba set none, so each macroparticle was one electron: the
-    1 fC of this beam became 64 e, and a real bunch's space charge thousands
-    of times too weak. The charge read back is the charge written."""
     pytest.importorskip("xtrack")
     seed = _read(seed_beam)
     particles = rbf.beam.write_xsuite_beam_file(seed, write=False)
@@ -556,15 +523,6 @@ def test_the_reference_particle_follows_the_sampling(index, interval, sampled):
 
 @pytest.mark.parametrize("code", RING_CODES + ["bmad"])
 def test_every_code_tracks_every_nth_particle(code, tmp_path, seed_beam):
-    """``sample_interval`` meant something different in nearly every code:
-    every n-th particle in elegant and MAD-X, ignored in Xsuite and Bmad, and
-    in Ocelot overwritten by its own defaults. It now tracks every n-th
-    particle exactly as the full run does, with the charge kept.
-
-    That needs the full beam's reference: each code used to take it from the
-    mean of the beam it was given, so these 32 particles saw a reference 4e-5
-    from the full 64's. :attr:`frameworkLattice.reference_p0c` is now taken
-    before sampling."""
     if code == "bmad" and not os.path.exists(BMAD_SO):
         pytest.skip("Bmad libtao not installed")
     seed = _read(seed_beam)
@@ -821,10 +779,6 @@ def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
 @pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
 @pytest.mark.parametrize("element", ["M1", "MID", "M3"])
 def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
-    """elegant's ``t`` is absolute. Measured, 2026-10-06: Ocelot and Xsuite
-    agree with it to 4e-18 s, and MAD-X, with its thin lenses, to 4e-16 s.
-    Before, Ocelot's reference ran at c, not beta0 c, and started a turn
-    ahead; Xsuite's had no turns and dropped the incoming beam's time."""
     if shutil.which("elegant") is None:
         pytest.skip("elegant is not installed")
     for turn in range(1, TURNS + 1):

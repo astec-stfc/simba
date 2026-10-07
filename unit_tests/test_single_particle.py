@@ -1,19 +1,5 @@
-"""Single-particle and reference-particle modes (R1, R4).
-
-**Single particle** tracks 13 probes -- the centroid plus a pair straddling
-it on each coordinate -- recovers the segment's linear map from them by
-finite differences, and carries the full distribution through that map
-instead of tracking it. On a code whose cost is per particle that is a
-saving of roughly `n_macroparticles / 13`.
-
-**Reference particle** is the other thing a ring study wants and bunch
-tracking does not give: not a distribution at each screen, but where one
-particle is on every turn.
-
-The flag was a MAD-X field until R1. It now lives on `frameworkLattice`
-with a `supports_` declaration per code, and the probe arithmetic lives in
-`Modules.Matrices` -- the 13-probe trick is the common method, not a MAD-X
-one, and Xsuite's own `compute_R_matrix` uses it internally.
+"""Single-particle and reference-particle modes.
+**Single particle** tracks 13 probes.
 """
 
 import numpy as np

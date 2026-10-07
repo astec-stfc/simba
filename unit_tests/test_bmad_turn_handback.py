@@ -1,34 +1,4 @@
-"""Bmad's turn-by-turn hand-back (R24).
-
-The frequency map tracks a grid of particles one turn at a time and feeds
-each turn's output back in as the next turn's input. Whether the hand-back
-*works* is the whole thing -- if it silently fails, every turn repeats turn
-one, the tune series is a constant, and the scan reports nothing wrong. It
-did silently fail: ``set beam beginning = END`` sets Tao's
-``beam_at_start`` and reports no error, but the next lattice calculation
-re-reads ``beam_init``, and ``beam_init%position_file`` is set by the
-frequency map -- so Tao reproduced the grid every turn.
-
-The test that was here asserted ``supports_frequency_map is True``. That is
-an assertion about the source, and the source said yes while the code did
-nothing; these drive Tao instead and ask whether the particles moved.
-
-Two independent checks, because one of them on its own is weak:
-
-* **the turns advance** -- turn *n* differs from turn 1 by much more than
-  the beam's own size. Catches the frozen loop.
-* **the turns are the right ones** -- the same ring, written out as one
-  long open line and tracked in a single call, gives the same numbers.
-  Catches a loop that moves but moves wrongly. Nothing is shared between
-  the two routes but the physics, so agreement is worth something; they
-  agree bit for bit.
-
-``beam_init`` generates a fresh random distribution per Tao instance and
-matches it to that lattice's Twiss, so every arm here is seeded from the
-same explicit particle file. See the ``frameworkGenerator`` note in
-``test_madx_native_turns.py`` -- this is the same confounder in another
-code, and it would make the two routes look as though they disagreed.
-"""
+"""Bmad's turn-by-turn hand-back."""
 
 import math
 import os

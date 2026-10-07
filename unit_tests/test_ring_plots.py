@@ -1,17 +1,4 @@
-"""The two nonlinear-ring plots (R15/R16 output).
-
-Both are magnitude plots, so both use one sequential hue rather than a
-rainbow. The checks here are the ones that can be made without eyes: that
-colour is mapped to something that actually varies, that the categorical
-split is not carried by colour alone, and that an empty result does not
-raise.
-
-The design error these were written after: the first version of the
-aperture plot coloured *survivors* by turns survived. Every survivor has
-the same value by definition, so the colour axis encoded a constant while
-the real magnitude -- when each lost particle died -- was flattened to a
-single grey. Rendering it is what showed that up.
-"""
+"""The two nonlinear-ring plots."""
 
 import math
 

@@ -1,23 +1,4 @@
-"""Dynamic aperture (R15): how far off-axis a particle can start and survive.
-
-The standard nonlinear ring study, and one that needs **no bunch** -- one
-single particle per grid point. `track_nturns` is built for exactly this,
-and S10 of the multipass work measured it to be the wrong tool for bunch
-tracking; this is the inversion section 5 of the scoping doc warns about.
-
-Two preconditions decide whether a scan means anything, and both were found
-by measurement rather than by reading:
-
-* **The maps must be nonlinear.** With Ocelot's first-order default,
-  12 of 12 grid points survived at every amplitude up to 0.06 m -- a linear
-  ring has no dynamic aperture. With `SecondTM`, 1 of 12 survived and the
-  boundary sat between 0.002 and 0.0073 m. LAURA already builds the lattice
-  with `SecondTM`, so simba is fine; a bare `MagneticLattice` would not be.
-* **Loss is detected only at the turn boundary**, against the smallest
-  aperture in the lattice. With no `Aperture` elements that limit is
-  Ocelot's default of +/- 1 m, so a ring without apertures reports an
-  enormous dynamic aperture rather than an error.
-"""
+"""Dynamic aperture: how far off-axis a particle can start and survive."""
 
 import math
 

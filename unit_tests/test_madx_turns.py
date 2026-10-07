@@ -1,38 +1,4 @@
-"""MAD-X multi-turn tracking: is a simba-side turn loop the same tracking?
-
-The ring-studies scope recorded MAD-X as having no turn count. That was never
-a MAD-X limitation -- ``RUN, TURNS=N`` has always worked -- it was simba:
-``madxLattice`` never declared ``supports_turns``, so it inherited ``False``
-from the base class, and ``run_track`` hardcoded ``run, turns=1``.
-
-simba cannot simply pass ``turns=N`` through, because the MAD-X backend splits
-the lattice into segments at each RF cavity and tracks each at its own local
-reference momentum (see the module docstring of ``simba/Codes/MADX/MADX.py``);
-a turn that crosses a cavity is therefore not one ``TRACK`` call. So the turn
-loop has to be simba's, and the question this file answers is whether that
-costs anything.
-
-It does not. A cavity-free FODO ring tracked natively for 12 turns, and the
-same ring tracked as 12 consecutive one-turn ``TRACK`` calls with the
-coordinates fed back in, agree to round-off:
-
-=======  ================  ================  =========
-turn     native x          looped x          |diff|
-=======  ================  ================  =========
-1        -1.576505600e-04  -1.576505600e-04  0
-6        -1.579989099e-04  -1.579989099e-04  3.8e-19
-12       +4.818128501e-05  +4.818128501e-05  1.2e-18
-=======  ================  ================  =========
-
-so nothing is given up by looping outside MAD-X, and no second code path is
-needed for the cavity-free rings that *could* have used ``turns=N`` natively.
-
-One wrinkle worth recording rather than rediscovering: with ``onetable`` the
-``trackone`` table holds every observation point, and an explicit
-``observe, place=#e`` duplicates the implicit one at the sequence end. Reading
-it without de-duplicating gives two rows per turn, which looks exactly like a
-tracking disagreement and is not one.
-"""
+"""MAD-X multi-turn tracking: is a simba-side turn loop the same tracking?"""
 
 import os
 

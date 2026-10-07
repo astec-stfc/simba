@@ -1,21 +1,4 @@
-"""What per-turn output does to the summary files (R20).
-
-`Beam_Summary.hdf5` is built by scanning a directory: `save_HDF5_summary_file`
-globs `*openpmd.hdf5`, opens every one with h5py to test for a `/particles`
-key, and writes one `ExternalLink` per file. That was written when a run
-produced one beam file per screen. With per-turn output it produces one per
-screen *per turn*.
-
-Measured on this machine: ~118 us and ~75 bytes of summary per file, scaling
-linearly. So 1000 turns x 10 screens costs about a second, 10^5 turns about
-two minutes, and 10^6 turns about twenty. A nuisance, not the hang the
-scoping doc feared -- and well before any of that bites, the binding
-constraint is having 10^7 beam files on disk at all. The fix is a turn axis
-inside one file (R21), not a faster scan.
-
-These tests pin the behaviour by *count*, not by clock, so they say the same
-thing on a slow CI box as on a fast laptop.
-"""
+"""What per-turn output does to the summary files."""
 
 import h5py
 

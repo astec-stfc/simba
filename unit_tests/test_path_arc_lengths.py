@@ -1,14 +1,4 @@
-"""Where a line starts along the beam path, and who a change reaches.
-
-A line's own ``getSValues`` restarts at zero, and two passes of one section
-restart at the *same* zero. Accumulating line lengths is therefore right only
-while the lines happen to tile the path in dictionary order.
-``MachineLayout.arc_lengths`` is the authority instead: it walks the layout in
-beam order with a running offset and gives one entry per pass.
-
-Also here: modifying a multipass element reaches every pass, because it is one
-device. That is usually what the caller means, so it warns rather than refuses.
-"""
+"""Where a line starts along the beam path, and who a change reaches."""
 
 import warnings
 

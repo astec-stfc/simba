@@ -1,20 +1,4 @@
-"""A turn count is a tracking setting, and only three codes can honour it.
-
-A ring's turns are strict repeats -- nothing in the lattice differs between
-them -- so the count lives in the ``files:`` block rather than in the layout,
-which is the only shape that survives a million of them. The unit is the line,
-and a ring spanning several sections is written as one section naming them
-(section orders nest), so the line is the whole group.
-
-elegant (``n_passes``), Xsuite (``num_turns``), Ocelot (``track_nturns``) and
-MAD-X can track turns. Everything else tracks a line once, and says so rather
-than quietly tracking one turn when a thousand were asked for.
-
-MAD-X was added late and for a reason worth recording: it was listed among the
-codes that *cannot*, and that was never true of MAD-X. ``RUN, TURNS=N`` has
-always worked; ``madxLattice`` simply never declared ``supports_turns`` and so
-inherited ``False``. See ``test_madx_turns.py``.
-"""
+"""A turn count is a tracking setting and only some codes honour it"""
 
 import warnings
 
@@ -130,11 +114,6 @@ def test_it_warns_rather_than_refusing():
 
 
 # --- turns only mean something on a closed path -------------------------
-#
-# A turn count wraps the line onto its own start. Asking a transfer line for a
-# thousand turns is not a smaller ring, it is incoherent -- and until this
-# check nothing said so. A superperiod is the legitimate exception: one sector
-# of an N-fold-symmetric ring is open on its own.
 
 import math
 
@@ -260,10 +239,6 @@ def test_the_net_bend_of_a_straight_line_is_zero():
 
 
 # --- one file per turn --------------------------------------------------
-#
-# N turns through one screen is N beams wanting one filename: the collision S4
-# fixed across lines, now within one. The turn suffix only appears when turns
-# were asked for, so a single-pass run keeps the names it always had.
 
 
 class NamingLine:
@@ -355,10 +330,6 @@ def test_a_multi_turn_line_resizes_its_monitors():
 
 
 # --- splitting a monitor's record into turns ----------------------------
-#
-# `monitor.x` is (particle, turn), but `data.to_dict()` flattens it and
-# carries an `at_turn` column saying which turn each row came from. Masking on
-# that is exact; slicing by stride would assume an ordering.
 
 
 def tracked_monitor(num_particles=4, num_turns=3):
@@ -436,11 +407,6 @@ def test_a_dump_without_at_turn_is_returned_untouched():
 
 
 # --- ocelot: the named mechanism was the wrong one ----------------------
-#
-# `track_nturns` sounds like the answer and is not: it takes single Particles
-# wrapped in Track_info for dynamic-aperture studies, never a ParticleArray or
-# a Navigator, so it carries none of this backend's physics or output. Turns
-# come from looping `track` and feeding the bunch back in.
 
 
 def test_ocelot_track_nturns_takes_a_track_list_not_a_bunch():

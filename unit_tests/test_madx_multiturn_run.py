@@ -1,18 +1,4 @@
-"""MAD-X multi-turn tracking, end to end through the framework.
-
-``test_madx_turns.py`` establishes that a simba-side turn loop is the same
-tracking as MAD-X's native ``RUN, TURNS=N``. This file is the other half:
-that the loop is actually wired into ``madxLattice.run_segments``, that the
-beam really is fed from one turn into the next, and that per-turn output lands
-under distinct names.
-
-The segmenting is why this needs its own test rather than a line in
-``test_simcodes_tracking.py``. A turn is a sweep of *every* segment, and the
-sequences are defined and sliced once per MAD-X instance and re-used on later
-turns -- so the thing most likely to break is not the physics but the
-bookkeeping: a sequence re-sliced every turn, or a diagnostic whose key
-collides with turn 1's and silently freezes.
-"""
+"""MAD-X multi-turn tracking, end to end through the framework."""
 
 import os
 

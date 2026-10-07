@@ -1,15 +1,4 @@
-"""The orbit that closes on itself (R13).
-
-Everything else in a ring is defined *about* the closed orbit: the tune, the
-periodic Twiss and the one-turn map are all expansions around it. On a
-perfectly aligned lattice it is identically zero, so a test of it needs a
-steering error to mean anything -- which is also why it is the first thing
-worth looking at on a real machine and the last thing a clean model will
-show you.
-
-Measured here on an 8-cell FODO ring with one 1e-4 rad kick, across Xsuite
-and MAD-X.
-"""
+"""The orbit that closes on itself."""
 
 import math
 import tempfile

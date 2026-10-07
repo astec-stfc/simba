@@ -1,15 +1,4 @@
-"""Two lines writing the same screen must not overwrite each other's output.
-
-Output beam files are named by element alone, so any two lines sharing a
-screen collide -- and since a multipass *pass* is a line, two passes through
-one BPM silently keep only the last. `Beam_Summary.hdf5` and
-`Twiss_Summary.hdf5` are directory scans, so the loss propagates into them.
-
-`Framework.track` marks the names more than one line writes, and
-`frameworkLattice.output_basename` qualifies exactly those with the line name.
-Everything else keeps the filename it always had, which is the point: the
-qualified name is the exception, not the rule.
-"""
+"""Two lines writing the same screen must not overwrite each other's output."""
 
 import pytest
 

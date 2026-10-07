@@ -1,21 +1,4 @@
-"""A ring's Twiss is the lattice's, not the beam's.
-
-simba hands every backend the incoming beam's Twiss -- Xsuite's `_twiss()`
-passes `betx`/`alfx`/`bety`/`alfy`, elegant's `twiss_output` passes
-`beta_x`/`alpha_x`/... -- which is right for a transfer line and wrong for a
-ring, where the answer is the periodic solution the lattice itself determines.
-Nothing about the incoming beam can tell you what that is.
-
-`periodic` is the flag that asks for it. Unlike `turns` it is not really a
-tracking choice: whether the reference orbit closes is a fact about the
-lattice, and LAURA already records it as section `geometry`. So the flag
-defaults to that, and the `tracking` block overrides it either way.
-
-elegant (`matched = 1`), Xsuite (`twiss()` with no initial conditions), Ocelot
-(`optics.twiss(tws0=None)`) and Bmad (`parameter[geometry] = closed`) can
-honour it; the rest say so rather than quietly returning open-solution optics
-whose tune is not the ring's.
-"""
+"""A ring's Twiss is the lattice's, not the beam's."""
 
 import warnings
 

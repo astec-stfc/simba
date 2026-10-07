@@ -1,17 +1,4 @@
-"""A line, not an element, decides whether CSR and LSC are modelled.
-
-The element files carry `csr_enable`/`lsc_enable`, but which of them is right
-depends on where the line sits: the same drift earns a wake between the
-compressors and does not in a transport line at 13 GeV, where elegant's LSC
-kicks fall over on a bunch two hundredths of a millimetre long. A settings
-file can now say so per stage.
-
-One that says nothing gets CSR on, as before, and LSC **off** (2026-10-06).
-LSC used to be on by default, through both LAURA's element default and this
-one, but only elegant and Ocelot read it, so the same settings meant
-different physics in different codes. Off unless asked for, every code
-agrees.
-"""
+"""A line, not an element, decides whether CSR and LSC are modelled."""
 
 import types
 

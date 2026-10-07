@@ -1,25 +1,4 @@
-"""Space charge in Xsuite: ``charge: space_charge_mode: 3d``, as Ocelot reads it.
-
-simba asked xfields for space charge through ``install_spacecharge_frozen``,
-which needs RF to match a bunch to and a periodic solution to size its grids,
-so it was never called and a bunch asking for space charge was tracked
-without it. Now an xfields ``SpaceCharge3D`` kick sits every
-``space_charge_step`` (0.1 m, Ocelot's ``unit_step``), each grid sized from
-one pass of the beam without space charge.
-
-Measured on a cold, round 5 MeV, 100 pC bunch (sigma_x = sigma_y = sigma_z =
-1 mm, 20 000 particles) through a 2 m drift, sigma_x out / in:
-
-=====================================  =======
-slice envelope equation                1.496
-Xsuite, 64 cells a side                1.483
-Ocelot 3D, 32 cells                    1.461
-Xsuite, 32 cells (the default here)    1.443
-=====================================  =======
-
-The default grid, ``getGridSizes(N)`` cells over 8 sigma either side, puts
-two cells across a sigma; that, not the model, is the 3.5%.
-"""
+"""Space charge in Xsuite: ``charge: space_charge_mode: 3d``, as Ocelot reads it."""
 
 import os
 import shutil
@@ -321,17 +300,6 @@ def _last_grid(framework):
 
 
 def test_a_resized_grid_holds_a_bunch_that_outgrew_the_first(tmp_path, strong):
-    """Measured on 20 000 particles, sigma_x out / in, Ocelot 8.47:
-
-    =========  ==========  =======
-    cells      as sized    resized
-    =========  ==========  =======
-    32         8.35        8.20
-    64         8.60        8.65
-    =========  ==========  =======
-
-    Leaving the grid moved the growth by less than the grid's resolution did:
-    in a drift the bunch has done most of its growing before it leaves."""
     as_sized = _framework(tmp_path / "as_sized", strong)
     resized = _framework(tmp_path / "resized", strong)
     resized["D"].file_block["charge"]["space_charge_resize"] = True

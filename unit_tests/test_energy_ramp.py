@@ -1,21 +1,4 @@
-"""Energy ramps: ``tracking: {ramp: ...}``, one model, every code that can.
-
-The model is :mod:`simba.Modules.EnergyRamp`'s. The ramp sets the
-*reference* momentum at the start of each turn. Every particle keeps its
-absolute momentum and arrival time. Normalised strengths stay put, so the
-fields follow the reference, and the RF does the accelerating.
-
-Three layers:
-
-* the ramp itself -- reading the block, the momentum per pass, the clock;
-* the line -- when a run counts as ramped, and the warnings;
-* the codes -- a closed FODO cell with no RF, ramped 2% over 10 turns,
-  through Xsuite, elegant, Ocelot and MAD-X. With no RF nothing gains
-  energy, so the beam falls behind the ramp. The quads, fixed in
-  normalised strength, get stronger relative to the beam turn by turn, and
-  the orbit visibly departs from the unramped run's. The codes must agree
-  on that departure.
-"""
+"""Energy ramps: ``tracking: {ramp: ...}``, one model, every code that can."""
 
 import os
 import shutil

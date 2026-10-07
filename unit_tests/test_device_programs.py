@@ -1,32 +1,4 @@
-"""R19's simba half: an element's strength as a program over turn number.
-
-The LAURA half holds the pulse *shape* -- rise, flat top, fall -- as a
-waveform on the element, because that is the magnet. This half holds *when
-it fires and at what amplitude*, because that is the study, and it lives in
-the ``tracking:`` block next to ``turns``, ``periodic`` and ``radiation``.
-
-Three conventions decide whether a program is the one that was meant, and
-each is pinned here because each would otherwise be inherited differently
-by five codes:
-
-================  =======================================================
-turn numbering    1-based in simba. elegant counts passes from 0 and
-                  Xsuite's ``t_turn_s`` is ``n * T_rev`` for 0-based
-                  ``n``, so both backends subtract, and the subtraction
-                  is tested against the running code
-``hold``          simba's default and no code's. Every code interpolates
-                  a programmed attribute linearly; a step device wants a
-                  step, and with knots ``[1,4,5] -> [0,1e-3,0]`` linear
-                  leaks a third of the kick two turns early
-sign              a lattice deflection angle is Ocelot's ``angle``,
-                  MAD-X's ``kick`` and elegant's ``ANGLE`` unchanged, and
-                  Xtrack's ``knl[0]`` **negated**
-================  =======================================================
-
-The backend tests drive the real codes rather than inspecting what simba
-would write, because every one of those three has a wrong version that
-exports and tracks perfectly.
-"""
+"""an element's strength as a program over turn number."""
 
 import shutil
 import subprocess

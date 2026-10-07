@@ -1,10 +1,4 @@
-"""`chicane.set_angle` on a lattice that does not run down the world z axis.
-
-The arithmetic is laid out in the chicane's own frame -- LAURA's orientation matrix for
-the first dipole, anchored on its entrance -- so a surveyed lattice such as LCLS's, whose
-laser heater sits 0.61 rad off z and two kilometres from the origin, has to come out as
-the same chicane, just turned.
-"""
+"""`chicane.set_angle` on a lattice that does not run down the world z axis."""
 
 import types
 

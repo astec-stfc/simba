@@ -1,16 +1,4 @@
-"""A multi-turn run does not dump a beam file per turn unless asked.
-
-Per-turn output was built with multipass in mind, where a handful of passes
-means a handful of files. A ring is different: one screen over 10^6 turns is
-10^6 files, ten screens is 10^7, and `test_summary_scaling.py` measures what
-that costs just to *index*. Most ring studies -- tune, chromaticity, dynamic
-aperture -- want none of those files.
-
-So `write_turns` defaults off, and a multi-turn run writes what a single-turn
-run writes: one file per screen, holding the last turn. `output_turns()` makes
-that decision once, because all three multi-turn backends need it and would
-otherwise each answer it differently.
-"""
+"""A multi-turn run does not dump a beam file per turn unless asked."""
 
 import pytest
 

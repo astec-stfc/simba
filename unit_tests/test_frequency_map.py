@@ -1,20 +1,4 @@
-"""Frequency map / tune footprint (R16).
-
-The other half of the dynamic-aperture study. Where R15 asks *which*
-starting amplitudes survive, this asks *at what tune* — and the
-amplitude-dependent tune shift is the mechanism, since it is what walks a
-particle onto a resonance and out of the aperture.
-
-Two things had to be measured rather than read:
-
-* `freq_analysis` needs `save_track=True`, and **fails quietly without it**:
-  it prints a note to stdout, returns the track list unchanged, and leaves
-  the tunes unset. So the result is checked, not assumed.
-* What it reports is **not** the fractional tune. It is
-  `|nearest integer - Q|`: for a reference `Qx = 1.8352` it works in terms
-  of `0.1648`. Reporting that as a tune would be wrong by the integer part
-  and reflected about it.
-"""
+"""Frequency map / tune footprint."""
 
 import math
 

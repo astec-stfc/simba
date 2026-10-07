@@ -1,23 +1,4 @@
-"""The strongest correctness test available: the codes check each other.
-
-`laura-simba-ring-tracking.md` section 5 is the reason this exists. Nothing in
-the ring work is pinned against a real machine, and these quantities fail with
-*wrong numbers* rather than wrong structure -- a tune out by a factor, a beta
-from the open solution instead of the closed one. No reference data exists to
-check against, but four independent codes do, and they were written by
-different people from different conventions. If they agree on a tune to six
-digits, it is very unlikely they are all wrong the same way.
-
-One 8-cell FODO ring, built natively in each code, compared on:
-
-* the **fractional tune** and **periodic beta/alpha** from each code's
-  one-turn map, through simba's own derivations;
-* the **full tune** and **chromaticity** each code reports itself.
-
-Conventions are handled as A2 measured them: the transverse blocks need no
-conversion, the longitudinal does. elegant is absent from the compaction
-comparison for that reason and present in everything else.
-"""
+"""The strongest correctness test available: the codes check each other."""
 
 import math
 import os

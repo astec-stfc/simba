@@ -1,23 +1,4 @@
-"""Synchrotron radiation in a ring (R18), and the silent wrongness without it.
-
-Measured on a 16-cell electron ring at 1 GeV with a cavity, through Xsuite:
-
-=========================  =====================  ==================
-                           radiation off          radiation on
-=========================  =====================  ==================
-energy loss / turn         **0 eV exactly**       34 739 eV
-damping turns x / y / z    2e10 / 2e13 / 3e11     2.0e5 / 5.8e4 / 2.1e4
-partition numbers          ``[inf, inf, inf]``    ``[0.28, 1.00, 2.72]``
-equilibrium emittance      *key absent*           2.05e-6 m
-=========================  =====================  ==================
-
-A long run without radiation is not an approximate ring, it is a different
-machine -- one that never damps and never reaches equilibrium, so the
-emittance, energy spread and bunch length at the end are the ones that went
-in. Nothing about the output looks wrong. That is what `check_radiation`
-exists to say, and it is why the scoping doc called this a silent-wrongness
-candidate.
-"""
+"""Synchrotron radiation in a ring, and the silent wrongness without it."""
 
 import warnings
 

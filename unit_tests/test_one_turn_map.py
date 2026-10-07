@@ -1,18 +1,4 @@
-"""The one-turn map is the cheapest useful thing a ring model produces.
-
-Tune, periodic beta, chromaticity, momentum compaction and stability all
-follow from the 6x6 map of the closed path, and none of them need a bunch
-tracked. Every code that can do a ring has a native call for it -- elegant
-writes `%s.mat` on every run, Xsuite has `compute_R_matrix`, Ocelot has
-`lattice_transfer_map`, Tao has `matrix` -- so simba reads theirs rather than
-rebuilding the map itself.
-
-What simba does *not* do is convert them to a common convention. The codes
-disagree (`x'` vs `px`, and five different longitudinal pairs) and a wrong
-conversion is silent, so each map is stored as its code wrote it with the
-convention recorded beside it. The transverse blocks are comparable as they
-stand, which is what a cross-code tune check needs.
-"""
+"""The one-turn map is the cheapest useful thing a ring model produces."""
 
 import warnings
 

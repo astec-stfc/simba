@@ -1,27 +1,4 @@
-"""R10: does Xsuite's `energy_program` rescale element `k`?
-
-The scoping doc flagged this as unverified and as the measurement that
-decides how large R9 (ramping) is. Measured here: a single quadrupole, with
-the reference energy doubled by an `EnergyProgram`.
-
-=========  ==========  ========  ==============
-t_turn_s   p0c [eV]    q.k1      px out
-=========  ==========  ========  ==============
-0          1.0e9       1.200000  -3.535549e-04
-5e-4       1.5e9       1.200000  -3.535549e-04
-1e-3       2.0e9       1.200000  -3.535549e-04
-=========  ==========  ========  ==============
-
-`k1` is **not** rescaled, and the normalised deflection is unchanged, so the
-optics are identical through the ramp while the reference momentum doubles.
-Holding `k` while `p` rises *is* the booster invariant -- B and p go up
-together -- which is what `laura-simba-multipass.md` section 8.1 says LAURA
-already stores and what `field_master` distinguishes from the ERL case.
-
-So R9 has nothing to do for magnets: a booster ramp in Xsuite is the energy
-program and nothing else. What is left of R9 is kickers and septa (R19),
-whose strengths genuinely are a program over turn number.
-"""
+"""does Xsuite's `energy_program` rescale element `k`?"""
 
 import numpy as np
 import pytest

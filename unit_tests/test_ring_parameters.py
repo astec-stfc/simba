@@ -1,17 +1,4 @@
-"""Tune, periodic Twiss and momentum compaction, derived in one place.
-
-All of it falls out of the 6x6 one-turn map, so none of it needs a bunch
-tracked and none of it needs doing per backend.
-
-The anchors here are deliberately *not* another code. Two of them are exact:
-a ring of pure bends is a circle, so `alpha_c == 1` by construction, and an
-identity map is a tune of zero. Where a code is used it is as a second
-opinion, not as truth -- Xsuite's own `momentum_compaction_factor` disagrees
-with the circle, so it cannot be the reference.
-
-What is *not* here: chromaticity. It is not in a single one-turn map. It
-needs maps at two momenta, or the code's own periodic Twiss.
-"""
+"""Tune, periodic Twiss and momentum compaction, derived in one place."""
 
 import math
 
