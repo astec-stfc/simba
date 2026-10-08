@@ -1,29 +1,23 @@
 """Plots for the two nonlinear ring studies: dynamic aperture and frequency map.
 
-Both are *magnitude* plots -- turns survived, and a diffusion index -- so both
-use a single sequential hue rather than a rainbow, which keeps the ordering
-readable and survives colour-vision deficiency and greyscale printing.
-``viridis`` is the default that `Modules.Beams.plot` already uses.
-
-The one categorical distinction, survived against lost, is carried by **marker
-shape and a legend entry**, never by colour alone: on a map whose whole point
-is the boundary between the two, a reader who cannot separate the hues would
-lose the result entirely.
+The dynamic aperture is drawn as its boundary, the same for every code. The
+frequency map is a *magnitude* plot (a diffusion index), so it uses a single
+sequential hue rather than a rainbow, which keeps the ordering readable and
+survives colour-vision deficiency and greyscale printing. ``viridis`` is the
+default that `Modules.Beams.plot` already uses.
 """
 
+import math
 from copy import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.lines import Line2D
 
 CMAP = copy(plt.get_cmap("viridis"))
 """Sequential, perceptually uniform and CVD-safe; matches `Beams.plot`."""
 
 SURVIVED_COLOUR = "#2a4858"
-"""A single dark step for survivors. They all survived the same number of
-turns, so there is no magnitude among them to encode -- the shape and the
-legend carry the distinction, and the colour axis is left for the losses."""
+"""A single dark step for the aperture boundary."""
 
 
 def _tidy(axes) -> None:
@@ -44,16 +38,15 @@ def plot_dynamic_aperture(
     title: str = "Dynamic aperture",
     **kwargs,
 ):
-    """Survival over the starting-amplitude grid.
+    """The aperture boundary, from :func:`aperture_boundary`, drawn the same
+    for every code.
 
     Parameters
     ----------
     aperture: list
         ``(x, y, turns_survived)`` as :meth:`run_dynamic_aperture` returns.
     turns: int
-        Turns asked for, so survivors can be told from losses. A survivor
-        reaches ``turns - 1``: Ocelot numbers turns from zero, and testing
-        against ``turns`` would mark every particle lost.
+        Turns asked for, so survivors can be told from losses.
     axes: matplotlib.axes.Axes | None
         Drawn into if given, otherwise a new figure.
 
@@ -63,68 +56,47 @@ def plot_dynamic_aperture(
     """
     if axes is None:
         _, axes = plt.subplots(figsize=(6, 5))
-    data = np.asarray([(float(x), float(y), float(t)) for x, y, t in aperture])
-    if not len(data):
+    edge = np.asarray(aperture_boundary(aperture, turns))
+    if not len(edge):
         axes.set_title(f"{title} (no data)")
         return axes
-    alive = data[:, 2] >= turns - 1
-    # Colour carries *when* a particle was lost. Survivors all share one
-    # value by definition, so colouring them would encode a constant and
-    # throw away the only magnitude there is.
-    if (~alive).any():
-        points = axes.scatter(
-            data[~alive, 0] * 1e3,
-            data[~alive, 1] * 1e3,
-            c=data[~alive, 2],
-            cmap=CMAP,
-            marker="X",
-            s=34,
-            linewidths=0,
-            label="lost",
-            zorder=2,
-            **kwargs,
-        )
-        bar = axes.figure.colorbar(points, ax=axes)
-        bar.set_label("turn lost")
-        bar.outline.set_visible(False)
-    if alive.any():
-        axes.scatter(
-            data[alive, 0] * 1e3,
-            data[alive, 1] * 1e3,
-            marker="o",
-            s=26,
-            linewidths=0,
-            color=SURVIVED_COLOUR,
-            label=f"survived {turns} turns",
-            zorder=3,
-        )
+    style = {"marker": "o", "markersize": 5, "linewidth": 0.8, "color": SURVIVED_COLOUR}
+    style.update(kwargs)
+    axes.plot(edge[:, 0] * 1e3, edge[:, 1] * 1e3, zorder=3, **style)
+    axes.set_xlim(left=min(0.0, edge[:, 0].min() * 1.1e3))
+    axes.set_ylim(bottom=0.0)
     axes.set_xlabel("x [mm]")
     axes.set_ylabel("y [mm]")
     axes.set_title(title)
-    if (~alive).any() and alive.any():
-        # Neutral handles, built by hand: letting matplotlib take the "lost"
-        # swatch from the colour-mapped scatter picks an arbitrary step and
-        # implies that one hue *means* lost, when the hue means lost-when.
-        # Below the axes, because a full grid leaves no empty corner.
-        handles = [
-            Line2D(
-                [], [], linestyle="none", marker="X", markersize=7,
-                color="0.45", label="lost (colour: turn lost)",
-            ),
-            Line2D(
-                [], [], linestyle="none", marker="o", markersize=6,
-                color=SURVIVED_COLOUR, label=f"survived {turns} turns",
-            ),
-        ]
-        axes.legend(
-            handles=handles,
-            frameon=False,
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.16),
-            ncol=2,
-        )
     _tidy(axes)
     return axes
+
+
+def aperture_boundary(aperture, turns: int) -> list:
+    """The edge of the stable region, as ``(x, y)`` ordered from +x round to -x.
+
+    Along each ray from the origin (:meth:`da_rays`), the last survivor
+    before the first loss, as elegant's ``find_aperture`` stops each ray, so
+    islands past a loss are left out. elegant's boundary, one survivor per
+    ray, comes back as it is. A survivor reaches ``turns - 1``: Ocelot
+    numbers turns from zero.
+    """
+    rays = {}
+    for x, y, turn in aperture:
+        x, y = float(x), float(y)
+        rays.setdefault(round(math.atan2(y, x), 6), []).append(
+            (math.hypot(x, y), x, y, turn >= turns - 1)
+        )
+    edge = []
+    for angle in sorted(rays):
+        last = None
+        for _, x, y, alive in sorted(rays[angle]):
+            if not alive:
+                break
+            last = (x, y)
+        if last is not None:
+            edge.append(last)
+    return edge
 
 
 def resonance_lines(axes, order: int = 4, **kwargs) -> None:

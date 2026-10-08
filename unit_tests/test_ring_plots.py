@@ -10,6 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from simba.Modules.plotting.ring import (  # noqa: E402
+    aperture_boundary,
     plot_amplitude_map,
     plot_dynamic_aperture,
     plot_frequency_map,
@@ -17,18 +18,6 @@ from simba.Modules.plotting.ring import (  # noqa: E402
 )
 
 TURNS = 512
-
-
-@pytest.fixture
-def aperture():
-    """A grid straddling an elliptical aperture, so both states are present."""
-    points = []
-    for y in np.linspace(0.0005, 0.008, 6):
-        for x in np.linspace(0.001, 0.02, 10):
-            radius = math.hypot(x / 0.016, y / 0.007)
-            survived = TURNS - 1 if radius < 1 else int(TURNS * 0.3 * (1.4 - radius))
-            points.append((x, y, survived))
-    return points
 
 
 @pytest.fixture
@@ -48,43 +37,34 @@ def close_figures():
 # --- the aperture plot --------------------------------------------------
 
 
-def test_it_draws_both_states(aperture):
-    axes = plot_dynamic_aperture(aperture, TURNS)
-    assert len(axes.collections) == 2
+def test_rays_are_drawn_as_their_boundary():
+    """One point per ray: the outermost survivor, with the next step lost."""
+    rays = []
+    for angle in np.linspace(0, np.pi, 7):
+        for f in np.linspace(0.1, 1.0, 10):
+            x, y = 0.02 * f * math.cos(angle), 0.01 * f * math.sin(angle)
+            rays.append((x, y, TURNS - 1 if math.hypot(x / 0.016, y / 0.007) < 1 else 3))
+    edge = aperture_boundary(rays, TURNS)
+    assert len(edge) == 7
+    for x, y in edge:
+        assert math.hypot(x / 0.016, y / 0.007) < 1
+        f = math.hypot(x / 0.02, y / 0.01)
+        assert math.hypot(x * (f + 0.1) / f / 0.016, y * (f + 0.1) / f / 0.007) >= 1
+    line = plot_dynamic_aperture(rays, TURNS).lines[0]
+    assert np.allclose(line.get_xdata(), [x * 1e3 for x, _ in edge])
 
 
-def test_colour_is_mapped_to_the_losses_not_the_survivors(aperture):
-    """The fix for the original error: the mapped collection must be the
-    one whose values vary. Survivors are all `TURNS - 1`."""
-    axes = plot_dynamic_aperture(aperture, TURNS)
-    mapped = [c for c in axes.collections if c.get_array() is not None]
-    assert len(mapped) == 1
-    values = np.asarray(mapped[0].get_array())
-    assert values.min() < values.max(), "colour must encode something that varies"
-    assert values.max() < TURNS - 1, "survivors must not be in the colour mapping"
+def test_an_island_past_a_loss_is_not_the_boundary():
+    """As elegant's rays stop at their first loss."""
+    ray = [(0.001, 0.001, TURNS - 1), (0.002, 0.002, 10), (0.003, 0.003, TURNS - 1)]
+    assert aperture_boundary(ray, TURNS) == [(0.001, 0.001)]
 
 
-def test_the_two_states_differ_by_marker_not_only_colour(aperture):
-    """A reader who cannot separate the hues must still see the boundary."""
-    axes = plot_dynamic_aperture(aperture, TURNS)
-    paths = [tuple(map(tuple, c.get_paths()[0].vertices[:4])) for c in axes.collections]
-    assert paths[0] != paths[1]
-
-
-def test_the_legend_does_not_imply_a_colour_means_lost(aperture):
-    """The handles are built by hand; taking them from the mapped scatter
-    would put an arbitrary colormap step beside the word 'lost'."""
-    axes = plot_dynamic_aperture(aperture, TURNS)
-    labels = [t.get_text() for t in axes.get_legend().get_texts()]
-    assert any("lost" in label for label in labels)
-    assert any(str(TURNS) in label for label in labels)
-
-
-def test_an_all_surviving_grid_needs_no_colourbar(aperture):
-    """Nothing was lost, so there is no magnitude and no legend to draw."""
-    axes = plot_dynamic_aperture([(x, y, TURNS - 1) for x, y, _ in aperture], TURNS)
-    assert axes.get_legend() is None
-    assert all(c.get_array() is None for c in axes.collections)
+def test_elegant_boundary_is_drawn_as_it_is():
+    """``find_aperture`` returns survivors only, on both sides of x = 0,
+    two at y = 0; they come back up the +x side and down the -x side."""
+    boundary = [(-0.0057, 0.0, TURNS), (0.0041, 0.0, TURNS), (0.0, 0.0032, TURNS), (0.0022, 0.002, TURNS)]
+    assert aperture_boundary(boundary, TURNS) == [(0.0041, 0.0), (0.0022, 0.002), (0.0, 0.0032), (-0.0057, 0.0)]
 
 
 def test_an_empty_scan_does_not_raise():

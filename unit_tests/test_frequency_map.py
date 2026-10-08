@@ -321,6 +321,19 @@ class FakeXsuiteRing:
     def normalisation_twiss(self):
         return {}
 
+    def da_rays(self):
+        """The grid, so the aperture scan's survivors are the map's starts."""
+        xs, ys = self.da_grid()
+        return [(x, y) for y in ys for x in xs]
+
+
+def test_xsuite_scans_the_aperture_along_the_rays():
+    pytest.importorskip("xtrack")
+    ring = FakeXsuiteRing({"turns": 4, "dynamic_aperture": {"nx": 4, "n_lines": 3, "x_max": 0.01, "y_max": 0.002}})
+    ring.da_rays = lambda: frameworkLattice.da_rays(ring)
+    aperture = ring.run_dynamic_aperture()
+    assert np.allclose([(x, y) for x, y, _ in aperture], ring.da_rays())
+
 
 def test_xsuite_maps_the_particles_that_survived():
     """Tracking moves lost particles to the end of the arrays, and the map

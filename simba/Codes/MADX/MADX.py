@@ -924,9 +924,9 @@ class madxLattice(frameworkLattice):
         except (KeyError, AttributeError, TypeError, IndexError) as e:
             warn(f"MAD-X summ table unavailable for {self.objectname}: {e}")
 
-    def _track_grid(self, track: str, action: str, points: list | None = None) -> Any:
+    def _track_grid(self, track: str, action: str, points: list) -> Any:
         """
-        The aperture grid tracked in its own MAD-X session, on the sliced
+        Starting points tracked in their own MAD-X session, on the sliced
         sequence.
 
         Parameters
@@ -935,8 +935,8 @@ class madxLattice(frameworkLattice):
             The ``TRACK`` command opening the block.
         action: str
             What tracks the grid: ``RUN`` or ``DYNAP``.
-        points: list, optional
-            ``(x, y)`` starts; the whole :meth:`da_grid` by default.
+        points: list
+            ``(x, y)`` starts.
 
         Returns
         -------
@@ -955,9 +955,6 @@ class madxLattice(frameworkLattice):
             madx.input(f"use, sequence={seqname};")
             self.makethin(madx, seqname)
             madx.input("twiss;")
-            if points is None:
-                xs, ys = self.da_grid()
-                points = [(x, y) for y in ys for x in xs]
             starts = "".join(f"start, x={x}, y={y};\n" for x, y in points)
             madx.input(f"{track}\n{starts}{action}\nendtrack;")
         except Exception as error:
@@ -967,31 +964,32 @@ class madxLattice(frameworkLattice):
         return madx
 
     def run_dynamic_aperture(self) -> list:
-        """Turns survived per starting amplitude, from ``RUN``'s loss table."""
+        """Turns survived per point of :meth:`da_rays`, from ``RUN``'s loss table."""
+        self.dynamic_aperture = self._turns_survived(self.da_rays())
+        return self.dynamic_aperture
+
+    def _turns_survived(self, starts: list) -> list:
+        """``(x, y, turns_survived)`` per ``(x, y)`` start, from ``RUN``'s loss table."""
         madx = self._track_grid(
             "track, onepass=false, aperture=true, recloss=true;",
             f"run, turns={self.turns}, maxaper={{1, 1, 1, 1, 1, 1}};",
+            starts,
         )
         if madx is None:
             return []
         try:
-            xs, ys = self.da_grid()
-            starts = [(x, y) for y in ys for x in xs]
             survived = [self.turns] * len(starts)
             if "trackloss" in madx.table:
                 loss = madx.table.trackloss
                 for number, turn in zip(loss["number"], loss["turn"]):
                     # lost on turn `turn` (1-based), so that many minus one survived
                     survived[int(number) - 1] = int(turn) - 1
-            self.dynamic_aperture = [
-                (float(x), float(y), turn) for (x, y), turn in zip(starts, survived)
-            ]
+            return [(float(x), float(y), turn) for (x, y), turn in zip(starts, survived)]
         except (KeyError, AttributeError, TypeError) as error:
             warn(f"MAD-X loss table unreadable for {self.objectname}: {error}")
-            self.dynamic_aperture = []
+            return []
         finally:
             self.stop_madx(madx)
-        return self.dynamic_aperture
 
     def run_frequency_map(self) -> list:
         """
@@ -1002,11 +1000,12 @@ class madxLattice(frameworkLattice):
 
         ``fastune`` folds a tune into [0, 0.5]; each is unfolded to whichever
         of ``q`` and ``1 - q`` is nearer the ring's own fractional tune. Only
-        :meth:`run_dynamic_aperture`'s survivors are tracked, so this costs a
+        the grid points that survive ``RUN`` are tracked, so this costs a
         second tracking of the grid.
         """
+        xs, ys = self.da_grid()
         survivors = [
-            (x, y) for x, y, turn in self.run_dynamic_aperture()
+            (x, y) for x, y, turn in self._turns_survived([(x, y) for y in ys for x in xs])
             if turn >= self.turns - 1
         ]
         if not survivors:

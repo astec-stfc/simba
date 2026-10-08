@@ -867,28 +867,29 @@ class xsuiteLattice(frameworkLattice):
             for name in ("x", "px", "y", "py")
         }
 
-    def _da_particles(self):
-        """One particle per grid point, at the requested amplitudes."""
-        xs, ys = self.da_grid()
-        grid_x, grid_y = np.meshgrid(xs, ys)
-        grid_x, grid_y = grid_x.ravel(), grid_y.ravel()
+    def _da_particles(self, points=None):
+        """One particle per ``(x, y)`` start; the :meth:`da_grid` by default."""
+        if points is None:
+            xs, ys = self.da_grid()
+            points = [(x, y) for y in ys for x in xs]
+        grid_x, grid_y = (np.array(v, dtype=float) for v in zip(*points))
         return grid_x, grid_y, self.line.build_particles(x=grid_x, y=grid_y)
 
     def run_dynamic_aperture(self) -> list:
         """
-        Track a grid of single particles and record who survived.
-        Particles are tracked
-        together, so the whole grid costs one tracking call.
+        Track one particle per point of :meth:`da_rays` and record who
+        survived. Particles are tracked together, so the scan costs one
+        tracking call.
 
-        Note this relies on the line having apertures. Without them nothing
-        is ever lost and the scan reports an aperture larger than the grid.
+        The ±1 m global aperture marks a particle lost when the line has no
+        apertures of its own.
 
         Returns
         -------
         list
-            ``(x, y, turns_survived)`` per grid point.
+            ``(x, y, turns_survived)`` per start.
         """
-        grid_x, grid_y, particles = self._da_particles()
+        grid_x, grid_y, particles = self._da_particles(self.da_rays())
         self.single_particle_line.track(
             particles, num_turns=self.turns * self.passes_per_turn
         )

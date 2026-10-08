@@ -360,6 +360,16 @@ def test_an_empty_twiss_object_is_not_an_error():
     assert len(t.turn.val) == 0
 
 
+def test_the_generator_in_lattice_objects_is_skipped():
+    """`latticeObjects` holds the generator too, and it has no `turns`."""
+    fw = FakeFramework({"RING": 12})
+    fw.latticeObjects["generator"] = frameworkGenerator.__new__(frameworkGenerator)
+    t = rtf.twiss()
+    t.lattice_name.val = np.array(["RING"], dtype=str)
+    fw.stamp_twiss_turns(t)
+    assert list(t.turn.val) == [12]
+
+
 def test_stamping_does_not_disturb_the_row_count():
     names = ["RING_twiss"] * 41
     assert len(stamped({"RING": 4}, names)) == 41

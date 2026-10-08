@@ -2068,7 +2068,11 @@ class Framework(BaseModel):
         names = np.array(t.lattice_name.val, dtype=str)
         if len(names) == 0:
             return
-        turns = {n: o.turns for n, o in self.latticeObjects.items()}
+        turns = {
+            n: o.turns
+            for n, o in self.latticeObjects.items()
+            if not isinstance(o, frameworkGenerator)
+        }
         t.turn.val = np.array(
             [
                 turns.get(n, turns.get(n.removesuffix("_twiss"), 0))

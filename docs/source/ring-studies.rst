@@ -597,9 +597,13 @@ Beyond the usual beam and Twiss output:
     and each code declares its own in ``otm_convention``.
 
 ``run_dynamic_aperture()``
-    ``(x, y, turns_survived)`` per grid point, with
-    ``dynamic_aperture_boundary()`` reducing it to the largest surviving ``x`` at
-    each ``y``.
+    ``(x, y, turns_survived)`` per point of ``da_rays()``: elegant's
+    ``find_aperture`` rays, ``n_lines`` of them from ``+x`` round to ``-x``, each
+    with ``nx - 1`` points out to the ellipse through ``(x_max, 0)`` and
+    ``(0, y_max)``. ``dynamic_aperture_boundary()`` reduces it to one ``(x, y)``
+    per ray: the last survivor before the first loss. A ray that loses nothing
+    ends on the ellipse, as in elegant, so make the box larger than the aperture.
+    Bmad uses Tao's own angle search instead.
 
 ``run_frequency_map()``
     ``(x, y, Qx, Qy, D)`` per surviving grid point, ``D`` being the two-window tune
@@ -617,7 +621,9 @@ Beyond the usual beam and Twiss output:
 
 :mod:`simba.Modules.plotting.ring` plots the last three:
 ``plot_dynamic_aperture``, ``plot_frequency_map`` and ``plot_amplitude_map``, with
-``resonance_lines`` to overlay the tune diagram.
+``resonance_lines`` to overlay the tune diagram. ``plot_dynamic_aperture`` draws
+the boundary (``aperture_boundary``, the same as ``dynamic_aperture_boundary()``),
+so every code's plot looks like elegant's. Islands past a loss are left out.
 
 ``examples/ring_studies/da_fma.py`` does all of this end to end: it builds a
 ten-cell sextupole ring in LAURA, scans it in any of the ring codes and plots the

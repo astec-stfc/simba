@@ -638,20 +638,23 @@ class ocelotLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Dynamic aperture via ``track_nturns`` over a grid of single particles.
-        With no ``Aperture`` elements the aperture limit is
+        Dynamic aperture via ``track_nturns``, one particle per point of
+        :meth:`da_rays`. With no ``Aperture`` elements the aperture limit is
         Ocelot's default of +/- 1 m.
 
         Returns
         -------
         list
-            ``(x, y, turns_survived)`` per grid point.
+            ``(x, y, turns_survived)`` per start.
         """
-        from ocelot.cpbd.track import create_track_list
+        from ocelot.cpbd.beam import Particle
+        from ocelot.cpbd.track import Track_info
 
-        xs, ys = self.da_grid()
         energy_gev = self.reference_energy / 1e9
-        track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
+        track_list = [
+            Track_info(Particle(x=x, y=y, p=0.0, E=energy_gev), x, y)
+            for x, y in self.da_rays()
+        ]
         track_list = self._track_nturns(track_list, save_track=False)
         self.dynamic_aperture = [
             (float(p.x), float(p.y), int(p.turn)) for p in track_list

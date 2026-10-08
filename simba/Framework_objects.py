@@ -2113,7 +2113,10 @@ class frameworkLattice(BaseModel):
                 code: ocelot
                 tracking:
                   turns: 1000
-                  dynamic_aperture: {nx: 20, ny: 10, x_max: 0.02, y_max: 0.01}
+                  dynamic_aperture: {nx: 20, ny: 10, x_max: 0.02, y_max: 0.01, n_lines: 11}
+
+        The aperture is searched along ``n_lines`` rays (:meth:`da_rays`), the
+        frequency map over the ``nx`` by ``ny`` grid (:meth:`da_grid`).
 
         Returns
         -------
@@ -2145,9 +2148,35 @@ class frameworkLattice(BaseModel):
             np.linspace(y_max / ny, y_max, ny),
         )
 
+    def da_rays(self) -> list:
+        """
+        ``(x, y)`` starts for a dynamic-aperture scan, along the rays
+        elegant's ``find_aperture`` searches in ``n-line`` mode: ``n_lines``
+        rays evenly spaced from +x round to -x, each with ``nx - 1`` points
+        out to the ellipse through ``(x_max, 0)`` and ``(0, y_max)``, so
+        every code tracks the same starts.
+
+        Returns
+        -------
+        list
+            ``(x, y)`` floats, ray by ray, outward along each.
+        """
+        settings = self.da_settings
+        nx = max(2, int(settings.get("nx", 10)))
+        n_lines = max(2, int(settings.get("n_lines", 11)))
+        x_max = float(settings.get("x_max", 0.01))
+        y_max = float(settings.get("y_max", 0.001))
+        return [
+            (x_max * j / (nx - 1) * math.cos(angle), y_max * j / (nx - 1) * math.sin(angle))
+            for angle in (math.pi * k / (n_lines - 1) for k in range(n_lines))
+            for j in range(1, nx)
+        ]
+
     def dynamic_aperture_boundary(self, results) -> list:
         """
-        Largest surviving ``x`` at each ``y``, from :meth:`run_dynamic_aperture`.
+        The aperture boundary from :meth:`run_dynamic_aperture`: the last
+        survivor before the first loss along each ray, as elegant's
+        ``find_aperture`` reports it.
 
         A particle counts as surviving if it reached the last turn. Note the
         off-by-one.
@@ -2160,14 +2189,12 @@ class frameworkLattice(BaseModel):
         Returns
         -------
         list
-            ``(y, x_max_surviving)`` pairs, ascending in ``y``. A ``y`` row
-            where nothing survived is absent rather than zero.
+            ``(x, y)`` ordered from +x round to -x. A ray whose first point
+            was lost is absent rather than zero.
         """
-        survived = {}
-        for x, y, turn in results:
-            if turn >= self.turns - 1:
-                survived[y] = max(survived.get(y, 0.0), x)
-        return sorted(survived.items())
+        from .Modules.plotting.ring import aperture_boundary
+
+        return aperture_boundary(results, self.turns)
 
     @staticmethod
     def tune_from_harmonic(line_position: float, reference_tune: float) -> float:

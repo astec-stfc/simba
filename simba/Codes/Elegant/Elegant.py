@@ -993,16 +993,17 @@ class elegantLattice(frameworkLattice):
         return {name: np.asarray(values) for name, values in trajectory.items()}
 
     def _da_bounds(self) -> dict:
-        """``xmin``/``xmax``/``ymin``/``ymax``/``nx``/``ny`` from
-        :meth:`da_grid`, which elegant takes as a box rather than a list."""
+        """``find_aperture``'s box and ray count, the rays :meth:`da_rays`
+        gives the other codes."""
         xs, ys = self.da_grid()
         return {
             "xmin": -float(xs[-1]),
             "xmax": float(xs[-1]),
             "ymin": 0.0,
             "ymax": float(ys[-1]),
-            "nx": int(len(xs)),
+            "nx": max(2, int(len(xs))),
             "ny": int(len(ys)),
+            "n_lines": max(2, int(self.da_settings.get("n_lines", 11))),
         }
 
     def run_dynamic_aperture(self) -> list:

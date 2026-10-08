@@ -26,6 +26,7 @@ class FakeLine:
     turns = frameworkLattice.turns
     da_settings = frameworkLattice.da_settings
     da_grid = frameworkLattice.da_grid
+    da_rays = frameworkLattice.da_rays
     dynamic_aperture_boundary = frameworkLattice.dynamic_aperture_boundary
     run_dynamic_aperture = frameworkLattice.run_dynamic_aperture
 
@@ -131,31 +132,56 @@ def test_a_degenerate_grid_is_not_empty():
 # --- the boundary -------------------------------------------------------
 
 
-def test_the_boundary_is_the_largest_surviving_amplitude():
+def test_the_boundary_is_the_last_survivor_before_the_first_loss():
+    """As elegant's rays stop: the survivor past the loss is an island."""
     line = FakeLine({"turns": 100})
-    results = [(0.001, 0.0, 99), (0.002, 0.0, 99), (0.003, 0.0, 40)]
-    assert line.dynamic_aperture_boundary(results) == [(0.0, 0.002)]
+    results = [(0.001, 0.0, 99), (0.002, 0.0, 99), (0.003, 0.0, 40), (0.004, 0.0, 99)]
+    assert line.dynamic_aperture_boundary(results) == [(0.002, 0.0)]
 
 
 def test_a_full_survivor_is_turn_minus_one():
     """Ocelot numbers turns from zero, so testing `turn >= turns` would
     report an aperture of zero for a perfectly stable ring."""
     line = FakeLine({"turns": 100})
-    assert line.dynamic_aperture_boundary([(0.005, 0.0, 99)]) == [(0.0, 0.005)]
+    assert line.dynamic_aperture_boundary([(0.005, 0.0, 99)]) == [(0.005, 0.0)]
     assert line.dynamic_aperture_boundary([(0.005, 0.0, 98)]) == []
 
 
-def test_a_row_where_nothing_survives_is_absent():
+def test_a_ray_lost_at_its_first_point_is_absent():
     """Not reported as zero -- no aperture is not an aperture of nothing."""
     line = FakeLine({"turns": 100})
-    results = [(0.01, 0.0, 99), (0.01, 0.02, 5)]
-    assert line.dynamic_aperture_boundary(results) == [(0.0, 0.01)]
+    results = [(0.01, 0.0, 99), (0.0, 0.02, 5)]
+    assert line.dynamic_aperture_boundary(results) == [(0.01, 0.0)]
 
 
-def test_the_boundary_covers_every_surviving_row():
-    line = FakeLine({"turns": 50})
-    results = [(0.01, 0.0, 49), (0.02, 0.0, 49), (0.005, 0.001, 49)]
-    assert line.dynamic_aperture_boundary(results) == [(0.0, 0.02), (0.001, 0.005)]
+def test_the_boundary_runs_from_plus_x_round_to_minus_x():
+    line = FakeLine({"turns": 50, "dynamic_aperture": {"nx": 3, "n_lines": 3, "x_max": 0.02, "y_max": 0.01}})
+    results = [(x, y, 49) for x, y in line.da_rays()]
+    boundary = line.dynamic_aperture_boundary(results)
+    assert np.allclose(boundary, [(0.02, 0.0), (0.0, 0.01), (-0.02, 0.0)], rtol=0, atol=1e-15)
+
+
+# --- the rays -----------------------------------------------------------
+
+
+def test_the_rays_are_elegants():
+    """``find_aperture``'s ``n-line`` rays, read off its output for the toy
+    ring of ``examples/ring_studies``: 11 rays, 18 degrees apart, each
+    stepped in 1/19ths out to the ellipse of its ±20 x 10 mm box."""
+    rays = FakeLine({"dynamic_aperture": {"nx": 20, "x_max": 0.02, "y_max": 0.01}}).da_rays()
+    assert len(rays) == 11 * 19
+    assert rays[14] == pytest.approx((0.02 * 15 / 19, 0.0))  # elegant's 15.79 mm on +x
+    assert rays[19 + 18] == pytest.approx((0.02 * math.cos(math.pi / 10), 0.01 * math.sin(math.pi / 10)))
+    assert rays[-1] == pytest.approx((-0.02, 0.0), abs=1e-15)
+
+
+def test_the_rays_never_start_at_zero_amplitude():
+    rays = FakeLine({"dynamic_aperture": {"nx": 5, "n_lines": 3}}).da_rays()
+    assert min(math.hypot(x, y) for x, y in rays) > 0
+
+
+def test_degenerate_rays_are_not_empty():
+    assert FakeLine({"dynamic_aperture": {"nx": 0, "n_lines": 0}}).da_rays()
 
 
 # --- the preconditions, measured ----------------------------------------
@@ -365,6 +391,7 @@ class FakeMadxRing:
     """``madxLattice``'s DYNAP, run by MAD-X on a hand-written sequence."""
 
     _track_grid = madxLattice._track_grid
+    _turns_survived = madxLattice._turns_survived
     run_dynamic_aperture = madxLattice.run_dynamic_aperture
     run_frequency_map = madxLattice.run_frequency_map
     start_madx = madxLattice.start_madx
@@ -389,6 +416,11 @@ class FakeMadxRing:
         self.reference_p0c, self.rest_energy, self.reference_charge = 1e9, 0.51099895e6, -1
         for name in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole", "makedipedge", "makethin_style"):
             setattr(self, name, madxLattice.model_fields[name].default)
+
+    def da_rays(self):
+        """The grid, so the aperture scan's survivors are the map's starts."""
+        xs, ys = self.da_grid()
+        return [(x, y) for y in ys for x in xs]
 
 
 def test_madx_dynap_runs_on_a_thick_lattice(tmp_path):

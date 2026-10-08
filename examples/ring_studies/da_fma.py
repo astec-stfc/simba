@@ -1,12 +1,13 @@
 """Dynamic aperture and frequency map of a small ring, through SIMBA.
 
 A ten-cell FODO ring with a sextupole beside each quadrupole is built in LAURA,
-then each code asked for scans the same grid of starting amplitudes:
+then each code asked for scans the same starting amplitudes:
 
-* ``run_dynamic_aperture()`` gives ``(x, y, turns_survived)`` per grid point;
-* ``run_frequency_map()`` gives ``(x, y, Qx, Qy, D)`` per surviving point, where
-  ``D = log10|dQ|`` is the tune drift between the two halves of the run;
-* ``dynamic_aperture_boundary()`` gives the largest surviving ``x`` at each ``y``.
+* ``run_dynamic_aperture()`` gives ``(x, y, turns_survived)`` along elegant-style
+  rays from the origin;
+* ``run_frequency_map()`` gives ``(x, y, Qx, Qy, D)`` per surviving grid point,
+  where ``D = log10|dQ|`` is the tune drift between the two halves of the run;
+* ``dynamic_aperture_boundary()`` gives the last survivor on each ray.
 
 The results are drawn with :mod:`simba.Modules.plotting.ring`. Run it as::
 
@@ -43,8 +44,9 @@ HERE = Path(__file__).parent.resolve()
 CELLS, CELL_LENGTH = 10, 4.0
 TRACKING = {
     "turns": 512,
-    # 20 x 10 starting amplitudes, from x_max/nx to x_max (and the same in y)
-    "dynamic_aperture": {"nx": 20, "ny": 10, "x_max": 0.02, "y_max": 0.01},
+    # DA: 11 rays of 29 points out to the (x_max, y_max) ellipse; FMA: a 30 x 15 grid.
+    # A ray that loses nothing ends on the ellipse, so it is set beyond the aperture.
+    "dynamic_aperture": {"nx": 30, "ny": 15, "n_lines": 11, "x_max": 0.03, "y_max": 0.015},
 }
 
 
@@ -124,7 +126,7 @@ def main(codes):
     fig, axes = plt.subplots(len(codes), 3, figsize=(17, 4.6 * len(codes)), squeeze=False)
     for row, code in zip(axes, codes):
         aperture, footprint, boundary = scan(code, HERE / "runs" / code)
-        x_max = max(x for _, x in boundary) if boundary else 0.0
+        x_max = max(x for x, _ in boundary) if boundary else 0.0
         print(f"{code}: {len(aperture)} points, {len(footprint)} tuned, "
               f"largest surviving x {x_max * 1e3:.1f} mm")
         plot_dynamic_aperture(aperture, turns, axes=row[0], title=f"{code}: dynamic aperture, {turns} turns")
