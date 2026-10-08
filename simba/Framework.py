@@ -20,6 +20,7 @@ Classes:
 """
 
 import os
+import pickle
 import yaml
 import inspect
 from typing import Any, Dict, Literal
@@ -57,6 +58,7 @@ from .FrameworkHelperFunctions import (
 from pydantic import (
     BaseModel,
     ConfigDict,
+    PrivateAttr,
 )
 from warnings import warn
 
@@ -237,9 +239,8 @@ class Framework(BaseModel):
     generatorSettings: Dict = {}
     """Dictionary containing all generator settings"""
 
-    original_elementObjects: Dict = {}
-    """Dictionary containing all :class:`~laura.models.element.Element` objects
-    before changes are made"""
+    _original_elements: Dict | bytes = PrivateAttr(default_factory=dict)
+    """Backing store for :attr:`original_elementObjects`; pickled until first read"""
 
     progress: int | float = 0
     """Current progress of tracking"""
@@ -656,10 +657,26 @@ class Framework(BaseModel):
                 self.read_Lattice(name, lattice)
 
             self.apply_changes(changes)
-            self.original_elementObjects = deepcopy(
-                {**self.elementObjects, "generator": self.generator}
-            )
+            snapshot = {**self.elementObjects, "generator": self.generator}
+            try:
+                self._original_elements = pickle.dumps(
+                    snapshot, protocol=pickle.HIGHEST_PROTOCOL
+                )
+            except (pickle.PicklingError, TypeError, AttributeError):
+                self._original_elements = deepcopy(snapshot)
             self.updateGlobalParameters()
+
+    @property
+    def original_elementObjects(self) -> Dict:
+        """Dictionary containing all :class:`~laura.models.element.Element` objects
+        before changes are made"""
+        if isinstance(self._original_elements, bytes):
+            self._original_elements = pickle.loads(self._original_elements)
+        return self._original_elements
+
+    @original_elementObjects.setter
+    def original_elementObjects(self, value: Dict) -> None:
+        self._original_elements = value
 
     def save_settings(
         self,
@@ -1944,7 +1961,6 @@ class Framework(BaseModel):
                         base_description + ": post-process "
                     )  # noqa E701
                 latt.postProcess()
-                latt.link_handoff_beam()
                 self.progress = base_percentage + 1 * percentage_step
                 if lattice_name != "generator":
                     for name, elem in latt.elementObjects.items():

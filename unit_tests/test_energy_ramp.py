@@ -18,7 +18,6 @@ from simba.Codes.Generators import frameworkGenerator
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
-from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.DeviceProgram import DeviceProgram
 from simba.Modules.EnergyRamp import (
@@ -354,9 +353,11 @@ def _machine(tmp_path):
     return machine, section
 
 
-def _beam(subdir, name):
+def _beam(subdir, name, turn=None):
     beam = rbf.beam()
-    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, f"{name}.openpmd.hdf5"))
+    rbf.openpmd.read_openpmd_beam_file(
+        beam, os.path.join(subdir, f"{name}.openpmd.hdf5"), turn=turn
+    )
     return {k: np.array(getattr(beam, k).val) for k in ("x", "px", "cp", "t")}
 
 
@@ -407,11 +408,8 @@ def _track(tmp_path, code, tracking, seed_beam):
         warnings.simplefilter("ignore")
         framework.track()
     subdir = framework.subdirectory
-    turns = {}
-    for turn in range(1, TURNS + 1):
-        name = f"M3{SEPARATOR}{turn:0{len(str(TURNS))}d}"
-        if os.path.isfile(os.path.join(subdir, f"{name}.openpmd.hdf5")):
-            turns[turn] = _beam(subdir, name)
+    written = rbf.openpmd.openpmd_turns(os.path.join(subdir, "M3.openpmd.hdf5"))
+    turns = {turn: _beam(subdir, "M3", turn) for turn in written}
     return {"final": _beam(subdir, "M3"), "turns": turns, "subdir": subdir}
 
 

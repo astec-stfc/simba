@@ -463,14 +463,20 @@ class SDDSFile(object):
     def load(self, *args, **kwargs):
         return self.read_file(*args, **kwargs)
 
+    def _load_once(self, filename) -> None:
+        """Load ``filename``, unless it is the file already loaded."""
+        if getattr(self, "_loaded", None) != filename:
+            self._sddsObject.load(filename)
+            self._loaded = filename
+
     def count_pages(self, filename) -> int:
         """How many pages ``filename`` holds."""
-        self._sddsObject.load(filename)
+        self._load_once(filename)
         data = self._sddsObject.columnData
         return len(data[0]) if data else 0
 
     def read_file(self, filename, page=-1):
-        self._sddsObject.load(filename)
+        self._load_once(filename)
         sddsref = self._sddsObject
         for col in range(len(sddsref.columnName)):
             symbol, unit, description, formatString, type, fieldLength = (

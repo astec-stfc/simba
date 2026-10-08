@@ -11,6 +11,7 @@ from simba.Codes.Generators import frameworkGenerator
 from simba.Framework import Framework
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Twiss.hdf5 import twiss_file_version
+from simba.Modules.units import UnitValue
 
 
 class FakeLine:
@@ -18,6 +19,7 @@ class FakeLine:
 
     def __init__(self, turns=1, write_turns=False, directory=None, end="M3"):
         self.file_block = {"tracking": {"turns": turns, "write_turns": write_turns}}
+        self.start = "M0"
         self.end = end
         self.objectname = "RING"
         self.colliding_outputs = []
@@ -27,10 +29,13 @@ class FakeLine:
 
     turns = frameworkLattice.turns
     write_turns = frameworkLattice.write_turns
+    bundles_turns = frameworkLattice.bundles_turns
     output_turns = frameworkLattice.output_turns
     output_basename = frameworkLattice.output_basename
+    output_beam_file = frameworkLattice.output_beam_file
+    writes_output = frameworkLattice.writes_output
+    write_beam_file = frameworkLattice.write_beam_file
     beam_turn = frameworkLattice.beam_turn
-    link_handoff_beam = frameworkLattice.link_handoff_beam
 
 
 # --- `beam_turn`: resolving what `output_turns` leaves unsaid -------------
@@ -138,63 +143,98 @@ def test_a_file_written_before_turns_existed_reads_as_none(tmp_path, generated_b
     assert out.turn is None
 
 
-# --- `link_handoff_beam`: `write_turns` must not break the chain ----------
+# --- `write_beam_file`: one file a screen, every turn in it ---------------
 
 
-def turn_files(tmp_path, line, turns):
-    """Write the per-turn end-of-line files a `write_turns` run would."""
-    for turn in range(1, turns + 1):
-        name = line.output_basename(line.end, turn=turn)
-        (tmp_path / f"{name}.openpmd.hdf5").write_bytes(f"turn {turn}".encode())
+def write_turns(line, beam, turns, name="M3"):
+    """Write ``turns`` as a run would, each turn's beam shifted by turn mm."""
+    x = np.array(beam.x.val)
+    for turn in turns:
+        beam._beam.x = UnitValue(x + 1e-3 * (turn or line.turns), units="m")
+        beam.turn = line.beam_turn(turn)
+        line.write_beam_file(beam, name, turn)
+    beam._beam.x = UnitValue(x, units="m")
 
 
-def test_a_single_turn_line_needs_no_handoff(tmp_path):
-    line = FakeLine(turns=1, write_turns=True, directory=tmp_path)
-    line.link_handoff_beam()
-    assert list(tmp_path.iterdir()) == []
+def read_turn(path, turn=None):
+    out = rbf.beam()
+    out.read_beam_file(str(path), turn=turn)
+    return out
 
 
-def test_the_default_multi_turn_run_needs_no_handoff(tmp_path):
-    """It wrote the unsuffixed file itself; there is nothing to restore."""
+def test_every_turn_goes_in_the_one_file(tmp_path, generated_beam):
+    line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
+    write_turns(line, generated_beam, [1, 2, 3, 4])
+    assert sorted(p.name for p in tmp_path.glob("M3*")) == ["M3.openpmd.hdf5"]
+    assert rbf.openpmd.openpmd_turns(tmp_path / "M3.openpmd.hdf5") == [1, 2, 3, 4]
+
+
+def test_each_turn_reads_back_as_itself(tmp_path, generated_beam):
+    line = FakeLine(turns=12, write_turns=True, directory=tmp_path)
+    write_turns(line, generated_beam, range(1, 13))
+    x = np.mean(generated_beam.x.val)
+    for turn in (1, 2, 10, 12):  # 10 sorts before 2 as a string
+        out = read_turn(tmp_path / "M3.openpmd.hdf5", turn)
+        assert out.turn == turn
+        assert np.mean(out.x.val) == pytest.approx(x + 1e-3 * turn, abs=1e-12)
+
+
+def test_the_file_reads_as_the_last_turn(tmp_path, generated_beam):
+    """So the next line continues from where the run ended, not where it began."""
+    line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
+    write_turns(line, generated_beam, [1, 2, 3, 4])
+    assert read_turn(tmp_path / "M3.openpmd.hdf5").turn == 4
+
+
+def test_a_beam_with_no_turn_is_the_last_turn_again(tmp_path, generated_beam):
+    """A code that writes the end once more after the turns replaces turn N."""
+    line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
+    write_turns(line, generated_beam, [1, 2, 3, 4, None])
+    assert rbf.openpmd.openpmd_turns(tmp_path / "M3.openpmd.hdf5") == [1, 2, 3, 4]
+
+
+def test_an_end_not_recorded_each_turn_still_gets_a_file(tmp_path, generated_beam):
+    line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
+    write_turns(line, generated_beam, [None])
+    assert read_turn(tmp_path / "M3.openpmd.hdf5").turn == 4
+
+
+def test_the_default_multi_turn_run_writes_a_single_beam(tmp_path, generated_beam):
     line = FakeLine(turns=4, write_turns=False, directory=tmp_path)
-    line.link_handoff_beam()
-    assert list(tmp_path.iterdir()) == []
+    write_turns(line, generated_beam, [None])
+    assert rbf.openpmd.openpmd_turns(tmp_path / "M3.openpmd.hdf5") == []
+    assert read_turn(tmp_path / "M3.openpmd.hdf5").turn == 4
 
 
-def test_write_turns_gets_an_unsuffixed_end_of_line_file(tmp_path):
+def test_a_rerun_starts_the_file_afresh(tmp_path, generated_beam):
+    write_turns(FakeLine(turns=4, write_turns=True, directory=tmp_path),
+                generated_beam, [1, 2, 3, 4])
+    write_turns(FakeLine(turns=2, write_turns=True, directory=tmp_path),
+                generated_beam, [1, 2])
+    assert rbf.openpmd.openpmd_turns(tmp_path / "M3.openpmd.hdf5") == [1, 2]
+
+
+def test_the_start_of_the_line_is_never_written(tmp_path, generated_beam):
+    """Its file is the input beam; in a ring its turns are the end's."""
     line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
-    turn_files(tmp_path, line, 4)
-    line.link_handoff_beam()
-    assert (tmp_path / "M3.openpmd.hdf5").is_file()
+    write_turns(line, generated_beam, [1, 2], name="M0")
+    assert not (tmp_path / "M0.openpmd.hdf5").exists()
 
 
-def test_the_handoff_is_the_last_turn_and_not_the_first(tmp_path):
-    """The next section continues from where the run ended, not where it began."""
+def test_a_turn_the_file_lacks_is_an_error(tmp_path, generated_beam):
     line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
-    turn_files(tmp_path, line, 4)
-    line.link_handoff_beam()
-    assert (tmp_path / "M3.openpmd.hdf5").read_bytes() == b"turn 4"
+    write_turns(line, generated_beam, [1, 2])
+    with pytest.raises(ValueError, match="turns 1 to 2"):
+        read_turn(tmp_path / "M3.openpmd.hdf5", 3)
 
 
-def test_an_existing_handoff_is_left_alone(tmp_path):
-    """A backend that writes it itself must not have it overwritten."""
+def test_the_beam_summary_links_a_multi_turn_file(tmp_path, generated_beam):
     line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
-    turn_files(tmp_path, line, 4)
-    (tmp_path / "M3.openpmd.hdf5").write_bytes(b"the backend's own")
-    line.link_handoff_beam()
-    assert (tmp_path / "M3.openpmd.hdf5").read_bytes() == b"the backend's own"
-
-
-def test_nothing_to_copy_is_not_an_error(tmp_path):
-    """A line whose end is not a screen writes no per-turn file to copy."""
-    line = FakeLine(turns=4, write_turns=True, directory=tmp_path)
-    line.link_handoff_beam()
-    assert not (tmp_path / "M3.openpmd.hdf5").exists()
-
-
-def test_no_run_directory_is_not_an_error():
-    """`postProcess` can be called on a lattice that was never run."""
-    FakeLine(turns=4, write_turns=True, directory=None).link_handoff_beam()
+    write_turns(line, generated_beam, [1, 2, 3, 4])
+    summary = tmp_path / "Beam_Summary.hdf5"
+    rbf.save_HDF5_summary_file(str(tmp_path), str(summary))
+    with h5py.File(summary, "r") as f:
+        assert "M3.openpmd" in f
 
 
 # --- the twiss turn column -----------------------------------------------

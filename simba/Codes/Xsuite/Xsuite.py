@@ -1087,10 +1087,10 @@ class xsuiteLattice(frameworkLattice):
             # the end's is written above
             if elem.name == self.end or elem.name not in self.line.element_dict:
                 continue
+            if not self.writes_output(elem.name):
+                continue
             data = self.line[elem.name].data.to_dict()
             for data_turn, name_turn in self.output_turns():
-                if not self.writes_output(elem.name, name_turn):
-                    continue
                 turn = self.beam_turn(data_turn)
                 self._write_xsuite_beam(
                     _select_turn(data, turn * self.passes_per_turn - 1),
@@ -1104,7 +1104,8 @@ class xsuiteLattice(frameworkLattice):
         zstart: float, s: float,
     ) -> None:
         """
-        Write one beam as ``.xsuite.json`` and ``.openpmd.hdf5``.
+        Write one beam to ``.openpmd.hdf5`` (:meth:`write_beam_file`), and
+        the last turn's also as ``.xsuite.json``, Xsuite's own record of it.
 
         Parameters
         ----------
@@ -1113,7 +1114,7 @@ class xsuiteLattice(frameworkLattice):
         name: str
             Element the beam is at
         name_turn: int | None
-            Turn for the file name; see :meth:`output_basename`
+            Turn as :meth:`output_turns` names it
         turn: int
             Turn the beam is from
         zstart: float
@@ -1122,20 +1123,20 @@ class xsuiteLattice(frameworkLattice):
             s of the element, in the machine
         """
         import xobjects as xo
-        stem = self.output_basename(name, turn=name_turn)
-        directory = self.global_parameters["master_subdir"]
-        fname = f"{directory}/{stem}.xsuite.json"
-        with open(fname, "w") as fid:
-            json.dump(payload, fid, cls=xo.JEncoder)
+        if turn == self.turns:
+            stem = self.output_basename(name)
+            fname = f"{self.global_parameters['master_subdir']}/{stem}.xsuite.json"
+            with open(fname, "w") as fid:
+                json.dump(payload, fid, cls=xo.JEncoder)
         t_reference = None
         if self.uses_reference_clock:
             t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
-            fname, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference
+            payload, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference
         )
         beam.turn = turn
-        rbf.openpmd.write_openpmd_beam_file(beam, f"{directory}/{stem}.openpmd.hdf5")
+        self.write_beam_file(beam, name, name_turn)
 
     def _write_twiss_csv(self) -> None:
         """The twiss table, with the tracked beam statistics beside it."""

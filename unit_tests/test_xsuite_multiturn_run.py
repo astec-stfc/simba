@@ -11,7 +11,6 @@ from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole
 from simba.Codes.Generators import frameworkGenerator
-from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
 
 TURNS = 4
 
@@ -90,9 +89,9 @@ def _beam_files(subdir):
     return sorted(f for f in os.listdir(subdir) if f.endswith(".openpmd.hdf5"))
 
 
-def _read(subdir, name):
+def _read(subdir, name, turn=None):
     beam = rbf.beam()
-    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, name))
+    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, name), turn=turn)
     return beam
 
 
@@ -165,20 +164,18 @@ def test_the_generated_input_beam_claims_no_turn(tmp_path):
     assert _read(subdir, "M1.openpmd.hdf5").turn is None
 
 
-def test_per_turn_files_each_know_their_turn(tmp_path):
+def test_each_bundled_turn_knows_its_turn(tmp_path):
     subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
-    written = _beam_files(subdir)
+    path = os.path.join(subdir, "M3.openpmd.hdf5")
+    assert rbf.openpmd.openpmd_turns(path) == list(range(1, TURNS + 1))
     for turn in range(1, TURNS + 1):
-        name = f"M3{SEPARATOR}{turn}.openpmd.hdf5"
-        if name not in written:
-            continue
-        assert _read(subdir, name).turn == turn
+        assert _read(subdir, "M3.openpmd.hdf5", turn).turn == turn
 
 
-def test_the_unsuffixed_end_of_line_file_survives_per_turn_output(tmp_path):
-    """`link_handoff_beam`: what the next section reads by name."""
+def test_the_end_of_line_file_reads_as_its_last_turn(tmp_path):
+    """What the next section reads by name."""
     subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
-    assert os.path.isfile(os.path.join(subdir, "M3.openpmd.hdf5"))
+    assert _read(subdir, "M3.openpmd.hdf5").turn == TURNS
 
 
 # --- the twiss turn column ------------------------------------------------

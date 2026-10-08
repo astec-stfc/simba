@@ -793,7 +793,7 @@ class beam(BaseModel):
         """
         return madx.madx_coords_to_beam(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", step=0):
+    def read_beam_file(self, filename, run_extension="001", step=0, turn=None):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.Particles` object.
@@ -808,12 +808,15 @@ class beam(BaseModel):
             Run extension for ASTRA-type beam distribution files.
         step: int, optional
             Step number in output file (for OPAL beam distributions)
+        turn: int, optional
+            Turn of a multi-turn openPMD file, which otherwise reads as its
+            last; see :func:`~simba.Modules.Beams.openpmd.openpmd_turns`
         """
         pre, ext = os.path.splitext(os.path.basename(filename))
         if ext.lower()[:4] == ".hdf":
             # cheetah writes plain openPMD, it just doesn't say so in the name
             if "openpmd" in pre.lower() or "cheetah" in pre.lower():
-                openpmd.read_openpmd_beam_file(self, filename)
+                openpmd.read_openpmd_beam_file(self, filename, turn=turn)
             else:
                 hdf5.read_HDF5_beam_file(self, filename)
         elif ext.lower() == ".sdds":
@@ -965,7 +968,7 @@ def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary
         files = []
         for bf in beam_files:
             with h5py.File(bf, "r") as f:
-                if "/particles" in f:
+                if openpmd.is_openpmd_beam_file(f):
                     files.append(bf)
     hdf5.write_HDF5_summary_file(filename, files)
 

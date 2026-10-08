@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import warnings
 from types import SimpleNamespace
@@ -130,8 +131,17 @@ def _track(tmp_path, code, tracking, seed_beam):
     return framework.subdirectory
 
 
-def _name(element, turn, turns=TURNS):
-    return f"{element}{SEPARATOR}{turn:0{len(str(turns))}d}.openpmd.hdf5"
+def _turn(subdir, element, turn):
+    """``element``'s beam on ``turn``, from its one multi-turn file."""
+    beam = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(
+        beam, os.path.join(subdir, f"{element}.openpmd.hdf5"), turn=turn
+    )
+    return beam
+
+
+def _turns(subdir, element):
+    return rbf.openpmd.openpmd_turns(os.path.join(subdir, f"{element}.openpmd.hdf5"))
 
 
 @pytest.fixture(scope="module")
@@ -156,26 +166,30 @@ def runs(tmp_path_factory, seed_beam):
 
 
 @pytest.mark.parametrize("code", RING_CODES)
-@pytest.mark.parametrize("element", ["M1", "MID"])
+@pytest.mark.parametrize("element", ["MID", "M3"])
 def test_a_marker_is_recorded_on_every_turn(code, element, runs):
-    """The start too: Ocelot and Xsuite skipped it, elegant and MAD-X did not."""
-    subdir = runs(code)
-    for turn in range(1, TURNS + 1):
-        assert os.path.isfile(os.path.join(subdir, _name(element, turn))), code
+    """In the one file, a turn to an iteration, the end of the line too."""
+    assert _turns(runs(code), element) == list(range(1, TURNS + 1)), code
 
 
 @pytest.mark.parametrize("code", RING_CODES)
-def test_the_end_of_the_line_is_recorded_on_every_turn(code, runs):
+def test_no_file_is_written_per_turn(code, runs):
     subdir = runs(code)
-    for turn in range(1, TURNS + 1):
-        assert os.path.isfile(os.path.join(subdir, _name("M3", turn))), code
+    per_turn = re.compile(rf"{SEPARATOR}\d+\.")
+    assert not [name for name in os.listdir(subdir) if per_turn.search(name)]
 
 
 @pytest.mark.parametrize("code", RING_CODES)
-def test_each_marker_file_says_its_turn(code, runs):
+def test_each_turn_says_its_turn(code, runs):
     subdir = runs(code)
     for turn in range(1, TURNS + 1):
-        assert _read(os.path.join(subdir, _name("MID", turn))).turn == turn
+        assert _turn(subdir, "MID", turn).turn == turn
+
+
+@pytest.mark.parametrize("code", RING_CODES)
+def test_the_end_of_the_line_reads_as_its_last_turn(code, runs):
+    """What the next line takes."""
+    assert _read(os.path.join(runs(code), "M3.openpmd.hdf5")).turn == TURNS
 
 
 @pytest.mark.parametrize("code", RING_CODES)
@@ -193,7 +207,7 @@ def test_the_input_beam_is_not_overwritten(code, tracking, runs, seed_beam):
 
 
 @pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
-@pytest.mark.parametrize("element", ["M1", "MID", "M3"])
+@pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_records_the_same_turn_as_elegant(code, element, runs):
     """The beam is mismatched, so its size changes turn to turn, and each
     code's turn ``k`` must be nearest elegant's turn ``k``.
@@ -209,8 +223,8 @@ def test_every_code_records_the_same_turn_as_elegant(code, element, runs):
     def sizes(subdir):
         return np.array([
             [
-                _read(os.path.join(subdir, _name(element, turn))).sigmas.sigma_x.val,
-                _read(os.path.join(subdir, _name(element, turn))).sigmas.sigma_y.val,
+                _turn(subdir, element, turn).sigmas.sigma_x.val,
+                _turn(subdir, element, turn).sigmas.sigma_y.val,
             ]
             for turn in range(1, TURNS + 1)
         ])
@@ -225,8 +239,7 @@ def test_the_mismatch_really_does_change_the_size_turn_to_turn(runs):
     """Else the test above could not tell one turn from the next."""
     subdir = runs("xsuite")
     sizes = [
-        _read(os.path.join(subdir, _name("MID", turn))).sigmas.sigma_x.val
-        for turn in range(1, TURNS + 1)
+        _turn(subdir, "MID", turn).sigmas.sigma_x.val for turn in range(1, TURNS + 1)
     ]
     assert np.min(np.abs(np.diff(sizes)) / sizes[0]) > 1e-2
 
@@ -241,8 +254,8 @@ def test_xsuite_superperiods_record_the_last_pass_of_each_turn(element, runs):
     two = runs("xsuite", nsuperperiods=2)
     cells = _track_cells(runs)
     for turn in range(1, TURNS + 1):
-        ours = _read(os.path.join(two, _name(element, turn)))
-        theirs = _read(os.path.join(cells, _name(element, 2 * turn, 2 * TURNS)))
+        ours = _turn(two, element, turn)
+        theirs = _turn(cells, element, 2 * turn)
         np.testing.assert_allclose(ours.x.val, theirs.x.val, rtol=0, atol=1e-15)
 
 
@@ -255,7 +268,7 @@ def test_xsuite_superperiods_record_every_turn(runs):
     """The monitors were sized to ``turns``, short of a run of passes."""
     two = runs("xsuite", nsuperperiods=2)
     for turn in range(1, TURNS + 1):
-        assert _read(os.path.join(two, _name("MID", turn))).turn == turn
+        assert _turn(two, "MID", turn).turn == turn
 
 
 # --- cp -------------------------------------------------------------------
@@ -265,12 +278,12 @@ def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
     """Xsuite's ``p0c * (1 + delta)`` is each particle's total momentum, and
     that is what simba's ``cp`` must come back as."""
     subdir = runs("xsuite")
-    stem = _name("MID", TURNS).removesuffix(".openpmd.hdf5")
-    with open(os.path.join(subdir, f"{stem}.xsuite.json")) as handle:
+    # the last turn's, which Xsuite also writes as its own
+    with open(os.path.join(subdir, "MID.xsuite.json")) as handle:
         particles = json.load(handle)
     total = np.asarray(particles["p0c"]) * (1 + np.asarray(particles["delta"]))
     alive = np.asarray(particles["state"]) > 0
-    cp = _read(os.path.join(subdir, f"{stem}.openpmd.hdf5")).cp.val
+    cp = _turn(subdir, "MID", TURNS).cp.val
     np.testing.assert_allclose(cp, total[alive], rtol=1e-12)
 
 
@@ -287,8 +300,7 @@ def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
             {"turns": TURNS, "write_turns": True, **extra}, seed_beam,
         )
         return np.array([
-            _read(os.path.join(subdir, _name("MID", turn))).sigmas.sigma_x.val
-            for turn in range(1, TURNS + 1)
+            _turn(subdir, "MID", turn).sigmas.sigma_x.val for turn in range(1, TURNS + 1)
         ])
 
     effect = {
@@ -407,7 +419,7 @@ def test_the_codes_that_can_are_read_off_the_codes(flag):
 def test_every_code_writes_the_input_charge(code, element, runs, seed_beam):
     """No particle is lost here, so the charge out is the charge in. Xsuite's
     was ``sum(q0)``, its charge *state*: -1 C for each macroparticle's -1."""
-    written = _read(os.path.join(runs(code), _name(element, TURNS)))
+    written = _turn(runs(code), element, TURNS)
     seed = _read(seed_beam)
     assert len(written.x.val) == len(seed.x.val)
     np.testing.assert_allclose(
@@ -486,26 +498,20 @@ def test_xsuite_without_a_reference_has_one_z_per_particle():
 def test_s_is_the_lattices_not_the_incoming_beams(code, runs):
     """The seed beam says s = 100 m; the lattice starts at 0."""
     subdir = runs(code)
-    middle = _read(os.path.join(subdir, _name("MID", TURNS)))
-    end = _read(os.path.join(subdir, _name("M3", TURNS)))
+    middle = _turn(subdir, "MID", TURNS)
+    end = _turn(subdir, "M3", TURNS)
     assert float(np.mean(middle.s.val)) == pytest.approx(2.0, abs=1e-6), code
     assert float(np.mean(end.s.val)) == pytest.approx(END_Z, abs=1e-6), code
 
 
 @pytest.mark.parametrize(
-    "name, turns, turn, writes",
-    [
-        ("M1", 1, None, False),
-        ("M1", 4, None, False),
-        ("M1", 4, 2, True),
-        ("MID", 1, None, True),
-        ("MID", 4, None, True),
-        ("M1", 1, 1, False),
-    ],
+    "name, turns, writes",
+    [("M1", 1, False), ("M1", 4, False), ("MID", 1, True), ("MID", 4, True)],
 )
-def test_only_the_start_under_its_own_name_is_not_written(name, turns, turn, writes):
+def test_the_start_is_never_written(name, turns, writes):
+    """Its file is the incoming beam; in a ring its turns are the end's."""
     line = SimpleNamespace(start="M1", turns=turns)
-    assert frameworkLattice.writes_output(line, name, turn) is writes
+    assert frameworkLattice.writes_output(line, name) is writes
 
 
 @pytest.mark.parametrize(
@@ -764,32 +770,31 @@ def _clock(seed_beam, element_s, turn):
 
 
 @pytest.mark.parametrize("code", RING_CODES)
-@pytest.mark.parametrize(
-    "element, element_s", [("M1", 0.0), ("MID", 2.0), ("M3", END_Z)]
-)
+@pytest.mark.parametrize("element, element_s", [("MID", 2.0), ("M3", END_Z)])
 def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
     """A period is 14 ns; the centroid moves 8 fs off the reference in four
     turns, as it does in elegant."""
     subdir = runs(code)
     for turn in range(1, TURNS + 1):
-        t = _read(os.path.join(subdir, _name(element, turn))).t.val
+        t = _turn(subdir, element, turn).t.val
         clock = _clock(seed_beam, element_s, turn)
         assert float(np.mean(t)) == pytest.approx(clock, abs=2e-14), (code, turn)
 
 
 @pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
-@pytest.mark.parametrize("element", ["M1", "MID", "M3"])
+@pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
     if shutil.which("elegant") is None:
         pytest.skip("elegant is not installed")
     for turn in range(1, TURNS + 1):
-        ours = _read(os.path.join(runs(code), _name(element, turn))).t.val
-        theirs = _read(os.path.join(runs("elegant"), _name(element, turn))).t.val
+        ours = _turn(runs(code), element, turn).t.val
+        theirs = _turn(runs("elegant"), element, turn).t.val
         np.testing.assert_allclose(ours, theirs, rtol=0, atol=1e-15)
 
 
 def test_xsuite_native_time_is_its_own_zeta(runs, tmp_path, seed_beam):
-    """`native_times` gives back what Xsuite itself wrote."""
+    """`native_times` gives back what Xsuite itself wrote: its ``.xsuite.json``
+    is the last turn's, so turn 1 is a one-turn run's."""
     framework = _framework(
         tmp_path, "xsuite", {"turns": TURNS, "write_turns": True}, seed_beam
     )
@@ -797,14 +802,12 @@ def test_xsuite_native_time_is_its_own_zeta(runs, tmp_path, seed_beam):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         lattice.preProcess()
-    subdir = runs("xsuite")
     for element in ("MID", "M3"):
-        for turn in (1, TURNS):
-            stem = _name(element, turn).removesuffix(".openpmd.hdf5")
-            with open(os.path.join(subdir, f"{stem}.xsuite.json")) as handle:
+        for turn, subdir in ((1, runs("xsuite", turns=1)), (TURNS, runs("xsuite"))):
+            with open(os.path.join(subdir, f"{element}.xsuite.json")) as handle:
                 particles = json.load(handle)
             alive = np.asarray(particles["state"]) > 0
-            beam = _read(os.path.join(subdir, f"{stem}.openpmd.hdf5"))
+            beam = _read(os.path.join(subdir, f"{element}.openpmd.hdf5"))
             np.testing.assert_allclose(
                 lattice.native_times(beam, element, turn),
                 np.asarray(particles["zeta"])[alive],

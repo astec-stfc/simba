@@ -96,53 +96,60 @@ def _beam_files(subdir):
     return sorted(f for f in os.listdir(subdir) if f.endswith(".openpmd.hdf5"))
 
 
-def test_the_default_multi_turn_run_writes_one_file_per_screen(tmp_path):
+def _turns(subdir, name):
+    """The turns held in ``name``'s file; ``[]`` for a single beam."""
+    import simba.Modules.Beams as rbf
+
+    return rbf.openpmd.openpmd_turns(os.path.join(subdir, f"{name}.openpmd.hdf5"))
+
+
+def test_the_default_multi_turn_run_writes_one_beam_per_screen(tmp_path):
     """``write_turns`` is off by default (R20), so a multi-turn run writes
-    what a single-turn run writes: the last turn, unsuffixed."""
-    written = _beam_files(_run(tmp_path, {"turns": TURNS}))
+    what a single-turn run writes: the last turn, as a single beam."""
+    subdir = _run(tmp_path, {"turns": TURNS})
+    written = _beam_files(subdir)
     assert all(SEPARATOR not in f for f in written), written
+    assert _turns(subdir, "M3") == []
 
 
-def test_asking_for_per_turn_output_writes_a_file_per_turn(tmp_path):
-    """And the turn-qualified names do not collide, which is what the
-    ``output_basename`` keying in ``store_beam_data`` is for. ``M1`` is the
-    screen the beam passes on every turn."""
-    written = _beam_files(_run(tmp_path, {"turns": TURNS, "write_turns": True}))
-    expected = {f"M1{SEPARATOR}{turn}.openpmd.hdf5" for turn in range(1, TURNS + 1)}
-    assert expected <= set(written), written
+def test_asking_for_per_turn_output_bundles_the_turns(tmp_path):
+    """Every turn goes in the screen's one file, not a file per turn."""
+    subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
+    written = _beam_files(subdir)
+    assert all(SEPARATOR not in f for f in written), written
+    assert _turns(subdir, "M3") == list(range(1, TURNS + 1))
 
 
 # --- R21: the end of the line, per turn ----------------------------------
 #
-# It used to be written exactly once however many turns were tracked, because
-# `self.end` was excluded from per-turn writing outright. For a ring that is
-# the one place a per-turn record is most wanted -- the end of the line *is*
-# the turn boundary -- so the exclusion is now conditional on the name being
-# unsuffixed, where writing it would only duplicate what `run_segments`
-# writes at the finish.
+# It used to be written exactly once however many turns were tracked. For a
+# ring that is the one place a per-turn record is most wanted -- the end of
+# the line *is* the turn boundary. The start is never written: its file is
+# the incoming beam, and in a ring its turns are the end's.
 
 
-def test_the_end_of_the_line_is_written_on_every_turn(tmp_path):
-    written = _beam_files(_run(tmp_path, {"turns": TURNS, "write_turns": True}))
-    expected = {f"M3{SEPARATOR}{turn}.openpmd.hdf5" for turn in range(1, TURNS + 1)}
-    assert expected <= set(written), written
-
-
-def test_the_unsuffixed_end_of_line_file_survives_per_turn_output(tmp_path):
-    """What the next section reads by name. Losing it is how `write_turns`
-    quietly broke the chain between two lines; see `link_handoff_beam`."""
+def test_the_start_of_the_line_is_not_written_over(tmp_path):
     subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
-    assert os.path.isfile(os.path.join(subdir, "M3.openpmd.hdf5"))
+    assert _turns(subdir, "M1") == []
+
+
+def test_the_end_of_line_file_reads_as_its_last_turn(tmp_path):
+    """What the next section reads by name, so the chain between two lines
+    holds with `write_turns` on."""
+    import simba.Modules.Beams as rbf
+
+    subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True})
+    beam = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, "M3.openpmd.hdf5"))
+    assert beam.turn == TURNS
 
 
 def test_the_default_multi_turn_run_still_writes_the_end_once(tmp_path):
-    """The exclusion is conditional, not gone: with `write_turns` off there
-    is no suffixed name, so nothing is written twice."""
     written = _beam_files(_run(tmp_path, {"turns": TURNS}))
     assert written.count("M3.openpmd.hdf5") == 1
 
 
-def test_each_end_of_line_file_knows_which_turn_it_is(tmp_path):
+def test_each_end_of_line_turn_knows_which_turn_it_is(tmp_path):
     """R21. The turn used to live only in the filename."""
     import simba.Modules.Beams as rbf
 
@@ -150,7 +157,7 @@ def test_each_end_of_line_file_knows_which_turn_it_is(tmp_path):
     for turn in range(1, TURNS + 1):
         beam = rbf.beam()
         rbf.openpmd.read_openpmd_beam_file(
-            beam, os.path.join(subdir, f"M3{SEPARATOR}{turn}.openpmd.hdf5")
+            beam, os.path.join(subdir, "M3.openpmd.hdf5"), turn=turn
         )
         assert beam.turn == turn
 
@@ -190,40 +197,34 @@ def test_the_beam_is_carried_from_one_turn_to_the_next(tmp_path):
     assert first.sigmas.sigma_x != pytest.approx(last.sigmas.sigma_x, rel=1e-9)
 
 
-# --- R3: the same naming in single-particle mode -------------------------
+# --- R3: the same output in single-particle mode -------------------------
 #
-# `output_basename` knows nothing about particle count, so the naming was
-# expected to be free. It was not: the single-particle path stored the beam
-# at each observation point in `beam_data` and never wrote it out, so
-# `write_turns` was a silent no-op there while the full-beam path wrote a
-# file per turn. These assert on the files on disk rather than on which
-# method is called, so they survive the two paths being merged.
+# The single-particle path once stored the beam at each observation point in
+# `beam_data` and never wrote it out, so `write_turns` was a silent no-op
+# there while the full-beam path wrote every turn. These assert on the files
+# on disk rather than on which method is called, so they survive the two
+# paths being merged.
 
 
-def test_single_particle_mode_writes_a_file_per_turn(tmp_path):
+def test_single_particle_mode_writes_every_turn(tmp_path):
     """R3. The beam at each screen is a linear reconstruction here rather
     than tracked particles, but it is reconstructed either way -- and the
-    end-of-line beam has always been written -- so the turn files are too."""
-    written = _beam_files(
-        _run(tmp_path, {"turns": TURNS, "write_turns": True,
-                        "single_particle": True})
-    )
-    expected = {f"M1{SEPARATOR}{turn}.openpmd.hdf5" for turn in range(1, TURNS + 1)}
-    assert expected <= set(written), written
+    end-of-line beam has always been written -- so the turns are too."""
+    subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True,
+                             "single_particle": True})
+    assert _turns(subdir, "M3") == list(range(1, TURNS + 1))
 
 
 def test_single_particle_and_full_beam_write_the_same_names(tmp_path):
     """The invariant R3 was really asking about: which files a run produces
     is a property of `turns` and `write_turns`, not of how the beam got
     there. Only the contents should differ between the two modes."""
-    single = _beam_files(
-        _run(tmp_path / "single", {"turns": TURNS, "write_turns": True,
-                                   "single_particle": True})
-    )
-    full = _beam_files(
-        _run(tmp_path / "full", {"turns": TURNS, "write_turns": True})
-    )
-    assert single == full
+    single_dir = _run(tmp_path / "single", {"turns": TURNS, "write_turns": True,
+                                            "single_particle": True})
+    full_dir = _run(tmp_path / "full", {"turns": TURNS, "write_turns": True})
+    assert _beam_files(single_dir) == _beam_files(full_dir)
+    for name in ("M1", "M3"):
+        assert _turns(single_dir, name) == _turns(full_dir, name), name
 
 
 def test_single_particle_still_honours_write_turns_being_off(tmp_path):

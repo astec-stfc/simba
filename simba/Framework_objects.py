@@ -27,9 +27,7 @@ Classes:
 
 import math
 import os
-import shutil
 import subprocess
-from pathlib import Path
 from warnings import warn
 import stat
 import yaml
@@ -1072,21 +1070,26 @@ class frameworkLattice(BaseModel):
     @property
     def write_turns(self) -> bool:
         """
-        Whether a multi-turn run writes a beam file per turn.
-        Off by default, and a multi-turn run writes what a single-turn run writes:
-        one file per screen, holding the last turn. Turn-resolved output
-        is then something you ask for::
+        Whether a multi-turn run keeps every turn's beams.
+        Off by default. One file per screen (:attr:`bundles_turns`).
+        Has no effect on a single-turn run. Turn-resolved output as::
 
             files:
               RING:
                 code: xsuite
                 tracking: {turns: 1000, write_turns: true}
-
-        Has no effect on a single-turn run, which was always one file per
-        screen.
         """
         tracking = self.file_block.get("tracking") or {}
         return bool(tracking.get("write_turns", False))
+
+    @property
+    def bundles_turns(self) -> bool:
+        """
+        Whether each screen's file holds every turn: a
+        multi-turn run with :attr:`write_turns`; see :meth:`write_beam_file`.
+        Read one with ``beam.read_beam_file(filename, turn=...)``.
+        """
+        return self.turns > 1 and self.write_turns
 
     @property
     def programs(self) -> list:
@@ -2041,12 +2044,11 @@ class frameworkLattice(BaseModel):
 
     def output_turns(self) -> list:
         """
-        ``(data_turn, name_turn)`` for each beam file a run should write.
+        ``(data_turn, name_turn)`` for each beam a run should write.
 
         ``data_turn`` selects which turn's particles to write and
-        ``name_turn`` is handed to :meth:`output_basename`, so the
-        unsuffixed single-turn name survives when only the last turn is
-        being kept.
+        ``name_turn`` is handed to :meth:`write_beam_file` (and
+        :meth:`output_basename`).
         """
         if self.turns <= 1:
             return [(None, None)]
@@ -2070,25 +2072,36 @@ class frameworkLattice(BaseModel):
         """
         return self.turns if turn is None else turn
 
-    def link_handoff_beam(self) -> None:
-        """
-        Make sure the end of the line (or the last turn) has an unsuffixed beam file.
-        """
-        if self.turns <= 1 or not self.write_turns:
-            return
-        directory = (self.global_parameters or {}).get("master_subdir")
-        if not directory:
-            return
-        stem = self.output_basename(self.end)
-        handoff = Path(directory) / f"{stem}.openpmd.hdf5"
-        if handoff.is_file():
-            return
-        last = Path(directory) / (
-            f"{self.output_basename(self.end, turn=self.turns)}.openpmd.hdf5"
+    def output_beam_file(self, name: str) -> str:
+        """The openPMD file a beam recorded at ``name`` goes to, every turn of it."""
+        return os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{self.output_basename(name)}.openpmd.hdf5",
         )
-        if not last.is_file():
-            return
-        shutil.copyfile(last, handoff)
+
+    def write_beam_file(self, beam, name: str, turn: int | None = None) -> bool:
+        """
+        Write ``beam``, recorded at ``name``, to :meth:`output_beam_file`.
+
+        ``turn`` is an :meth:`output_turns` ``name_turn``. When the run
+        :attr:`bundles_turns` each turn becomes that turn of the one file,
+        so they must come in order; a beam with no turn is then the last
+        turn, which a code may write again at the end of the line (or for
+        the first time, if the end was not recorded each turn). The start of
+        the line is never written (:meth:`writes_output`).
+
+        Returns
+        -------
+        bool
+            Whether it was written
+        """
+        if not self.writes_output(name):
+            return False
+        rbf.openpmd.write_openpmd_beam_file(
+            beam, self.output_beam_file(name),
+            turn=self.beam_turn(turn) if self.bundles_turns else None,
+        )
+        return True
 
     @property
     def da_settings(self) -> dict:
@@ -2455,11 +2468,10 @@ class frameworkLattice(BaseModel):
         Output beam files are named by element alone, so they must not clash for
         multi-turn tracking. Qualifies only what actually collides:
         :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
-        same name written by more than one line. All colliding occurrences are
-        qualified, including the first, so the name follows from the settings file.
+        same name written by more than one line.
 
-        ``turn`` qualifies the other axis. It is ignored on a single-turn run,
-        so nothing changes for a lattice that does not ask for turns.
+        ``turn`` qualifies the other axis. Files are not named by
+        turn: every turn goes in the one file (:meth:`write_beam_file`).
         """
         qualified = name in self.colliding_outputs
         name = flatten_occurrence(name)
@@ -2503,21 +2515,20 @@ class frameworkLattice(BaseModel):
         newbeam.reference_particle_index = self.sampled_index(bm.reference_particle_index)
         return newbeam
 
-    def writes_output(self, name: str, turn: int | None = None) -> bool:
+    def writes_output(self, name: str) -> bool:
         """
-        Whether a beam recorded at ``name`` gets a file of its own, under
-        :meth:`output_basename`.
-        Every recorded element does, except the start of the line under its
-        bare name: that file is the input beam, the previous line's end.
+        Whether a beam recorded at ``name`` gets a file of its own,
+        :meth:`output_beam_file`.
+        Every recorded element does, except the start of the line: that file
+        is the input beam, the previous line's end. In a ring the start of
+        turn n + 1 is the end of turn n, so no turn is lost.
 
         Parameters
         ----------
         name: str
             The element
-        turn: int | None
-            The turn, as :meth:`output_turns` names it
         """
-        return name != self.start or (turn is not None and self.turns > 1)
+        return name != self.start
 
     def get_prefix(self) -> str:
         """
@@ -3844,13 +3855,18 @@ class frameworkLattice(BaseModel):
             If `as_dict` is True, returns a dictionary with element names as keys and their S values as values.
             If `as_dict` is False, returns a list of S values.
         """
-        elems = self.createDrifts() if drifts else self.elements
+        if drifts:
+            lengths = self.section.drift_lengths()
+            names, lengths = list(lengths), list(lengths.values())
+        else:
+            names = [e.name for e in self.elements.values()]
+            lengths = [e.physical.length for e in self.elements.values()]
         s = [0]
-        for e in list(elems.values()):
-            s.append(s[-1] + e.physical.length)
+        for length in lengths:
+            s.append(s[-1] + length)
         s = s[:-1] if at_entrance else s[1:]
         if as_dict:
-            return dict(zip([e.name for e in elems.values()], s))
+            return dict(zip(names, s))
         return list(s)
 
     def getZValues(self, drifts: bool = True, as_dict: bool = False) -> list | dict:

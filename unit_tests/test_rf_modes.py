@@ -15,7 +15,6 @@ from simba.Codes.Generators import frameworkGenerator
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
-from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.EnergyRamp import rf_phase_slip, wrap_phase
 
@@ -265,8 +264,7 @@ def _track(tmp_path, code, tracking, seed_beam, frequency=HARMONIC):
     subdir = framework.subdirectory
     cp = [np.mean(_beam(os.path.dirname(seed_beam), "M1").cp.val)]
     for turn in range(1, TURNS + 1):
-        name = f"M3{SEPARATOR}{turn:0{len(str(TURNS))}d}"
-        cp.append(np.mean(_beam(subdir, name).cp.val))
+        cp.append(np.mean(_beam(subdir, "M3", turn).cp.val))
     return framework["FODO"], np.diff(cp)
 
 

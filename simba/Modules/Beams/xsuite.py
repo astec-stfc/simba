@@ -10,28 +10,31 @@ from .. import constants
 from ..units import UnitValue
 
 def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_reference=None):
+    """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
+    ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds."""
     import xobjects as xo
     import xpart as xp
     if has_cupy:
         context = xo.ContextCupy()
     else:
         context = xo.ContextCpu()
-    if isinstance(filename, str):
+
+    def from_dict(payload):
+        try:
+            return xp.Particles.from_dict(payload, _context=context)
+        except ValueError:
+            return xp.Particles.from_dict(
+                payload, _context=context, mass0=float(self.E0_eV.val)
+            )
+
+    if isinstance(filename, dict):
+        particles = from_dict(filename)
+        filename = None
+    elif isinstance(filename, str):
         if ".json" in filename:
             import json
-            try:
-                with open(filename, 'r') as fid:
-                    particles = xp.Particles.from_dict(
-                        json.load(fid),
-                        _context=context,
-                    )
-            except ValueError:
-                with open(filename, 'r') as fid:
-                    particles = xp.Particles.from_dict(
-                        json.load(fid),
-                        _context=context,
-                        mass0=float(self.E0_eV.val)
-                    )
+            with open(filename, 'r') as fid:
+                particles = from_dict(json.load(fid))
         elif ".pkl" in filename:
             import pickle
             with open(filename, 'rb') as fid:

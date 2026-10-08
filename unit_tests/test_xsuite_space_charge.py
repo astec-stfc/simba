@@ -162,12 +162,15 @@ def test_a_kick_every_step_at_its_middle(tmp_path, faint):
 
 
 def test_a_bunch_without_charge_is_tracked_as_without_space_charge(tmp_path, faint):
-    """The kicks, and the slices they cut the line into, change nothing else."""
+    """The kicks, and the slices they cut the line into, change nothing else.
+
+    ``atol`` sits above the faint bunch's own kicks: 4e-13 m typically, but the
+    beam is drawn afresh each session and a 5-sigma particle reached 1.04e-12."""
     with_sc = _track(_framework(tmp_path / "on", faint, quadrupole=True))
     without = _track(_framework(tmp_path / "off", faint, mode="False", quadrupole=True))
     for coord in ("x", "y", "z"):
         np.testing.assert_allclose(
-            getattr(with_sc, coord).val, getattr(without, coord).val, rtol=0, atol=1e-12
+            getattr(with_sc, coord).val, getattr(without, coord).val, rtol=0, atol=1e-11
         )
     np.testing.assert_allclose(with_sc.cpx.val, without.cpx.val, rtol=0, atol=1e-3)
 

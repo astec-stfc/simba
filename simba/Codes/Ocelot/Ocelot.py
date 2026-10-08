@@ -17,6 +17,7 @@ from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
+from .cavitymaps import stable_cavity_maps
 from copy import deepcopy
 from inspect import signature
 from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi, sqrt
@@ -257,6 +258,7 @@ class ocelotLattice(frameworkLattice):
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.lat_obj` and
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
         """
+        stable_cavity_maps()
         self.lat_obj = self.section.to_ocelot(save=True)
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
@@ -377,6 +379,7 @@ class ocelotLattice(frameworkLattice):
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
         from ocelot.cpbd.track import track
+        from .navigator import lattice_pass
         self.pout = deepcopy(self.pin)
 
         def start_turn(turn):
@@ -391,13 +394,15 @@ class ocelotLattice(frameworkLattice):
                 pass_index=pass_index if self.uses_reference_clock else None,
             )
             navi.go_to_start()
-            self.tws, self.pout = track(
-                self.lat_obj,
-                self.pout,
-                navi=navi,
-                calc_tws=True,
-                twiss_disp_correction=False,
-            )
+            with lattice_pass(self.lat_obj):
+                self.tws, self.pout = track(
+                    self.lat_obj,
+                    self.pout,
+                    navi=navi,
+                    calc_tws=True,
+                    twiss_disp_correction=False,
+                    print_progress=False,
+                )
 
         self._periodic = None
         self.run_turns(track_pass, start_turn)
@@ -447,6 +452,7 @@ class ocelotLattice(frameworkLattice):
         """
         if self._periodic is not None:
             return self._periodic
+        stable_cavity_maps()
         from ocelot.cpbd.beam import Twiss
         from ocelot.cpbd.optics import twiss as ocelot_twiss
 
@@ -461,6 +467,8 @@ class ocelotLattice(frameworkLattice):
         :meth:`_ocelot_periodic`.
         """
         import ocelot.cpbd.track as octrack
+
+        stable_cavity_maps()
 
         def aperture_limit(lat, xlim=1, ylim=1):
             tws = self._ocelot_periodic()
@@ -754,15 +762,15 @@ class ocelotLattice(frameworkLattice):
         Navigator
             An Ocelot `Navigator`_ object
         """
-        from ocelot.cpbd.navi import Navigator
         from ocelot import Twiss
+        from .navigator import PassNavigator
         from .savebeamopenpmd import SaveBeamOpenPMD
         from .mbi import MBI
         navi_processes = []
         navi_locations_start = []
         navi_locations_end = []
         # settings = self.settings
-        navi = Navigator(self.lat_obj, unit_step=self.unit_step)
+        navi = PassNavigator(self.lat_obj, unit_step=self.unit_step)
         if reference_energy is not None:
             # first, so anything else at a cavity's exit sees the line's reference
             for proc, loc in self.physproc_fixed_reference(reference_energy):
@@ -858,43 +866,37 @@ class ocelotLattice(frameworkLattice):
                 return None
             return self.reference_time(s, pass_index)
 
+        file_turn = turn if self.bundles_turns else None
         for w in recorded if write_beams else []:
-            if w.name == self.names[-1] or not self.writes_output(w.name, turn):
+            if w.name == self.names[-1] or not self.writes_output(w.name):
                 continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]
-            subdir = self.global_parameters["master_subdir"]
             navi_processes += [
                 SaveBeamOpenPMD(
-                    filename=(
-                        f"{subdir}/"
-                        f"{self.output_basename(w.name, turn=turn)}.openpmd.hdf5"
-                    ),
+                    filename=self.output_beam_file(w.name),
                     global_parameters=self.global_parameters,
                     zstart=w.physical.start.z,
                     sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_in[w.name]),
+                    file_turn=file_turn,
                 )
             ]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
         if write_beams:
             loc = self.lat_obj.sequence[-1]
-            subdir = self.global_parameters["master_subdir"]
             navi_processes += [
                 SaveBeamOpenPMD(
-                    filename=(
-                        f"{subdir}/"
-                        f"{self.output_basename(self.names[-1], turn=turn)}"
-                        ".openpmd.hdf5"
-                    ),
+                    filename=self.output_beam_file(self.names[-1]),
                     global_parameters=self.global_parameters,
                     zstart=self.endObject.physical.end.z,
                     sstart=self.entrance_s + sval_out[self.end],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_out[self.end]),
+                    file_turn=file_turn,
                 )
             ]
             navi_locations_start += [loc]

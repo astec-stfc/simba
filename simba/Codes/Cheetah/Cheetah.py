@@ -12,8 +12,6 @@ Classes:
       and for tracking through it.
 
 """
-from torch import Tensor
-
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
@@ -93,8 +91,9 @@ class cheetahLattice(frameworkLattice):
     pout: Any | None = None
     """Final particle distribution as a Cheetah `ParticleBeam`_"""
 
-    tws: tuple[Tensor, ...] | Tensor | None = None
-    """Tensor or tuple of Tensors containing Twiss parameters"""
+    tws: Any | None = None
+    """Tensor or tuple of Tensors containing Twiss parameters (``Any``, so that
+    importing simba does not import torch)"""
 
     cheetahglobal: Dict = {}
     """Global settings for Cheetah, read in from `cheetahLattice.settings["global"]["Cheetahsettings"]` and

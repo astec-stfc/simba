@@ -12,11 +12,18 @@ def count_SDDS_pages(fileName, ascii=False) -> int:
 
 
 def read_SDDS_beam_file(
-    self, fileName, charge=None, ascii=False, page=-1, xyzoffset=[0, 0, 0], ref_index=None
+    self, fileName, charge=None, ascii=False, page=-1, xyzoffset=[0, 0, 0], ref_index=None,
+    sdds_file=None,
 ):
+    """Read one page of an SDDS beam file.
+    ``sdds_file``, an :class:`~simba.Modules.SDDSFile.SDDSFile` to reuse,
+    loads a multi-page file once for all its pages rather than once a page.
+    """
     self.reset_dicts()
-    self.sddsindex += 1
-    elegantObject = SDDSFile(index=self.sddsindex, ascii=ascii)
+    if sdds_file is None:
+        self.sddsindex += 1
+        sdds_file = SDDSFile(index=self.sddsindex, ascii=ascii)
+    elegantObject = sdds_file
     elegantObject.read_file(fileName, page=page)
     elegantData = elegantObject.data
     required_keys = ["x", "y", "t", "xp", "yp", "p"]

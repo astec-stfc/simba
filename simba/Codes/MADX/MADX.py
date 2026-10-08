@@ -1267,7 +1267,7 @@ class madxLattice(frameworkLattice):
     ) -> None:
         """
         Write a beam distribution to an OpenPMD HDF5 file;
-        see :meth:`output_basename`.
+        see :meth:`write_beam_file`.
 
         Parameters
         ----------
@@ -1278,15 +1278,11 @@ class madxLattice(frameworkLattice):
         turn: int, optional
             Turn number
         """
-        if not self.writes_output(name, turn):
+        if not self.writes_output(name):
             return
         bm.turn = self.beam_turn(turn)
-        name = self.output_basename(name, turn=turn)
-        fname = os.path.join(
-            self.global_parameters["master_subdir"], f"{name}.openpmd.hdf5"
-        )
-        rbf.openpmd.write_openpmd_beam_file(bm, fname)
-        self.output_beams[name] = bm
+        self.write_beam_file(bm, name, turn)
+        self.output_beams[self.output_basename(name, turn=turn)] = bm
 
     def run(self) -> None:
         """

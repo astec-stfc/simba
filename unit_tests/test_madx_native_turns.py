@@ -13,7 +13,6 @@ from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole, RFCavity
 from simba.Codes.Generators import frameworkGenerator
 from simba.Codes.MADX.MADX import madxLattice
-from simba.Framework_objects import OUTPUT_TURN_SEPARATOR as SEPARATOR
 
 TURNS = 4
 
@@ -176,10 +175,10 @@ def _run_watching_run_track(tmp_path, tracking, seed_beam, **kw):
     return calls
 
 
-def _beam(subdir, name):
+def _beam(subdir, name, turn=None):
     beam = rbf.beam()
     rbf.openpmd.read_openpmd_beam_file(
-        beam, os.path.join(subdir, f"{name}.openpmd.hdf5")
+        beam, os.path.join(subdir, f"{name}.openpmd.hdf5"), turn=turn
     )
     return beam
 
@@ -218,8 +217,8 @@ def test_native_and_looped_agree_turn_by_turn(tmp_path, seed_beam):
     n = _run(tmp_path / "n", opts, seed_beam)
     loop = _run(tmp_path / "l", {**opts, "native_turns": False}, seed_beam)
     for turn in range(1, TURNS + 1):
-        a = np.array(_beam(n, f"M3{SEPARATOR}{turn}").x.val)
-        b = np.array(_beam(loop, f"M3{SEPARATOR}{turn}").x.val)
+        a = np.array(_beam(n, "M3", turn).x.val)
+        b = np.array(_beam(loop, "M3", turn).x.val)
         assert np.allclose(a, b, rtol=1e-9, atol=1e-12), f"turn {turn}"
 
 
@@ -227,8 +226,8 @@ def test_the_turns_are_actually_different(tmp_path, seed_beam):
     """Guards the test above: if every turn wrote the same beam, comparing
     them turn by turn would pass without meaning anything."""
     subdir = _run(tmp_path, {"turns": TURNS, "write_turns": True}, seed_beam)
-    first = np.array(_beam(subdir, f"M3{SEPARATOR}1").x.val)
-    last = np.array(_beam(subdir, f"M3{SEPARATOR}{TURNS}").x.val)
+    first = np.array(_beam(subdir, "M3", 1).x.val)
+    last = np.array(_beam(subdir, "M3", TURNS).x.val)
     assert not np.allclose(first, last)
 
 
@@ -300,8 +299,8 @@ def test_a_live_ring_cavity_agrees_between_the_two_paths(tmp_path, coord, seed_b
     n = _run(tmp_path / "n", opts, seed_beam, **kw)
     loop = _run(tmp_path / "l", {**opts, "native_turns": False}, seed_beam, **kw)
     for turn in range(1, TURNS + 1):
-        a = np.array(getattr(_beam(n, f"M3{SEPARATOR}{turn}"), coord).val)
-        b = np.array(getattr(_beam(loop, f"M3{SEPARATOR}{turn}"), coord).val)
+        a = np.array(getattr(_beam(n, "M3", turn), coord).val)
+        b = np.array(getattr(_beam(loop, "M3", turn), coord).val)
         assert len(a) == len(b) > 0
         assert np.allclose(a, b, rtol=1e-9, atol=1e-15), (turn, np.abs(a - b).max())
 
@@ -313,8 +312,8 @@ def test_the_live_cavity_really_moves_the_centroid(tmp_path, seed_beam):
         tmp_path, {"turns": TURNS, "write_turns": True}, seed_beam,
         cavity=LIVE_CAVITY, closed=True,
     )
-    first = np.mean(_beam(subdir, f"M3{SEPARATOR}1").cp.val)
-    last = np.mean(_beam(subdir, f"M3{SEPARATOR}{TURNS}").cp.val)
+    first = np.mean(_beam(subdir, "M3", 1).cp.val)
+    last = np.mean(_beam(subdir, "M3", TURNS).cp.val)
     assert abs(last - first) > 1e3
 
 

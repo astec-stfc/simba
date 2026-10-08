@@ -80,7 +80,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
-from ...Modules.SDDSFile import SDDS_Types
+from ...Modules.SDDSFile import SDDS_Types, SDDSFile
 from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
 from laura.translator.converters.converter import translate_elements
@@ -1230,17 +1230,17 @@ class elegantLattice(frameworkLattice):
             return
         xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
         wanted = self.output_turns()
+        # one load for every page
+        sdds_file = SDDSFile(index=1)
         if self.turns > 1:
-            npages = rbf.sdds.count_SDDS_pages(elegantbeamfilename)
+            npages = sdds_file.count_pages(elegantbeamfilename)
             pages = [
                 (min(data_turn, npages) - 1, name_turn)
                 for data_turn, name_turn in wanted
             ]
         else:
             pages = [(-1, None)]
-        for page, turn in pages:
-            if not self.writes_output(screen.name, turn):
-                continue
+        for page, turn in pages if self.writes_output(screen.name) else []:
             beam = rbf.beam()
             rbf.sdds.read_SDDS_beam_file(
                 beam,
@@ -1248,13 +1248,10 @@ class elegantLattice(frameworkLattice):
                 page=page,
                 xyzoffset=xyzoffset,
                 ref_index=ref_index,
+                sdds_file=sdds_file,
             )
             beam.turn = self.beam_turn(turn)
-            HDF5filename = (
-                f"{self.global_parameters['master_subdir']}/"
-                f"{self.output_basename(screen.name, turn=turn)}.openpmd.hdf5"
-            )
-            rbf.openpmd.write_openpmd_beam_file(beam, HDF5filename)
+            self.write_beam_file(beam, screen.name, turn)
         if self.global_parameters["delete_tracking_files"]:
             os.remove(elegantbeamfilename)
 

@@ -364,20 +364,14 @@ def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
     """
     all_changes = {}
     for old, new in model_pairs:
-        # Normalize old and new models
         old_dump = normalize(old.model_dump())
         new_dump = normalize(new.model_dump())
+        if old_dump == new_dump:
+            all_changes[old.name] = {}
+            continue
 
-        # Log the normalized versions of the models for debugging
-
-        # Calculate DeepDiff between normalized models
         diff = DeepDiff(old_dump, new_dump, ignore_order=True, significant_digits=10)
-
-        # Convert the DeepDiff output into a nested dictionary format
         nested_diff = deepdiff_to_nested(diff.to_dict())
-
-        # Log the nested difference result for debugging
-
         all_changes[old.name] = nested_diff
 
     return all_changes
