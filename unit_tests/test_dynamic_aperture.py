@@ -1,6 +1,7 @@
 """Dynamic aperture: how far off-axis a particle can start and survive."""
 
 import math
+import shutil
 
 import numpy as np
 import pytest
@@ -246,3 +247,81 @@ def test_laura_builds_ocelot_lattices_second_order():
 
     source = inspect.getsource(section.SectionLatticeTranslator.to_ocelot)
     assert "SecondTM" in source
+
+
+# --- elegant, through its real decks ------------------------------------
+
+ELEGANT = shutil.which("elegant")
+
+
+def elegant_ring_lattice(ncell=8, k2=500.0):
+    """The sextupole ring above, as elegant ``.lte`` text.
+
+    ``REFERENCE_CORRECTION``: at elegant's default four kicks, a 45-degree
+    ``CSBEND`` misses its own reference by enough to put a millimetre of
+    closed orbit round this ring, which the sextupoles turn into a tune
+    shift of 0.03 at any starting amplitude.
+    """
+    angle = 2 * math.pi / ncell
+    return (
+        "QF: KQUAD, L=0.3, K1=1.2\n"
+        f"SF: KSEXT, L=0.2, K2={k2}\n"
+        "D: DRIF, L=0.3\n"
+        f"B: CSBEND, L=1.0, ANGLE={angle}, REFERENCE_CORRECTION=1\n"
+        "QD: KQUAD, L=0.3, K1=-1.2\n"
+        f"SD: KSEXT, L=0.2, K2={-k2}\n"
+        "CELL: LINE=(QF,SF,D,B,D,QD,SD,D)\n"
+        f"RING: LINE=({ncell}*CELL)\n"
+    )
+
+
+class FakeElegantRing:
+    """``elegantLattice``'s ring-study decks, run by elegant itself.
+
+    Only the lattice file is hand-written; the decks, the run and the
+    read-back are simba's.
+    """
+
+    _ring_study_deck = elegantLattice._ring_study_deck
+    _da_bounds = elegantLattice._da_bounds
+    run_dynamic_aperture = elegantLattice.run_dynamic_aperture
+    run_frequency_map = elegantLattice.run_frequency_map
+    da_settings = frameworkLattice.da_settings
+    da_grid = frameworkLattice.da_grid
+    turns = frameworkLattice.turns
+
+    class executables(dict):
+        @staticmethod
+        def build_command(cmd, workdir):
+            return cmd
+
+    def __init__(self, directory, tracking):
+        from simba.Modules import Beams as rbf
+
+        self.objectname, self.code = "RING", "elegant"
+        self.file_block = {"tracking": tracking}
+        self.files = []
+        self.fixed_reference = True
+        self.rest_energy = 0.51099895e6
+        self.reference_p0c = 1e9
+        self.executables = self.executables(elegant=[ELEGANT])
+        self.global_parameters = {
+            "master_subdir": str(directory), "beam": rbf.beam(),
+        }
+        (directory / "RING.lte").write_text(elegant_ring_lattice())
+
+
+@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+def test_elegant_finds_an_aperture_through_simbas_deck(tmp_path):
+    """The deck had no ``&run_control``, so ``&find_aperture`` had no turn
+    count: elegant wrote a valid header and no rows, and simba returned an
+    empty boundary for every ring (CLIC DR's included)."""
+    line = FakeElegantRing(
+        tmp_path,
+        {"turns": 64, "dynamic_aperture": {"nx": 12, "ny": 4, "x_max": 0.02, "y_max": 0.01}},
+    )
+    boundary = line.run_dynamic_aperture()
+    assert boundary
+    deck = (tmp_path / "RING_aperture" / "RING_aperture.ele").read_text()
+    assert deck.index("&run_control") < deck.index("&find_aperture")
+    assert "n_passes = 64" in deck

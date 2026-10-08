@@ -238,6 +238,19 @@ class OffRampWarning(PhysicsWarning):
         )
 
 
+class OffDesignEnergyWarning(PhysicsWarning):
+    """A ring's beam far from the section's design energy."""
+
+    def __init__(self, line: str, design: float, entering: float):
+        super().__init__(
+            f"{_line(line)} is designed for p0c = {design:.6g} eV, but the beam "
+            f"enters at {entering:.6g} eV/c ({100 * (entering / design - 1):+.3g}%). "
+            "The ring's reference is its design momentum, so the whole beam "
+            "tracks at that momentum offset; check the section's "
+            "reference_energy and the beam's energy agree."
+        )
+
+
 class RampWithoutRFWarning(PhysicsWarning):
     """A ramp with no cavity to follow it."""
 

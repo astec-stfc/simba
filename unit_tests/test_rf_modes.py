@@ -137,11 +137,13 @@ class FakeLine:
     rest_energy = frameworkLattice.rest_energy
     _input_reference = None
     _input_mean = frameworkLattice._input_mean
+    design_p0c = None
     reference_p0c = frameworkLattice.reference_p0c
     rf_mode = frameworkLattice.rf_mode
     pass_p0c = frameworkLattice.pass_p0c
     pass_beta0 = frameworkLattice.pass_beta0
     accelerating_cavities = frameworkLattice.accelerating_cavities
+    live_cavities = frameworkLattice.live_cavities
     cavity_voltage = staticmethod(frameworkLattice.cavity_voltage)
     rf_phase_corrections = frameworkLattice.rf_phase_corrections
 

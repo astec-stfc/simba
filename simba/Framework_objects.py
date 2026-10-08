@@ -599,6 +599,10 @@ class frameworkLattice(BaseModel):
     _input_reference: dict | None = None
     """The incoming beam's means, before sampling; see :attr:`reference_p0c`."""
 
+    _input_particle: dict | None = None
+    """The incoming beam's reference particle's ``t`` and ``z``, if it has one;
+    see :attr:`reference_t0`."""
+
     _section: SectionLatticeTranslator = None
     """LAURA SectionLatticeTranslator object"""
 
@@ -1362,22 +1366,39 @@ class frameworkLattice(BaseModel):
         return float(np.mean(getattr(beam, coord).val))
 
     @property
+    def design_p0c(self) -> float | None:
+        """
+        A ring's design momentum, in eV/c, from its section's
+        ``reference_energy``; None on an open line, under a :meth:`ramp`,
+        or when the section does not say.
+
+        Returns
+        -------
+        float | None
+            ``p0c`` in eV
+        """
+        if self.ramped or not (self.periodic or self.closed_geometry):
+            return None
+        energy = self._machine_reference_energy()
+        if energy is None:
+            return None
+        return float(np.sqrt(energy**2 - self.rest_energy**2))
+
+    @property
     def reference_p0c(self) -> float:
         """
-        The incoming beam's reference momentum, in eV/c: its mean ``cp``,
-        taken before :meth:`sample_beam`.
-
-        Every code takes its reference from here rather than from the beam it
-        is handed. A sampled beam's mean is a different number, by about
-        :math:`\\sigma_\\delta/\\sqrt{N}`, and a magnet's field is its
-        strength times the reference rigidity. So a sampled run used to track
-        every particle it kept through slightly different magnets.
+        The reference momentum, in eV/c: a ring's :attr:`design_p0c` if it
+        has one, else the incoming beam's mean ``cp``, taken before
+        :meth:`sample_beam`.
 
         Returns
         -------
         float
             ``p0c`` in eV
         """
+        design = self.design_p0c
+        if design is not None:
+            return design
         return self._input_mean("cp")
 
     @property
@@ -1387,15 +1408,57 @@ class frameworkLattice(BaseModel):
 
     @property
     def reference_t0(self) -> float:
-        """The incoming beam's mean ``t``, before sampling, in s: the time a
-        code without a clock of its own centres the bunch on; see
-        :attr:`reference_p0c`."""
+        """
+        The time the reference particle enters, in s: the time a code without
+        a clock of its own centres the bunch on, and its cavities are phased
+        to.
+
+        On an open line, the incoming beam's mean ``t``, before sampling. In a
+        ring that would absorb an injection timing error, as the mean ``cp``
+        would an energy error (see :attr:`reference_p0c`)::
+
+            files:
+              RING:
+                tracking:
+                  reference_t0: 1.0e-9   # s
+
+        then the beam's reference particle, if it has one, then the mean.
+
+        Returns
+        -------
+        float
+            ``t0`` in s
+        """
+        if self.fixed_reference:
+            tracking = self.file_block.get("tracking") or {}
+            if tracking.get("reference_t0") is not None:
+                return float(tracking["reference_t0"])
+            if self._input_particle is not None:
+                return self._input_particle["t"]
         return self._input_mean("t")
 
     @property
     def reference_z0(self) -> float:
-        """The incoming beam's mean ``z``, before sampling, in m; see
-        :attr:`reference_t0`."""
+        """
+        The reference particle's ``z`` as it enters, in m; see
+        :attr:`reference_t0`, from which it follows. A ``reference_t0``
+        setting moves the mean ``z`` by the distance the reference travels
+        in the time between them.
+
+        Returns
+        -------
+        float
+            ``z0`` in m
+        """
+        if self.fixed_reference:
+            tracking = self.file_block.get("tracking") or {}
+            if tracking.get("reference_t0") is not None:
+                beta0 = beta_from_p0c(self.reference_p0c, self.rest_energy)
+                return self._input_mean("z") + beta0 * speed_of_light * (
+                    self._input_mean("t") - self.reference_t0
+                )
+            if self._input_particle is not None:
+                return self._input_particle["z"]
         return self._input_mean("z")
 
     def pass_beta0(self) -> float | np.ndarray:
@@ -1621,6 +1684,16 @@ class frameworkLattice(BaseModel):
             cavities[name] = element
         return cavities
 
+    def live_cavities(self) -> dict:
+        """The :meth:`accelerating_cavities` whose phase matters: a cavity
+        with no voltage or no frequency does nothing at any phase."""
+        return {
+            name: element
+            for name, element in self.accelerating_cavities().items()
+            if self.cavity_voltage(element)
+            and getattr(getattr(element, "cavity", None), "frequency", None)
+        }
+
     def rf_phase_corrections(self) -> dict:
         """
         How far to move each cavity's phase on each pass for this code to run
@@ -1639,13 +1712,7 @@ class frameworkLattice(BaseModel):
             If corrections are needed and this code cannot make them.
         """
         passes = self.turns * self.passes_per_turn
-        # a cavity with no voltage or no frequency does nothing at any phase
-        cavities = {
-            name: element
-            for name, element in self.accelerating_cavities().items()
-            if self.cavity_voltage(element)
-            and getattr(getattr(element, "cavity", None), "frequency", None)
-        }
+        cavities = self.live_cavities()
         if passes <= 1 or not cavities:
             return {}
         beta0 = self.pass_beta0()
@@ -1844,6 +1911,18 @@ class frameworkLattice(BaseModel):
         if ramp.last_turn > self.turns:
             warn(exceptions.RampOverrunWarning(self.objectname, ramp.last_turn, self.turns))
 
+    def check_design_energy(self) -> None:
+        """
+        Warn when a ring's beam enters more than 1 % from its
+        :attr:`design_p0c`; a mismatched energy rather than an injection offset.
+        """
+        design = self.design_p0c
+        if design is None or self._input_reference is None:
+            return
+        entering = self._input_mean("cp")
+        if abs(entering / design - 1) > 1e-2:
+            warn(exceptions.OffDesignEnergyWarning(self.objectname, design, entering))
+
     def check_ramp_beam(self) -> None:
         """
         Warn about a ramp the input beam will not follow.
@@ -1858,7 +1937,7 @@ class frameworkLattice(BaseModel):
             return
         rest_energy = self.rest_energy
         start = ramp.p0c_at(1, rest_energy)
-        entering = self.reference_p0c
+        entering = self._input_mean("cp")
         if entering and abs(start / entering - 1) > 1e-3:
             warn(exceptions.OffRampWarning(self.objectname, start, entering))
         needed = float(np.max(np.abs(ramp.energy_gain_per_turn(self.turns, rest_energy))))
@@ -2546,6 +2625,8 @@ class frameworkLattice(BaseModel):
         * refuse a beam the code cannot track, :meth:`check_species`;
         * rematch to ``input: twiss`` if it is given;
         * take :attr:`ref_idx` from the beam;
+        * check a ring's beam against its design energy,
+          :meth:`check_design_energy`;
         * run the beam-dependent ramp checks, :func:`check_ramp_beam`;
         * fix the reference clock every code reports ``t`` on,
           :meth:`reference_time`.
@@ -2567,6 +2648,12 @@ class frameworkLattice(BaseModel):
         self._input_reference = {
             coord: float(np.mean(getattr(full, coord).val)) for coord in ("cp", "t", "z")
         }
+        index = full.reference_particle_index
+        self._input_particle = (
+            {coord: float(getattr(full, coord).val[index]) for coord in ("t", "z")}
+            if index is not None and 0 <= index < len(full.t.val)
+            else None
+        )
         if int(self.sample_interval) > 1:
             self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])
         self.check_species()
@@ -2574,6 +2661,7 @@ class frameworkLattice(BaseModel):
         beam.beam.rematchXPlane(**self.initial_twiss["horizontal"])
         beam.beam.rematchYPlane(**self.initial_twiss["vertical"])
         self.ref_idx = beam.reference_particle_index
+        self.check_design_energy()
         self.check_ramp_beam()
         self.reset_reference_clock()
         return filepath
@@ -3052,6 +3140,16 @@ class frameworkLattice(BaseModel):
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
                 return getattr(section, "geometry", None)
+        return None
+
+    def _machine_reference_energy(self) -> float | None:
+        """The total energy [eV] LAURA's section records for its design
+        particle, or None when the layout does not say; see
+        :attr:`design_p0c`."""
+        for section in (getattr(self.machine, "sections", None) or {}).values():
+            if self.start in getattr(section, "order", ()):
+                energy = getattr(section, "reference_energy", None)
+                return float(energy) if energy else None
         return None
 
     @computed_field

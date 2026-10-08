@@ -223,7 +223,10 @@ class bmadLattice(frameworkLattice):
         return float(np.mean(values))
 
     def _reference_p0c(self) -> float:
-        """The reference particle's ``cp`` in eV, or :attr:`reference_p0c`."""
+        """A ring's :attr:`design_p0c`, else the reference particle's ``cp``
+        in eV, else :attr:`reference_p0c`."""
+        if self.design_p0c is not None:
+            return self.design_p0c
         beam = self.global_parameters["beam"]
         return self._reference_value(beam.cp.val, self.reference_p0c)
 
@@ -266,8 +269,10 @@ class bmadLattice(frameworkLattice):
         Returns
         -------
         float
-            The energy of the reference particle in eV.
+            See :attr:`design_p0c`.
         """
+        if self.design_p0c is not None:
+            return self.reference_energy
         return self._reference_value(
             self.global_parameters["beam"].energy.val, self.reference_energy
         )
@@ -279,10 +284,7 @@ class bmadLattice(frameworkLattice):
         Returns
         -------
         TwissMatchSimulationElement | None
-            Section initial twiss object, or None for a periodic line: Bmad
-            computes the Twiss of a ``geometry = closed`` lattice from its
-            one-turn map, so writing ``beginning[beta_a]`` would be stating an
-            answer the lattice already determines.
+            Section initial twiss object, or None for a periodic line.
         """
         if self.periodic:
             return None

@@ -79,6 +79,7 @@ from ...Framework_objects import (
 )
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
+from ...Modules.constants import speed_of_light
 from ...Modules.SDDSFile import SDDS_Types
 from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
@@ -257,6 +258,47 @@ class elegantLattice(frameworkLattice):
         sdds.write_file(path)
         self.files.append(path)
         return basename
+
+    def rf_fiducial_corrections(self) -> dict:
+        """
+        How far to move each cavity's phase for elegant to phase it to the
+        ring's :attr:`reference_t0` rather than to the bunch.
+
+        Returns
+        -------
+        dict
+            Radians by cavity name, empty on an open line, whose reference is
+            the bunch
+        """
+        if not self.fixed_reference:
+            return {}
+        cavities = self.live_cavities()
+        if not cavities:
+            return {}
+        beam = self.global_parameters["beam"]
+        t = np.asarray(beam.t.val, dtype=float)
+        cp = np.asarray(beam.cp.val, dtype=float)
+        beta = cp / np.hypot(cp, self.rest_energy)
+        s_in = self.getSValues(as_dict=True, at_entrance=True)
+        corrections = {}
+        for name, element in cavities.items():
+            s = s_in[name]
+            late = np.mean(t + s / (beta * speed_of_light)) - self.reference_time(s)
+            correction = 2 * math.pi * float(element.cavity.frequency) * late
+            if abs(correction) > 1e-4:
+                corrections[name] = correction
+        return corrections
+
+    def rf_phase_corrections(self) -> dict:
+        """
+        :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`,
+        plus every pass's :meth:`rf_fiducial_corrections`.
+        """
+        corrections = super().rf_phase_corrections()
+        passes = self.turns * self.passes_per_turn
+        for name, correction in self.rf_fiducial_corrections().items():
+            corrections[name] = corrections.get(name, np.zeros(passes)) + correction
+        return corrections
 
     def rf_phase_commands(self) -> dict:
         """
@@ -964,6 +1006,7 @@ class elegantLattice(frameworkLattice):
         """
         stem = self._ring_study_deck(
             "aperture",
+            elegant_run_control_command(n_steps=1, n_passes=self.turns),
             elegant_find_aperture_command(
                 output=f"{self.objectname}_aperture.aper", **self._da_bounds()
             ),
@@ -1000,11 +1043,20 @@ class elegantLattice(frameworkLattice):
         Returns
         -------
         list
-            ``(x, y, tune_x, tune_y)`` per grid point.
+            ``(x, y, tune_x, tune_y)`` per surviving grid point.
         """
-        bounds = self._da_bounds()
+        grid_x, grid_y = self.da_grid()
+        bounds = {
+            "xmin": float(grid_x[0]),
+            "xmax": float(grid_x[-1]),
+            "ymin": float(grid_y[0]),
+            "ymax": float(grid_y[-1]),
+            "nx": int(len(grid_x)),
+            "ny": int(len(grid_y)),
+        }
         stem = self._ring_study_deck(
             "fma",
+            elegant_run_control_command(n_steps=1, n_passes=self.turns),
             elegant_frequency_map_command(
                 output=f"{self.objectname}_fma.fma", **bounds
             ),
@@ -1034,6 +1086,8 @@ class elegantLattice(frameworkLattice):
             return []
         self.frequency_map = []
         for index, (x, y, qx, qy) in enumerate(zip(xs, ys, qxs, qys)):
+            if qx < 0 or qy < 0:
+                continue
             if dxs is None or dys is None:
                 diffusion = float("nan")
             else:

@@ -11,6 +11,7 @@ from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Matrices import tune_diffusion, tune_from_trajectory
+from test_dynamic_aperture import ELEGANT, FakeElegantRing
 
 TURNS = 128
 
@@ -261,3 +262,38 @@ def test_without_saved_tracks_it_yields_nothing(footprint):
     # setting anything. A `None` check would not have caught this.
     assert all(float(p.mux) == pytest.approx(-0.001) for p in track_list)
     assert "save_track" in captured.getvalue()
+
+
+@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+def test_elegant_maps_tunes_through_simbas_deck(tmp_path):
+    """Same missing ``&run_control`` as elegant's dynamic aperture: no turn
+    count, so ``&frequency_map`` wrote a header and no rows. And with one
+    found, the default horizontal scan sat on ``y = 0``, where elegant finds
+    no vertical tune and writes -1 for both."""
+    line = FakeElegantRing(
+        tmp_path, {"turns": 64, "dynamic_aperture": {"nx": 2, "x_max": 1e-5, "y_max": 1e-5}}
+    )
+    fma = line.run_frequency_map()
+    assert len(fma) == 2
+    # Tracked against the ring's own twiss (0.8352, 0.5445); the rest is
+    # elegant's four-kick bend, tracked and as a matrix.
+    for x, y, qx, qy, _ in fma:
+        assert y > 0
+        assert qx == pytest.approx(0.8352, abs=3e-3)
+        assert qy == pytest.approx(0.5445, abs=3e-3)
+    deck = (tmp_path / "RING_fma" / "RING_fma.ele").read_text()
+    assert deck.index("&run_control") < deck.index("&frequency_map")
+    assert "n_passes = 64" in deck
+
+
+@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+def test_elegant_drops_the_points_it_could_not_tune(tmp_path):
+    """``full_grid_output`` keeps every point; a lost or untunable one comes
+    back as tune -1, which read as a tune until filtered."""
+    line = FakeElegantRing(
+        tmp_path,
+        {"turns": 64, "dynamic_aperture": {"nx": 4, "ny": 1, "x_max": 0.008, "y_max": 1e-5}},
+    )
+    fma = line.run_frequency_map()
+    assert 0 < len(fma) < 4
+    assert all(qx >= 0 and qy >= 0 for _, _, qx, qy, _ in fma)

@@ -552,7 +552,8 @@ def test_every_code_tracks_every_nth_particle(code, tmp_path, seed_beam):
 
 def _referenced(beam, recorded=None):
     line = SimpleNamespace(
-        global_parameters={"beam": beam}, _input_reference=recorded
+        global_parameters={"beam": beam}, _input_reference=recorded, design_p0c=None,
+        fixed_reference=False,
     )
     line._input_mean = lambda coord: frameworkLattice._input_mean(line, coord)
     return line
