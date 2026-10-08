@@ -932,8 +932,10 @@ class xsuiteLattice(frameworkLattice):
         stride = self.passes_per_turn
         twiss = self.normalisation_twiss()
         footprint = []
+        # tracking moves lost particles to the end; the monitor is by id
+        state = np.asarray(particles.state)[np.argsort(particles.particle_id)]
         for index in range(len(grid_x)):
-            if int(np.asarray(particles.state)[index]) <= 0:
+            if int(state[index]) <= 0:
                 continue
             tune_x, tune_y, diffusion = tune_diffusion(
                 np.asarray(monitor.x)[index][::stride],

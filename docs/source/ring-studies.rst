@@ -619,6 +619,26 @@ Beyond the usual beam and Twiss output:
 ``plot_dynamic_aperture``, ``plot_frequency_map`` and ``plot_amplitude_map``, with
 ``resonance_lines`` to overlay the tune diagram.
 
+``examples/ring_studies/da_fma.py`` does all of this end to end: it builds a
+ten-cell sextupole ring in LAURA, scans it in any of the ring codes and plots the
+three maps per code. In short:
+
+.. code-block:: python
+
+    ring = framework["RING"]       # tracking: {turns: 512, dynamic_aperture: {...}}
+    ring.preProcess()
+    ring.write()
+    aperture = ring.run_dynamic_aperture()     # (x, y, turns_survived)
+    footprint = ring.run_frequency_map()       # (x, y, Qx, Qy, D)
+    boundary = ring.dynamic_aperture_boundary(aperture)
+
+    from simba.Modules.plotting.ring import plot_dynamic_aperture, plot_frequency_map
+    plot_dynamic_aperture(aperture, turns=512)
+    plot_frequency_map(footprint)
+
+A scan that fails warns and returns an empty list, so don't silence warnings
+around one.
+
 .. _which-turn:
 
 Which Turn a Result Came From

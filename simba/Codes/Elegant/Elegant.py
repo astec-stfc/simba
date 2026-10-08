@@ -925,6 +925,17 @@ class elegantLattice(frameworkLattice):
             return None
         return stem
 
+    @staticmethod
+    def _without_watch_output() -> "elegantCommandFile":
+        """``&alter_elements`` disabling every ``WATCH``."""
+        command = elegantCommandFile(
+            objectname="no_watch_output", objecttype="alter_elements",
+            item="DISABLE", value=1, allow_missing_elements=1,
+        )
+        command.add_property("name", "*")
+        command.add_property("type", "WATCH")
+        return command
+
     def track_reference_particle(self) -> dict:
         """
         One particle, recorded every turn, from a screen's ``WATCH`` file.
@@ -1006,6 +1017,7 @@ class elegantLattice(frameworkLattice):
         """
         stem = self._ring_study_deck(
             "aperture",
+            self._without_watch_output(),
             elegant_run_control_command(n_steps=1, n_passes=self.turns),
             elegant_find_aperture_command(
                 output=f"{self.objectname}_aperture.aper", **self._da_bounds()
@@ -1056,6 +1068,7 @@ class elegantLattice(frameworkLattice):
         }
         stem = self._ring_study_deck(
             "fma",
+            self._without_watch_output(),
             elegant_run_control_command(n_steps=1, n_passes=self.turns),
             elegant_frequency_map_command(
                 output=f"{self.objectname}_fma.fma", **bounds

@@ -18,6 +18,7 @@ from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from .cavitymaps import stable_cavity_maps
+from .latticefile import fast_lattice_files
 from copy import deepcopy
 from inspect import signature
 from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi, sqrt
@@ -259,6 +260,7 @@ class ocelotLattice(frameworkLattice):
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
         """
         stable_cavity_maps()
+        fast_lattice_files()
         self.lat_obj = self.section.to_ocelot(save=True)
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
@@ -464,7 +466,8 @@ class ocelotLattice(frameworkLattice):
     def _track_nturns(self, track_list, save_track: bool):
         """
         Ocelot's ``track_nturns``, with its aperture limits taken from
-        :meth:`_ocelot_periodic`.
+        :meth:`_ocelot_periodic`, inside
+        :func:`~simba.Codes.Ocelot.navigator.lattice_pass`.
         """
         import ocelot.cpbd.track as octrack
 
@@ -482,17 +485,20 @@ class ocelotLattice(frameworkLattice):
                 float(ylim) / sqrt(bymax * by0),
             )
 
+        from .navigator import lattice_pass
+
         original = octrack.aperture_limit
         octrack.aperture_limit = aperture_limit
         try:
-            return octrack.track_nturns(
-                self.lat_obj,
-                self.turns,
-                track_list,
-                nsuperperiods=self.nsuperperiods,
-                save_track=save_track,
-                print_progress=False,
-            )
+            with lattice_pass(self.lat_obj):
+                return octrack.track_nturns(
+                    self.lat_obj,
+                    self.turns,
+                    track_list,
+                    nsuperperiods=self.nsuperperiods,
+                    save_track=save_track,
+                    print_progress=False,
+                )
         finally:
             octrack.aperture_limit = original
 
@@ -559,11 +565,10 @@ class ocelotLattice(frameworkLattice):
                     v += self.entrance_s
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
+        elems = self.createDrifts().values()
+        zvals = [e.physical.end.z for e in elems]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
-        elem_names = array(
-            [e.name for e in self.createDrifts().values()], dtype="U"
-        )
+        elem_names = array([e.name for e in elems], dtype="U")
         if len(elem_names):
             idx = clip(
                 searchsorted(svals, twsdat["s"], side="left"),

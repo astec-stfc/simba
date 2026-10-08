@@ -3804,27 +3804,16 @@ class frameworkLattice(BaseModel):
             str += e + ", "
         return str + ")"
 
-    def createDrifts(
-        self, drift_elements: tuple = ("screen", "beam_position_monitor")
-    ) -> dict:
+    def createDrifts(self) -> dict:
         """
         Insert drifts into a sequence of 'elements'.
-        This method creates drifts for elements that are not subelements and have a length greater than zero.
-        It calculates the start and end positions of each element and creates drift elements accordingly.
-
-        Parameters
-        ----------
-        drift_elements: tuple, optional
-            A tuple of element types for which drifts should be created.
-            Default is ("screen", "beam_position_monitor").
 
         Returns
         -------
         dict
             A dictionary containing the new drift elements created for the lattice.
-            The keys are the names of the new drift elements, and the values are the corresponding drift objects.
         """
-        return self.section.createDrifts()
+        return self.section.create_drifts()
 
     def getSValues(
         self,

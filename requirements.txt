@@ -34,8 +34,4 @@ Wake-T>=0.8.0
 laura-accelerator
 cpymad>=1.19.0
 sympy
-# Optional: NAFF tunes for frequency maps. Without it
-# Modules.Matrices.tune_from_trajectory falls back to an interpolated FFT
-# peak, which is ~2e-4 accurate against NAFF's ~1e-12 -- fine for a tune
-# footprint, not enough to resolve a diffusion index.
 nafflib

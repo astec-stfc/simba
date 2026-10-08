@@ -42,6 +42,7 @@ dependencies = [
     "xopt",
     "laura-accelerator>=1.0.3",
     "pytao>=1.0.0",
+    "nafflib",
 ]
 
 requires-python = ">= 3.11"

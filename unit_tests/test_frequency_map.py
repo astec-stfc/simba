@@ -297,3 +297,39 @@ def test_elegant_drops_the_points_it_could_not_tune(tmp_path):
     fma = line.run_frequency_map()
     assert 0 < len(fma) < 4
     assert all(qx >= 0 and qy >= 0 for _, _, qx, qy, _ in fma)
+
+
+class FakeXsuiteRing:
+    """``xsuiteLattice``'s scans on a small xtrack ring."""
+
+    _da_particles = xsuiteLattice._da_particles
+    run_dynamic_aperture = xsuiteLattice.run_dynamic_aperture
+    run_frequency_map = xsuiteLattice.run_frequency_map
+    da_settings = frameworkLattice.da_settings
+    da_grid = frameworkLattice.da_grid
+    turns = frameworkLattice.turns
+
+    def __init__(self, tracking):
+        from test_superperiods import _xtrack_sector
+
+        self.objectname = "RING"
+        self.file_block = {"tracking": tracking}
+        self.line = self.single_particle_line = _xtrack_sector(1)
+        self.context = self.line._context
+        self.passes_per_turn = 1
+
+    def normalisation_twiss(self):
+        return {}
+
+
+def test_xsuite_maps_the_particles_that_survived():
+    """Tracking moves lost particles to the end of the arrays, and the map
+    read their state by grid index: with two rows, survivors of the second
+    were dropped and losses of the first given a tune."""
+    pytest.importorskip("xtrack")
+    tracking = {"turns": 64, "dynamic_aperture": {"nx": 6, "ny": 2, "x_max": 0.012, "y_max": 0.002}}
+    aperture = FakeXsuiteRing(tracking).run_dynamic_aperture()
+    survivors = {(x, y) for x, y, turn in aperture if turn >= 63}
+    assert 0 < len(survivors) < len(aperture), "grid must straddle the aperture"
+    footprint = FakeXsuiteRing(tracking).run_frequency_map()
+    assert {(x, y) for x, y, *_ in footprint} == survivors

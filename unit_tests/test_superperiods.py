@@ -369,6 +369,7 @@ def test_ocelot_hands_the_count_to_track_nturns():
     which this test used to do and which broke when the calls were gathered.
     """
     import ocelot.cpbd.track as octrack
+    from ocelot import Drift as OcelotDrift, MagneticLattice
 
     seen = {}
 
@@ -378,7 +379,9 @@ def test_ocelot_hands_the_count_to_track_nturns():
 
     class FakeOcelot:
         _track_nturns = ocelotLattice._track_nturns
-        lat_obj, turns, nsuperperiods = object(), 7, 4
+        # a real lattice: the call is made inside `lattice_pass`, which reads it
+        lat_obj = MagneticLattice([OcelotDrift(l=1.0)])
+        turns, nsuperperiods = 7, 4
 
     original = octrack.track_nturns
     octrack.track_nturns = recorder

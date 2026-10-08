@@ -203,6 +203,9 @@ class madxLattice(frameworkLattice):
     nslice_sbend: int = 8
     """Number of MAKETHIN slices for bending magnets"""
 
+    nslice_sextupole: int = 4
+    """Number of MAKETHIN slices for sextupoles. """
+
     cavity_model: str = "rsmatrix"
     """Transverse model for accelerating (RF) cavities:
 
@@ -376,7 +379,7 @@ class madxLattice(frameworkLattice):
         List
             A list of segments, each a list of element names (in order).
         """
-        elements_with_drifts = self.section.createDrifts()
+        elements_with_drifts = self.section.create_drifts()
         self._elements_with_drifts = elements_with_drifts
         self._elem_dict = translate_elements(
             list(elements_with_drifts.values()),
@@ -683,6 +686,16 @@ class madxLattice(frameworkLattice):
             )
         return madx
 
+    def stop_madx(self, madx: Any) -> None:
+        """Exit a session from :meth:`start_madx` and close its log."""
+        try:
+            madx.exit()
+        except Exception:
+            pass
+        if self.logfile is not None:
+            self.logfile.close()
+            self.logfile = None
+
     def madx_beam_command(self, madx: Any, p0c: float, seqname: str) -> None:
         """
         Issue the MAD-X ``BEAM`` command for a segment, with the reference
@@ -716,6 +729,7 @@ class madxLattice(frameworkLattice):
             select, flag=makethin, class=quadrupole, slice={self.nslice_quadrupole};
             select, flag=makethin, class=sbend, slice={self.nslice_sbend};
             select, flag=makethin, class=rbend, slice={self.nslice_sbend};
+            select, flag=makethin, class=sextupole, slice={self.nslice_sextupole};
             select, flag=makethin, class=rfcavity, slice=1;
             makethin, sequence={seqname}, style={self.makethin_style}, makedipedge={madedge};
             use, sequence={seqname};
@@ -910,17 +924,24 @@ class madxLattice(frameworkLattice):
         except (KeyError, AttributeError, TypeError, IndexError) as e:
             warn(f"MAD-X summ table unavailable for {self.objectname}: {e}")
 
-    def _run_dynap(self) -> Any:
+    def _track_grid(self, track: str, action: str, points: list | None = None) -> Any:
         """
-        One ``DYNAP`` over the aperture grid, in its own MAD-X session.
+        The aperture grid tracked in its own MAD-X session, on the sliced
+        sequence.
 
-        MAD-X does both studies in a single command, so the aperture scan
-        and the frequency map share this.
+        Parameters
+        ----------
+        track: str
+            The ``TRACK`` command opening the block.
+        action: str
+            What tracks the grid: ``RUN`` or ``DYNAP``.
+        points: list, optional
+            ``(x, y)`` starts; the whole :meth:`da_grid` by default.
 
         Returns
         -------
         cpymad.madx.Madx | None
-            The session, with its ``dynap`` and ``dynaptune`` tables filled.
+            The session, with the action's tables filled.
         """
         if len(self.seqstrings) == 0:
             self.writeElements()
@@ -931,51 +952,45 @@ class madxLattice(frameworkLattice):
             madx.input(self.seqstrings[0])
             seqname = self.segment_name(0)
             self.madx_beam_command(madx, self.reference_p0c, seqname)
-            madx.input(f"use, sequence={seqname};\ntwiss;")
-            xs, ys = self.da_grid()
-            starts = "".join(
-                f"start, x={x}, y={y};\n" for y in ys for x in xs
-            )
-            madx.input(
-                "track, onepass=false;\n"
-                + starts
-                + f"dynap, turns={self.turns}, fastune=true;\nendtrack;"
-            )
+            madx.input(f"use, sequence={seqname};")
+            self.makethin(madx, seqname)
+            madx.input("twiss;")
+            if points is None:
+                xs, ys = self.da_grid()
+                points = [(x, y) for y in ys for x in xs]
+            starts = "".join(f"start, x={x}, y={y};\n" for x, y in points)
+            madx.input(f"{track}\n{starts}{action}\nendtrack;")
         except Exception as error:
-            warn(f"MAD-X DYNAP failed for {self.objectname}: {error}")
-            try:
-                madx.exit()
-            except Exception:
-                pass
+            warn(f"MAD-X {action.split(',')[0]} failed for {self.objectname}: {error}")
+            self.stop_madx(madx)
             return None
         return madx
 
     def run_dynamic_aperture(self) -> list:
-        """
-        Turns survived per starting amplitude, from ``DYNAP``.
-
-        ``dktrturns`` is MAD-X's count of turns tracked before loss.
-        """
-        madx = self._run_dynap()
+        """Turns survived per starting amplitude, from ``RUN``'s loss table."""
+        madx = self._track_grid(
+            "track, onepass=false, aperture=true, recloss=true;",
+            f"run, turns={self.turns}, maxaper={{1, 1, 1, 1, 1, 1}};",
+        )
         if madx is None:
             return []
         try:
-            table = madx.table.dynap
             xs, ys = self.da_grid()
             starts = [(x, y) for y in ys for x in xs]
-            turns = list(table["dktrturns"])
+            survived = [self.turns] * len(starts)
+            if "trackloss" in madx.table:
+                loss = madx.table.trackloss
+                for number, turn in zip(loss["number"], loss["turn"]):
+                    # lost on turn `turn` (1-based), so that many minus one survived
+                    survived[int(number) - 1] = int(turn) - 1
             self.dynamic_aperture = [
-                (float(x), float(y), int(turn))
-                for (x, y), turn in zip(starts, turns)
+                (float(x), float(y), turn) for (x, y), turn in zip(starts, survived)
             ]
         except (KeyError, AttributeError, TypeError) as error:
-            warn(f"MAD-X dynap table unreadable for {self.objectname}: {error}")
+            warn(f"MAD-X loss table unreadable for {self.objectname}: {error}")
             self.dynamic_aperture = []
         finally:
-            try:
-                madx.exit()
-            except Exception:
-                pass
+            self.stop_madx(madx)
         return self.dynamic_aperture
 
     def run_frequency_map(self) -> list:
@@ -984,20 +999,39 @@ class madxLattice(frameworkLattice):
 
         MAD-X computes the tunes itself with ``fastune``, so this does not go through
         :func:`~simba.Modules.Matrices.tune_from_trajectory`.
+
+        ``fastune`` folds a tune into [0, 0.5]; each is unfolded to whichever
+        of ``q`` and ``1 - q`` is nearer the ring's own fractional tune. Only
+        :meth:`run_dynamic_aperture`'s survivors are tracked, so this costs a
+        second tracking of the grid.
         """
-        madx = self._run_dynap()
+        survivors = [
+            (x, y) for x, y, turn in self.run_dynamic_aperture()
+            if turn >= self.turns - 1
+        ]
+        if not survivors:
+            self.frequency_map = []
+            return self.frequency_map
+        madx = self._track_grid(
+            "track, onepass=false;", f"dynap, turns={self.turns}, fastune=true;",
+            survivors,
+        )
         if madx is None:
             return []
         try:
             table = madx.table.dynaptune
-            # `dtune` is MAD-X's own tune drift, so the diffusion index
-            # matches the other codes' log10 form without re-deriving it.
+            summ = madx.table.summ
+            ring_qx, ring_qy = float(summ["q1"][0]) % 1.0, float(summ["q2"][0]) % 1.0
+
+            def unfold(q, ring_q):
+                return q if abs(q - ring_q) <= abs(1.0 - q - ring_q) else 1.0 - q
+
             self.frequency_map = [
                 (
                     float(x),
                     float(y),
-                    float(qx),
-                    float(qy),
+                    unfold(float(qx), ring_qx),
+                    unfold(float(qy), ring_qy),
                     math.log10(max(abs(float(dq)), 1e-16)),
                 )
                 for x, y, qx, qy, dq in zip(
@@ -1007,15 +1041,13 @@ class madxLattice(frameworkLattice):
                     table["tuny"],
                     table["dtune"],
                 )
+                if math.isfinite(qx) and math.isfinite(qy)
             ]
         except (KeyError, AttributeError, TypeError) as error:
             warn(f"MAD-X dynaptune table unreadable for {self.objectname}: {error}")
             self.frequency_map = []
         finally:
-            try:
-                madx.exit()
-            except Exception:
-                pass
+            self.stop_madx(madx)
         return self.frequency_map
 
     def _collect_closed_orbit(self, madx: Any) -> None:
@@ -1308,13 +1340,7 @@ class madxLattice(frameworkLattice):
         try:
             self.run_segments(madx)
         finally:
-            try:
-                madx.exit()
-            except Exception:
-                pass
-            if self.logfile is not None:
-                self.logfile.close()
-                self.logfile = None
+            self.stop_madx(madx)
             self._madx = None
 
     @staticmethod

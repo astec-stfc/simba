@@ -283,6 +283,7 @@ class FakeElegantRing:
     """
 
     _ring_study_deck = elegantLattice._ring_study_deck
+    _without_watch_output = staticmethod(elegantLattice._without_watch_output)
     _da_bounds = elegantLattice._da_bounds
     run_dynamic_aperture = elegantLattice.run_dynamic_aperture
     run_frequency_map = elegantLattice.run_frequency_map
@@ -325,3 +326,124 @@ def test_elegant_finds_an_aperture_through_simbas_deck(tmp_path):
     deck = (tmp_path / "RING_aperture" / "RING_aperture.ele").read_text()
     assert deck.index("&run_control") < deck.index("&find_aperture")
     assert "n_passes = 64" in deck
+
+
+@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+def test_elegant_scans_write_no_screen_files(tmp_path):
+    """Every screen wrote every pass of every grid point: on CLIC DR the scan
+    was still running after ten minutes, and a ten-cell ring took as long."""
+    line = FakeElegantRing(
+        tmp_path, {"turns": 16, "dynamic_aperture": {"nx": 4, "ny": 2, "x_max": 0.004, "y_max": 0.002}}
+    )
+    lattice = tmp_path / "RING.lte"
+    text = lattice.read_text().replace("CELL: LINE=(", "CELL: LINE=(W,")
+    lattice.write_text('W: WATCH, FILENAME="screen.sdds"\n' + text)
+    assert line.run_dynamic_aperture()
+    assert line.run_frequency_map()
+    for stem in ("RING_aperture", "RING_fma"):
+        assert not (tmp_path / stem / "screen.sdds").exists()
+
+
+def madx_ring_sequence(ncell=10):
+    """A ten-cell FODO ring of thick quadrupoles and sextupoles, as MAD-X
+    text: tunes 2.42 / 1.77 at 1 GeV, aperture near 13 mm in x."""
+    lines = [
+        "qf: quadrupole, l=0.3, k1=0.7/0.3;",
+        "sf: sextupole, l=0.2, k2=8/0.2;",
+        "qd: quadrupole, l=0.3, k1=-0.6/0.3;",
+        "sd: sextupole, l=0.2, k2=-8/0.2;",
+        # MAKETHIN slices only a sequence referred to centres, as simba writes them
+        f"RING_seg_0: sequence, l={4.0 * ncell}, refer=centre;",
+    ]
+    for n in range(ncell):
+        z = 4.0 * n
+        lines += [f"qf, at={z + 0.15};", f"sf, at={z + 0.4};", f"qd, at={z + 2.15};", f"sd, at={z + 2.4};"]
+    return "\n".join(lines + ["endsequence;"])
+
+
+class FakeMadxRing:
+    """``madxLattice``'s DYNAP, run by MAD-X on a hand-written sequence."""
+
+    _track_grid = madxLattice._track_grid
+    run_dynamic_aperture = madxLattice.run_dynamic_aperture
+    run_frequency_map = madxLattice.run_frequency_map
+    start_madx = madxLattice.start_madx
+    stop_madx = madxLattice.stop_madx
+    madx_beam_command = madxLattice.madx_beam_command
+    makethin = madxLattice.makethin
+    segment_name = madxLattice.segment_name
+    da_settings = frameworkLattice.da_settings
+    da_grid = frameworkLattice.da_grid
+    turns = frameworkLattice.turns
+
+    def __init__(self, directory, tracking):
+        from types import SimpleNamespace
+
+        self.objectname, self.code = "RING", "madx"
+        self.file_block = {"tracking": tracking}
+        self.seqstrings = [madx_ring_sequence()]
+        self.section = SimpleNamespace(functional_definitions={})
+        self.global_parameters = {
+            "master_subdir": str(directory), "beam": SimpleNamespace(species="electron"),
+        }
+        self.reference_p0c, self.rest_energy, self.reference_charge = 1e9, 0.51099895e6, -1
+        for name in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole", "makedipedge", "makethin_style"):
+            setattr(self, name, madxLattice.model_fields[name].default)
+
+
+def test_madx_dynap_runs_on_a_thick_lattice(tmp_path):
+    """Three faults, each hidden behind the one before:
+
+    * ``DYNAP`` was given the sequence unsliced, and ``TRACK`` refuses thick
+      elements: MAD-X stopped at the first one, and every MAD-X aperture
+      and frequency map came back empty;
+    * ``DYNAP``'s ``dktrturns`` is the full count for every particle (it
+      skips the lost ones), so once sliced, every point survived;
+    * ``fastune`` folds tunes into [0, 0.5]: Qy came back 0.23, not 0.77;
+    * and it tunes particles the aperture scan counts as lost."""
+    pytest.importorskip("cpymad")
+    # 512 turns: (12, 2) and (12, 4) mm are lost late, at turns 428 and 414,
+    # and DYNAP still gives both a tune
+    tracking = {"turns": 512, "dynamic_aperture": {"nx": 10, "ny": 2, "x_max": 0.02, "y_max": 0.004}}
+    aperture = FakeMadxRing(tmp_path, tracking).run_dynamic_aperture()
+    turns = [turn for _, _, turn in aperture]
+    assert len(aperture) == 20
+    assert max(turns) >= 511 and min(turns) < 511, "grid must straddle the aperture"
+    ring = FakeMadxRing(tmp_path, tracking)
+    footprint = ring.run_frequency_map()
+    assert ring.logfile is None, "both MAD-X sessions should close their log"
+
+    def points(rows):
+        return {(round(row[0], 9), round(row[1], 9)) for row in rows}
+
+    assert points(footprint) == points(r for r in aperture if r[2] >= 511)
+    assert footprint[0][2] == pytest.approx(0.42, abs=0.01)
+    assert footprint[0][3] == pytest.approx(0.77, abs=0.01)
+
+
+def test_madx_slicing_keeps_the_detuning_with_amplitude(tmp_path):
+    """MAKETHIN gave sextupoles one slice, which put PTC's dQx/dεx and dQy/dεy
+    ~10% out here, and flipped the sign of dQy/dεy on CLIC DR: its MAD-X
+    frequency map sheared upward in Qy where elegant's and Xsuite's fell."""
+    pytest.importorskip("cpymad")
+
+    def detuning(thin):
+        ring = FakeMadxRing(tmp_path, {"turns": 1})
+        madx = ring.start_madx()
+        madx.input(ring.seqstrings[0])
+        ring.madx_beam_command(madx, ring.reference_p0c, "RING_seg_0")
+        madx.input("use, sequence=RING_seg_0;")
+        if thin:
+            ring.makethin(madx, "RING_seg_0")
+        madx.input(
+            "ptc_create_universe;\n"
+            "ptc_create_layout, model=2, method=6, nst=5, exact=true;\n"
+            "select_ptc_normal, anhx=1,0,0, anhy=0,1,0;\n"
+            "ptc_normal, closed_orbit, normal, icase=4, no=3;\n"
+            "ptc_end;"
+        )
+        values = list(madx.table.normal_results["value"])
+        ring.stop_madx(madx)
+        return values
+
+    assert detuning(thin=True) == pytest.approx(detuning(thin=False), rel=0.02)
