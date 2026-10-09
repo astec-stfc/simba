@@ -6,6 +6,7 @@ Classes:
     - :class:`~simba.Framework.frameworkDirectory`: load the Beam and Twiss files of a finished run.
 """
 
+import gc
 import os
 import pickle
 import yaml
@@ -495,6 +496,18 @@ class Framework(BaseModel):
         settings: FrameworkSettings or None
             Settings to use if no ``filename`` is given.
         """
+        gc_was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            self._load_settings(filename, settings)
+        finally:
+            if gc_was_enabled:
+                gc.enable()
+
+    def _load_settings(
+        self, filename: str | None, settings: FrameworkSettings | None
+    ) -> None:
+        """Body of :meth:`loadSettings`, run with GC off."""
         if isinstance(filename, str):
             self.settingsFilename = filename
             self.settings = FrameworkSettings()

@@ -253,12 +253,6 @@ class frameworkObject(BaseModel):
     """Global parameters to be cascaded through all objects."""
 
     def model_post_init(self, __context):
-        extra_fields = {
-            k: v for k, v in self.model_dump().items()
-            if k not in self.__annotations__
-        }
-        for k, v in extra_fields.items():
-            setattr(self, k, v)
         if self.objecttype in commandkeywords:
             self.allowedkeywords = commandkeywords[self.objecttype]
         elif self.objecttype in elementkeywords:
