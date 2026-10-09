@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import re
 from shutil import copyfile
@@ -73,6 +74,47 @@ def copylink(source, destination):
         copyfile(source, destination)
     except Exception as e:
         print("copylink error!", e)
+
+
+_CONVERSION = None
+"""``(convert, items)`` for the forked workers of :func:`convert_outputs`."""
+
+
+def _convert_one(index):
+    convert, items = _CONVERSION
+    convert(items[index])
+
+
+def convert_outputs(convert, items, workers: int = 1) -> None:
+    """
+    Call ``convert(item)`` for each item, in ``workers`` forked processes if more than 1.
+
+    The workers inherit ``convert`` and ``items`` through the fork, so neither is pickled,
+    but changes they make to Python objects are lost; ``convert`` should only write files.
+    Without ``fork`` (Windows) the items are converted one by one.
+
+    Parameters
+    ----------
+    convert: callable
+        Converts one item.
+    items: list
+        Items to convert.
+    workers: int
+        Number of processes.
+    """
+    global _CONVERSION
+    items = list(items)
+    workers = min(workers, len(items))
+    if workers <= 1 or "fork" not in multiprocessing.get_all_start_methods():
+        for item in items:
+            convert(item)
+        return
+    _CONVERSION = (convert, items)
+    try:
+        with multiprocessing.get_context("fork").Pool(workers) as pool:
+            pool.map(_convert_one, range(len(items)), chunksize=max(1, len(items) // (4 * workers)))
+    finally:
+        _CONVERSION = None
 
 
 def convert_numpy_types(v):

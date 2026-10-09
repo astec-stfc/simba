@@ -24,7 +24,7 @@ from ...Framework_objects import (
     elementkeywords,
     keyword_conversion_rules_elegant,
 )
-from ...FrameworkHelperFunctions import saveFile
+from ...FrameworkHelperFunctions import convert_outputs, saveFile
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from ...Modules.SDDSFile import SDDS_Types, SDDSFile
@@ -1015,28 +1015,24 @@ class elegantLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        Convert the screens' and markers' outputs, and clear :attr:`commandFiles`.
+        Convert the screens' and markers' outputs, in ``conversion_workers`` processes
+        (see :func:`~simba.FrameworkHelperFunctions.convert_outputs`), and clear :attr:`commandFiles`.
         """
         super().postProcess()
         if self.trackBeam:
-            for s in self.screens_and_markers_and_bpms:
-                self.sdds_to_hdf5(
-                    s,
-                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                    ref_index=self.ref_idx,
-                )
+            screens = list(self.screens_and_markers_and_bpms)
             if (
                 self.final_screen is not None
                 and self.final_screen.output_filename.lower()
-                not in [
-                    s.output_filename.lower() for s in self.screens_and_markers_and_bpms
-                ]
+                not in [s.output_filename.lower() for s in screens]
             ):
-                self.sdds_to_hdf5(
-                    self.final_screen,
-                    toffset=-1 * np.mean(self.global_parameters["beam"].Particles.t),
-                    ref_index=self.ref_idx,
-                )
+                screens.append(self.final_screen)
+            toffset = -1 * np.mean(self.global_parameters["beam"].Particles.t)
+            convert_outputs(
+                lambda s: self.sdds_to_hdf5(s, toffset=toffset, ref_index=self.ref_idx),
+                screens,
+                self.global_parameters.get("conversion_workers", 1),
+            )
         self.commandFiles = {}
 
     def hdf5_to_sdds(self, write: bool = True) -> None:

@@ -8,7 +8,7 @@ from laura.models.physical import PhysicalElement
 from laura.translator.utils.fields import FieldMap
 
 from simba.Framework_objects import frameworkGroup, frameworkLattice, r56_group
-from simba.FrameworkHelperFunctions import convert_numpy_types
+from simba.FrameworkHelperFunctions import convert_numpy_types, convert_outputs
 
 
 def _element(z, length):
@@ -83,3 +83,18 @@ def test_r56_group_update_elements_with_a_list():
     group = r56_group("R", fw, "r56_group", ["Q1", ["Q2", "Q3"]], ratios=[], keys=[])
     group.updateElements(["Q2", "Q3"], "virtual_name", "V")
     assert [fw.elementObjects[n].virtual_name for n in ("Q1", "Q2", "Q3")] == ["", "V", "V"]
+
+
+@pytest.mark.parametrize("workers", [1, 3])
+def test_convert_outputs_converts_every_item(tmp_path, workers):
+    names = [f"S{i}" for i in range(7)]
+    convert_outputs(lambda n: (tmp_path / n).write_text(n), names, workers)
+    assert sorted(p.name for p in tmp_path.iterdir()) == names
+
+
+def test_convert_outputs_raises_a_workers_error(tmp_path):
+    def convert(n):
+        if n == "BAD":
+            raise ValueError("no beam file for BAD")
+    with pytest.raises(ValueError, match="BAD"):
+        convert_outputs(convert, ["S1", "BAD", "S2"], workers=2)

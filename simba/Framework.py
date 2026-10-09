@@ -186,6 +186,9 @@ class Framework(BaseModel):
     delete_output_files: bool = False
     """Delete code output files after tracking."""
 
+    conversion_workers: int = 1
+    """Processes for converting screen outputs to openPMD (elegant only, for now); 1 converts them one by one."""
+
     global_parameters: Dict = {}
     """Global parameters shared with all lattices and elements."""
 
@@ -262,6 +265,7 @@ class Framework(BaseModel):
             "beam": rbf.beam(sddsindex=self.sddsindex),
             "GPTLICENSE": gptlicense,
             "delete_tracking_files": self.delete_output_files,
+            "conversion_workers": self.conversion_workers,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
