@@ -227,7 +227,7 @@ class gptLattice(frameworkLattice):
         if (
             self.csr_enable
             and len(self.dipoles) > 0
-            and max([abs(d.angle) for d in self.dipoles]) > 0
+            and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
         ):  # and not os.name == 'nt':
             self.headers["csr1d"] = GptCsr1d()
             # print('CSR Enabled!', self.objectname, len(self.dipoles))
