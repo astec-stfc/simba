@@ -2,10 +2,8 @@
 and its reference time ``tracking: reference_t0``, else the beam's reference
 particle's.
 
-A closed or periodic line used to take its reference from the incoming
-bunch's mean momentum and time, which absorbs any injection energy or timing
-offset: the beam then tracks as if the ring's magnets were set for it and
-its RF phased to it. With a design reference, the offset is tracked.
+Taking them from the incoming bunch, as rings used to, absorbs any injection
+offset; with a design reference the offset is tracked.
 """
 
 import os
@@ -16,7 +14,7 @@ import numpy as np
 import pytest
 
 import simba.Framework as fw
-import simba.Modules.Beams as rbf
+from helpers import read_beam, skip_missing
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole, RFCavity
@@ -25,17 +23,14 @@ from simba.Codes.Generators import frameworkGenerator
 
 ELECTRON = 0.51099895e6
 OFFSET = 5e-3
-"""The beam's momentum offset from the design in the tracking tests: inside
-the 1 % :class:`OffDesignEnergyWarning` threshold, and big enough that the
-k1 it changes moves the orbit well clear of the codes' own noise."""
+"""Inside the 1 % :class:`OffDesignEnergyWarning` threshold, but well clear of the codes' noise."""
 
 CODES = ["xsuite", "elegant", "ocelot", "madx"]
 
 
 def _machine(tmp_path, closed=True, reference_energy=None, scale=1.0, cavity=None):
-    """The FODO cell of ``test_madx_native_turns.py``, its quadrupoles' k1l
-    multiplied by ``scale``; ``cavity``, RFCavity fields, adds a 0.2 m cavity
-    after them (thick, for Ocelot, which divides by its length)."""
+    """The FODO cell with k1l times ``scale``; ``cavity`` (RFCavity fields)
+    adds a 0.2 m cavity, thick because Ocelot divides by its length."""
     quads = [
         Quadrupole(
             name="QUAD1F", machine_area="FODO",
@@ -96,8 +91,7 @@ def seed_beam(tmp_path_factory):
 
 
 def _beam(subdir, name):
-    beam = rbf.beam()
-    rbf.openpmd.read_openpmd_beam_file(beam, os.path.join(subdir, f"{name}.openpmd.hdf5"))
+    beam = read_beam(subdir, name)
     return {k: np.array(getattr(beam, k).val) for k in ("x", "px", "y", "py", "cp", "t")}
 
 
@@ -135,16 +129,12 @@ def _framework(tmp_path, seed_beam, code="xsuite", tracking=None, **machine):
 
 
 def _loaded(tmp_path, seed_beam, **kw):
-    """The lattice object with its input beam read, and the warnings that
-    reading raised."""
+    """The lattice with its input beam read, and the warnings that raised."""
     lattice = _framework(tmp_path, seed_beam, **kw).latticeObjects["FODO"]
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         lattice.preProcess()
     return lattice, [w.message for w in caught]
-
-
-# --- which reference -----------------------------------------------------
 
 
 def test_a_ring_takes_its_reference_from_the_section(tmp_path, seed_beam):
@@ -187,9 +177,6 @@ def test_a_ramp_owns_the_reference(tmp_path, seed_beam):
     assert framework.latticeObjects["FODO"].design_p0c is None
 
 
-# --- the warning ---------------------------------------------------------
-
-
 def test_a_beam_far_from_the_design_warns(tmp_path, seed_beam):
     design = _mean_cp(seed_beam) / 1.05
     _, caught = _loaded(tmp_path, seed_beam, reference_energy=_energy(design))
@@ -202,19 +189,12 @@ def test_an_injection_offset_does_not_warn(tmp_path, seed_beam):
     assert not any(isinstance(w, exceptions.OffDesignEnergyWarning) for w in caught)
 
 
-# --- Bmad ----------------------------------------------------------------
-
-
 def test_bmad_prefers_the_design_to_its_reference_particle(tmp_path, seed_beam):
-    """Bmad otherwise takes its reference from the beam's ``ref_idx``
-    particle."""
+    """Rather than the beam's ``ref_idx`` particle."""
     design = _mean_cp(seed_beam) / (1 + OFFSET)
     lattice, _ = _loaded(tmp_path, seed_beam, code="bmad", reference_energy=_energy(design))
     assert lattice._reference_p0c() == pytest.approx(design, rel=1e-12)
     assert lattice._reference_energy() == pytest.approx(_energy(design), rel=1e-12)
-
-
-# --- tracking ------------------------------------------------------------
 
 
 TURNS = 3
@@ -222,8 +202,7 @@ TURNS = 3
 
 
 def _track(tmp_path, seed_beam, code, tracking=None, **machine):
-    if code == "elegant" and shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
+    skip_missing(code)
     framework = _framework(
         tmp_path, seed_beam, code=code, tracking={"turns": TURNS, **(tracking or {})}, **machine
     )
@@ -235,10 +214,8 @@ def _track(tmp_path, seed_beam, code, tracking=None, **machine):
 
 @pytest.fixture(scope="module")
 def runs(tmp_path_factory, seed_beam):
-    """Per code: the ring at its design energy, the same ring with no energy
-    and its quadrupoles scaled to what the design k1 is at the beam's
-    momentum, the ring with no energy and unscaled quadrupoles, and the ring
-    under a flat ramp at the design momentum."""
+    """Per code: at the design energy; with no energy but k1 rescaled to the
+    beam's momentum; with no energy; and under a flat ramp at the design."""
     cache = {}
     p_mean = _mean_cp(seed_beam)
     design = p_mean / (1 + OFFSET)
@@ -261,19 +238,14 @@ def runs(tmp_path_factory, seed_beam):
 
 
 AGREEMENT = {"xsuite": 1e-6, "madx": 1e-6, "elegant": 2 * OFFSET, "ocelot": 0.05}
-"""How closely each code's design and rescaled rings agree, as a fraction of
-the design energy's effect. Xsuite and MAD-X track a quadrupole exactly in
-delta, so the two are the same ring. elegant's QUAD and Ocelot's matrices
-expand in delta to second order, and the expansion's error, second order in
-an offset first order in it, is ~OFFSET of the effect. Worst over 8 beams:
-elegant 5.3e-4, Ocelot 7.4e-3 -- and one Ocelot beam above 1e-2, hence its
-looser bound, still far from the whole effect a missing design would give."""
+"""Design vs rescaled agreement, as a fraction of the design's effect. Xsuite
+and MAD-X are exact in delta; elegant and Ocelot expand to second order, so
+err by ~OFFSET (worst seen: 5.3e-4, and an Ocelot beam above 1e-2)."""
 
 
 @pytest.mark.parametrize("code", CODES)
 def test_the_magnets_are_set_for_the_design(code, runs):
-    """A k1 set at the design momentum is k1 * p_design / p at the beam's,
-    so the design ring and the rescaled one track the same."""
+    """A design k1 is k1 * p_design / p at the beam's momentum."""
     run = runs(code)
     for coord in ("x", "px", "y", "py"):
         effect = np.abs(run["beam"][coord] - run["design"][coord]).max()
@@ -283,8 +255,7 @@ def test_the_magnets_are_set_for_the_design(code, runs):
 
 @pytest.mark.parametrize("code", CODES)
 def test_a_ramp_is_a_design_too(code, runs):
-    """A flat ramp at the design momentum is the design ring: the beam's
-    offset from the ramp is tracked from the first pass."""
+    """A flat ramp at the design momentum is the design ring."""
     run = runs(code)
     for coord in ("x", "px", "y", "py"):
         effect = np.abs(run["beam"][coord] - run["design"][coord]).max()
@@ -294,21 +265,17 @@ def test_a_ramp_is_a_design_too(code, runs):
 
 @pytest.mark.parametrize("code", CODES)
 def test_the_design_energy_changes_the_orbit(code, runs):
-    """Guards the test above: a design energy that did nothing would agree
-    with itself."""
+    """Guards the tests above: a design energy that did nothing would agree with itself."""
     run = runs(code)
     assert np.abs(run["design"]["x"] - run["beam"]["x"]).max() > 1e-8
 
 
 @pytest.mark.parametrize("code", CODES)
 def test_the_particles_keep_their_momentum(code, runs, seed_beam):
-    """Only the reference moves: re-expressing each particle against it
-    must not change its energy."""
+    """Only the reference moves."""
     start = _beam(os.path.dirname(seed_beam), "M1")["cp"]
     assert np.allclose(runs(code)["design"]["cp"], start, rtol=1e-6, atol=0)
 
-
-# --- the reference time --------------------------------------------------
 
 BETA = 5e6 / np.hypot(5e6, ELECTRON)
 FREQUENCY = 10 * 299792458.0 * BETA / 4.0
@@ -360,9 +327,8 @@ def test_else_the_mean(tmp_path, seed_beam):
 
 @pytest.fixture(scope="module")
 def timed(tmp_path_factory, seed_beam):
-    """Per code: the bunch ``LATE`` on a ring's reference time, the bunch
-    on time with the cavity phased ``LATE`` later instead, and the bunch on
-    time."""
+    """Per code: the bunch ``LATE``; on time with the cavity phased ``LATE``
+    later; and on time."""
     cache = {}
     t_mean = float(np.mean(_beam(os.path.dirname(seed_beam), "M1")["t"]))
     shift = 360.0 * FREQUENCY * LATE
@@ -389,23 +355,15 @@ TIMING = {
     "elegant": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "ocelot": {"cp": 2e-2, "t": 2e-2},
 }
-"""How closely each code's late and rephased runs agree, by coordinate, as a
-fraction of the lateness's effect. elegant only does once simba moves its
-cavities' phases (:meth:`~simba.Codes.Elegant.Elegant.elegantLattice.rf_fiducial_corrections`):
-an RFCA phases itself to the bunch. Ocelot's cavity map takes its transverse
-part -- end focusing and adiabatic damping -- from the *reference*
-particle's energy gain, so a bunch 18 degrees off the reference is focused
-as if it gained the reference's energy: x and px are 30-40 % out whatever
-the lateness, which no reference simba gives it can fix. Its cp and t,
-measured up to 0.8 % and 1.2 % at a quarter of ``LATE``, are its own
-expansion about the reference phase."""
+"""Late vs rephased agreement, as a fraction of the lateness's effect. elegant
+needs simba's ``rf_fiducial_corrections`` (an RFCA phases itself to the bunch).
+Ocelot's transverse cavity map uses the reference's energy gain, so x and px
+are 30-40 % out and are not checked; cp and t are its own expansion."""
 
 
 @pytest.mark.parametrize("code", CODES)
 def test_a_late_bunch_sees_the_rf_late(code, timed):
-    """Arriving ``LATE`` on the reference is the same as the cavity's phase
-    moving by ``LATE``: the same particles at the same times see the same
-    voltage."""
+    """Arriving ``LATE`` is the same as the cavity's phase moving by ``LATE``."""
     run = timed(code)
     for coord, tolerance in TIMING[code].items():
         effect = np.abs(run["on time"][coord] - run["late"][coord]).max()

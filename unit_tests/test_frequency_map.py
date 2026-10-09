@@ -1,65 +1,20 @@
-"""Frequency map / tune footprint."""
+"""Frequency map / tune footprint. The codes' own scans are in
+test_dynamic_aperture.py, which shares their grid."""
 
 import math
 
 import numpy as np
 import pytest
 
-from simba.Codes.Elegant.Elegant import elegantLattice
-from simba.Codes.MADX.MADX import madxLattice
-from simba.Codes.Ocelot.Ocelot import ocelotLattice
-from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Matrices import tune_diffusion, tune_from_trajectory
-from test_dynamic_aperture import ELEGANT, FakeElegantRing
 
 TURNS = 128
 
 
-# --- which codes can do it ----------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "cls",
-    [ocelotLattice, xsuiteLattice, madxLattice, elegantLattice],
-    ids=lambda c: c.__name__,
-)
-def test_the_four_that_can(cls):
-    assert cls.supports_frequency_map is True
-
-
-def test_bmad_can_too_by_the_other_route():
-    """Bmad gets there by tracking, not by Tao's documented route.
-
-    `multi_turn_orbit` is the curve `data_source` the Tao manual gives for
-    turn-by-turn coordinates, and in this build (2026-08-01)
-    `tao_graph_setup_mod.f90` handles `'lat'`, `'beam'` and `'aperture'`
-    only, so it returns "UNKNOWN DATA_SOURCE" however it is placed. Tao
-    also refuses `set particle_start x` on a closed lattice, which is why
-    the chromaticity route (shifting `pz`) works where an amplitude scan
-    cannot.
-
-    So the grid is written as an explicit particle file and tracked a turn
-    at a time, feeding the bunch back by rewriting that file.
-
-    This test only says the capability is claimed. Whether the turns
-    actually advance is a different question, and asserting the flag while
-    the loop did nothing is how that went unnoticed for a release; it is
-    measured in `test_bmad_turn_handback.py`.
-    """
-    from simba.Codes.Bmad.Bmad import bmadLattice
-
-    assert bmadLattice.supports_frequency_map is True
-    assert bmadLattice.supports_dynamic_aperture is True
-
-
-# --- the shared tune extractor ------------------------------------------
-
-
 @pytest.mark.parametrize("q", [0.1234, 0.25, 0.3333, 0.4871])
 def test_a_known_tune_is_recovered_from_positions(q):
-    """Positions alone take the FFT path, good to ~2e-4 on 256 turns
-    thanks to the parabolic refinement; a bare bin would be 1/256 = 4e-3."""
+    """The FFT path, good to ~2e-4 on 256 turns with parabolic refinement."""
     turns = 256
     phase = 2 * math.pi * q * np.arange(turns)
     assert tune_from_trajectory(np.cos(phase)) == pytest.approx(q, abs=5e-4)
@@ -67,9 +22,7 @@ def test_a_known_tune_is_recovered_from_positions(q):
 
 @pytest.mark.parametrize("q", [0.1234, 0.3333, 0.6180, 0.8352])
 def test_naff_is_exact_where_the_fft_is_approximate(q):
-    """With momenta and `nafflib` installed, NAFF is accurate to ~1e-12 on
-    the same 256 turns -- eight orders better than the FFT peak. That gap
-    is what makes `tune_diffusion` measurable rather than noise."""
+    """NAFF is ~1e-12, which makes `tune_diffusion` measurable."""
     pytest.importorskip("nafflib")
     turns = 256
     phase = 2 * math.pi * q * np.arange(turns)
@@ -78,25 +31,19 @@ def test_naff_is_exact_where_the_fft_is_approximate(q):
 
 
 def test_naff_is_optional():
-    """It is imported behind a try, and the FFT path needs nothing, so a
-    machine without it still gets a footprint -- just a blunter one."""
     from simba.Modules import Matrices
 
     assert hasattr(Matrices, "use_naff")
 
 
 def test_positions_alone_fold_the_tune_below_a_half():
-    """The degeneracy: a real signal's spectrum is symmetric, so 0.8 and 0.2
-    are the same picture. Pinned because a silently mirrored tune is exactly
-    the kind of plausible wrong answer this study would hide."""
+    """A real signal's spectrum is symmetric: 0.8 and 0.2 look the same."""
     turns = 256
     phase = 2 * math.pi * 0.8 * np.arange(turns)
     assert tune_from_trajectory(np.cos(phase)) == pytest.approx(0.2, abs=5e-4)
 
 
 def test_the_momentum_resolves_tunes_above_a_half():
-    """`x - i*px` breaks the symmetry. Betatron motion has px proportional
-    to -sin(phase), which is what fixes the sign."""
     turns = 256
     phase = 2 * math.pi * 0.8 * np.arange(turns)
     got = tune_from_trajectory(np.cos(phase), -np.sin(phase))
@@ -104,7 +51,6 @@ def test_the_momentum_resolves_tunes_above_a_half():
 
 
 def test_regular_motion_has_a_tiny_diffusion_index():
-    """Both windows see the same tune, so D hits the floor."""
     turns = 512
     phase = 2 * math.pi * 0.31 * np.arange(turns)
     other = 2 * math.pi * 0.2387 * np.arange(turns)
@@ -115,10 +61,7 @@ def test_regular_motion_has_a_tiny_diffusion_index():
 
 
 def test_a_drifting_tune_shows_up_as_diffusion():
-    """A chirp: the tune is not the same in the two halves. Measured
-    separation from the regular case is about 14 orders of magnitude, which
-    is the whole dynamic range a frequency map works in -- and would be
-    about 2 orders with the FFT fallback."""
+    """A chirp; about 14 orders above the regular case (2 with the FFT)."""
     turns = 512
     steps = np.arange(turns)
     chirp = 2 * math.pi * (0.31 * steps + 2e-5 * steps**2)
@@ -130,8 +73,7 @@ def test_a_drifting_tune_shows_up_as_diffusion():
 
 
 def test_the_tune_difference_is_taken_circularly():
-    """A tune just under an integer must not look like it jumped by nearly
-    1 when it crosses. 0.999 -> 0.001 is a shift of 0.002, not 0.998."""
+    """0.999 -> 0.001 is a shift of 0.002, not 0.998."""
     assert ((0.001 - 0.999) + 0.5) % 1.0 - 0.5 == pytest.approx(0.002)
 
 
@@ -141,7 +83,6 @@ def test_a_short_record_gives_no_diffusion():
 
 
 def test_a_lost_particle_gets_no_tune():
-    """NaN rather than a number: a diverged trajectory has no tune."""
     assert math.isnan(tune_from_trajectory([1.0, np.nan] * 64))
     assert math.isnan(tune_from_trajectory(np.zeros(64)))
     assert math.isnan(tune_from_trajectory([1.0, 2.0]))
@@ -149,9 +90,6 @@ def test_a_lost_particle_gets_no_tune():
 
 def test_mismatched_momenta_are_refused():
     assert math.isnan(tune_from_trajectory(np.ones(64), np.ones(32)))
-
-
-# --- the real thing -----------------------------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -202,8 +140,7 @@ def test_every_surviving_particle_gets_a_tune(footprint):
 
 
 def test_the_smallest_amplitude_recovers_the_periodic_tune(footprint):
-    """The anchor: at vanishing amplitude the nonlinear tune must be the
-    linear one. Tolerance is the FFT resolution, 1/turns."""
+    """To the FFT resolution, 1/turns."""
     reference, track_list = footprint
     smallest = min(track_list, key=lambda p: float(p.x))
     got = frameworkLattice.tune_from_harmonic(float(smallest.mux), reference)
@@ -211,8 +148,6 @@ def test_the_smallest_amplitude_recovers_the_periodic_tune(footprint):
 
 
 def test_the_tune_shifts_with_amplitude(footprint):
-    """The whole point of the study -- a footprint with no spread would mean
-    the sextupoles were doing nothing."""
     reference, track_list = footprint
     tunes = [
         frameworkLattice.tune_from_harmonic(float(p.mux), reference)
@@ -223,11 +158,8 @@ def test_the_tune_shifts_with_amplitude(footprint):
 
 
 def test_the_shift_is_monotonic_in_this_ring(footprint):
-    """Not true of every lattice, but true of a plain sextupole ring. A
-    non-monotonic result here would suggest the reconstruction had folded a
-    tune back across an integer. Direction is not asserted -- in this ring
-    the tune rises with amplitude (1.8372 to 1.9070), but that is a property
-    of the sextupole signs, not of the method."""
+    """Else a tune was folded back across an integer. The direction is the
+    sextupoles', so not asserted."""
     reference, track_list = footprint
     tunes = [
         frameworkLattice.tune_from_harmonic(float(p.mux), reference)
@@ -238,8 +170,7 @@ def test_the_shift_is_monotonic_in_this_ring(footprint):
 
 
 def test_without_saved_tracks_it_yields_nothing(footprint):
-    """The quiet failure, pinned. `save_track=False` leaves `p_list` with a
-    single entry and `freq_analysis` returns having set no tunes at all."""
+    """The quiet failure: with `save_track=False`, `freq_analysis` sets no tunes."""
     import io
     from contextlib import redirect_stdout
 
@@ -262,88 +193,3 @@ def test_without_saved_tracks_it_yields_nothing(footprint):
     # setting anything. A `None` check would not have caught this.
     assert all(float(p.mux) == pytest.approx(-0.001) for p in track_list)
     assert "save_track" in captured.getvalue()
-
-
-@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
-def test_elegant_maps_tunes_through_simbas_deck(tmp_path):
-    """Same missing ``&run_control`` as elegant's dynamic aperture: no turn
-    count, so ``&frequency_map`` wrote a header and no rows. And with one
-    found, the default horizontal scan sat on ``y = 0``, where elegant finds
-    no vertical tune and writes -1 for both."""
-    line = FakeElegantRing(
-        tmp_path, {"turns": 64, "dynamic_aperture": {"nx": 2, "x_max": 1e-5, "y_max": 1e-5}}
-    )
-    fma = line.run_frequency_map()
-    assert len(fma) == 2
-    # Tracked against the ring's own twiss (0.8352, 0.5445); the rest is
-    # elegant's four-kick bend, tracked and as a matrix.
-    for _, y, qx, qy, _ in fma:
-        assert y > 0
-        assert qx == pytest.approx(0.8352, abs=3e-3)
-        assert qy == pytest.approx(0.5445, abs=3e-3)
-    deck = (tmp_path / "RING_fma" / "RING_fma.ele").read_text()
-    assert deck.index("&run_control") < deck.index("&frequency_map")
-    assert "n_passes = 64" in deck
-
-
-@pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
-def test_elegant_drops_the_points_it_could_not_tune(tmp_path):
-    """``full_grid_output`` keeps every point; a lost or untunable one comes
-    back as tune -1, which read as a tune until filtered."""
-    line = FakeElegantRing(
-        tmp_path,
-        {"turns": 64, "dynamic_aperture": {"nx": 4, "ny": 1, "x_max": 0.008, "y_max": 1e-5}},
-    )
-    fma = line.run_frequency_map()
-    assert 0 < len(fma) < 4
-    assert all(qx >= 0 and qy >= 0 for _, _, qx, qy, _ in fma)
-
-
-class FakeXsuiteRing:
-    """``xsuiteLattice``'s scans on a small xtrack ring."""
-
-    _da_particles = xsuiteLattice._da_particles
-    run_dynamic_aperture = xsuiteLattice.run_dynamic_aperture
-    run_frequency_map = xsuiteLattice.run_frequency_map
-    _footprint = frameworkLattice._footprint
-    da_settings = frameworkLattice.da_settings
-    da_grid = frameworkLattice.da_grid
-    turns = frameworkLattice.turns
-
-    def __init__(self, tracking):
-        from test_superperiods import _xtrack_sector
-
-        self.objectname = "RING"
-        self.file_block = {"tracking": tracking}
-        self.line = self.single_particle_line = _xtrack_sector(1)
-        self.context = self.line._context
-        self.passes_per_turn = 1
-
-    def normalisation_twiss(self):
-        return {}
-
-    def da_rays(self):
-        """The grid, so the aperture scan's survivors are the map's starts."""
-        xs, ys = self.da_grid()
-        return [(x, y) for y in ys for x in xs]
-
-
-def test_xsuite_scans_the_aperture_along_the_rays():
-    pytest.importorskip("xtrack")
-    ring = FakeXsuiteRing({"turns": 4, "dynamic_aperture": {"nx": 4, "n_lines": 3, "x_max": 0.01, "y_max": 0.002}})
-    ring.da_rays = lambda: frameworkLattice.da_rays(ring)
-    aperture = ring.run_dynamic_aperture()
-    assert np.allclose([(x, y) for x, y, _ in aperture], ring.da_rays())
-
-
-def test_xsuite_maps_the_particles_that_survived():
-    """Tracking moves lost particles to the end of the arrays, and the map
-    read their state by grid index: with two rows, survivors of the second
-    were dropped and losses of the first given a tune."""
-    pytest.importorskip("xtrack")
-    tracking = {"turns": 64, "dynamic_aperture": {"nx": 6, "ny": 2, "x_max": 0.012, "y_max": 0.002}}
-    aperture = FakeXsuiteRing(tracking).run_dynamic_aperture()
-    survivors = {(x, y) for x, y, turn in aperture if turn >= 63}
-    assert 0 < len(survivors) < len(aperture), "grid must straddle the aperture"
-    footprint = FakeXsuiteRing(tracking).run_frequency_map()
-    assert {(x, y) for x, y, *_ in footprint} == survivors

@@ -73,7 +73,8 @@ def read_gdf_beam_file_object(file):
     Parameters
     ----------
     file: str or gdf_beam
-        Path to a GPT ``.gdf`` file, or an existing :class:`~gdf_beam`.
+        Path to a GPT ``.gdf`` file, or an existing
+        :class:`~simba.Modules.gdf_beam.gdf_beam`.
 
     Returns
     -------
@@ -104,7 +105,7 @@ def read_gdf_beam_file(
     elif gdfbeam is None and filename is None:
         return None
 
-    if position is not None:  # and (time is not None or block is not None):
+    if position is not None:
         self.longitudinal_reference = "t"
         gdfbeamdata = gdfbeam.get_position(position)
         if gdfbeamdata is not None:
@@ -217,7 +218,7 @@ def read_gdf_beam_file(
             units="m",
         )
     else:
-        if hasattr(gdfbeamdata, "z"):  # and self.longitudinal_reference == "z":
+        if hasattr(gdfbeamdata, "z"):
             self._beam.z = UnitValue(gdfbeamdata.z, units="m")
             if hasattr(gdfbeamdata, "Bz"):
                 bz = gdfbeamdata.Bz

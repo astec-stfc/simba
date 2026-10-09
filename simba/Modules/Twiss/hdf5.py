@@ -54,17 +54,18 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
 
 
 def twiss_file_version(h5file) -> str:
-    """Format version of a twiss HDF5 file, read from where the writer puts it.
+    """
+    Format version of a Twiss HDF5 file.
 
     Parameters
     ----------
     h5file: h5py.File
-        An open twiss file
+        Open Twiss file
 
     Returns
     -------
     str
-        The version string, or ``"1"`` for a file too old to carry one
+        Version string, or ``"1"`` for a file too old to carry one
     """
     dataset = h5file.get("Parameters/Version")
     if dataset is None:

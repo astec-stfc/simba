@@ -44,30 +44,22 @@ def _rms_emittance(u: np.ndarray, pu: np.ndarray) -> float:
 
 def canonical_emittances(filename: str, b_threshold: float = 1e-6) -> Dict[float, tuple]:
     """
-    Recompute the transverse emittances of an OPAL particle dump from canonical
-    momenta, keyed by longitudinal position.
+    Transverse emittances of an OPAL particle dump from canonical momenta, keyed by s.
 
-    OPAL reports emittances built from *mechanical* momenta. Inside a solenoid
-    those carry the vector potential, ``A_x = -B_z*y/2`` and ``A_y = B_z*x/2``,
-    so the reported emittance is inflated by ``~B_z*sigma_x*sigma_y/(2*Brho)``
-    wherever the field is on -- for a photoinjector solenoid that is a factor of
-    tens, and it disappears again at the exit. Every other code SIMBA drives
-    reports the canonical emittance, so this restores comparability.
-
-    Steps where the field is negligible are skipped: there the value OPAL
-    already reports is the canonical one.
+    OPAL uses mechanical momenta, which inside a solenoid inflate the emittance
+    (often tenfold); every other code reports the canonical one.
 
     Parameters
     ----------
     filename: str
-        Path to the OPAL particle dump (``<name>.h5``).
+        OPAL particle dump (``<name>.h5``)
     b_threshold: float
-        Field below which no correction is applied [T].
+        Field below which no correction is needed [T]
 
     Returns
     -------
     Dict[float, tuple]
-        ``{s: (emit_x, emit_y)}`` for the steps that needed correcting.
+        ``{s: (emit_x, emit_y)}`` for the steps that needed correcting
     """
     import h5py
 
@@ -99,20 +91,19 @@ def _dispersion(u: np.ndarray, delta: np.ndarray, var_delta: float) -> float:
 
 def dispersions(filename: str, min_spread: float = 1e-6) -> Dict[float, tuple]:
     """
-    Dispersion and its derivative at each step of an OPAL particle dump, keyed
-    by longitudinal position.
+    Dispersion and its derivative at each step of an OPAL particle dump, keyed by s.
 
     Parameters
     ----------
     filename: str
-        Path to the OPAL particle dump (``<name>.h5``).
+        OPAL particle dump (``<name>.h5``)
     min_spread: float
-        Relative momentum spread below which no dispersion is reported.
+        Relative momentum spread below which no dispersion is reported
 
     Returns
     -------
     Dict[float, tuple]
-        ``{s: (Dx, Dxp, Dy, Dyp)}`` for the steps with enough spread to fit.
+        ``{s: (Dx, Dxp, Dy, Dyp)}`` for the steps with enough spread to fit
     """
     import h5py
 
@@ -161,12 +152,7 @@ def update_globals(global_settings, beamlen=None, sample_interval=1):
     return opalglobal
 
 class opalLattice(frameworkLattice):
-    """
-    Class for defining the GPT lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for an OPAL input file.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` written as an OPAL input file."""
 
     code: str = "opal"
     """String indicating the lattice object type"""
@@ -178,15 +164,12 @@ class opalLattice(frameworkLattice):
     """Name of initial particle distribution"""
 
     time_step_size: float | list | tuple = 2e-12
-    """Step size for tracking [s]. A sequence stages the step size along the
-    line, paired with :attr:`~time_step_boundaries`: the beam is slow and the
-    fields are strongest just off the cathode, so a fine step is only worth
-    paying for over the first few tens of centimetres."""
+    """Tracking step [s]; a sequence stages it along the line at :attr:`time_step_boundaries`
+    (e.g. a fine step only near the cathode)."""
 
     time_step_boundaries: list | tuple | None = None
-    """z-positions [m], relative to the start of the section, at which
-    :attr:`~time_step_size` moves on to its next value. Needs one fewer entry
-    than ``time_step_size``; the final stage runs to the end of the section."""
+    """z [m] from the section start where :attr:`time_step_size` moves to its next value;
+    one fewer entry than ``time_step_size``."""
 
     breakstr: str = "//----------------------------------------------------------------------------"
     """String used for separating headers in the input file"""
@@ -195,34 +178,20 @@ class opalLattice(frameworkLattice):
     """Version of OPAL"""
 
     maxsteps: int = 1000000
-    """Maximum number of steps for tracking; will be set dynamically once the lattice is parsed"""
+    """Maximum number of tracking steps"""
 
     space_charge_grid: int | tuple[int, int, int] | list | None = None
-    """Explicit space-charge mesh size. A single value is used for all three
-    dimensions; a ``(MX, MY, MT)`` triple sets them independently, which is
-    useful near a cathode where the bunch is a thin pancake and only the
-    longitudinal mesh needs refining. When None, the mesh is sized as the 
-    cube root of the particle count; note
-    that OPAL still requires ``npart >= MX*MY*MT``."""
+    """Space-charge mesh: one size for all three axes, or ``(MX, MY, MT)``; None sizes
+    it from the particle count. OPAL requires ``npart >= MX*MY*MT``."""
 
     bbox_increase: float | None = None
-    """Percentage by which the space-charge bounding box is enlarged beyond the
-    extent of the bunch (OPAL's ``BBOXINCR``). When None, OPAL's own default of
-    2% applies. Near a cathode the bunch is a thin pancake, so 2% is a very
-    small absolute padding longitudinally."""
+    """OPAL's ``BBOXINCR``: % enlargement of the space-charge box; None means OPAL's 2%."""
 
     force_all_in_one: bool | None = None
-    """Override the automatic choice in :func:`~all_in_one`.
-
-    None follows the automatic rule. True makes OPAL generate the bunch itself
-    from the generator settings; False makes it import a particle file instead
-    (``TYPE = FROMFILE``)."""
+    """Override :attr:`all_in_one`: True generates the bunch in OPAL, False imports a file."""
 
     generator: Any = None
-    """The framework's beam generator, if any. Set by
-    :func:`~simba.Framework.Framework.add_Generator` so that a section starting
-    at the cathode can generate its own distribution inside OPAL rather than
-    importing one produced by a different code (see :func:`~all_in_one`)."""
+    """The framework's beam generator, set by the framework; used by :attr:`all_in_one`."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -232,15 +201,11 @@ class opalLattice(frameworkLattice):
     @property
     def space_charge_mode(self) -> str | None:
         """
-        Get the space charge mode based on
-        :attr:`~simba.Framework_objects.frameworkLattice.globalSettings` or
-        :attr:`~simba.Framework_objects.frameworkLattice.file_block`.
+        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
 
         Returns
         -------
-        str
-            Space charge mode as string, or None if not provided.
-
+        str | None
         """
         if (
                 "charge" in self.file_block
@@ -258,12 +223,11 @@ class opalLattice(frameworkLattice):
     @space_charge_mode.setter
     def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
         """
-        Set the space charge mode manually ["2D", "3D"].
+        Set the space charge mode in :attr:`file_block`.
 
         Parameters
         ----------
         mode: Literal["2d", "3d", "2D", "3D"]
-            The space charge calculation mode
         """
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
@@ -284,18 +248,12 @@ class opalLattice(frameworkLattice):
 
     @property
     def emitted(self) -> bool:
-        """
-        Whether the bunch is emitted from a cathode rather than started as a
-        free-space distribution. Matches the condition used by
-        :func:`~hdf5_to_opal`, which writes emission *times* into the
-        longitudinal column of the OPAL distribution file when this is True.
-        """
+        """Whether the bunch is emitted from a cathode; :meth:`hdf5_to_opal` then writes emission times."""
         return self.particle_definition == "laser"
 
     def option_settings(self) -> dict:
         """
-        Settings for the OPAL ``OPTION`` namelist, taken from the ``global``
-        block of `globals_Opal.yaml` and overridden by `settings["global"]`.
+        OPAL ``OPTION`` settings: ``globals_Opal.yaml``'s ``global`` block, overridden by global settings.
 
         Returns
         -------
@@ -314,17 +272,10 @@ class opalLattice(frameworkLattice):
     @property
     def all_in_one(self) -> bool:
         """
-        Whether this section should generate its own bunch inside OPAL rather
-        than importing a distribution produced by another code.
+        Whether OPAL generates the bunch itself rather than importing a particle file.
 
-        Automatic when :attr:`~force_all_in_one` is None: true if the section
-        starts at a cathode -- ``charge.cathode`` is set and the input is the
-        generator's ``initial_distribution``. OPAL models generation and
-        acceleration in a single run, and splitting the two loses information
-        that no particle file carries: the emission time structure has to be
-        reconstructed from the file.
-
-        Set :attr:`~force_all_in_one` to override in either direction.
+        By default, true for an emitted beam with ``charge.cathode`` and a generator:
+        a particle file loses the emission time structure. :attr:`force_all_in_one` overrides.
         """
         auto = bool(
             self.emitted
@@ -343,18 +294,13 @@ class opalLattice(frameworkLattice):
 
     def native_distribution_block(self) -> str | None:
         """
-        Render an OPAL ``DISTRIBUTION`` block from the framework's generator
-        settings, so that OPAL generates the bunch at the cathode itself.
-
-        The framework's generator is re-expressed as an
-        :class:`~simba.Codes.Generators.opal.OPALGenerator` via its
-        ``model_dump()``, so every generator setting carries over rather than only those a
-        particle file happens to preserve.
+        OPAL ``DISTRIBUTION`` block from the generator, via
+        :class:`~simba.Codes.Generators.opal.OPALGenerator`, if :attr:`all_in_one`.
 
         Returns
         -------
         str or None
-            The rendered block, or None if it could not be built
+            None if not :attr:`all_in_one` or it could not be built
         """
         if not self.all_in_one:
             return None
@@ -375,24 +321,15 @@ class opalLattice(frameworkLattice):
 
     def emission_settings(self) -> dict:
         """
-        Cathode-emission settings for the OPAL ``DISTRIBUTION`` namelist.
+        Cathode-emission settings for the OPAL ``DISTRIBUTION`` namelist; empty if not :attr:`emitted`.
 
-        Returns an empty dict when the bunch is not emitted from a cathode. When
-        it is, `EMITTED` must be declared: SIMBA writes emission times (of order
-        1e-12 s) into the longitudinal column of the distribution file, and
-        without this OPAL reads them as metres, collapsing the bunch to a point
-        and producing a huge spurious space-charge kick.
-
-        The model and step/bin counts come from `globals_Opal.yaml`, overridden
-        by `settings["global"]`. Note that `TEMISSION` is deliberately not set:
-        for a `FROMFILE` distribution the emission window is defined by the
-        times in the file, and OPAL rejects the keyword ("Object DIST has no
-        attribute TEMISSION").
+        ``EMITTED`` is required, else OPAL reads the file's emission times as metres.
+        ``TEMISSION`` is left out: OPAL rejects it for ``FROMFILE``.
 
         Returns
         -------
         dict
-            Keyword arguments for :class:`~laura.translator.converters.codes.opal.opal_distribution`
+            Keyword arguments for :class:`~laura.translator.converters.codes.opal.OpalDistribution`
         """
         charge = self.file_block.get("charge", {}) or {}
         mirror = charge.get("mirror_charge", False)
@@ -545,7 +482,7 @@ class opalLattice(frameworkLattice):
         )
 
     def run(self):
-        """Run the code with input 'filename'"""
+        """Run OPAL on ``<objectname>.in``, locally or remotely."""
         if self.remote_setup:
             self.run_remote()
         else:

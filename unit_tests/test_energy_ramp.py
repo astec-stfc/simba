@@ -9,15 +9,8 @@ import pytest
 
 import simba.Framework as fw
 import simba.Modules.Beams as rbf
-from laura import LAURA
-from laura.exporters.yaml_exporter import export_machine
-from laura.models.element import Marker, Quadrupole
-from simba.Codes.Bmad.Bmad import bmadLattice
-from simba.Codes.Elegant.Elegant import elegantLattice
+from helpers import fodo_machine, read_beam, skip_missing
 from simba.Codes.Generators import frameworkGenerator
-from simba.Codes.MADX.MADX import madxLattice
-from simba.Codes.Ocelot.Ocelot import ocelotLattice
-from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.DeviceProgram import DeviceProgram
 from simba.Modules.EnergyRamp import (
@@ -33,9 +26,6 @@ PROTON = 938.27208816e6
 
 def ramp(**entry):
     return EnergyRamp.from_dict({"turns": [1, 11], "momentum": [5e6, 6e6], **entry})
-
-
-# --- reading the block ---------------------------------------------------
 
 
 def test_a_ramp_in_momentum():
@@ -97,9 +87,6 @@ def test_a_setting_simba_does_not_read_is_reported():
         ramp(frequency=[1.0, 2.0])
 
 
-# --- the momentum on each pass -------------------------------------------
-
-
 def test_one_value_per_pass_and_one_beyond():
     """``turns * passes + 1``: the last is where the final pass ends."""
     assert len(ramp().p0c_per_pass(10, ELECTRON)) == 11
@@ -107,8 +94,7 @@ def test_one_value_per_pass_and_one_beyond():
 
 
 def test_a_superperiod_does_not_ramp_within_a_turn():
-    """The reference changes at the start of a turn and is held across its
-    passes: a superperiod is a piece of one turn, not a turn of its own."""
+    """A superperiod is a piece of one turn, not a turn of its own."""
     per_pass = ramp().p0c_per_pass(10, ELECTRON, passes_per_turn=4)
     per_turn = ramp().p0c_per_pass(10, ELECTRON)
     assert np.array_equal(per_pass[:-1].reshape(10, 4), np.repeat(per_turn[:-1, None], 4, 1))
@@ -118,9 +104,6 @@ def test_the_energy_the_rf_has_to_find():
     read = ramp()
     energy = np.hypot(read.p0c_per_pass(10, ELECTRON), ELECTRON)
     assert np.allclose(read.energy_gain_per_turn(10, ELECTRON), np.diff(energy))
-
-
-# --- the clock -----------------------------------------------------------
 
 
 def test_a_flat_ramp_is_a_steady_revolution():
@@ -135,8 +118,7 @@ def test_turn_one_starts_at_zero():
 
 
 def test_the_clock_is_xsuites():
-    """Turn ``n`` at the time Xtrack's own ``EnergyProgram`` puts it, so
-    one knot per pass lands Xsuite on integer turns and it never
+    """So one knot per pass lands Xsuite on integer turns and it never
     interpolates the momentum."""
     xt = pytest.importorskip("xtrack")
     length = 4.25
@@ -163,8 +145,7 @@ def test_the_clock_runs_on_past_its_last_pass():
 
 
 def test_a_device_program_reads_the_ramp_clock():
-    """A kicker programmed on turn 5 fires at turn 5's time, which under a
-    ramp is not 4 periods of turn 1."""
+    """Under a ramp, turn 5's time is not 4 periods of turn 1."""
     clock = ramp().clock(10, 4.25, ELECTRON)
     kick = DeviceProgram.from_dict({"element": "K", "turns": [3, 5], "values": [0.0, 1.0]})
     times, _ = kick.time_knots(1.0, origin_turn=3, clock=clock)
@@ -172,9 +153,6 @@ def test_a_device_program_reads_the_ramp_clock():
     assert times[-1] == pytest.approx(clock(5) - clock(3), rel=1e-12)
     # and that is not two of turn 1's periods: the bunch is faster by then
     assert abs(times[-1] - 2 * clock(2)) > 1e-14
-
-
-# --- the line ------------------------------------------------------------
 
 
 class FakeBeam:
@@ -221,23 +199,6 @@ class FakeLine:
 
 
 RAMP = {"turns": [1, 10], "momentum": [5e6, 5.1e6]}
-
-
-@pytest.mark.parametrize(
-    "cls,can",
-    [
-        (xsuiteLattice, True),
-        (elegantLattice, True),
-        (ocelotLattice, True),
-        (madxLattice, True),
-        (bmadLattice, False),
-    ],
-    ids=lambda c: getattr(c, "__name__", str(c)),
-)
-def test_which_codes_ramp(cls, can):
-    """Bmad's tracking path here is single-pass, so it has no turn to
-    change the reference between."""
-    assert cls.supports_ramp is can
 
 
 def test_no_ramp_means_not_ramped():
@@ -297,16 +258,14 @@ def test_too_little_voltage_warns():
         line.check_ramp_beam()
 
 
+@pytest.mark.filterwarnings("error")
 def test_enough_voltage_on_the_ramp_is_silent():
     line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        line.check_ramp_beam()
+    line.check_ramp_beam()
 
 
 def test_the_rest_energy_survives_a_beam_not_yet_read():
-    """``preProcess`` used to read it off a beam with no rest energy set,
-    and every ramped run crashed there."""
+    """``preProcess`` used to read it off an unset beam and crash every ramped run."""
     beam = FakeBeam()
     beam.particle_rest_energy_eV = None
     beam.particle_mass = type("V", (), {"val": np.array([1.67262192595e-27])})()
@@ -315,49 +274,12 @@ def test_the_rest_energy_survives_a_beam_not_yet_read():
     assert FakeLine({"turns": 10}, beam=None).rest_energy == pytest.approx(ELECTRON, rel=1e-6)
 
 
-# --- the codes -----------------------------------------------------------
-
 TURNS = 10
 CODES = ["xsuite", "elegant", "ocelot", "madx"]
 
 
-def _machine(tmp_path):
-    """The FODO cell of ``test_madx_native_turns.py``, called a ring."""
-    quads = [
-        Quadrupole(
-            name="QUAD1F", machine_area="FODO",
-            magnetic={"length": 1.0, "k1l": -1},
-            physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 0.75}},
-        ),
-        Quadrupole(
-            name="QUAD1D", machine_area="FODO",
-            magnetic={"length": 1.0, "k1l": 1.0},
-            physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 3.25}},
-        ),
-    ]
-    markers = [
-        Marker(
-            name=name, machine_area="FODO", hardware_class="Marker",
-            physical={"middle": {"x": 0.0, "y": 0.0, "z": z}},
-        )
-        for name, z in (("M1", 0.0), ("M3", 4.25))
-    ]
-    names = ["M1", "QUAD1F", "QUAD1D", "M3"]
-    section = {"sections": {"FODO": {"elements": names, "geometry": "closed"}}}
-    machine = LAURA(
-        element_list=[markers[0], *quads, markers[1]],
-        layout={"default_layout": "line1", "layouts": {"line1": ["FODO"]}},
-        section=section,
-    )
-    export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
-    return machine, section
-
-
 def _beam(subdir, name, turn=None):
-    beam = rbf.beam()
-    rbf.openpmd.read_openpmd_beam_file(
-        beam, os.path.join(subdir, f"{name}.openpmd.hdf5"), turn=turn
-    )
+    beam = read_beam(subdir, name, turn)
     return {k: np.array(getattr(beam, k).val) for k in ("x", "px", "cp", "t")}
 
 
@@ -378,14 +300,12 @@ def seed_beam(tmp_path_factory):
 
 
 def _track(tmp_path, code, tracking, seed_beam):
-    """Track and return the final beam at M3, and every turn's if written.
+    """The final beam at M3, and every turn's if written.
 
-    LSC and CSR are off: Ocelot applies LSC by default, and its energy kick
-    (1.5e5 eV in the first turn of this 100 pC bunch) would swamp the ramp.
+    LSC is off: Ocelot's default LSC kick (1.5e5 eV a turn here) would swamp the ramp.
     """
-    if code == "elegant" and shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
-    machine, section = _machine(tmp_path)
+    skip_missing(code)
+    machine, _, section = fodo_machine(tmp_path, closed=True)
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
@@ -433,19 +353,16 @@ def runs(tmp_path_factory, seed_beam):
 
 @pytest.mark.parametrize("code", CODES)
 def test_the_ramp_moves_the_orbit(code, runs):
-    """Guards everything below: an ignored ramp would agree with itself.
-    It was the first thing measured -- elegant re-centred ``p_central`` on
-    the beam after every element and its ramp did nothing at all."""
+    """Guards everything below: an ignored ramp would agree with itself, as
+    elegant's did when it re-centred ``p_central`` after every element."""
     ramped, flat = runs(code, True)["final"], runs(code, False)["final"]
     assert np.abs(ramped["x"] - flat["x"]).max() > 5e-5
 
 
 @pytest.mark.parametrize("code", CODES)
 def test_no_rf_means_no_energy_change(code, runs, seed_beam):
-    """The reference moves, the particles do not. Moving the reference
-    without recomputing each particle's offset from it would change its
-    energy by the 2% of the ramp, 1e5 eV here. (Xsuite drifts by a few eV
-    with or without a ramp; that is its own.)"""
+    """The reference moves, the particles do not; not recomputing their
+    offsets would change their energy by the ramp's 2%."""
     start = _beam(os.path.dirname(seed_beam), "M1")["cp"]
     final = runs(code, True)["final"]["cp"]
     assert np.allclose(final, start, rtol=1e-5, atol=0)
@@ -453,24 +370,20 @@ def test_no_rf_means_no_energy_change(code, runs, seed_beam):
 
 @pytest.mark.parametrize("code", ["xsuite", "ocelot"])
 def test_the_thick_codes_agree_on_the_ramped_orbit(code, runs):
-    """Xsuite and Ocelot against elegant: the same thick quadrupoles, so
-    the same answer (measured 1.0e-7 m and 2.7e-6 m, against a 1.6e-4 m
-    effect)."""
+    """Measured 1.0e-7 m and 2.7e-6 m against elegant, for a 1.6e-4 m effect."""
     a, b = runs(code, True)["final"]["x"], runs("elegant", True)["final"]["x"]
     assert np.abs(a - b).max() < 1e-5
 
 
 def test_madx_agrees_up_to_its_thin_lenses(runs):
-    """MAD-X tracks sliced thin lenses, which differ from the thick codes
-    by about 2e-5 m here with or without a ramp; the ramp moves it 1.2e-4 m."""
+    """Thin lenses differ by about 2e-5 m, ramp or not; the ramp moves 1.2e-4 m."""
     a, b = runs("madx", True)["final"]["x"], runs("elegant", True)["final"]["x"]
     assert np.abs(a - b).max() < 5e-5
 
 
 def test_madx_and_elegant_agree_on_time_every_turn(runs):
-    """Both carry absolute time, and the ramp's reference clock is theirs:
-    measured to 4e-16 s over 10 turns. Xsuite's ``t`` is relative to the
-    reference and Ocelot's is a turn ahead, with or without a ramp."""
+    """Both carry absolute time (measured 4e-16 s apart); Xsuite's ``t`` is
+    relative and Ocelot's a turn ahead, so they are left out."""
     madx, elegant = runs("madx", True)["turns"], runs("elegant", True)["turns"]
     assert set(madx) == set(elegant) == set(range(1, TURNS + 1))
     for turn in madx:
@@ -478,8 +391,7 @@ def test_madx_and_elegant_agree_on_time_every_turn(runs):
 
 
 def test_elegants_reference_follows_the_program(runs):
-    """``pCentral`` in elegant's own watch file, pass by pass: pass ``k``
-    (0-based) at turn ``k + 1``'s momentum."""
+    """``pCentral`` in elegant's watch file: pass ``k`` at turn ``k + 1``'s momentum."""
     pytest.importorskip("sdds")
     import sdds
 

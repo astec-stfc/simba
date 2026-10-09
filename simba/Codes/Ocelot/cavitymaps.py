@@ -34,7 +34,7 @@ def _gain_ratios(g0: float, g1: float) -> tuple:
 def stable_cavity_maps() -> None:
     """
     Patch Ocelot's ``CavityAtom`` first-order ``r55`` and ``CavityTM.map4cav``
-    second-order terms with the forms above. Run before any Twiss or tracking
+    second-order terms with the forms above. Run before any Twiss or tracking.
     """
     global _PATCHED
     if _PATCHED:

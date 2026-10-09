@@ -11,7 +11,10 @@ import numpy as np
 import pytest
 
 import simba.Framework as fw
+import simba.Framework_lattices as lattices
 import simba.Modules.Beams as rbf
+import simba.Modules.Twiss as rtf
+from helpers import needs_elegant, skip_missing
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole
@@ -65,9 +68,8 @@ def _machine(tmp_path):
 
 @pytest.fixture(scope="module")
 def seed_beam(tmp_path_factory):
-    """Generated once: ``frameworkGenerator`` is unseeded. Placed at s = 100 m,
-    nowhere near the lattice, so an s taken from it rather than from the
-    lattice shows."""
+    """Generated once, as ``frameworkGenerator`` is unseeded. At s = 100 m,
+    so an s taken from it rather than the lattice shows."""
     directory = tmp_path_factory.mktemp("seed")
     frameworkGenerator(
         global_parameters={"master_subdir": str(directory)},
@@ -91,16 +93,8 @@ def _read(path):
     return beam
 
 
-def _skip_missing(code):
-    if code == "elegant" and shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
-    module = {"xsuite": "xtrack", "madx": "cpymad", "ocelot": "ocelot", "bmad": "pytao"}
-    if code in module:
-        pytest.importorskip(module[code])
-
-
 def _framework(tmp_path, code, tracking, seed_beam, inputs=None):
-    _skip_missing(code)
+    skip_missing(code)
     machine, section = _machine(tmp_path)
     settings = fw.FrameworkSettings()
     settings.files = {
@@ -162,13 +156,9 @@ def runs(tmp_path_factory, seed_beam):
     return get
 
 
-# --- markers --------------------------------------------------------------
-
-
 @pytest.mark.parametrize("code", RING_CODES)
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_a_marker_is_recorded_on_every_turn(code, element, runs):
-    """In the one file, a turn to an iteration, the end of the line too."""
     assert _turns(runs(code), element) == list(range(1, TURNS + 1)), code
 
 
@@ -187,9 +177,16 @@ def test_each_turn_says_its_turn(code, runs):
 
 
 @pytest.mark.parametrize("code", RING_CODES)
-def test_the_end_of_the_line_reads_as_its_last_turn(code, runs):
-    """What the next line takes."""
-    assert _read(os.path.join(runs(code), "M3.openpmd.hdf5")).turn == TURNS
+@pytest.mark.parametrize(
+    "tracking, turns, last",
+    [({}, list(range(1, TURNS + 1)), TURNS), ({"write_turns": False}, [], TURNS), ({"turns": 1}, [], 1)],
+    ids=["every_turn", "last_turn", "one_turn"],
+)
+def test_the_end_of_the_line_reads_as_its_last_turn(code, tracking, turns, last, runs):
+    """What the next line takes; a single beam unless every turn is written."""
+    subdir = runs(code, **tracking)
+    assert _turns(subdir, "M3") == turns
+    assert _read(os.path.join(subdir, "M3.openpmd.hdf5")).turn == last
 
 
 @pytest.mark.parametrize("code", RING_CODES)
@@ -199,27 +196,19 @@ def test_the_end_of_the_line_reads_as_its_last_turn(code, runs):
     ids=["every_turn", "last_turn", "one_turn"],
 )
 def test_the_input_beam_is_not_overwritten(code, tracking, runs, seed_beam):
-    """The start marker's file *is* the input beam: recording at markers
-    must not write over it (Xsuite's first version did)."""
+    """Xsuite's first version recorded over the start marker's file."""
     written = _read(os.path.join(runs(code, **tracking), "M1.openpmd.hdf5"))
     assert written.turn is None
     np.testing.assert_array_equal(written.x.val, _read(seed_beam).x.val)
 
 
+@needs_elegant
 @pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_records_the_same_turn_as_elegant(code, element, runs):
-    """The beam is mismatched, so its size changes turn to turn, and each
-    code's turn ``k`` must be nearest elegant's turn ``k``.
-
-    Nearest rather than within a tolerance: measured, Xsuite and Ocelot agree
-    with elegant to 2e-5, but MAD-X's thin lenses put it up to 4% out (at M3
-    on turn 3, where the beam is smallest), as far as one turn is from the
-    next there.
-    """
-    if shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
-
+    """The mismatched beam's size changes turn to turn; each code's turn ``k``
+    must be nearest elegant's. Nearest, as MAD-X's thin lenses are up to 4%
+    out, as far as one turn is from the next."""
     def sizes(subdir):
         return np.array([
             [
@@ -235,22 +224,49 @@ def test_every_code_records_the_same_turn_as_elegant(code, element, runs):
         assert np.argmin(distance) == turn, (code, element, turn + 1, distance)
 
 
-def test_the_mismatch_really_does_change_the_size_turn_to_turn(runs):
-    """Else the test above could not tell one turn from the next."""
-    subdir = runs("xsuite")
+@pytest.mark.parametrize("code", RING_CODES)
+def test_each_turn_tracks_on_from_the_last(code, runs):
+    """Not the input beam again; and a size that changes turn to turn is what
+    lets the test above tell the turns apart."""
+    subdir = runs(code)
     sizes = [
         _turn(subdir, "MID", turn).sigmas.sigma_x.val for turn in range(1, TURNS + 1)
     ]
     assert np.min(np.abs(np.diff(sizes)) / sizes[0]) > 1e-2
 
 
-# --- superperiods ---------------------------------------------------------
+@pytest.mark.parametrize("tracking", [{}, {"turns": 1}], ids=["turns", "one_turn"])
+def test_xsuite_writes_its_twiss_and_the_turn_it_is_from(tracking, runs):
+    """A multi-turn run raised ``IndexError`` off an empty ``beam_data``,
+    then ``KeyError`` on ``momentum`` in the twiss reader."""
+    pd = pytest.importorskip("pandas")
+    subdir = runs("xsuite", write_turns=False, **tracking)
+    df = pd.read_csv(os.path.join(subdir, "FODO_twiss.csv"))
+    for column in ("momentum", "sigma_x", "sigma_y", "emit_xn", "mean_x"):
+        assert column in df.columns, sorted(df.columns)
+    t = rtf.twiss()
+    t.read_HDF5_twiss_file(os.path.join(subdir, "Twiss_Summary.hdf5"))
+    assert set(np.array(t.turn.val).tolist()) == {tracking.get("turns", TURNS)}
+
+
+@pytest.mark.parametrize("tracking", [{}, {"write_turns": False}], ids=["every_turn", "last_turn"])
+def test_madx_single_particle_mode_writes_what_tracking_does(tracking, runs):
+    """It kept each screen's beam in ``beam_data`` and wrote none, so
+    ``write_turns`` did nothing there."""
+    single = runs("madx", single_particle=True, **tracking)
+    full = runs("madx", **tracking)
+
+    def beam_files(subdir):
+        return sorted(f for f in os.listdir(subdir) if f.endswith(".openpmd.hdf5"))
+
+    assert beam_files(single) == beam_files(full)
+    for name in ("M1", "MID", "M3"):
+        assert _turns(single, name) == _turns(full, name), name
 
 
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_xsuite_superperiods_record_the_last_pass_of_each_turn(element, runs):
-    """Two superperiods for ``TURNS`` turns is the cell for ``2 * TURNS``:
-    turn ``k`` of the first is turn ``2k`` of the second, exactly."""
+    """Turn ``k`` of two superperiods is turn ``2k`` of the cell, exactly."""
     two = runs("xsuite", nsuperperiods=2)
     cells = _track_cells(runs)
     for turn in range(1, TURNS + 1):
@@ -271,12 +287,8 @@ def test_xsuite_superperiods_record_every_turn(runs):
         assert _turn(two, "MID", turn).turn == turn
 
 
-# --- cp -------------------------------------------------------------------
-
-
 def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
-    """Xsuite's ``p0c * (1 + delta)`` is each particle's total momentum, and
-    that is what simba's ``cp`` must come back as."""
+    """Xsuite's ``p0c * (1 + delta)``."""
     subdir = runs("xsuite")
     # the last turn's, which Xsuite also writes as its own
     with open(os.path.join(subdir, "MID.xsuite.json")) as handle:
@@ -285,9 +297,6 @@ def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
     alive = np.asarray(particles["state"]) > 0
     cp = _turn(subdir, "MID", TURNS).cp.val
     np.testing.assert_allclose(cp, total[alive], rtol=1e-12)
-
-
-# --- programs -------------------------------------------------------------
 
 
 def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
@@ -311,9 +320,6 @@ def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
     np.testing.assert_allclose(effect["madx"], effect["xsuite"], rtol=0.1)
 
 
-# --- the input beam's name ------------------------------------------------
-
-
 @pytest.mark.parametrize("block, name", [
     ({}, "M1"),
     ({"input": {}}, "M1"),
@@ -321,7 +327,6 @@ def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
     ({"input": {"particle_definition": "BEAM"}}, "BEAM"),
 ])
 def test_the_input_beam_is_named_once_for_every_code(block, name):
-    """Eight codes each had this as their own copy."""
     line = SimpleNamespace(file_block=block, start="M1")
     assert frameworkLattice.input_particle_definition.fget(line) == name
 
@@ -342,9 +347,7 @@ class _Read(Exception):
 def test_every_code_reads_the_input_beam_it_is_given(
     code, block, name, tmp_path, seed_beam, monkeypatch
 ):
-    """CSRTrack, elegant and Genesis read the start's file whatever was
-    stated, and CSRTrack's ``initial_distribution`` branch could not be
-    reached."""
+    """CSRTrack, elegant and Genesis read the start's file whatever was stated."""
     def read(self, prefix, definition, *args, **kwargs):
         raise _Read(definition)
 
@@ -355,9 +358,6 @@ def test_every_code_reads_the_input_beam_it_is_given(
         with pytest.raises(_Read) as read_from:
             line.preProcess()
     assert str(read_from.value) == name
-
-
-# --- species --------------------------------------------------------------
 
 
 @pytest.mark.parametrize("species", ["proton", "positron"])
@@ -384,41 +384,52 @@ def test_an_electron_only_code_refuses_anything_else(
             assert line.reference_charge == 1
 
 
-# --- which codes can ------------------------------------------------------
+FLAGS = [
+    "turns", "periodic", "frequency_map", "single_particle", "dynamic_aperture",
+    "nsuperperiods", "radiation", "programs", "ramp",
+]
+# every other code, and the base class, can do none of them: a backend gains
+# one by declaring it, never by omission
+CAN = {
+    "elegant": {"turns", "periodic", "frequency_map", "dynamic_aperture", "radiation", "programs", "ramp"},
+    "xsuite": {"turns", "periodic", "frequency_map", "dynamic_aperture", "radiation", "programs", "ramp",
+               "nsuperperiods"},
+    "ocelot": {"turns", "periodic", "frequency_map", "dynamic_aperture", "radiation", "programs", "ramp",
+               "nsuperperiods"},
+    "madx": {"turns", "periodic", "frequency_map", "dynamic_aperture", "programs", "ramp",
+             "nsuperperiods", "single_particle"},
+    # single-pass here, so no turns to ramp over; its scans track a turn at a
+    # time through Tao, measured in test_bmad_turn_handback.py
+    "bmad": {"periodic", "frequency_map", "dynamic_aperture", "radiation", "programs"},
+}
+LATTICES = {
+    cls.model_fields["code"].default: cls
+    for cls in vars(lattices).values()
+    if isinstance(cls, type) and issubclass(cls, frameworkLattice)
+}
 
 
-@pytest.mark.parametrize("flag", [
-    "supports_turns", "supports_periodic", "supports_frequency_map",
-    "supports_single_particle", "supports_dynamic_aperture",
-    "supports_nsuperperiods", "supports_radiation", "supports_programs",
-    "supports_ramp",
-])
+@pytest.mark.parametrize("code", sorted(LATTICES) + ["base"])
+def test_what_each_code_can_do(code):
+    cls = LATTICES.get(code, frameworkLattice)
+    assert {flag for flag in FLAGS if getattr(cls, f"supports_{flag}")} == CAN.get(code, set())
+
+
+@pytest.mark.parametrize("flag", FLAGS)
 def test_the_codes_that_can_are_read_off_the_codes(flag):
-    """The warnings named them by hand, and had fallen behind: Bmad and
-    MAD-X were missing from several."""
-    import simba.Framework_lattices as lattices
-
-    can = sorted(
-        cls.model_fields["code"].default
-        for cls in vars(lattices).values()
-        if isinstance(cls, type) and issubclass(cls, frameworkLattice)
-        and getattr(cls, flag)
-    )
-    sentence = frameworkLattice.codes_that_can(flag)
+    """The warnings named them by hand, and had fallen behind."""
+    can = sorted(code for code, flags in CAN.items() if flag in flags)
+    sentence = frameworkLattice.codes_that_can(f"supports_{flag}")
     assert can, flag
     for code in can:
         assert code in sentence, (flag, code)
     assert sentence.count(",") + sentence.count(" and ") == len(can) - 1
 
 
-# --- charge ---------------------------------------------------------------
-
-
 @pytest.mark.parametrize("code", RING_CODES)
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_writes_the_input_charge(code, element, runs, seed_beam):
-    """No particle is lost here, so the charge out is the charge in. Xsuite's
-    was ``sum(q0)``, its charge *state*: -1 C for each macroparticle's -1."""
+    """No particle is lost here. Xsuite's was ``sum(q0)``, -1 C a particle."""
     written = _turn(runs(code), element, TURNS)
     seed = _read(seed_beam)
     assert len(written.x.val) == len(seed.x.val)
@@ -444,8 +455,8 @@ def test_xsuite_macroparticles_carry_the_bunchs_charge(seed_beam, tmp_path):
 
 
 def _xsuite_with_losses(lost):
-    """Four macroparticles of 10 e each, those in ``lost`` lost, and put at
-    the end of the arrays, as Xsuite does with the particles it loses."""
+    """Four macroparticles of 10 e each, those in ``lost`` lost and moved to
+    the end, as Xsuite does."""
     import xtrack as xt
 
     particles = xt.Particles(
@@ -460,8 +471,7 @@ def _xsuite_with_losses(lost):
 
 
 def test_xsuite_drops_its_lost_particles():
-    """A lost particle has state <= 0 and keeps the coordinates it was lost
-    at. It was read back as part of the beam, charge and all."""
+    """They were read back as part of the beam, charge and all."""
     pytest.importorskip("xtrack")
     beam = rbf.beam()
     rbf.xsuite.read_xsuite_beam_file(beam, _xsuite_with_losses([1]))
@@ -474,9 +484,8 @@ def test_xsuite_drops_its_lost_particles():
 
 @pytest.mark.parametrize("lost, index, found", [([1], 2, 1), ([1], 1, None), ([], 2, 2)])
 def test_xsuite_finds_the_reference_by_its_id(lost, index, found):
-    """Xsuite moves lost particles to the end, so the n-th particle read was
-    no longer the n-th written. The reference is found by ``particle_id``, and
-    a lost reference is no reference."""
+    """Lost particles move to the end, so it is found by ``particle_id``; a
+    lost reference is no reference."""
     pytest.importorskip("xtrack")
     beam = rbf.beam()
     rbf.xsuite.read_xsuite_beam_file(beam, _xsuite_with_losses(lost), ref_index=index)
@@ -491,12 +500,8 @@ def test_xsuite_without_a_reference_has_one_z_per_particle():
     assert np.shape(beam.z.val) == (4,)
 
 
-# --- s --------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("code", RING_CODES)
 def test_s_is_the_lattices_not_the_incoming_beams(code, runs):
-    """The seed beam says s = 100 m; the lattice starts at 0."""
     subdir = runs(code)
     middle = _turn(subdir, "MID", TURNS)
     end = _turn(subdir, "M3", TURNS)
@@ -519,10 +524,7 @@ def test_the_start_is_never_written(name, turns, writes):
     [(None, 4, None), (8, 4, 2), (6, 4, None), (6, 1, 6), (0, 8, 0)],
 )
 def test_the_reference_particle_follows_the_sampling(index, interval, sampled):
-    """Ocelot tracked every n-th particle, and went on naming the full beam's
-    reference index: on a sampled run every beam it wrote took the wrong
-    particle as its reference. The beam is now sampled as it is read, and
-    :meth:`sample_beam` carries the index across."""
+    """Ocelot sampled the beam and kept the full beam's reference index."""
     line = SimpleNamespace(sample_interval=interval)
     assert frameworkLattice.sampled_index(line, index) == sampled
 
@@ -587,8 +589,8 @@ def test_without_one_recorded_the_reference_is_the_beams_own(seed_beam):
 
 
 def test_xsuite_measures_delta_and_zeta_from_the_reference_its_given(seed_beam):
-    """``delta`` was taken from the beam's own mean momentum and the particles
-    given ``p0c``, so a p0c other than the mean put every particle off."""
+    """``delta`` was taken from the beam's own mean, so any other p0c put
+    every particle off."""
     pytest.importorskip("xtrack")
     seed = _read(seed_beam)
     p0c, t0 = 1.001 * float(np.mean(seed.cp.val)), float(np.mean(seed.t.val)) + 1e-12
@@ -605,9 +607,8 @@ def test_xsuite_measures_delta_and_zeta_from_the_reference_its_given(seed_beam):
 
 
 def test_cheetah_gets_back_the_energies_it_was_given(seed_beam):
-    """Cheetah's delta is dE / p0c; simba wrote dE / E, 1/beta0 off: 25 eV
-    here, where dE is 5 keV. What is left, 2e-6 eV, is Cheetah's electron mass
-    not quite being simba's."""
+    """Cheetah's delta is dE / p0c; simba wrote dE / E. The 2e-6 eV left is
+    Cheetah's electron mass."""
     pytest.importorskip("cheetah")
     seed = _read(seed_beam)
     energy = 1.001 * float(np.mean(seed.energy.val))
@@ -618,8 +619,7 @@ def test_cheetah_gets_back_the_energies_it_was_given(seed_beam):
 
 
 def _spread_beam(seed_beam):
-    """The seed with a 1% momentum spread, so p_x / p0 and the slope
-    p_x / p_z differ by enough to see."""
+    """The seed with a 1% momentum spread, so p_x / p0 and p_x / p_z differ."""
     seed = _read(seed_beam)
     rng = np.random.default_rng(1)
     scale = 1 + 0.01 * rng.standard_normal(len(seed.x))
@@ -629,8 +629,7 @@ def _spread_beam(seed_beam):
 
 
 def test_ocelot_is_given_px_over_p0_and_read_back_from_it(seed_beam):
-    """Ocelot's x' is p_x / p0 (ParticleArray); simba wrote and read the slope
-    p_x / p_z, off by 1 + delta. The round trip hid it: both ends agreed."""
+    """simba wrote and read the slope p_x / p_z, and the round trip hid it."""
     pytest.importorskip("ocelot")
     from simba.Modules.Beams import ocelot as rbf_ocelot
 
@@ -650,7 +649,6 @@ def test_ocelot_is_given_px_over_p0_and_read_back_from_it(seed_beam):
 
 
 def test_cheetah_is_given_px_over_p0c_and_read_back_from_it(seed_beam):
-    """Cheetah's px is p_x / p0c (``ParticleBeam.from_openpmd_file``)."""
     pytest.importorskip("cheetah")
     from simba.Modules.Beams import cheetah as rbf_cheetah
 
@@ -687,9 +685,6 @@ def test_the_entrance_is_before_a_first_element_with_length():
     assert _fake(12.0, 0.5) == 11.5
 
 
-# --- rematching -----------------------------------------------------------
-
-
 @pytest.mark.parametrize("code", RING_CODES + ["bmad"])
 def test_every_code_rematches_to_the_input_twiss(code, tmp_path, seed_beam):
     framework = _framework(
@@ -721,9 +716,6 @@ def test_a_plane_without_twiss_is_left_alone(code, tmp_path, seed_beam):
     assert beta_y == pytest.approx(float(_read(seed_beam).twiss.beta_y.val), rel=1e-6)
 
 
-# --- one-turn map ---------------------------------------------------------
-
-
 def _one_turn_map(tmp_path, code, tracking, seed_beam):
     framework = _framework(tmp_path, code, tracking, seed_beam)
     with warnings.catch_warnings():
@@ -744,19 +736,13 @@ def _one_turn_map(tmp_path, code, tracking, seed_beam):
 def test_madxs_one_turn_map_is_the_lines_however_it_is_tracked(
     tracking, tmp_path, seed_beam
 ):
-    """MAD-X's turn loop (which programs, ramps, moving RF and several
-    segments all need) took the model optics on every pass it did not record,
-    and the sector maps accumulate: three turns gave M^3, two superperiods
-    M^2, and recording every turn no map at all. The map is the line's, as
-    every other code's is."""
+    """MAD-X's turn loop accumulated the sector maps: three turns gave M^3,
+    two superperiods M^2, and recording every turn no map at all."""
     one = _one_turn_map(tmp_path / "one", "madx", {"turns": 1}, seed_beam)
     looped = _one_turn_map(
         tmp_path / "looped", "madx", {**tracking, "native_turns": False}, seed_beam
     )
     np.testing.assert_allclose(looped, one, rtol=0, atol=1e-12)
-
-
-# --- t --------------------------------------------------------------------
 
 
 def _clock(seed_beam, element_s, turn):
@@ -772,8 +758,7 @@ def _clock(seed_beam, element_s, turn):
 @pytest.mark.parametrize("code", RING_CODES)
 @pytest.mark.parametrize("element, element_s", [("MID", 2.0), ("M3", END_Z)])
 def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
-    """A period is 14 ns; the centroid moves 8 fs off the reference in four
-    turns, as it does in elegant."""
+    """The centroid moves 8 fs off the reference in four turns, as in elegant."""
     subdir = runs(code)
     for turn in range(1, TURNS + 1):
         t = _turn(subdir, element, turn).t.val
@@ -781,11 +766,10 @@ def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
         assert float(np.mean(t)) == pytest.approx(clock, abs=2e-14), (code, turn)
 
 
+@needs_elegant
 @pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
-    if shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
     for turn in range(1, TURNS + 1):
         ours = _turn(runs(code), element, turn).t.val
         theirs = _turn(runs("elegant"), element, turn).t.val
@@ -793,8 +777,7 @@ def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
 
 
 def test_xsuite_native_time_is_its_own_zeta(runs, tmp_path, seed_beam):
-    """`native_times` gives back what Xsuite itself wrote: its ``.xsuite.json``
-    is the last turn's, so turn 1 is a one-turn run's."""
+    """Its ``.xsuite.json`` is the last turn's, so turn 1 is a one-turn run's."""
     framework = _framework(
         tmp_path, "xsuite", {"turns": TURNS, "write_turns": True}, seed_beam
     )
@@ -815,26 +798,12 @@ def test_xsuite_native_time_is_its_own_zeta(runs, tmp_path, seed_beam):
             )
 
 
-def _code_class(code):
-    if code == "xsuite":
-        from simba.Codes.Xsuite.Xsuite import xsuiteLattice
-        return xsuiteLattice
-    if code == "ocelot":
-        from simba.Codes.Ocelot.Ocelot import ocelotLattice
-        return ocelotLattice
-    if code == "madx":
-        from simba.Codes.MADX.MADX import madxLattice
-        return madxLattice
-    from simba.Codes.Elegant.Elegant import elegantLattice
-    return elegantLattice
-
-
 class _Clocked:
     """A line on a two-pass clock, borrowing a code's native time."""
 
     def __init__(self, code):
         self.reference_clock = (1e-9, np.array([0.0, 2e-8, 4e-8]), np.array([0.9, 0.95]), None)
-        self.native_time_scale = _code_class(code).native_time_scale
+        self.native_time_scale = LATTICES[code].native_time_scale
 
     reference_time = frameworkLattice.reference_time
     time_to_native = frameworkLattice.time_to_native
@@ -853,8 +822,7 @@ def test_native_time_round_trips(code):
     "code, sign", [("xsuite", -1), ("ocelot", +1), ("madx", -1)]
 )
 def test_a_late_particle_has_each_codes_own_sign(code, sign):
-    """Behind the reference: zeta < 0 in Xsuite, tau > 0 in Ocelot, T < 0 in
-    MAD-X; elegant's own is absolute ``t``."""
+    """zeta < 0 in Xsuite, tau > 0 in Ocelot, T < 0 in MAD-X."""
     line = _Clocked(code)
     late = line.reference_time(1.5, 1) + 1e-12
     assert np.sign(line.time_to_native(late, 1.5, 1)) == sign

@@ -1,7 +1,5 @@
 """The one-turn map is the cheapest useful thing a ring model produces."""
 
-import warnings
-
 import numpy as np
 import pytest
 
@@ -54,9 +52,6 @@ class FakeLine:
     postProcess = frameworkLattice.postProcess
 
 
-# --- when the map is read at all ----------------------------------------
-
-
 def test_a_periodic_line_reads_its_map():
     line = FakeLine(drift_map())
     line.postProcess()
@@ -64,7 +59,6 @@ def test_a_periodic_line_reads_its_map():
 
 
 def test_an_open_line_reads_nothing():
-    """A transfer line has no one turn, so there is no map to ask for."""
     line = FakeLine(drift_map(), periodic=False)
     line.postProcess()
     assert line.one_turn_map is None
@@ -76,26 +70,21 @@ def test_a_code_that_cannot_match_reads_nothing():
     assert line.one_turn_map is None
 
 
+@pytest.mark.filterwarnings("error")
 def test_a_code_with_no_map_to_give_is_not_an_error():
-    """elegant writes no matrix file when LSC is on, and that is survivable."""
+    """elegant writes no matrix file when LSC is on."""
     line = FakeLine(None)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        line.postProcess()
+    line.postProcess()
     assert line.one_turn_map is None
 
 
-# --- the determinant check ----------------------------------------------
-#
-# det(R) == 1 for a map that neither creates nor destroys phase-space volume,
-# and unlike a full symplecticity test it holds in every convention the codes
-# use -- so it can run before anything is normalised.
+# det(R) == 1 holds in every convention the codes use, unlike a full
+# symplecticity test, so it can run before anything is normalised.
 
 
+@pytest.mark.filterwarnings("error")
 def test_a_symplectic_map_is_silent():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        FakeLine(drift_map()).postProcess()
+    FakeLine(drift_map()).postProcess()
 
 
 def test_a_damped_map_warns():
@@ -106,15 +95,9 @@ def test_a_damped_map_warns():
         FakeLine(matrix).postProcess()
 
 
-def test_an_empty_map_warns():
-    with pytest.warns(UserWarning, match="determinant"):
-        FakeLine(np.zeros((6, 6))).postProcess()
-
-
-def test_the_warning_says_what_is_untrustworthy():
-    """The failure mode is a plausible wrong tune, so the warning has to name
-    what should not be believed."""
-    with pytest.warns(UserWarning, match="tune, beta, momentum compaction"):
+def test_an_empty_map_warns_what_is_untrustworthy():
+    """The failure is a plausible wrong tune, so the warning names what not to believe."""
+    with pytest.warns(UserWarning, match="determinant.*tune, beta, momentum compaction"):
         FakeLine(np.zeros((6, 6))).postProcess()
 
 
@@ -123,15 +106,10 @@ def test_a_wrong_shaped_map_warns_about_its_shape():
         FakeLine(np.eye(4)).postProcess()
 
 
+@pytest.mark.filterwarnings("error")
 def test_a_transposed_symplectic_map_still_passes():
-    """Honesty about the check's reach: det is necessary, not sufficient, and
-    a transpose preserves it. This is why R8 compares codes to each other."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        FakeLine(drift_map().T).postProcess()
-
-
-# --- the convention is recorded, not converted --------------------------
+    """det is necessary, not sufficient, which is why codes are compared to each other."""
+    FakeLine(drift_map().T).postProcess()
 
 
 @pytest.mark.parametrize("cls", RING_CODES, ids=lambda c: c.__name__)
@@ -151,9 +129,6 @@ def test_a_code_that_cannot_do_rings_declares_nothing():
 
 def test_the_base_class_has_no_map():
     assert frameworkLattice.read_one_turn_map(frameworkLattice) is None
-
-
-# --- MAD-X builds its map rather than reading one -----------------------
 
 
 class FakeMadx:

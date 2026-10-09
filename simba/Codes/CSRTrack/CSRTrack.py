@@ -1,14 +1,7 @@
 """
-SIMBA CSRTrack Module
-
-Various objects and functions to handle CSRTrack lattices and commands. See `CSRTrack manual`_ for more details.
+SIMBA CSRTrack module: writes CSRTrack input files and converts their output. See `CSRTrack manual`_.
 
     .. _CSRTrack manual: https://www.desy.de/xfel-beam/csrtrack/files/CSRtrack_User_Guide_(actual).pdf
-
-Classes:
-    - :class:`~simba.Codes.CSRTrack.CSRTrack.csrtrackLattice`: The CSRTrack lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-      the lattice suitable for a CSRTrack input file.
 """
 
 from pydantic import Field
@@ -26,12 +19,7 @@ from laura.translator.converters.codes.csrtrack import (
 
 
 class csrtrackLattice(frameworkLattice):
-    """
-    Class for defining the CSRTrack lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for a CSRTrack input file.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` written as a CSRTrack input file."""
 
     code: str = "csrtrack"
     """String indicating the lattice object type"""
@@ -49,7 +37,7 @@ class csrtrackLattice(frameworkLattice):
         self.set_particles_filename()
 
     def set_particles_filename(self) -> None:
-        """Set up the `CSRTrackelementObjects namelist for the initial particle distribution."""
+        """Set the ``particles`` header to read ``<start>.astra``."""
         self.particle_definition = self.input_particle_definition
         self.csrtrack_headers["particles"] = CsrTrackParticles(
             particle_definition=self.start,
@@ -66,12 +54,11 @@ class csrtrackLattice(frameworkLattice):
     @property
     def dipoles_screens_and_bpms(self) -> List:
         """
-        Get a list of the dipoles, screens and BPMs sorted by their position in the lattice
+        Dipoles, screens and BPMs sorted by end position.
 
         Returns
         -------
         List
-            A sorted list of dipoles, screens and BPMs.
         """
         return sorted(
             self.getElementType("dipole")
@@ -81,10 +68,7 @@ class csrtrackLattice(frameworkLattice):
         )
 
     def setCSRMode(self) -> None:
-        """
-        Set up the `forces` key in `CSRTrackelementObjects based on the `csr_mode` defined in the settings
-        file for this lattice section. `csr_mode` can be either ["csr_g_to_p" (2D) or "projected" (1D)]
-        """
+        """Set the ``forces`` header from ``csr: csr_mode``: "3D" is ``csr_g_to_p``, "1D" is ``projected``."""
         if "csr" in self.file_block and "csr_mode" in self.file_block["csr"]:
             if self.file_block["csr"]["csr_mode"] == "3D":
                 self.csrtrack_headers["forces"] = CsrTrackForces(type="csr_g_to_p")
@@ -95,16 +79,12 @@ class csrtrackLattice(frameworkLattice):
 
     def writeElements(self) -> str:
         """
-        Write the lattice elements defined in this object into a CSRTrack-compatible format; see
-        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.
-
-        The appropriate headers required for ASTRA are written at the top of the file, see the `_write_CSRTrack`
-        function in :class:`~simba.Codes.CSRTrack.csrtrack_element`.
+        Build the CSRTrack headers and render the section as CSRTrack input.
 
         Returns
         -------
         str
-            The lattice represented as a string compatible with CSRTrack
+            CSRTrack input file text
         """
         self.set_particles_filename()
         self.setCSRMode()
@@ -121,19 +101,12 @@ class csrtrackLattice(frameworkLattice):
         return self.section.to_csrtrack()
 
     def write(self) -> str:
-        """
-        Writes the CSRTrack input file from :func:`~simba.Codes.CSRTrack.csrtrackLattice.writeElements`
-        to <master_subdir>/csrtrk.in.
-        """
+        """Write :meth:`writeElements` to ``<master_subdir>/csrtrk.in``."""
         code_file = self.global_parameters["master_subdir"] + "/csrtrk.in"
         saveFile(code_file, self.writeElements())
 
     def preProcess(self) -> None:
-        """
-        Convert the beam file from the previous lattice section into CSRTrack format and set the number of
-        particles based on the input distribution, see
-        :func:`~simba.Codes.CSRTrack.csrtrack_particles.hdf5_to_astra`.
-        """
+        """Load the input beam and write it as ASTRA via :meth:`hdf5_to_astra`."""
         super().preProcess()
         prefix = self.get_prefix()
         self.load_input_beam(prefix, self.particle_definition)
@@ -142,12 +115,12 @@ class csrtrackLattice(frameworkLattice):
 
     def hdf5_to_astra(self) -> None:
         """
-        Convert HDF5 particle distribution to ASTRA format, suitable for inputting to CSRTrack.
+        Write the beam in ASTRA format, which CSRTrack reads.
 
-        Parameters
-        ----------
-        prefix: str
-            Prefix for filename
+        Returns
+        -------
+        str
+            ASTRA beam filename
         """
         astrabeamfilename = self.csrtrack_headers["particles"].particle_definition + ".astra"
         rbf.astra.write_astra_beam_file(
@@ -158,18 +131,12 @@ class csrtrackLattice(frameworkLattice):
         return astrabeamfilename
 
     def postProcess(self) -> None:
-        """
-        Convert the beam file from the CSRTrack output into HDF5 format, see
-        :func:`~simba.Codes.CSRTrack.csrtrack_monitor.csrtrack_to_hdf5`.
-        """
+        """Convert the CSRTrack output via :meth:`csrtrack_to_hdf5`."""
         super().postProcess()
         self.csrtrack_to_hdf5()
 
     def csrtrack_to_hdf5(self) -> None:
-        """
-        Convert the particle distribution from a CSRTrack monitor into HDF5 format,
-        and write it to `master_subdir`.
-        """
+        """Convert the CSRTrack monitor output (via ASTRA format) to openPMD in `master_subdir`."""
         csrtrackbeamfilename = self.csrtrack_headers["monitor"].name
         astrabeamfilename = csrtrackbeamfilename.replace(".fmt2", ".astra")
         rbf.astra.convert_csrtrackfile_to_astrafile(

@@ -12,12 +12,10 @@ def cumtrapz(x=[], y=[]):
 
 def read_s_offset(filename, lattice_name) -> float:
     """
-    Distance between this lattice's s and z origins, written next to the ASTRA output by
-    :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.write_s_offset`. It is non-zero once
-    anything upstream bends -- a chicane's path is longer than its projection onto z.
+    Distance between this lattice's s and z origins, as written by
+    :meth:`~simba.Codes.ASTRA.ASTRA.astraLattice.write_s_offset`.
 
-    Returns 0.0 when the file is absent, so directories written before this existed, or
-    by something other than SIMBA, still read as s == z.
+    Non-zero once anything upstream bends; 0.0 if the file is absent, so older output reads as s == z.
     """
     path = os.path.join(os.path.dirname(filename), lattice_name + ".s_offset")
     try:

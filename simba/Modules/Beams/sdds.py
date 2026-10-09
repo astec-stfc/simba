@@ -6,8 +6,7 @@ from ..SDDSFile import SDDSFile, SDDS_Types
 
 
 def count_SDDS_pages(fileName, ascii=False) -> int:
-    """How many pages -- for a watch point, how many passes -- ``fileName`` has.
-    """
+    """Number of pages in ``fileName``; for a watch point, the number of passes."""
     return SDDSFile(index=0, ascii=ascii).count_pages(fileName)
 
 
@@ -16,8 +15,9 @@ def read_SDDS_beam_file(
     sdds_file=None,
 ):
     """Read one page of an SDDS beam file.
-    ``sdds_file``, an :class:`~simba.Modules.SDDSFile.SDDSFile` to reuse,
-    loads a multi-page file once for all its pages rather than once a page.
+
+    Pass ``sdds_file`` (a :class:`~laura.translator.utils.elegant.sdds_file.SDDSFile`)
+    to load a multi-page file once rather than once per page.
     """
     self.reset_dicts()
     if sdds_file is None:
@@ -76,7 +76,7 @@ def read_SDDS_beam_file(
 
 
 def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]):
-    """Save an SDDS file using the SDDS class."""
+    """Write the beam to an SDDS file."""
     if filename is None:
         fn = os.path.splitext(self.filename)
         filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".sdds"

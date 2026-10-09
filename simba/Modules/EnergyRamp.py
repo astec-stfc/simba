@@ -1,8 +1,7 @@
 """
 Energy ramps: the reference momentum as a function of turn number.
 
-A booster ramp, stated once and read the same way by every code that can
-track one::
+Stated once and read the same way by every code that can track one::
 
     files:
       RING:
@@ -14,22 +13,19 @@ track one::
             kinetic_energy: [160.0e6, 2.0e9, 2.0e9]
 
 ``momentum`` (``p0c``, eV) may be given instead of ``kinetic_energy`` (eV).
-**Turns are 1-based**, as for :mod:`simba.Modules.DeviceProgram`, and the
-default interpolation is ``linear`` -- a ramp is a smooth thing, unlike a
-kicker -- with ``hold`` and ``spline`` also available.
+Turns are 1-based, as for :mod:`simba.Modules.DeviceProgram`; the default
+interpolation is ``linear``, with ``hold`` and ``spline`` also available.
 
-**The model, which every backend implements and nothing else:**
+The model every backend implements:
 
-* the ramp sets the **reference** momentum at the start of each turn, and
-  holds it for the whole turn;
-* changing the reference does **not** change any particle: absolute energy,
-  absolute transverse momentum and arrival time are kept, and only the
-  coordinates measured from the reference move;
-* magnet strengths are **normalised**, so they stay put and the fields
-  follow the reference (R10, ``test_energy_program.py``);
-* the RF does the accelerating. A bunch whose cavities are phased for a
-  stationary bucket slides to the synchronous phase on its own; with too
-  little voltage it falls off the ramp, as it would in the machine.
+* the ramp sets the **reference** momentum at the start of each turn and
+  holds it for the turn;
+* changing the reference does not change any particle: only coordinates
+  measured from the reference move;
+* magnet strengths are normalised, so the fields follow the reference
+  (R10, ``test_energy_program.py``);
+* the RF does the accelerating; with too little voltage the beam falls off
+  the ramp, as it would in the machine.
 
 **The clock.** Where a code needs time rather than turn number, turn ``n``
 starts at::
@@ -37,22 +33,12 @@ starts at::
     t(1) = 0
     t(n + 1) = t(n) + C / (c * (beta0(n) + beta0(n + 1)) / 2)
 
-with ``beta0(n)`` the reference speed on turn ``n`` and ``C`` the length of
-one pass. The mid-point is ``EnergyProgram.get_t_s_at_turn``.
-It differs from ``sum C / (beta0 c)`` by half a turn's change in ``beta0``.
+with ``C`` the length of one pass. This mid-point rule is Xsuite's
+``EnergyProgram.get_t_s_at_turn``.
 
-**The RF.** How a cavity keeps time from pass to pass is a setting of its
-own, ``tracking: {rf: follow | fixed}``, and :func:`rf_phase_slip` is what
-each means. It is needed for a ramp but is not part of one: a cavity whose
-frequency is not a harmonic of the revolution frequency slips on a flat
-ring too.
-
-Classes:
-    - :class:`EnergyRamp`: the reference momentum against turn number.
-    - :class:`RampClock`: seconds at the start of any (fractional) turn.
-
-Functions:
-    - :func:`rf_phase_slip`: the RF phase the reference sees, pass by pass.
+**The RF.** How a cavity keeps time from pass to pass is its own setting,
+``tracking: {rf: follow | fixed}``; see :func:`rf_phase_slip`. A cavity off
+a revolution harmonic slips on a flat ring too.
 """
 
 from __future__ import annotations
@@ -75,44 +61,36 @@ RF_MODES = ("follow", "fixed")
 
 def rf_phase_slip(mode, frequency, s, pass_length, beta0) -> np.ndarray:
     """
-    The RF phase the reference particle sees at a cavity on each pass,
-    beyond what it saw on the first.
+    The RF phase the reference sees at a cavity on each pass, relative to the first.
 
-    * ``fixed``: the cavity is a free-running oscillator at `frequency`. The
-      reference reaches `s` on pass ``j`` at::
+    * ``fixed``: a free-running oscillator. The reference reaches ``s`` on pass
+      ``j`` at ``T_j = sum_{k < j} C / (beta0_k c) + s / (beta0_j c)`` (each
+      pass at its own speed, not :class:`RampClock`'s mid-point), so the slip
+      is ``f (T_j - T_0)`` cycles.
+    * ``follow``: frequency ``f beta0_k / beta0_0`` on pass ``k``, so every pass
+      is ``h = f C / (beta0_0 c)`` cycles and the slip is ``j h``.
+    * ``synchronous``: rephased every pass, so no slip.
 
-          T_j = sum_{k < j} C / (beta0_k c) + s / (beta0_j c)
-
-      -- travelling each pass at that pass's speed, as the reference does,
-      and *not* :class:`RampClock`'s mid-point -- by which time the
-      oscillator has run on ``f (T_j - T_0)`` cycles.
-    * ``follow``: the frequency is ``f beta0_k / beta0_0`` on pass ``k``, so
-      every pass is the same ``h = f C / (beta0_0 c)`` cycles and the slip
-      is ``j h``, wherever the cavity is.
-    * ``synchronous``: phased to the reference afresh every pass, so no
-      slip at all.
-
-    ``fixed`` and ``follow`` agree whenever ``beta0`` does not change, so
-    without a ramp; ``synchronous`` agrees with both only when ``h`` is a
-    whole number.
+    ``fixed`` and ``follow`` agree without a ramp; ``synchronous`` agrees with
+    both only when ``h`` is a whole number.
 
     Parameters
     ----------
     mode: str
-        ``follow``, ``fixed`` or ``synchronous``
+        ``follow``, ``fixed`` or ``synchronous``.
     frequency: float
-        The cavity's frequency on the first pass, in Hz
+        Frequency on the first pass, in Hz.
     s: float
-        The cavity's position in the pass, in metres from its start
+        Cavity position from the start of the pass, in metres.
     pass_length: float
-        Length of one pass, in metres
+        Length of one pass, in metres.
     beta0: np.ndarray
-        The reference speed over ``c`` on each pass
+        Reference speed over ``c`` on each pass.
 
     Returns
     -------
     np.ndarray
-        Radians in ``(-pi, pi]``, one per pass; the first is 0
+        Radians in ``(-pi, pi]``, one per pass; the first is 0.
     """
     beta0 = np.asarray(beta0, dtype=float)
     passes = np.arange(len(beta0))
@@ -134,17 +112,16 @@ def rf_phase_slip(mode, frequency, s, pass_length, beta0) -> np.ndarray:
 
 def wrap_phase(phase):
     """
-    `phase` in ``(-pi, pi]``.
+    Wrap ``phase`` into ``(-pi, pi]``.
 
     Parameters
     ----------
     phase: float | np.ndarray
-        Radians
+        Radians.
 
     Returns
     -------
     float | np.ndarray
-        The same phase, wrapped
     """
     return np.pi - np.mod(np.pi - np.asarray(phase, dtype=float), 2 * np.pi)
 
@@ -156,14 +133,14 @@ def beta_from_p0c(p0c, rest_energy):
     Parameters
     ----------
     p0c: float | np.ndarray
-        Reference momentum times ``c``, in eV
+        Reference momentum times ``c``, in eV.
     rest_energy: float
-        Rest energy, in eV
+        In eV.
 
     Returns
     -------
     float | np.ndarray
-        ``beta0``
+        ``beta0``.
     """
     p0c = np.asarray(p0c, dtype=float)
     return p0c / np.sqrt(p0c**2 + rest_energy**2)
@@ -177,10 +154,9 @@ class RampClock:
     Attributes
     ----------
     times: np.ndarray
-        Seconds at the start of pass ``j``, 0-based, so ``times[0] = 0``
+        Seconds at the start of each pass, 0-based, so ``times[0] = 0``.
     passes_per_turn: int
-        Passes in one turn: superperiods count here, see
-        :meth:`~simba.Framework_objects.frameworkLattice.passes_per_turn`
+        See :attr:`~simba.Framework_objects.frameworkLattice.passes_per_turn`.
     """
 
     times: np.ndarray
@@ -188,20 +164,19 @@ class RampClock:
 
     def __call__(self, turn: float) -> float:
         """
-        Seconds at the start of `turn`, which may be fractional.
+        Seconds at the start of ``turn``, which may be fractional.
 
-        Linear between passes, and carried on at the last pass's rate
-        beyond the end: a device program may outlast the ramp.
+        Extrapolated at the last pass's rate, as a device program may outlast the ramp.
 
         Parameters
         ----------
         turn: float
-            Turn number, 1-based
+            Turn number, 1-based.
 
         Returns
         -------
         float
-            Seconds since the start of turn 1
+            Seconds since the start of turn 1.
         """
         passes = (float(turn) - 1.0) * self.passes_per_turn
         last = len(self.times) - 1
@@ -219,13 +194,13 @@ class EnergyRamp:
     Attributes
     ----------
     turns: list
-        Knot turn numbers, 1-based and ascending
+        Knot turn numbers, 1-based and ascending.
     values: list
-        The ramp at each knot, in eV, as :attr:`quantity`
+        The ramp at each knot, in eV, as ``quantity``.
     quantity: str
-        ``momentum`` (``p0c``) or ``kinetic_energy``
+        ``momentum`` (``p0c``) or ``kinetic_energy``.
     interpolation: str
-        ``linear`` (the default), ``hold`` or ``spline``
+        ``linear`` (the default), ``hold`` or ``spline``.
     """
 
     turns: list = field(default_factory=list)
@@ -261,18 +236,16 @@ class EnergyRamp:
         Parameters
         ----------
         entry: dict
-            The ``ramp`` mapping
+            The ``ramp`` mapping.
 
         Returns
         -------
         EnergyRamp
-            The ramp described by `entry`
 
         Raises
         ------
         ValueError
-            If the entry states neither or both quantities, or its knots
-            do not pair up
+            If the entry states neither or both quantities, or its knots do not pair up.
         """
         if not isinstance(entry, dict):
             raise ValueError(
@@ -310,19 +283,19 @@ class EnergyRamp:
 
     def p0c_at(self, turn: int, rest_energy: float) -> float:
         """
-        The reference momentum on `turn`.
+        The reference momentum on ``turn``.
 
         Parameters
         ----------
         turn: int
-            Turn number, 1-based
+            Turn number, 1-based.
         rest_energy: float
-            Rest energy of the species, in eV
+            In eV.
 
         Returns
         -------
         float
-            ``p0c`` in eV, clamped to the first or last knot outside them
+            ``p0c`` in eV, clamped to the first or last knot outside them.
         """
         value = self._program.value_at(turn)
         if self.quantity == "momentum":
@@ -334,23 +307,22 @@ class EnergyRamp:
         self, turns: int, rest_energy: float, passes_per_turn: int = 1
     ) -> np.ndarray:
         """
-        The reference momentum at the start of every pass of a run, and
-        one beyond its end.
+        The reference momentum at the start of every pass of a run, and one beyond its end.
 
         Parameters
         ----------
         turns: int
-            Turns tracked
+            Turns tracked.
         rest_energy: float
-            Rest energy, in eV
+            In eV.
         passes_per_turn: int
-            Passes in one turn; the momentum is held across them
+            Passes in one turn; the momentum is held across them.
 
         Returns
         -------
         np.ndarray
-            ``turns * passes_per_turn + 1`` values of ``p0c`` in eV. Entry
-            ``j`` is pass ``j`` (0-based), on turn ``j // passes_per_turn + 1``
+            ``turns * passes_per_turn + 1`` values of ``p0c`` in eV; entry
+            ``j`` (0-based) is on turn ``j // passes_per_turn + 1``.
         """
         per_turn = np.array(
             [self.p0c_at(turn, rest_energy) for turn in range(1, turns + 2)]
@@ -371,18 +343,18 @@ class EnergyRamp:
         Parameters
         ----------
         turns: int
-            Turns tracked
+            Turns tracked.
         pass_length: float
-            Length of one pass, in metres
+            In metres.
         rest_energy: float
-            Rest energy, in eV
+            In eV.
         passes_per_turn: int
-            Passes in one turn
+            Passes in one turn.
 
         Returns
         -------
         RampClock
-            Callable from turn number to seconds
+            Callable from turn number to seconds.
         """
         beta = beta_from_p0c(
             self.p0c_per_pass(turns, rest_energy, passes_per_turn), rest_energy
@@ -400,14 +372,14 @@ class EnergyRamp:
         Parameters
         ----------
         turns: int
-            Turns tracked
+            Turns tracked.
         rest_energy: float
-            Rest energy, in eV
+            In eV.
 
         Returns
         -------
         np.ndarray
-            ``E0(n + 1) - E0(n)`` in eV, one per turn
+            ``E0(n + 1) - E0(n)`` in eV, one per turn.
         """
         p0c = self.p0c_per_pass(turns, rest_energy)
         energy = np.sqrt(p0c**2 + rest_energy**2)

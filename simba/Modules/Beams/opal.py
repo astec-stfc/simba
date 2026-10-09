@@ -69,7 +69,7 @@ def read_opal_beam_file(self, filename, step=0):
     self._beam.z = UnitValue((-1 * self._beam.Bz * constants.speed_of_light)
          * (self._beam.t - np.mean(self._beam.t)),
          units="m",
-     )  # np.full(len(self.t), 0)
+     )
 
     if "TotalCharge" in list(beamdata.attrs.keys()):
         self._beam.total_charge = UnitValue(beamdata.attrs['TotalCharge'][0], units="C")

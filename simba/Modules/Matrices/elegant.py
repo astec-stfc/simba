@@ -28,4 +28,4 @@ def update_arrays(self, elegantData, reset=True):
             else self.initialize_array(k, v.data, units=v.unit)
         )
         for k, v in elegantData.items()
-    ]  # if not k == 's'
+    ]

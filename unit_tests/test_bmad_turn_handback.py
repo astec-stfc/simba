@@ -62,12 +62,8 @@ INIT = """
 def _tao(path, **kwargs):
     """Tao on a lattice, through an init file as simba drives it.
 
-    The init file is not decoration. Without a ``&tao_beam_init`` namelist
-    Tao refuses to track a beam at all ("BEAM TRACKING CANNOT BE DONE
-    UNLESS A TAO_BEAM_INIT NAMELIST HAS BEEN DEFINED"), and half-configuring
-    it by command gets a lattice that tracks but saves the beam at only the
-    first element of a repeated name -- which looks exactly like the
-    unrolled arm being wrong.
+    Without ``&tao_beam_init`` Tao will not track a beam, and configuring it
+    by command saves the beam only at the first element of a repeated name.
     """
     pytest.importorskip("pytao")
     if not os.path.exists(BMAD_SO):
@@ -90,18 +86,18 @@ def _write_lattice(directory, name, repeats, geometry, twiss=""):
     return path
 
 
-class FakeBmad:
-    """The real turn loop, with only the lattice and beam faked.
+def _load_beam(tao, beam, saved_at):
+    """Point Tao's beam tracking at a position file, saving at ``saved_at``."""
+    tao.cmd(bmadLattice._POSITION_FILE_CMD.format(path=beam))
+    tao.cmd(f"set beam add_saved_at = {saved_at}")
+    tao.cmd("set global track_type = beam", raises=False)
 
-    Everything the hand-back touches is `bmadLattice`'s own code; what is
-    replaced is the surrounding framework -- the element list, the beam
-    object, the settings dictionary -- which the loop only reads scalars
-    from.
-    """
+
+class FakeBmad:
+    """The real turn loop; only the framework around it, read for scalars, is faked."""
 
     # `_ALIVE` is a pydantic private attribute, so the class holds a
-    # descriptor rather than the value; `_GRID_CHARGE` and `_PHASE_SPACE`
-    # are `ClassVar` and come through as themselves.
+    # descriptor rather than the value.
     _ALIVE = bmadLattice.__private_attributes__["_ALIVE"].default
     _GRID_CHARGE = bmadLattice._GRID_CHARGE
     _PHASE_SPACE = bmadLattice._PHASE_SPACE
@@ -142,11 +138,8 @@ def directory():
 def looped(directory):
     """`_track_grid_turn_by_turn` itself, on a closed one-turn lattice.
 
-    An empty result is a failure, not a skip. `_track_grid_turn_by_turn`
-    catches everything, warns, and returns ``{}``, so a broken Tao command
-    leaves the frequency map reporting "no particle gave a tune" and
-    nothing else -- which is how the hand-back stayed broken. Skipping here
-    would reproduce that. Tao being absent is already a skip, in `_tao`.
+    An empty result fails rather than skips: the loop catches everything and
+    returns ``{}``, which is how the hand-back once stayed broken unnoticed.
     """
     path = _write_lattice(directory, "ring.bmad", repeats=1, geometry="closed")
     lattice = FakeBmad(_tao(path), path)
@@ -164,26 +157,15 @@ def looped(directory):
 def unrolled(directory, looped):
     """The same turns from one call, by writing the ring out `TURNS` times.
 
-    An open geometry needs its Twiss given to it, so the closed ring's
-    periodic solution is read off first and written in. Tracking does not
-    use the Twiss, but Tao will not calculate the lattice without it.
-
-    Order matters here, and not for a reason the code shows: **pytao `Tao`
-    objects share one Fortran library**, so constructing a second one
-    re-points the first at the new lattice. Building the long line's `Tao`
-    before reading the closed ring would leave the long arm quietly
-    tracking the one-turn ring -- which showed up as "Cannot locate
-    element: TURNEND##2", the markers of turns 2 onwards having ceased to
-    exist. Every `Tao` here is therefore finished with before the next is
-    made.
+    The open line needs the closed ring's Twiss written in before Tao will
+    calculate it. pytao `Tao` objects share one Fortran library, so each is
+    finished with before the next is made, or the first silently re-points.
     """
     closed = _write_lattice(directory, "probe.bmad", repeats=1, geometry="closed")
 
-    # The looped arm overwrote its own grid file on the way round, so the
-    # seed is regenerated -- from the *closed* lattice, because
-    # `_write_grid_beam_file` offsets the grid from the closed orbit and
-    # the open line has no closed orbit to read. Checked byte for byte
-    # against the looped arm's, rather than argued to be the same.
+    # The looped arm overwrote its grid file, so the seed is regenerated from
+    # the closed lattice (the grid is offset from the closed orbit) and
+    # checked byte for byte against the looped arm's.
     seed = os.path.join(directory, "seed.fma.beam")
     again = os.path.join(directory, "again.fma.beam")
     ring = os.path.join(directory, "ring.bmad")
@@ -203,9 +185,7 @@ def unrolled(directory, looped):
         directory, "long.bmad", repeats=TURNS, geometry="open", twiss=written
     )
     tao = _tao(path)
-    tao.cmd(bmadLattice._POSITION_FILE_CMD.format(path=seed))
-    tao.cmd("set beam add_saved_at = marker::*, END")
-    tao.cmd("set global track_type = beam", raises=False)
+    _load_beam(tao, seed, "marker::*, END")
     tao.track_beam("BEGINNING", "END", use_progress_bar=False)
     return {
         name: np.asarray(
@@ -225,23 +205,14 @@ def unrolled(directory, looped):
     }
 
 
-# --- the turns have to actually happen ----------------------------------
-
-
 def test_the_grid_is_tracked_for_every_turn(looped):
-    """Shape first: one column per turn, one row per grid point."""
     for name, track in looped.items():
         assert track.shape == (NPART, TURNS), name
 
 
 @pytest.mark.parametrize("name", ["x", "px", "y", "py"])
 def test_every_turn_differs_from_the_first(looped, name):
-    """The failure this replaces gave exactly 0.0 here, for all turns.
-
-    The threshold is deliberately crude -- the point is to separate
-    "moved" from "did not move at all", not to pin a number. A frozen
-    loop gives 0; a working one moves by of order the beam size.
-    """
+    """The failure this replaces gave exactly 0.0 here, for all turns."""
     track = looped[name]
     moved = np.max(np.abs(track - track[:, [0]]), axis=0)
     assert np.all(moved[1:] > 0), f"{name} is frozen after turn 1"
@@ -249,17 +220,9 @@ def test_every_turn_differs_from_the_first(looped, name):
 
 
 def test_the_motion_is_not_a_drift_in_one_direction(looped):
-    """Betatron motion changes sign; a bookkeeping error usually does not.
-
-    A loop that added a fixed offset every turn would pass the test above.
-    Asked per particle, because the grid starts each one at a different
-    amplitude and comparing across particles says nothing.
-    """
+    """Betatron motion changes sign per particle; a fixed offset per turn does not."""
     x = looped["x"]
     assert np.all(np.any(x > 0, axis=1) & np.any(x < 0, axis=1))
-
-
-# --- and they have to be the right turns --------------------------------
 
 
 @pytest.mark.parametrize("name", ["x", "px", "y", "py"])
@@ -274,16 +237,8 @@ def test_the_two_routes_are_not_trivially_equal(looped, unrolled):
     assert np.max(np.abs(reference - reference[:, [0]])) > 0
 
 
-# --- the position file is what carries the beam -------------------------
-
-
 def test_a_lost_particle_stays_lost(directory):
-    """`_write_position_file` writes a per-particle `state` column.
-
-    Without it every particle is written back alive, and one that left the
-    aperture on turn 3 reappears on turn 4 at the coordinates it died with
-    -- which is both wrong and silent, since the grid index still lines up.
-    """
+    """Without the `state` column a particle lost on turn 3 reappears on turn 4."""
     path = _write_lattice(directory, "lost.bmad", repeats=1, geometry="closed")
     lattice = FakeBmad(_tao(path), path)
     rows = np.zeros((3, 6))
@@ -298,9 +253,7 @@ def test_a_lost_particle_stays_lost(directory):
     assert states == ["Alive", "Lost", "Alive"]
 
     tao = lattice.tao
-    tao.cmd(bmadLattice._POSITION_FILE_CMD.format(path=beam))
-    tao.cmd("set beam add_saved_at = END")
-    tao.cmd("set global track_type = beam", raises=False)
+    _load_beam(tao, beam, "END")
     tao.track_beam("BEGINNING", "END", use_progress_bar=False)
     out = np.asarray(tao.bunch1("END", coordinate="x", which="model", ix_bunch=1))
 
@@ -310,12 +263,7 @@ def test_a_lost_particle_stays_lost(directory):
 
 
 def test_the_grid_file_round_trips_through_tao(directory):
-    """What is written is what Tao reads back, to full precision.
-
-    The hand-back is only as good as this: the loop writes six coordinates
-    and reads them back next turn, so a lossy format would show up as a
-    slow drift rather than as an error.
-    """
+    """A lossy format would show up as a slow drift rather than an error."""
     path = _write_lattice(directory, "trip.bmad", repeats=1, geometry="closed")
     lattice = FakeBmad(_tao(path), path)
     rng = np.random.default_rng(3)
@@ -324,9 +272,7 @@ def test_the_grid_file_round_trips_through_tao(directory):
     lattice._write_position_file(beam, rows)
 
     tao = lattice.tao
-    tao.cmd(bmadLattice._POSITION_FILE_CMD.format(path=beam))
-    tao.cmd("set beam add_saved_at = BEGINNING, END")
-    tao.cmd("set global track_type = beam", raises=False)
+    _load_beam(tao, beam, "BEGINNING, END")
     tao.track_beam("BEGINNING", "END", use_progress_bar=False)
     back = np.column_stack(
         [
@@ -337,28 +283,16 @@ def test_the_grid_file_round_trips_through_tao(directory):
     assert back == pytest.approx(rows, rel=1e-12, abs=1e-18)
 
 
-# --- what Tao does not offer --------------------------------------------
-
-
 def test_the_hand_back_cannot_go_through_set_beam_beginning(directory):
-    """Why the loop writes a file rather than asking Tao to hand back.
-
-    `set beam beginning = END` is the documented way and it reports no
-    error, so this records the measurement rather than the manual: with a
-    position file set, the beam at END is identical on every turn.
-
-    If a later Tao fixes this, the test fails and the loop can be
-    simplified -- which is the point of pinning it.
-    """
+    """Why the loop writes a file: `set beam beginning = END` reports no error
+    but the beam at END is identical every turn. If Tao fixes this, simplify."""
     path = _write_lattice(directory, "handback.bmad", repeats=1, geometry="closed")
     lattice = FakeBmad(_tao(path), path)
     beam = os.path.join(directory, "handback.beam")
     lattice._write_grid_beam_file(beam)
 
     tao = lattice.tao
-    tao.cmd(bmadLattice._POSITION_FILE_CMD.format(path=beam))
-    tao.cmd("set beam add_saved_at = END")
-    tao.cmd("set global track_type = beam", raises=False)
+    _load_beam(tao, beam, "END")
     seen = []
     for _ in range(3):
         tao.track_beam("BEGINNING", "END", use_progress_bar=False)
@@ -371,13 +305,7 @@ def test_the_hand_back_cannot_go_through_set_beam_beginning(directory):
 
 
 def test_tao_has_no_multi_turn_beam_tracking(directory):
-    """`track_beam` is one pass, whatever is asked of it.
-
-    Tao's only turn counts are `da_param%n_turn` (the aperture scan, which
-    `_tao_dynamic_aperture_namelist` already uses) and a `multi_turn_orbit`
-    plot curve, which tracks `lat%particle_start` -- one particle, not a
-    beam. `beam_init` has no turn count at all, so there is nothing to set.
-    """
+    """`beam_init` has no turn count; Tao's only ones are for DA and one particle."""
     path = _write_lattice(directory, "noturns.bmad", repeats=1, geometry="closed")
     tao = _tao(path)
     with pytest.raises(Exception):

@@ -1,11 +1,4 @@
-"""
-SIMBA Twiss Module
-
-This module calculates the Twiss properties of a particle distribution.
-
-Classes:
-    - :class:`~simba.Modules.Particles.twiss.twiss`: Twiss calculations.
-"""
+"""Twiss parameters of a particle distribution."""
 from pydantic import (
     BaseModel,
     computed_field,
@@ -17,9 +10,7 @@ from typing import Dict
 
 
 class twiss(BaseModel):
-    """
-    Class for calculating Twiss properties of a particle distribution.
-    """
+    """Twiss parameters of a particle distribution, from its second moments."""
 
     model_config = ConfigDict(
         extra="allow",
@@ -32,22 +23,7 @@ class twiss(BaseModel):
 
     @property
     def normal(self) -> Dict:
-        """
-        Get the following Twiss parameters as a dictionary keyed by name:
-        - :attr:`~normalized_horizontal_emittance`
-        - :attr:`~horizontal_emittance`
-        - :attr:`~alpha_x`
-        - :attr:`~beta_x`
-        - :attr:`~normalized_vertical_emittance`
-        - :attr:`~vertical_emittance`
-        - :attr:`~alpha_y`
-        - :attr:`~beta_y`
-
-        Returns
-        -------
-        Dict
-            Dictionary of Twiss parameters
-        """
+        """Emittances, alpha and beta in both planes, keyed by attribute name."""
         return {
             p: getattr(self, p)
             for p in (
@@ -64,22 +40,7 @@ class twiss(BaseModel):
 
     @property
     def corrected(self) -> Dict:
-        """
-        Get the following Twiss parameters (corrected for dispersion) as a dictionary keyed by name:
-        - :attr:`~normalized_horizontal_emittance`
-        - :attr:`~horizontal_emittance`
-        - :attr:`~alpha_x`
-        - :attr:`~beta_x`
-        - :attr:`~normalized_vertical_emittance`
-        - :attr:`~vertical_emittance`
-        - :attr:`~alpha_y`
-        - :attr:`~beta_y`
-
-        Returns
-        -------
-        Dict
-            Dictionary of corrected Twiss parameters
-        """
+        """As :attr:`normal`, but the dispersion-corrected ``*_corrected`` attributes."""
         return {
             p + "_corrected": getattr(self, p + "_corrected")
             for p in (
@@ -103,98 +64,43 @@ class twiss(BaseModel):
     @computed_field
     @property
     def normalized_horizontal_emittance(self) -> UnitValue:
-        """
-        Get the normalized horizontal emittance;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.normalized_horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Normalized horizontal emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.normalized_horizontal_emittance`."""
         return self.beam.emittance.normalized_horizontal_emittance
 
     @computed_field
     @property
     def normalized_vertical_emittance(self) -> UnitValue:
-        """
-        Get the normalized vertical emittance;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.normalized_vertical_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Normalized vertical emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.normalized_vertical_emittance`."""
         return self.beam.emittance.normalized_vertical_emittance
 
     @computed_field
     @property
     def horizontal_emittance(self) -> UnitValue:
-        """
-        Get the horizontal emittance;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.horizontal_emittance`."""
         return self.beam.emittance.horizontal_emittance
 
     @computed_field
     @property
     def vertical_emittance(self) -> UnitValue:
-        """
-        Get the vertical emittance;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.vertical_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.vertical_emittance`."""
         return self.beam.emittance.vertical_emittance
 
     @computed_field
     @property
     def horizontal_emittance_corrected(self) -> UnitValue:
-        """
-        Get the horizontal emittance corrected for dispersion;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.horizontal_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected horizontal emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.horizontal_emittance_corrected`."""
         return self.beam.emittance.horizontal_emittance_corrected
 
     @computed_field
     @property
     def vertical_emittance_corrected(self) -> UnitValue:
-        """
-        Get the vertical emittance corrected for dispersion;
-        see :attr:`~simba.Modules.Beams.Particles.emittance.vertical_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected vertical emittance
-        """
+        """See :attr:`~simba.Modules.Beams.Particles.emittance.emittance.vertical_emittance_corrected`."""
         return self.beam.emittance.vertical_emittance_corrected
 
     @computed_field
     @property
     def beta_x(self) -> UnitValue:
-        """
-        Get the horizontal Twiss beta function as `covariance(x, x) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal Twiss beta
-        """
+        """cov(x, x) / horizontal_emittance."""
         return (
             self.beam.covariance(self.beam.x, self.beam.x) / self.horizontal_emittance
         )
@@ -202,14 +108,7 @@ class twiss(BaseModel):
     @computed_field
     @property
     def alpha_x(self) -> UnitValue:
-        """
-        Get the horizontal Twiss alpha function as `-covariance(x, xp) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal Twiss alpha
-        """
+        """-cov(x, xp) / horizontal_emittance."""
         return (
             -1
             * self.beam.covariance(self.beam.x, self.beam.xp)
@@ -219,14 +118,7 @@ class twiss(BaseModel):
     @computed_field
     @property
     def gamma_x(self) -> UnitValue:
-        """
-        Get the horizontal Twiss alpha function as `covariance(xp, xp) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal Twiss gamma
-        """
+        """cov(xp, xp) / horizontal_emittance."""
         return (
             self.beam.covariance(self.beam.xp, self.beam.xp) / self.horizontal_emittance
         )
@@ -234,27 +126,13 @@ class twiss(BaseModel):
     @computed_field
     @property
     def beta_y(self) -> UnitValue:
-        """
-        Get the vertical Twiss beta function as `covariance(y, y) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical Twiss beta
-        """
+        """cov(y, y) / vertical_emittance."""
         return self.beam.covariance(self.beam.y, self.beam.y) / self.vertical_emittance
 
     @computed_field
     @property
     def alpha_y(self) -> UnitValue:
-        """
-        Get the vertical Twiss beta function as `-covariance(y, yp) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical Twiss alpha
-        """
+        """-cov(y, yp) / vertical_emittance."""
         return (
             -1
             * self.beam.covariance(self.beam.y, self.beam.yp)
@@ -264,36 +142,14 @@ class twiss(BaseModel):
     @computed_field
     @property
     def gamma_y(self) -> UnitValue:
-        """
-        Get the vertical Twiss gamma function as `covariance(yp, yp) / horizontal_emittance`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical Twiss gamma
-        """
+        """cov(yp, yp) / vertical_emittance."""
         return (
             self.beam.covariance(self.beam.yp, self.beam.yp) / self.vertical_emittance
         )
 
     @property
     def twiss_analysis(self) -> tuple:
-        """
-        Get the calculated Twiss parameters as a tuple.
-
-        Returns
-        -------
-        tuple
-            Calculated Twiss parameters in the following order:
-            - :attr:`~simba.Modules.Beams.Particles.emittance.emittance.horizontal_emittance`
-            - :attr:`~alpha_x`
-            - :attr:`~beta_x`
-            - :attr:`~gamma_x`
-            - :attr:`~simba.Modules.Beams.Particles.emittance.emittance.vertical_emittance`
-            - :attr:`~alpha_y`
-            - :attr:`~beta_y`
-            - :attr:`~gamma_y`
-        """
+        """(ex, alpha_x, beta_x, gamma_x, ey, alpha_y, beta_y, gamma_y), geometric emittances."""
         return (
             self.beam.emittance.horizontal_emittance,
             self.alpha_x,
@@ -308,30 +164,14 @@ class twiss(BaseModel):
     @computed_field
     @property
     def beta_x_corrected(self) -> UnitValue:
-        """
-        Get the horizontal Twiss beta corrected for dispersion as
-        `covariance(xc, xc) / horizontal_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected horizontal Twiss beta
-        """
+        """Dispersion-corrected beta_x: cov(xc, xc) / horizontal_emittance_corrected."""
         xc = self.beam.eta_corrected(self.beam.x)
         return self.beam.covariance(xc, xc) / self.horizontal_emittance_corrected
 
     @computed_field
     @property
     def alpha_x_corrected(self) -> UnitValue:
-        """
-        Get the horizontal Twiss beta corrected for dispersion as
-        `-covariance(xc, xpc) / horizontal_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected horizontal Twiss alpha
-        """
+        """Dispersion-corrected alpha_x: -cov(xc, xpc) / horizontal_emittance_corrected."""
         xc = self.beam.eta_corrected(self.beam.x)
         xpc = self.beam.eta_corrected(self.beam.xp)
         return -1 * self.beam.covariance(xc, xpc) / self.horizontal_emittance_corrected
@@ -339,45 +179,21 @@ class twiss(BaseModel):
     @computed_field
     @property
     def gamma_x_corrected(self) -> UnitValue:
-        """
-        Get the horizontal Twiss gamma corrected for dispersion as
-        `covariance(xpc, xpc) / horizontal_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected horizontal Twiss gamma
-        """
+        """Dispersion-corrected gamma_x: cov(xpc, xpc) / horizontal_emittance_corrected."""
         xpc = self.beam.eta_corrected(self.beam.xp)
         return self.beam.covariance(xpc, xpc) / self.horizontal_emittance_corrected
 
     @computed_field
     @property
     def beta_y_corrected(self) -> UnitValue:
-        """
-        Get the vertical Twiss beta corrected for dispersion as
-        `covariance(yc, yc) / vertical_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected vertical Twiss beta
-        """
+        """Dispersion-corrected beta_y: cov(yc, yc) / vertical_emittance_corrected."""
         yc = self.beam.eta_corrected(self.beam.y)
         return self.beam.covariance(yc, yc) / self.vertical_emittance_corrected
 
     @computed_field
     @property
     def alpha_y_corrected(self) -> UnitValue:
-        """
-        Get the vertical Twiss alpha corrected for dispersion as
-        `-covariance(yc, ypc) / vertical_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected vertical Twiss alpha
-        """
+        """Dispersion-corrected alpha_y: -cov(yc, ypc) / vertical_emittance_corrected."""
         yc = self.beam.eta_corrected(self.beam.y)
         ypc = self.beam.eta_corrected(self.beam.yp)
         return -1 * self.beam.covariance(yc, ypc) / self.vertical_emittance_corrected
@@ -385,36 +201,13 @@ class twiss(BaseModel):
     @computed_field
     @property
     def gamma_y_corrected(self) -> UnitValue:
-        """
-        Get the vertical Twiss gamma corrected for dispersion as
-        `covariance(ypc, ypc) / vertical_emittance_corrected`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Corrected vertical Twiss gamma
-        """
+        """Dispersion-corrected gamma_y: cov(ypc, ypc) / vertical_emittance_corrected."""
         ypc = self.beam.eta_corrected(self.beam.yp)
         return self.beam.covariance(ypc, ypc) / self.vertical_emittance_corrected
 
     @property
     def twiss_analysis_corrected(self) -> tuple:
-        """
-        Get the calculated Twiss parameters corrected for dispersion as a tuple.
-
-        Returns
-        -------
-        tuple
-            Calculated Twiss parameters in the following order:
-            - :attr:`~simba.Modules.Beams.Particles.emittance.emittance.horizontal_emittance_corrected`
-            - :attr:`~alpha_x_corrected`
-            - :attr:`~beta_x_corrected`
-            - :attr:`~gamma_x_corrected`
-            - :attr:`~simba.Modules.Beams.Particles.emittance.emittance.vertical_emittance_corrected`
-            - :attr:`~alpha_y_corrected`
-            - :attr:`~beta_y_corrected`
-            - :attr:`~gamma_y_corrected`
-        """
+        """As :attr:`twiss_analysis`, but dispersion-corrected."""
         return (
             self.horizontal_emittance_corrected,
             self.alpha_x_corrected,
@@ -429,43 +222,27 @@ class twiss(BaseModel):
     @computed_field
     @property
     def eta_x(self) -> UnitValue:
-        """
-        Get the horizontal dispersion; see :func:`~calculate_etax`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal dispersion
-        """
+        """Horizontal dispersion; see :meth:`calculate_etax`."""
         return self.calculate_etax()[0]
 
     @computed_field
     @property
     def eta_xp(self) -> UnitValue:
-        """
-        Get the derivative of horizontal dispersion; see :func:`~calculate_etax`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Horizontal dispersion derivative
-        """
+        """Horizontal dispersion derivative; see :meth:`calculate_etax`."""
         return self.calculate_etax()[1]
 
     def calculate_etax(self) -> tuple:
         """
-        Get the horizontal dispersion and its derivative.
+        Horizontal dispersion from the correlation of x and xp with the fractional pz.
 
         Returns
         -------
         tuple
-            - Horizontal dispersion
-            - Derviative of horizontal dispersion
-            - Mean of temporal distribution
+            (eta_x, eta_xp, mean t); the etas are 0 if pz has no spread
         """
         p = self.beam.cpz
         pAve = np.mean(p)
-        p = p / pAve - 1  # [(a / pAve) - 1 for a in p]
+        p = p / pAve - 1
         S16, S66 = self.beam.covariance(self.beam.x, p), self.beam.covariance(p, p)
         eta1 = S16 / S66 if S66 else 0
         S26 = self.beam.covariance(self.beam.xp, p)
@@ -475,43 +252,27 @@ class twiss(BaseModel):
     @computed_field
     @property
     def eta_y(self) -> UnitValue:
-        """
-        Get the vertical dispersion; see :func:`~calculate_etay`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical dispersion
-        """
+        """Vertical dispersion; see :meth:`calculate_etay`."""
         return self.calculate_etay()[0]
 
     @computed_field
     @property
     def eta_yp(self) -> UnitValue:
-        """
-        Get the derivative of vertical dispersion; see :func:`~calculate_etay`.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Vertical dispersion derivative
-        """
+        """Vertical dispersion derivative; see :meth:`calculate_etay`."""
         return self.calculate_etay()[1]
 
     def calculate_etay(self) -> tuple:
         """
-        Get the vertical dispersion and its derivative.
+        Vertical dispersion from the correlation of y and yp with the fractional pz.
 
         Returns
         -------
         tuple
-            - Vertical dispersion
-            - Derviative of vertical dispersion
-            - Mean of temporal distribution
+            (eta_y, eta_yp, mean t); the etas are 0 if pz has no spread
         """
         p = self.beam.cpz
         pAve = np.mean(p)
-        p = p / pAve - 1  # [(a / pAve) - 1 for a in p]
+        p = p / pAve - 1
         S36, S66 = self.beam.covariance(self.beam.y, p), self.beam.covariance(p, p)
         eta1 = S36 / S66 if S66 else 0
         S46 = self.beam.covariance(self.beam.yp, p)

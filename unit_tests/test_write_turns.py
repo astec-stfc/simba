@@ -17,9 +17,6 @@ class FakeLine:
     output_turns = frameworkLattice.output_turns
 
 
-# --- reading the flag ---------------------------------------------------
-
-
 def test_the_default_is_off():
     assert FakeLine({"turns": 1000}).write_turns is False
 
@@ -28,11 +25,8 @@ def test_it_can_be_asked_for():
     assert FakeLine({"turns": 1000, "write_turns": True}).write_turns is True
 
 
-# --- what gets written --------------------------------------------------
-
-
 def test_a_single_turn_run_is_unchanged():
-    """The flag must not touch the ordinary case: one file, unsuffixed."""
+    """One file, unsuffixed."""
     assert FakeLine().output_turns() == [(None, None)]
     assert FakeLine({"turns": 1}).output_turns() == [(None, None)]
 
@@ -42,8 +36,7 @@ def test_the_flag_does_nothing_on_a_single_turn_run():
 
 
 def test_a_multi_turn_run_writes_only_the_last_turn():
-    """And writes it under the *unsuffixed* name, so a ring run looks like
-    any other run to everything downstream."""
+    """Unsuffixed, so a ring run looks like any other run downstream."""
     assert FakeLine({"turns": 1000}).output_turns() == [(1000, None)]
 
 
@@ -56,23 +49,17 @@ def test_asking_for_turns_writes_every_one():
 
 
 def test_the_file_count_is_one_by_default_and_n_when_asked():
-    """The whole point: 10^6 turns is one file, not 10^6, unless you say."""
     assert len(FakeLine({"turns": 1_000_000}).output_turns()) == 1
     assert len(FakeLine({"turns": 1000, "write_turns": True}).output_turns()) == 1000
 
 
-# --- the two halves of each pair mean different things ------------------
-
-
 def test_the_data_turn_is_one_based():
-    """It selects a turn, so it counts from 1 like the turn count does."""
     turns = FakeLine({"turns": 4, "write_turns": True}).output_turns()
     assert [data for data, _ in turns] == [1, 2, 3, 4]
 
 
 def test_the_name_turn_is_none_when_only_the_last_is_kept():
-    """`output_basename(name, turn=None)` gives the plain name; passing the
-    turn would suffix a file that is the only one there is."""
+    """A turn would suffix a file that is the only one there is."""
     (data_turn, name_turn), = FakeLine({"turns": 50}).output_turns()
     assert data_turn == 50
     assert name_turn is None

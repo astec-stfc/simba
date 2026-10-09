@@ -63,19 +63,15 @@ class gdf_beam(Munch):
         """
         Return the screen data at a longitudinal position.
 
-        An exact key match is tried first, then the nearest screen within
-        ``tolerance``. The fallback matters because GPT screens are not written
-        at exactly the nominal element position -- the translator offsets them
-        slightly so they do not sit on an element boundary -- and because float
-        keys rarely compare equal anyway.
+        Falls back to the nearest screen within ``tolerance``, as the translator
+        offsets GPT screens slightly off element boundaries.
 
         Parameters
         ----------
         position: float
-            Requested longitudinal position [m].
+            Longitudinal position [m].
         tolerance: float
-            Largest accepted mismatch [m]. Well below typical screen spacing, so
-            this cannot silently return a different screen.
+            Largest accepted mismatch [m]; well below typical screen spacing.
 
         Returns
         -------

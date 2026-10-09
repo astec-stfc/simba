@@ -4,13 +4,18 @@ import operator as op
 
 
 class MathParser:
-    """Basic parser with local variable and math functions
+    """Safe expression evaluator over named variables and :mod:`math` functions.
 
-    Args:
-       vars (mapping): mapping object where obj[name] -> numerical value
-       math (bool, optional): if True (default) all math function are added in the same name space
+    Parameters
+    ----------
+    vars : mapping
+        Variable name to numerical value.
+    math : bool, optional
+        If True (default), :mod:`math` functions are available by name.
 
-    Example:
+    Examples
+    --------
+    ::
 
        data = {'r': 3.4, 'theta': 3.141592653589793}
        parser = MathParser(data)

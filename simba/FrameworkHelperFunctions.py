@@ -2,7 +2,6 @@ import os
 import re
 from shutil import copyfile
 import numpy as np
-from .Modules.Fields import field
 from deepdiff import DeepDiff
 
 from laura.models.element import Element
@@ -103,7 +102,7 @@ def convert_numpy_types(v):
         ),
     ):
         return int(v)
-    elif isinstance(v, (field, FieldMap)):
+    elif isinstance(v, FieldMap):
         return convert_numpy_types(v.model_dump())
     else:
         return v
@@ -123,10 +122,7 @@ def normalize(obj):
         return obj
 
 def deepdiff_to_nested(diff: dict) -> dict:
-    """
-    Convert a DeepDiff result (values_changed only)
-    into a nested dictionary structure.
-    """
+    """Convert the ``values_changed`` part of a DeepDiff result into nested dicts."""
     nested = {}
 
     if 'values_changed' not in diff:
@@ -151,7 +147,6 @@ def deepdiff_to_nested(diff: dict) -> dict:
             elif in_brackets:
                 current += char
 
-        # Build nested dicts
         d = nested
         for k in keys[:-1]:
             d = d.setdefault(k, {})
@@ -163,10 +158,7 @@ def deepdiff_to_nested(diff: dict) -> dict:
     return nested
 
 def compare_multiple_models(model_pairs: list[tuple[Element, Element]]) -> dict:
-    """
-    Given a list of (old_model, new_model) pairs,
-    return a nested dictionary of all changes.
-    """
+    """Return a nested dict of changes, by element name, for (old, new) model pairs."""
     all_changes = {}
     for old, new in model_pairs:
         old_dump = normalize(old.model_dump())
@@ -191,10 +183,7 @@ def set_deep_attr(obj, dotted_path, value):
     setattr(target, attrs[-1], value)
 
 def flatten_changes_dict(d, parent_key=""):
-    """
-    Flattens nested dict keys into dotted paths.
-    Returns a list of (dotted_path, value).
-    """
+    """Flatten nested dict keys into a list of (dotted_path, value)."""
     items = []
     for k, v in d.items():
         new_key = f"{parent_key}.{k}" if parent_key else k

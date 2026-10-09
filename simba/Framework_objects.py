@@ -1,26 +1,15 @@
 """
-SIMBA Objects Module
-
-Various objects and functions to handle simulation lattices, commands, and elements.
+SIMBA lattices, commands and element groups.
 
 Classes:
-    - :class:`~simba.Framework_objects.runSetup`: Defines simulation run settings, allowing for single runs, element scans or jitter/error studies.
-
-    - :class:`~simba.Framework_objects.frameworkObject`: Base class for generic objects in SIMBA, including lattice elements and simulation code commands.
-
-    - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `LAURA` elements.
-
-    - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping elements together and controlling them all simultaneously.
-
-    - :class:`~simba.Framework_objects.element_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements.
-      # TODO is this ever used?
-
-    - :class:`~simba.Framework_objects.r56_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements with an R56.
-      # TODO is this ever used?
-
-    - :class:`~simba.Framework_objects.chicane`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for a 4-dipole bunch compressor chicane.
-
-    - :class:`~simba.Framework_objects.getGrids`: Used for determining the appropriate number of space charge grids given a number of particles.
+    - :class:`~simba.Framework_objects.runSetup`: single runs, element scans or error studies.
+    - :class:`~simba.Framework_objects.frameworkObject`: base class for code commands.
+    - :class:`~simba.Framework_objects.frameworkLattice`: base class for a line of LAURA elements tracked by one code.
+    - :class:`~simba.Framework_objects.frameworkGroup`: elements controlled together.
+    - :class:`~simba.Framework_objects.element_group`: a plain group. # TODO is this ever used?
+    - :class:`~simba.Framework_objects.r56_group`: a group with an R56. # TODO is this ever used?
+    - :class:`~simba.Framework_objects.chicane`: a 4-dipole bunch compressor chicane.
+    - :class:`~simba.Framework_objects.getGrids`: number of space-charge grids for a number of particles.
 """
 
 import math
@@ -81,8 +70,7 @@ from typing import (
 )
 
 OUTPUT_TURN_SEPARATOR = "-t"
-"""Separates an element name from a turn index in an output beam filename,
-multi-turn only."""
+"""Separates an element name from a turn index in an output beam filename (multi-turn only)."""
 
 OUTPUT_LINE_SEPARATOR = "-"
 """Separates a line name from an element name in an output beam filename."""
@@ -110,35 +98,29 @@ with open(
 
 
 class runSetup:
-    """
-    Class defining settings for simulations that include multiple runs
-    such as error studies or parameter scans.
-    """
+    """Settings for multi-run simulations such as error studies or parameter scans."""
 
     def __init__(self):
-        # define the number of runs and the random number seed
         self.nruns = 1
         self.seed = 0
 
-        # init errorElement and elementScan settings as None
         self.elementErrors = None
         self.elementScan = None
 
     def setNRuns(self, nruns: int | float) -> None:
         """
-        Sets the number of simulation runs to a new value.
+        Set the number of runs.
 
         Parameters
-        -----------
+        ----------
         nruns : int or float
-            The number of runs to set. If a float is passed, it will be converted to an integer.
+            Number of runs; truncated to an integer.
 
         Raises
         ------
         TypeError
-            If `nruns` is not an integer or float.
+            If ``nruns`` is not a number.
         """
-        # enforce integer argument type
         if isinstance(nruns, (int, float)):
             self.nruns = int(nruns)
         else:
@@ -148,19 +130,18 @@ class runSetup:
 
     def setSeedValue(self, seed: int | float) -> None:
         """
-        Sets the random number seed to a new value for all lattice objects
+        Set the random number seed.
 
         Parameters
-        -----------
+        ----------
         seed : int or float
-            The random number seed to set. If a float is passed, it will be converted to an integer.
+            Seed; truncated to an integer.
 
         Raises
         ------
         TypeError
-            If `seed` is not an integer or float.
+            If ``seed`` is not a number.
         """
-        # enforce integer argument type
         if isinstance(seed, (int, float)):
             self.seed = int(seed)
         else:
@@ -168,16 +149,13 @@ class runSetup:
 
     def loadElementErrors(self, file: str | dict) -> None:
         """
-        Load error definitions from a file or dictionary and assign them to the elementErrors attribute.
-        This method can handle both a YAML file and a dictionary containing error definitions.
+        Load element error definitions (and optional ``nruns`` and ``seed``) into ``elementErrors``.
 
         Parameters
-        -----------
+        ----------
         file: str or dict
-            - str: Path to a YAML file containing error definitions.
-            - dict: A dictionary containing error definitions.
+            YAML file path, or the definitions themselves.
         """
-        # load error definitions from markup file
         error_setup = None
         if isinstance(file, str) and (".yaml" in file):
             with open(file) as inputfile:
@@ -207,18 +185,18 @@ class runSetup:
         multiplicative: bool = False,
     ) -> None:
         """
-        Define a parameter scan for a single parameter of a given machine element
+        Scan one parameter of one element.
 
         Parameters
-        -----------
+        ----------
         name : str
-            Name of the machine element to be scanned.
+            Element name.
         item : str
-            Name of the item (parameter) to be scanned within the machine element.
+            Parameter to scan.
         scanrange : list or tuple or np.ndarray
-            A list or tuple containing two floats, representing the minimum and maximum values of the scan range.
+            ``(min, max)`` of the scan.
         multiplicative : bool, optional
-            If True, the scan will be multiplicative; otherwise, it will be additive. Default is False.
+            Values multiply the original rather than add to it.
         """
         if not (isinstance(name, str) and isinstance(item, str)):
             raise TypeError(
@@ -239,7 +217,6 @@ class runSetup:
                 "Argument multiplicative passed to runSetup.setElementScan must be a boolean"
             )
 
-        # if no type errors were raised, build an assign a dictionary
         self.elementScan = {
             "name": name,
             "item": item,
@@ -251,11 +228,7 @@ class runSetup:
 
 
 class frameworkObject(BaseModel):
-    """
-    Class defining a framework object, which is the base class for all elements
-    in a simulation lattice. It provides methods to add properties, validate parameters,
-    and handle various simulation-specific functionalities.
-    """
+    """Base class for code commands, whose allowed keywords come from the command and element keyword files."""
 
     model_config = ConfigDict(
         extra="allow",
@@ -265,16 +238,16 @@ class frameworkObject(BaseModel):
     )
 
     objectname: str = Field(alias="name")
-    """Name of the object, used as a unique identifier in the simulation."""
+    """Unique name of the object."""
 
     objecttype: str = Field(alias="type")
-    """Type of the object, which determines its behavior and properties in the simulation."""
+    """Type of the object, which sets its allowed keywords."""
 
     objectdefaults: Dict = {}
-    """Default values for the object's properties, used when no specific value is provided."""
+    """Default property values."""
 
     allowedkeywords: List | Dict = {}
-    """List of allowed keywords for the object, which defines what properties can be set."""
+    """Keywords that can be set as properties."""
 
     global_parameters: Dict = {}
     """Global parameters to be cascaded through all objects."""
@@ -299,7 +272,7 @@ class frameworkObject(BaseModel):
     @field_validator("objectname", mode="before")
     @classmethod
     def validate_objectname(cls, value: str) -> str:
-        """Validate the objectname to ensure it is a string."""
+        """Require a string objectname."""
         if not isinstance(value, str):
             raise ValueError("objectname must be a string.")
         return value
@@ -307,34 +280,34 @@ class frameworkObject(BaseModel):
     @field_validator("objecttype", mode="before")
     @classmethod
     def validate_objecttype(cls, value: str) -> str:
-        """Validate the objecttype to ensure it is a string."""
+        """Require a string objecttype."""
         if not isinstance(value, str):
             raise ValueError("objecttype must be a string.")
         return value
 
     def change_Parameter(self, key: str, value: Any) -> None:
         """
-        Change a parameter of the object by setting an attribute.
+        Set an attribute.
 
         Parameters
         ----------
         key: str
-            The name of the parameter to change.
+            Parameter name.
         value: Any
-            The new value to set for the parameter.
+            New value.
         """
         setattr(self, key, value)
 
     def add_property(self, key: str, value: Any) -> None:
         """
-        Add a property to the object by setting an attribute if the key is allowed.
+        Set an attribute if ``key`` (case-insensitive) is in :attr:`allowedkeywords`.
 
         Parameters
         ----------
         key: str
-            The name of the property to add.
+            Property name.
         value: Any
-            The value to set for the property.
+            Value to set.
         """
         key = key.lower()
         if key in self.allowedkeywords:
@@ -345,13 +318,12 @@ class frameworkObject(BaseModel):
 
     def add_properties(self, **keyvalues: dict) -> None:
         """
-        Add multiple properties to the object by setting attributes for each key-value pair.
+        Set several properties; see :meth:`add_property`.
 
         Parameters
         ----------
         **keyvalues: dict
-            A dictionary of key-value pairs where keys are property names
-            and values are the corresponding values to set.
+            Property names and values.
         """
         for key, value in keyvalues.items():
             key = key.lower()
@@ -371,10 +343,7 @@ class frameworkObject(BaseModel):
 
 class frameworkLattice(BaseModel):
     """
-    Class defining a framework lattice object, which contains all elements and groups
-    of elements in a simulation lattice. It also contains methods to manipulate and
-    retrieve information about the elements and groups, as well as methods to run
-    simulations and process results.
+    A line of elements and groups tracked by one code: writing, running and post-processing it.
 
     See :ref:`getting-started` and :ref:`loading-a-lattice`.
     """
@@ -389,69 +358,64 @@ class frameworkLattice(BaseModel):
     """Name of the lattice, used as a prefix for output files and commands."""
 
     objectname: str = ""
-    """Name of the lattice, used as a prefix for output files and commands."""
+    """Same as :attr:`name`."""
 
     objecttype: str = ""
-    """Type of the lattice, used as a prefix for output files and commands."""
+    """Lattice class name, e.g. ``elegantLattice``."""
 
     file_block: Dict
-    """File block containing input and output settings for the lattice."""
+    """This line's ``files:`` entry: input, output and tracking settings."""
 
     colliding_outputs: Set[str] = set()
-    """Element names another line in this run also writes an output file for.
+    """Element names another line in this run also writes an output for.
 
-    Set by :meth:`~simba.Framework.Framework.track` before anything is
-    written. See :meth:`output_basename`."""
+    Set by :meth:`~simba.Framework.Framework.track`; see :meth:`output_basename`."""
 
     machine: LAURA
-    """LAURA model of the lattice"""
+    """LAURA model of the lattice."""
 
     elementObjects: Dict
-    """Dictionary of element objects, where keys are element names and values are element instances."""
+    """Element objects, by name."""
 
     groupObjects: Dict
-    """Dictionary of group objects, where keys are group names and values are group instances."""
+    """Group objects, by name."""
 
     runSettings: runSetup
-    """Run settings for the lattice, including number of runs and random seed."""
+    """Number of runs, seed, errors and scans."""
 
     settings: FrameworkSettings
-    """Instance of :class:`~simba.Framework_Settings.FrameworkSettings`"""
+    """The framework settings."""
 
     executables: exes.Executables
-    """Executable commands for running simulations, defined in the Executables class.
-    See :class:`~simba.Framework.Codes.Executables.Executables` for more details."""
+    """Commands for running the codes; see :class:`~simba.Codes.Executables.Executables`."""
 
     global_parameters: Dict
-    """Global parameters for the lattice, including master subdirectory and other configuration settings."""
+    """Global parameters, including ``master_subdir``."""
 
     globalSettings: Dict = {"charge": None}
-    """Global settings for the lattice, including charge and other parameters."""
+    """Global settings, including charge."""
 
     allow_negative_drifts: bool = False
-    """If True, allows negative drifts in the lattice."""
+    """Allow negative drifts in the lattice."""
 
     _lsc_enable: bool = False
-    """Flag to enable LSC drifts in the lattice. Off by default, as in LAURA, so
-    that every code models the same physics unless asked for more; set
-    ``lsc_enable: true`` on the line to turn it on."""
+    """Enable LSC drifts; off by default, as in LAURA, so every code models the same physics."""
 
     _csr_enable: bool = True
-    """Flag to enable CSR drifts in the lattice."""
+    """Enable CSR drifts."""
 
     _wakefield_enable: bool = True
-    """Flag to enable structure wakefields in the lattice."""
+    """Enable structure wakefields."""
 
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
     _csr_bins: int | None = None
-    """Number of bins for CSR calculations, or None if nobody has chosen one."""
+    """Number of bins for CSR, or None if nobody has chosen one."""
 
     lsc_high_frequency_cutoff_start: float = -1
-    """Spatial frequency at which smoothing filter begins. If not positive, no frequency filter smoothing is done. 
-    See `Elegant manual LSC drift`_
-    
+    """Spatial frequency at which smoothing filter begins; if not positive, no smoothing. See `Elegant manual LSC drift`_
+
     .. _Elegant manual LSC drift: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu168.html#x179-18000010.58"""
 
     lsc_high_frequency_cutoff_end: float = -1
@@ -464,25 +428,24 @@ class frameworkLattice(BaseModel):
     """Lowest spatial frequency at which low-frequency cutoff filter is 1. See `Elegant manual LSC drift`_"""
 
     sample_interval: int = 1
-    """Downsampling of the incoming beam: every code tracks every
-    ``sample_interval``-th particle, with the total charge kept. The beam is
-    sampled once, as it is read (:meth:`load_input_beam`)."""
+    """Track every ``sample_interval``-th incoming particle, keeping the total charge.
+
+    Sampled once, as the beam is read (:meth:`load_input_beam`)."""
 
     groupSettings: Dict = {}
-    """Group settings for the lattice, including group-specific parameters."""
+    """Group settings for this line."""
 
     allElements: List = []
-    """List of all element names in the lattice."""
+    """All element names in the lattice."""
 
     initial_twiss: Dict = {}
-    """Initial Twiss parameters for the lattice, used for tracking and analysis."""
+    """Initial Twiss parameters."""
 
     ref_idx: int | None = None
-    """Index of the incoming beam's reference particle; see :func:`load_input_beam`."""
+    """Index of the incoming beam's reference particle; see :meth:`load_input_beam`."""
 
     native_time: ClassVar[tuple[str, str]] = ("t", "s")
-    """The code's own longitudinal time coordinate, as ``(name, units)``; see
-    :meth:`native_time_scale`."""
+    """The code's own longitudinal time coordinate, as ``(name, units)``; see :meth:`native_time_scale`."""
 
     _reference_clock: tuple | None = None
     """Fixed when the input beam is read; see :attr:`reference_clock`."""
@@ -491,132 +454,109 @@ class frameworkLattice(BaseModel):
     """The incoming beam's means, before sampling; see :attr:`reference_p0c`."""
 
     _input_particle: dict | None = None
-    """The incoming beam's reference particle's ``t`` and ``z``, if it has one;
-    see :attr:`reference_t0`."""
+    """The incoming reference particle's ``t`` and ``z``, if any; see :attr:`reference_t0`."""
 
     _section: SectionLatticeTranslator = None
-    """LAURA SectionLatticeTranslator object"""
+    """LAURA section translator."""
 
     _start_s: float = None
-    """Cached s position of the start of the lattice; see :func:`start_s`."""
+    """Cached s at the start of the lattice; see :attr:`start_s`."""
 
     remote_setup: Dict = {}
-    """Dictionary containing parameters for running executables remotely."""
+    """Settings for running executables remotely."""
 
     files: List = []
-    """List of all files needed to run the lattice."""
+    """Files needed to run the lattice."""
 
     code: str = None
     """Code to run the lattice."""
 
     supports_turns: ClassVar[bool] = False
-    """Whether this code can track a line more than once. Which codes can is
-    :meth:`codes_that_can` ``("supports_turns")``, as for every flag here."""
+    """Whether this code can track a line more than once.
+
+    :meth:`codes_that_can` lists the codes with any of these flags."""
 
     supports_periodic: ClassVar[bool] = False
-    """Whether this code can be asked for the *periodic* (closed) optics solution
-    rather than propagating the incoming beam's Twiss."""
+    """Whether this code can give the periodic (closed) optics rather than propagate the incoming Twiss."""
 
     supports_frequency_map: ClassVar[bool] = False
-    """Whether this code can produce a tune footprint over a tracked grid; see
-    :meth:`run_frequency_map`."""
+    """Whether this code can produce a tune footprint; see :meth:`run_frequency_map`."""
 
     supports_single_particle: ClassVar[bool] = False
-    """Whether this code can run in :meth:`single_particle` mode -- tracking
-    13 probes and carrying the distribution through the map they measure,
-    rather than tracking every macroparticle."""
+    """Whether this code can track 13 probes and carry the distribution through their map; see :attr:`single_particle`."""
 
     supports_dynamic_aperture: ClassVar[bool] = False
-    """Whether this code can run a dynamic-aperture scan; see
-    :meth:`run_dynamic_aperture`."""
+    """Whether this code can run a dynamic-aperture scan; see :meth:`run_dynamic_aperture`."""
 
     supports_nsuperperiods: ClassVar[bool] = False
-    """Whether this code can track one sector of an N-fold-symmetric ring N
-    times per turn; see :meth:`nsuperperiods`."""
+    """Whether this code can track one sector of an N-fold ring N times per turn; see :attr:`nsuperperiods`."""
 
     radiates_by_default: ClassVar[bool] = False
-    """Whether this code radiates with no asking."""
+    """Whether this code radiates unasked."""
 
     supports_radiation: ClassVar[bool] = False
-    """Whether simba can switch synchrotron radiation on for this code; see
-    :meth:`check_radiation_supported`."""
+    """Whether simba can switch radiation on for this code; see :meth:`check_radiation_supported`."""
 
     supports_programs: ClassVar[bool] = False
-    """Whether this code can vary an element's strength from turn to turn;
-    see :class:`~simba.Modules.DeviceProgram.DeviceProgram`. Any code with a
-    per-turn loop of its own can, which is most of the ring codes."""
+    """Whether this code can vary an element from turn to turn; see :class:`~simba.Modules.DeviceProgram.DeviceProgram`."""
 
     supports_ramp: ClassVar[bool] = False
-    """Whether this code can track an energy ramp, the reference momentum
-    changing from turn to turn; see :class:`~simba.Modules.EnergyRamp.EnergyRamp`."""
+    """Whether this code can track an energy ramp; see :class:`~simba.Modules.EnergyRamp.EnergyRamp`."""
 
     electrons_only: ClassVar[bool] = False
-    """Whether this code tracks electrons and nothing else; any other beam is
-    refused as it is read, see :meth:`check_species`."""
+    """Whether this code tracks only electrons; other beams are refused by :meth:`check_species`."""
 
     native_rf: ClassVar[str | None] = None
-    """How this code's cavities keep time over many passes left to themselves,
-    for :meth:`rf_phase_corrections` to subtract: ``fixed`` or ``synchronous``. 
-    ``None`` where simba cannot move a cavity's phase pass
-    by pass, so cannot impose :attr:`rf_mode`."""
+    """How this code's cavities keep time left to themselves, ``fixed`` or ``synchronous``.
+
+    Subtracted by :meth:`rf_phase_corrections`; None where simba cannot move a
+    cavity's phase pass by pass, so cannot impose :attr:`rf_mode`."""
 
     rf_phase_sign: ClassVar[float] = 1.0
-    """The code's cavity phase moves by this times a phase the reference
-    sees; measured per code. See :meth:`rf_phase_shifts`."""
+    """Sign of the code's cavity phase against the phase the reference sees, measured per code; see :meth:`rf_phase_shifts`."""
 
     rf_phase_per_radian: ClassVar[float] = 180 / math.pi
-    """The code's cavity phase units per radian: degrees, unless the code
-    says otherwise."""
+    """The code's cavity phase units per radian (degrees by default)."""
 
     _rf_corrections: dict | None = None
     """This run's :meth:`rf_phase_corrections`; see :meth:`begin_rf_phases`."""
 
     _rf_phase0: dict | None = None
-    """Each moved cavity's phase as the code was given it this run, by name;
-    see :meth:`apply_rf_phases`."""
+    """Each moved cavity's phase as given to the code this run, by name; see :meth:`apply_rf_phases`."""
 
     otm_convention: ClassVar[str] = ""
-    """The coordinate order :attr:`one_turn_map` is written in, as this code
-    writes it. :meth:`one_turn_map_canonical` converts it.
+    """The coordinate order of :attr:`one_turn_map` as this code writes it; see :meth:`one_turn_map_canonical`.
 
-    * The transverse blocks need no conversion at all.
-    * **The longitudinal block is three different problems.** Ocelot differs
-      from MAD-X by a sign, Xsuite by a factor ``beta0**2``, and elegant by an
-      *additive* term -- its fifth coordinate is geometric path length, so a
-      drift has ``R56 = 0``.
+    Only the longitudinal block differs: Ocelot by a sign from MAD-X, Xsuite by
+    ``beta0**2``, and elegant by an additive term, as its fifth coordinate is path length.
     """
 
     otm_longitudinal_sign: ClassVar[int] = 1
     """Sign of this code's fifth coordinate against the canonical one (Xsuite, Bmad)."""
 
     otm_longitudinal_scale: ClassVar[int | None] = None
-    """Power of ``beta0`` in the magnitude of the longitudinal conversion; see
-    :meth:`one_turn_map_canonical`. ``None`` means the conversion is not a rescale (elegant)."""
+    """Power of ``beta0`` in the longitudinal conversion; None if it is not a rescale (elegant)."""
 
     optics_summary: Any = None
     """The code's own tune and chromaticity; see :meth:`read_optics_summary`."""
 
     dynamic_aperture: Any = None
-    """Last :meth:`run_dynamic_aperture` result, so a scan survives the call
-    that produced it the way :attr:`one_turn_map` does."""
+    """Last :meth:`run_dynamic_aperture` result."""
 
     frequency_map: Any = None
     """Last :meth:`run_frequency_map` result."""
 
     closed_orbit: Any = None
-    """The periodic orbit at the start of the line, as a 6-vector in this
-    code's :attr:`otm_convention`; see :meth:`read_closed_orbit`."""
+    """The periodic orbit at the start of the line, a 6-vector in :attr:`otm_convention`; see :meth:`read_closed_orbit`."""
 
     one_turn_map: Any = None
-    """The 6x6 linear map of one turn, in :attr:`otm_convention` coordinates.
+    """The 6x6 linear one-turn map in :attr:`otm_convention`, read by :meth:`read_one_turn_map`.
 
-    ``None`` unless the line is :meth:`periodic` and the code can produce one.
-    Read after the run by :meth:`read_one_turn_map`.
+    None unless the line is :attr:`periodic` and the code can produce one.
     """
 
     program_attributes: ClassVar[dict] = {}
-    """``(horizontal, vertical)`` attribute an unqualified program sets, per
-    element type as this code names it; see :meth:`program_attribute`."""
+    """``(horizontal, vertical)`` attribute an unqualified program sets, per code element type; see :meth:`program_attribute`."""
 
     def model_post_init(self, __context):
         for key, value in list(self.elementObjects.items()):
@@ -647,11 +587,7 @@ class frameworkLattice(BaseModel):
         object.__setattr__(self, name, value)
 
     def _apply_collective_settings(self) -> None:
-        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block.
-
-        Whether CSR and LSC are worth modelling is a property of the line, not
-        of the elements in it. A ring (closed or periodic) defaults CSR off.
-        """
+        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block; a ring defaults CSR off."""
         if self.file_block.get("csr_enable") is None and (
             self.closed_geometry or self.periodic
         ):
@@ -662,7 +598,7 @@ class frameworkLattice(BaseModel):
                 setattr(self, flag, bool(stated))
 
     def _apply_radiation_to_section(self) -> None:
-        """Push :meth:`radiation` onto LAURA's ``sr_enable``/``isr_enable``."""
+        """Push :attr:`radiation` onto LAURA's ``sr_enable``/``isr_enable``."""
         model = self.radiation
         if model is None:
             return
@@ -680,9 +616,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_enable(self) -> bool:
-        """
-        Property to get or set the CSR enable flag.
-        """
+        """Enable CSR, on the section and every element."""
         return self._csr_enable
 
     @csr_enable.setter
@@ -699,12 +633,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_bins(self) -> int:
-        """
-        Property to get or set the number of bins for CSR calculations.
-
-        Reads 20 until somebody chooses otherwise, either here or on the machine
-        section this lattice cuts.
-        """
+        """Number of CSR bins; 20 unless set here or on the machine section."""
         if self._csr_bins is not None:
             return self._csr_bins
         stated = getattr(self._machine_space_charge(), "number_of_bins", None)
@@ -723,9 +652,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def lsc_enable(self) -> bool:
-        """
-        Property to get or set the LSC enable flag.
-        """
+        """Enable LSC, on the section and every element."""
         return self._lsc_enable
 
     @lsc_enable.setter
@@ -750,12 +677,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def wakefield_enable(self) -> bool:
-        """
-        Property to get or set the wakefield enable flag. When False, the
-        structure wakefields of accelerating cavities are not applied.
-        The wakefield definitions themselves are
-        left intact, so the flag can be toggled back on.
-        """
+        """Apply cavity structure wakefields; turning it off keeps their definitions."""
         return self._wakefield_enable
 
     @wakefield_enable.setter
@@ -772,9 +694,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def lsc_bins(self) -> int:
-        """
-        Property to get or set the number of bins for LSC calculations.
-        """
+        """Number of LSC bins."""
         return self._lsc_bins
 
     @lsc_bins.setter
@@ -791,10 +711,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def turns(self) -> int:
-        """How many times this line is tracked; ``1`` unless the settings say.
-
-        A turn count is a tracking setting rather than lattice data, so it is
-        read from the ``files:`` block::
+        """How many times this line is tracked; 1 unless the ``tracking`` block says::
 
             files:
               RING:
@@ -809,23 +726,13 @@ class frameworkLattice(BaseModel):
         """
         Whether to ask the code for the closed (periodic) optics solution.
 
-        Unlike :meth:`turns`, this is **not** primarily a tracking setting:
-        whether the reference orbit closes is a fact about the lattice, and
-        LAURA already records it as section ``geometry``
-        (:meth:`_machine_geometry`).
-
-        The ``tracking`` block overrides that either way, which is what an
-        injection-mismatch study on a real ring needs::
+        Defaults to :attr:`closed_geometry`; the ``tracking`` block overrides it
+        either way, e.g. for an injection-mismatch study::
 
             files:
               RING:
                 code: elegant
                 tracking: {turns: 1000, periodic: false}
-
-        Returns
-        -------
-        bool
-            True if section geometry is closed
         """
         tracking = self.file_block.get("tracking") or {}
         if "periodic" in tracking:
@@ -834,30 +741,17 @@ class frameworkLattice(BaseModel):
 
     @property
     def closed_geometry(self) -> bool:
-        """Whether LAURA records this line's reference orbit as closing.
-        :meth:`periodic` is this plus an override, because asking for the
-        closed optics solution is a *choice*; whether the machine is a ring
-        is not.
-
-        Returns
-        -------
-        bool
-            True if LAURA's section geometry is closed
-        """
+        """Whether LAURA's section ``geometry`` is closed; :attr:`periodic` can override it."""
         geometry = self._machine_geometry()
         return getattr(geometry, "value", geometry) == "closed"
 
     @property
     def radiation(self) -> str | None:
         """
-        Synchrotron-radiation model for this line, or None for none.
+        Synchrotron-radiation model: ``off``, ``mean`` or ``quantum``; None if not stated.
 
-        ``mean`` gives damping and the energy loss; ``quantum`` adds the
-        excitation, and only with both does an equilibrium emittance exist;
-        ``None`` means not stated, and leaves every
-        code on its own default -- which is not the same default everywhere.
-
-        A tracking setting, like :meth:`turns`::
+        ``mean`` gives damping and energy loss; ``quantum`` adds excitation, needed for an
+        equilibrium emittance. None leaves each code on its own (differing) default::
 
             files:
               RING:
@@ -879,8 +773,7 @@ class frameworkLattice(BaseModel):
         Parameters
         ----------
         turns_that_matter: int
-            How many turns are enough for the beam to reach equilibrium if
-            radiation is on
+            Turns enough to reach equilibrium with radiation on.
         """
         if self.radiation is not None or not self.periodic:
             return
@@ -893,13 +786,12 @@ class frameworkLattice(BaseModel):
     @classmethod
     def codes_that_can(cls, flag: str) -> str:
         """
-        The codes with `flag` set, as the sentence a warning that this one
-        cannot ends on.
+        The codes with ``flag`` set, as the closing sentence of a warning.
 
         Parameters
         ----------
         flag: str
-            A ``supports_*`` class flag
+            A ``supports_*`` class flag.
 
         Returns
         -------
@@ -933,8 +825,7 @@ class frameworkLattice(BaseModel):
             ))
 
     def check_radiation_supported(self) -> None:
-        """Warn when a radiation model was asked for and this code has no switch
-        for it; :meth:`radiation` is then not applied at all."""
+        """Warn when :attr:`radiation` was asked for and this code has no switch for it."""
         if self.radiation is None or self.supports_radiation:
             return
         warn(exceptions.RadiationUnsupportedWarning(
@@ -945,9 +836,7 @@ class frameworkLattice(BaseModel):
     @property
     def write_turns(self) -> bool:
         """
-        Whether a multi-turn run keeps every turn's beams.
-        Off by default. One file per screen (:attr:`bundles_turns`).
-        Has no effect on a single-turn run. Turn-resolved output as::
+        Whether a multi-turn run keeps every turn's beams; off by default (see :attr:`bundles_turns`)::
 
             files:
               RING:
@@ -960,8 +849,8 @@ class frameworkLattice(BaseModel):
     @property
     def bundles_turns(self) -> bool:
         """
-        Whether each screen's file holds every turn: a
-        multi-turn run with :attr:`write_turns`; see :meth:`write_beam_file`.
+        Whether each screen's file holds every turn (multi-turn with :attr:`write_turns`); see :meth:`write_beam_file`.
+
         Read one with ``beam.read_beam_file(filename, turn=...)``.
         """
         return self.turns > 1 and self.write_turns
@@ -969,11 +858,7 @@ class frameworkLattice(BaseModel):
     @property
     def programs(self) -> list:
         """
-        Elements whose strength is a program over turn number.
-
-        A tracking setting, like :meth:`turns`, and the half of R19 that is
-        the *study* rather than the hardware -- when a kicker fires and at
-        what amplitude::
+        Elements whose strength is a program over turn number, from the ``tracking`` block::
 
             files:
               RING:
@@ -986,17 +871,13 @@ class frameworkLattice(BaseModel):
                       values: [0.0, 1.0e-3, 0.0]
                       interpolation: hold
 
-        Turns are 1-based, ``values`` are in the element attribute's own
-        units, and the default rule is ``hold`` and is no code's default:
-        see :mod:`simba.Modules.DeviceProgram`, which is where all three of
-        those are argued.
+        See :mod:`simba.Modules.DeviceProgram`.
 
         Returns
         -------
         list
-            :class:`~simba.Modules.DeviceProgram.DeviceProgram`, one per
-            entry. An entry simba cannot read warns and is dropped, rather
-            than taking the run down with it.
+            One :class:`~simba.Modules.DeviceProgram.DeviceProgram` per entry;
+            an unreadable entry warns and is dropped.
         """
         tracking = self.file_block.get("tracking") or {}
         entries = tracking.get("programs") or []
@@ -1020,13 +901,7 @@ class frameworkLattice(BaseModel):
         ))
 
     def check_programs_fit(self) -> None:
-        """
-        Warn when a program and the run do not cover the same turns.
-
-        Two ways to author a pulse that is not the one intended, both of
-        which track perfectly: knots past the last turn, and a last knot the
-        run then sits on for thousands of turns.
-        """
+        """Warn about knots past the last turn, or a non-zero last knot held for the rest of the run."""
         for program in self.programs:
             if program.last_turn > self.turns:
                 warn(exceptions.ProgramOverrunWarning(
@@ -1041,9 +916,7 @@ class frameworkLattice(BaseModel):
     @property
     def ramp(self) -> EnergyRamp | None:
         """
-        The reference momentum as a program over turn number, if there is one.
-
-        A tracking setting, like :meth:`programs`::
+        The reference momentum over turn number, from the ``tracking`` block::
 
             files:
               RING:
@@ -1054,14 +927,12 @@ class frameworkLattice(BaseModel):
                     turns: [1, 1000]
                     momentum: [1.0e9, 2.0e9]
 
-        :mod:`simba.Modules.EnergyRamp` sets out the model every backend
-        follows.
+        See :mod:`simba.Modules.EnergyRamp`.
 
         Returns
         -------
         :class:`~simba.Modules.EnergyRamp.EnergyRamp` | None
-            The ramp, or None if there is none. A ramp simba cannot read
-            warns and is ignored
+            None if there is none; an unreadable ramp warns and is ignored.
         """
         tracking = self.file_block.get("tracking") or {}
         entry = tracking.get("ramp")
@@ -1075,19 +946,15 @@ class frameworkLattice(BaseModel):
 
     @property
     def ramped(self) -> bool:
-        """Whether this run changes the reference momentum turn by turn: a
-        :meth:`ramp`, a code that can follow one, and more than one turn."""
+        """Whether this run ramps: a :attr:`ramp`, a code that supports one, and more than one turn."""
         return self.supports_ramp and self.turns > 1 and self.ramp is not None
 
     @property
     def fixed_reference(self) -> bool:
         """
-        Whether the reference momentum is the line's own rather than the beam's:
-        under a :meth:`ramp`, which owns it, and in a ring, whose reference is the
-        design momentum.
-        Then a cavity accelerates particles and leaves the reference alone -- an
-        off-crest ring cavity drives synchrotron motion about the reference, it
-        does not carry the reference with it.
+        Whether the reference momentum is the line's own (under a :attr:`ramp`, or in a ring) rather than the beam's.
+
+        Cavities then accelerate particles but leave the reference alone.
         """
         return self.ramped or self.periodic or self.closed_geometry
 
@@ -1132,8 +999,7 @@ class frameworkLattice(BaseModel):
         Raises
         ------
         :class:`~simba.exceptions.WrongSpeciesError`
-            A ``ValueError``, if the beam's rest energy is not an electron's,
-            or its charge is not negative.
+            If the beam's rest energy or charge is not an electron's.
         """
         if not self.electrons_only:
             return
@@ -1145,17 +1011,17 @@ class frameworkLattice(BaseModel):
 
     def ramp_p0c(self, turn: int) -> float | None:
         """
-        The reference momentum on `turn` under :meth:`ramp`.
+        The reference momentum on ``turn`` under :attr:`ramp`.
 
         Parameters
         ----------
         turn: int
-            Turn number, 1-based
+            Turn number, 1-based.
 
         Returns
         -------
         float | None
-            ``p0c`` in eV, or None unless this run is :meth:`ramped`
+            ``p0c`` in eV, or None unless this run is :attr:`ramped`.
         """
         if not self.ramped:
             return None
@@ -1173,7 +1039,7 @@ class frameworkLattice(BaseModel):
         Returns
         -------
         :class:`~simba.Modules.EnergyRamp.RampClock` | None
-            The clock, or None unless this run is :meth:`ramped`
+            None unless this run is :attr:`ramped`.
         """
         if not self.ramped:
             return None
@@ -1195,18 +1061,14 @@ class frameworkLattice(BaseModel):
                   turns: 1000
                   rf: follow    # or fixed
 
-        * ``follow``, the default: each cavity's frequency scales with the
-          reference speed, as a booster's RF programme tracks the revolution
-          frequency up a ramp;
-        * ``fixed``: each cavity runs at its own frequency throughout.
-
-        :func:`~simba.Modules.EnergyRamp.rf_phase_slip`
-        has the detail, and :meth:`rf_phase_corrections` what each code needs.
+        ``follow`` (default) scales each cavity's frequency with the reference speed;
+        ``fixed`` keeps it constant. See :func:`~simba.Modules.EnergyRamp.rf_phase_slip`
+        and :meth:`rf_phase_corrections`.
 
         Returns
         -------
         str
-            ``follow`` or ``fixed``; anything else warns and is ``follow``
+            ``follow`` or ``fixed``; anything else warns and is ``follow``.
         """
         tracking = self.file_block.get("tracking") or {}
         mode = str(tracking.get("rf", "follow")).lower()
@@ -1217,13 +1079,12 @@ class frameworkLattice(BaseModel):
 
     def pass_p0c(self) -> np.ndarray:
         """
-        The reference momentum on every pass of the run: the :meth:`ramp`'s,
-        or else the entering beam's mean throughout; see :attr:`reference_clock`.
+        The reference momentum on every pass: the :attr:`ramp`'s, else :attr:`reference_p0c`; see :attr:`reference_clock`.
 
         Returns
         -------
         np.ndarray
-            ``turns * passes_per_turn`` values of ``p0c``, in eV
+            ``turns * passes_per_turn`` values of ``p0c``, in eV.
         """
         clock = getattr(self, "_reference_clock", None)
         if clock is not None:
@@ -1236,8 +1097,7 @@ class frameworkLattice(BaseModel):
         return np.full(passes, self.reference_p0c)
 
     def _input_mean(self, coord: str) -> float:
-        """The incoming beam's mean ``coord``, as :meth:`load_input_beam` read
-        it; else the current beam's."""
+        """The incoming beam's mean ``coord`` as :meth:`load_input_beam` read it; else the current beam's."""
         if self._input_reference is not None and coord in self._input_reference:
             return self._input_reference[coord]
         beam = self.global_parameters["beam"]
@@ -1246,14 +1106,9 @@ class frameworkLattice(BaseModel):
     @property
     def design_p0c(self) -> float | None:
         """
-        A ring's design momentum, in eV/c, from its section's
-        ``reference_energy``; None on an open line, under a :meth:`ramp`,
-        or when the section does not say.
+        A ring's design ``p0c`` in eV, from its section's ``reference_energy``.
 
-        Returns
-        -------
-        float | None
-            ``p0c`` in eV
+        None on an open line, under a :attr:`ramp`, or when the section does not say.
         """
         if self.ramped or not (self.periodic or self.closed_geometry):
             return None
@@ -1264,16 +1119,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def reference_p0c(self) -> float:
-        """
-        The reference momentum, in eV/c: a ring's :attr:`design_p0c` if it
-        has one, else the incoming beam's mean ``cp``, taken before
-        :meth:`sample_beam`.
-
-        Returns
-        -------
-        float
-            ``p0c`` in eV
-        """
+        """The reference ``p0c`` in eV: :attr:`design_p0c` if any, else the incoming mean ``cp`` before :meth:`sample_beam`."""
         design = self.design_p0c
         if design is not None:
             return design
@@ -1287,13 +1133,11 @@ class frameworkLattice(BaseModel):
     @property
     def reference_t0(self) -> float:
         """
-        The time the reference particle enters, in s: the time a code without
-        a clock of its own centres the bunch on, and its cavities are phased
-        to.
+        The time the reference particle enters, in s, which cavities are phased to.
 
-        On an open line, the incoming beam's mean ``t``, before sampling. In a
-        ring that would absorb an injection timing error, as the mean ``cp``
-        would an energy error (see :attr:`reference_p0c`)::
+        On an open line, the incoming mean ``t`` before sampling. With a
+        :attr:`fixed_reference`, where the mean would absorb an injection timing
+        error, the ``tracking`` setting comes first::
 
             files:
               RING:
@@ -1301,11 +1145,6 @@ class frameworkLattice(BaseModel):
                   reference_t0: 1.0e-9   # s
 
         then the beam's reference particle, if it has one, then the mean.
-
-        Returns
-        -------
-        float
-            ``t0`` in s
         """
         if self.fixed_reference:
             tracking = self.file_block.get("tracking") or {}
@@ -1318,15 +1157,9 @@ class frameworkLattice(BaseModel):
     @property
     def reference_z0(self) -> float:
         """
-        The reference particle's ``z`` as it enters, in m; see
-        :attr:`reference_t0`, from which it follows. A ``reference_t0``
-        setting moves the mean ``z`` by the distance the reference travels
-        in the time between them.
+        The reference particle's ``z`` as it enters, in m, following :attr:`reference_t0`.
 
-        Returns
-        -------
-        float
-            ``z0`` in m
+        A ``reference_t0`` setting shifts the mean ``z`` by the distance the reference travels in between.
         """
         if self.fixed_reference:
             tracking = self.file_block.get("tracking") or {}
@@ -1341,25 +1174,21 @@ class frameworkLattice(BaseModel):
 
     def pass_beta0(self) -> float | np.ndarray:
         """
-        Reference speed / ``c`` on every pass; see :meth:`pass_p0c`.
+        Reference speed over ``c`` on every pass; see :meth:`pass_p0c`.
 
         Returns
         -------
         np.ndarray
-            ``turns * passes_per_turn`` values
+            ``turns * passes_per_turn`` values.
         """
         return beta_from_p0c(self.pass_p0c(), self.rest_energy)
 
     def pass_index(self, turn: int, sector: int = 1) -> int:
-        """
-        0-based index of a pass: ``sector`` of ``turn``, both 1-based.
-        A turn is :attr:`passes_per_turn` passes of this line.
-        """
+        """0-based index of pass ``sector`` of ``turn``, both 1-based; see :attr:`passes_per_turn`."""
         return (turn - 1) * self.passes_per_turn + sector - 1
 
     def last_pass(self, turn: int) -> int:
-        """0-based index of the last pass of ``turn`` (1-based): the one a turn's
-        outputs are recorded on."""
+        """0-based index of the last pass of ``turn`` (1-based), on which its outputs are recorded."""
         return turn * self.passes_per_turn - 1
 
     @property
@@ -1384,9 +1213,8 @@ class frameworkLattice(BaseModel):
     @property
     def reference_clock(self) -> tuple:
         """
-        ``(t0, starts, beta0, p0c)``: the incoming beam's mean ``t``, then per
-        pass its start time after ``t0``, reference speed over ``c`` and
-        momentum in eV; see :meth:`reference_time`.
+        ``(t0, starts, beta0, p0c)``: :attr:`reference_t0`, then per pass its start after ``t0``,
+        reference speed over ``c`` and momentum in eV; see :meth:`reference_time`.
         """
         if self._reference_clock is None:
             self.reset_reference_clock()
@@ -1396,34 +1224,33 @@ class frameworkLattice(BaseModel):
         """
         Absolute time the reference particle reaches ``s`` on a pass.
 
-        ``T_j(s) = t0 + sum_{k<j} C / (beta_k c) + s / (beta_j c)``, with ``t0``
-        the incoming beam's mean ``t``, ``C`` the length of one pass and
-        ``beta_k`` the reference speed on pass ``k`` (:meth:`pass_beta0`).
-        Normalized for all codes; :meth:`time_to_native` gives the code's reference.
+        ``T_j(s) = t0 + sum_{k<j} C / (beta_k c) + s / (beta_j c)``, with ``t0`` the
+        :attr:`reference_t0`, ``C`` the pass length and ``beta_k`` from :meth:`pass_beta0`.
+        The same for all codes; :meth:`time_to_native` converts to the code's own.
 
         Parameters
         ----------
         s: float
-            Metres from the lattice entrance, within the pass
+            Metres from the lattice entrance, within the pass.
         pass_index: int
-            0-based pass; see :meth:`pass_index`
+            0-based pass; see :meth:`pass_index`.
 
         Returns
         -------
         float
-            Seconds
+            Seconds.
         """
         t0, starts, beta0, _ = self.reference_clock
         return float(t0 + starts[pass_index] + s / (beta0[pass_index] * speed_of_light))
 
     def pass_start_times(self) -> np.ndarray:
         """
-        The absolute time each pass of the run starts, on :meth:`reference_time`.
+        The absolute time each pass starts, on :meth:`reference_time`.
 
         Returns
         -------
         np.ndarray
-            ``turns * passes_per_turn`` values, in seconds
+            ``turns * passes_per_turn`` values, in seconds.
         """
         t0, starts, _, _ = self.reference_clock
         return t0 + starts[: self.turns * self.passes_per_turn]
@@ -1431,21 +1258,21 @@ class frameworkLattice(BaseModel):
     @staticmethod
     def pass_staircase(starts, values) -> tuple:
         """
-        A per-pass table for an element that reads it against time: flat for
-        a quarter pass either side of each pass's start, so a bunch off the
-        reference by up to half an RF period still reads its own pass's value.
+        A per-pass table against time, flat for a quarter pass either side of each pass's start.
+
+        So a bunch off the reference still reads its own pass's value.
 
         Parameters
         ----------
         starts: array-like
-            Seconds at the start of each pass
+            Seconds at the start of each pass.
         values: array-like
-            One per pass
+            One per pass.
 
         Returns
         -------
         tuple
-            ``(times, values)``, two knots per pass
+            ``(times, values)``, two knots per pass.
         """
         starts = np.asarray(starts, dtype=float)
         periods = np.diff(starts) if len(starts) > 1 else np.ones(1)
@@ -1460,19 +1287,17 @@ class frameworkLattice(BaseModel):
     @classmethod
     def native_time_scale(cls, beta0: float) -> float | None:
         """
-        How the code's own time coordinate (:attr:`native_time`) relates to ``t``:
-        ``native = scale * (t - reference_time)``.
+        ``scale`` in ``native = scale * (t - reference_time)``, for the code's :attr:`native_time`.
 
         Parameters
         ----------
         beta0: float
-            The reference speed over ``c``
+            Reference speed over ``c``.
 
         Returns
         -------
         float | None
-            ``scale``, or None if the code's own ``t`` is already absolute
-            (elegant's is)
+            None if the code's own ``t`` is already absolute (elegant's is).
         """
         return None
 
@@ -1485,19 +1310,19 @@ class frameworkLattice(BaseModel):
         Parameters
         ----------
         native: array-like
-            The code's coordinate, in :attr:`native_time` units
+            The code's coordinate, in :attr:`native_time` units.
         s: float
-            Metres from the lattice entrance, within the pass
+            Metres from the lattice entrance, within the pass.
         pass_index: int
-            0-based pass
+            0-based pass.
         beta0: float | array-like | None
-            The reference speed over ``c``, per particle if the code has it;
-            the clock's for the pass (:attr:`reference_clock`) if not given
+            Reference speed over ``c``, per particle if the code has it;
+            defaults to the pass's from :attr:`reference_clock`.
 
         Returns
         -------
         np.ndarray
-            Seconds
+            Seconds.
         """
         if beta0 is None:
             beta0 = self.reference_clock[2][pass_index]
@@ -1508,10 +1333,7 @@ class frameworkLattice(BaseModel):
         return self.reference_time(s, pass_index) + native / scale
 
     def time_to_native(self, t, s: float, pass_index: int, beta0=None) -> np.ndarray:
-        """
-        The code's own time coordinate from absolute ``t``; the inverse of
-        :meth:`time_from_native`, and the same arguments.
-        """
+        """The code's own time coordinate from absolute ``t``; the inverse of :meth:`time_from_native`."""
         if beta0 is None:
             beta0 = self.reference_clock[2][pass_index]
         scale = self.native_time_scale(beta0)
@@ -1522,22 +1344,21 @@ class frameworkLattice(BaseModel):
 
     def native_times(self, beam, element: str | None = None, turn: int | None = None):
         """
-        What the code itself would call the time of each particle in a beam
-        SIMBA wrote.
+        Each particle's time in the code's own coordinate, for a beam this line wrote.
 
         Parameters
         ----------
-        beam:
-            A beam this line wrote
+        beam: :class:`~simba.Modules.Beams.beam`
+            A beam this line wrote.
         element: str | None
-            Where; the end of the line if not given
+            Where; defaults to the end of the line.
         turn: int | None
-            Which turn; the beam's own :attr:`turn` if not given, else 1
+            Defaults to the beam's own ``turn``, else 1.
 
         Returns
         -------
         np.ndarray
-            In :attr:`native_time` units
+            In :attr:`native_time` units.
         """
         element = element or self.end
         if turn is None:
@@ -1547,12 +1368,12 @@ class frameworkLattice(BaseModel):
 
     def accelerating_cavities(self) -> dict:
         """
-        This line's accelerating cavities; deflecting and crab cavities do not.
+        This line's accelerating cavities, excluding deflecting and crab cavities.
 
         Returns
         -------
         dict
-            The elements, by name
+            The elements, by name.
         """
         cavities = {}
         for name, element in self.elements.items():
@@ -1563,8 +1384,7 @@ class frameworkLattice(BaseModel):
         return cavities
 
     def live_cavities(self) -> dict:
-        """The :meth:`accelerating_cavities` whose phase matters: a cavity
-        with no voltage or no frequency does nothing at any phase."""
+        """The :meth:`accelerating_cavities` with a voltage and a frequency, so whose phase matters."""
         return {
             name: element
             for name, element in self.accelerating_cavities().items()
@@ -1574,15 +1394,15 @@ class frameworkLattice(BaseModel):
 
     def rf_phase_corrections(self) -> dict:
         """
-        How far to move each cavity's phase on each pass for this code to run
-        :attr:`rf_mode`: the slip the mode asks for less the slip of the code's
-        own :attr:`native_rf`, both from
+        Phase moves per cavity and pass so this code runs :attr:`rf_mode`.
+
+        The :attr:`rf_mode` slip less the :attr:`native_rf` slip, both from
         :func:`~simba.Modules.EnergyRamp.rf_phase_slip`.
 
         Returns
         -------
         dict
-            Radians, one per pass, by cavity name. Empty when nothing needs moving
+            Radians, one per pass, by cavity name; empty when nothing needs moving.
 
         Warns
         -----
@@ -1616,48 +1436,35 @@ class frameworkLattice(BaseModel):
 
     def cavity_phase(self, name: str) -> float | None:
         """
-        A cavity's phase as the code has it now, in its own units (see
-        :attr:`rf_phase_per_radian`); for :meth:`apply_rf_phases`.
+        A cavity's current phase in the code's units (:attr:`rf_phase_per_radian`), for :meth:`apply_rf_phases`.
+
         Overridden by the codes that move phases pass by pass.
 
         Parameters
         ----------
         name: str
-            The cavity, as simba names it
+            Cavity name, as simba names it.
 
         Returns
         -------
         float | None
-            None if the code's lattice has no such cavity
+            None if the code's lattice has no such cavity.
         """
         return None
 
     def set_cavity_phase(self, name: str, phase: float) -> None:
-        """
-        Set a cavity's phase, in the code's own units; the other half of
-        :meth:`cavity_phase`.
-        """
+        """Set a cavity's phase in the code's own units; the inverse of :meth:`cavity_phase`."""
         raise NotImplementedError(
             f"{self.code} reads cavity phases but cannot set them"
         )
 
     def rf_phase_shifts(self, correction) -> np.ndarray:
-        """
-        A correction from :meth:`rf_phase_corrections`, as a move of the
-        code's own phase attribute: :attr:`rf_phase_sign` times
-        :attr:`rf_phase_per_radian` times the phase the reference sees.
-        """
+        """An :meth:`rf_phase_corrections` entry in the code's phase units and sign convention."""
         return self.rf_phase_sign * self.rf_phase_per_radian * np.asarray(correction)
 
     def begin_rf_phases(self) -> dict:
         """
-        Take this run's :meth:`rf_phase_corrections`, and forget every cavity
-        phase read on a previous run.
-
-        Returns
-        -------
-        dict
-            The corrections
+        Store and return this run's :meth:`rf_phase_corrections`, forgetting phases read on earlier runs.
         """
         self._rf_corrections = self.rf_phase_corrections()
         self._rf_phase0 = {}
@@ -1665,17 +1472,14 @@ class frameworkLattice(BaseModel):
 
     def apply_rf_phases(self, pass_index: int | None) -> None:
         """
-        Move each cavity's phase for pass `pass_index`, so the code's
-        cavities run as :attr:`rf_mode` asks; see :meth:`rf_phase_corrections`.
+        Move each cavity's phase for ``pass_index``; see :meth:`rf_phase_corrections`.
 
-        Each phase is moved from the one the code was given, read (by
-        :meth:`cavity_phase`) the first time the cavity is there to read.
+        Shifts are from the phase first read by :meth:`cavity_phase`.
 
         Parameters
         ----------
         pass_index: int | None
-            0-based pass, counting superperiods (:meth:`pass_index`); None
-            puts every cavity back as it was given
+            0-based pass (:meth:`pass_index`); None restores the given phases.
         """
         if not self._rf_corrections:
             return
@@ -1690,20 +1494,15 @@ class frameworkLattice(BaseModel):
 
     def run_turns(self, track_pass, start_turn=None) -> None:
         """
-        The turn loop of a code SIMBA drives a pass at a time:
-        programs set per turn, RF phases moved per pass,
-        and the line put back as turn 1 had it at the end
-        (:meth:`end_turns`), for the optics and anything run after.
+        Turn loop for codes SIMBA drives a pass at a time, restoring turn 1 after (:meth:`end_turns`).
 
         Parameters
         ----------
         track_pass: callable
-            ``track_pass(turn, pass_index, name_turn, record)``: track one
-            pass. ``name_turn`` is for :meth:`output_basename`, and ``record``
-            is whether this pass's beams are written at all: the last pass of
-            a turn :meth:`output_turns` keeps
+            ``track_pass(turn, pass_index, name_turn, record)`` tracks one pass;
+            ``record`` is True on the last pass of a turn :meth:`output_turns` keeps.
         start_turn: callable, optional
-            ``start_turn(turn)``, called once a turn's programs are set
+            ``start_turn(turn)``, called once a turn's programs are set.
         """
         wanted = dict(self.output_turns())
         self.begin_rf_phases()
@@ -1724,10 +1523,7 @@ class frameworkLattice(BaseModel):
             self.end_turns()
 
     def end_turns(self) -> None:
-        """
-        Put the line back as turn 1 had it: every cavity's phase as given,
-        and every program at turn 1.
-        """
+        """Restore every cavity phase as given and every program to turn 1."""
         self.apply_rf_phases(None)
         missing = set(self._rf_corrections or {}) - set(self._rf_phase0 or {})
         if missing:
@@ -1737,11 +1533,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def rf_voltage(self) -> float:
-        """
-        Total accelerating voltage on one turn, in volts.
-        Every accelerating cavity's amplitude, ignoring phase, times the
-        passes in a turn.
-        """
+        """Total accelerating cavity amplitude on one turn, in volts, ignoring phase."""
         total = sum(
             self.cavity_voltage(element)
             for element in self.accelerating_cavities().values()
@@ -1750,19 +1542,7 @@ class frameworkLattice(BaseModel):
 
     @staticmethod
     def cavity_voltage(element) -> float:
-        """
-        A cavity's amplitude, ignoring phase, in volts.
-
-        Parameters
-        ----------
-        element:
-            The cavity
-
-        Returns
-        -------
-        float
-            ``|field_amplitude|``, or 0 if it has none
-        """
+        """A cavity's ``|field_amplitude|`` in volts, or 0 if it has none."""
         simulation = getattr(element, "simulation", None)
         try:
             amplitude = simulation.resolved("field_amplitude")
@@ -1771,10 +1551,7 @@ class frameworkLattice(BaseModel):
         return abs(float(amplitude or 0.0))
 
     def check_ramp(self) -> None:
-        """
-        Warn about a ramp this run will not track as written.
-        The checks that need only the settings: see :meth:`check_ramp_beam`.
-        """
+        """Warn about a ramp this run will not track as written; beam checks are in :meth:`check_ramp_beam`."""
         ramp = self.ramp
         if ramp is None:
             return
@@ -1790,10 +1567,7 @@ class frameworkLattice(BaseModel):
             warn(exceptions.RampOverrunWarning(self.objectname, ramp.last_turn, self.turns))
 
     def check_design_energy(self) -> None:
-        """
-        Warn when a ring's beam enters more than 1 % from its
-        :attr:`design_p0c`; a mismatched energy rather than an injection offset.
-        """
+        """Warn when a ring's beam enters more than 1 % from its :attr:`design_p0c`."""
         design = self.design_p0c
         if design is None or self._input_reference is None:
             return
@@ -1802,11 +1576,7 @@ class frameworkLattice(BaseModel):
             warn(exceptions.OffDesignEnergyWarning(self.objectname, design, entering))
 
     def check_ramp_beam(self) -> None:
-        """
-        Warn about a ramp the input beam will not follow.
-        A beam that does not start on the ramp, and too little RF for the
-        beam to follow it.
-        """
+        """Warn if the input beam is off the ramp's start, or the RF is too weak to follow it."""
         if not self.ramped:
             return
         ramp = self.ramp
@@ -1836,16 +1606,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def revolution_period(self) -> float:
-        """
-        Seconds for one turn: ``passes * C / (beta0 * c)``.
-        ``C`` is this line's length, and :meth:`passes_per_turn` is how
-        many times a turn crosses it.
-
-        Returns
-        -------
-        float
-            Seconds per turn, or 0.0 if there is no beam to ask
-        """
+        """Seconds per turn, ``passes_per_turn * C / (beta0 * c)``, or 0.0 without a beam."""
         beam = (self.global_parameters or {}).get("beam")
         if beam is None:
             return 0.0
@@ -1855,41 +1616,25 @@ class frameworkLattice(BaseModel):
         return self.passes_per_turn * self.pass_length / (beta * speed_of_light)
 
     def program_is_vertical(self, name: str) -> bool:
-        """
-        Whether the programmed element steers vertically.
-
-        Parameters
-        ----------
-        name: str
-            Element name, as the lattice names it
-
-        Returns
-        -------
-        bool
-            True for a vertical element, False for a horizontal one or one
-            whose type says nothing
-        """
+        """Whether element ``name``'s ``hardware_type`` marks it vertical."""
         element = self.elements.get(name)
         hardware = str(getattr(element, "hardware_type", "") or "")
         return hardware.lower().startswith("vertical")
 
     def program_attribute(self, program, element_type: str | None) -> str | None:
         """
-        The attribute `program` sets: its own ``parameter``, else the one
-        :attr:`program_attributes` gives the element's type, in the element's
-        plane (:meth:`program_is_vertical`).
+        The attribute ``program`` sets: its ``parameter``, else :attr:`program_attributes` for the element's plane.
 
         Parameters
         ----------
         program: :class:`~simba.Modules.DeviceProgram.DeviceProgram`
-            The program
         element_type: str | None
-            The programmed element's type, as this code names it
+            The programmed element's type, as this code names it.
 
         Returns
         -------
         str | None
-            The attribute, or None if there is none to set
+            None if there is none to set.
         """
         if element_type is None:
             warn(exceptions.ProgramMissingElementWarning(
@@ -1907,22 +1652,13 @@ class frameworkLattice(BaseModel):
         return planes[1] if self.program_is_vertical(program.element) else planes[0]
 
     def apply_programs(self, turn: int) -> None:
-        """
-        Set each programmed element to its value for `turn`.
-
-        Parameters
-        ----------
-        turn: int
-            Turn number, 1-based
-        """
+        """Set each programmed element to its value for ``turn`` (1-based)."""
 
     def output_turns(self) -> list:
         """
         ``(data_turn, name_turn)`` for each beam a run should write.
 
-        ``data_turn`` selects which turn's particles to write and
-        ``name_turn`` is handed to :meth:`write_beam_file` (and
-        :meth:`output_basename`).
+        ``name_turn`` is passed to :meth:`write_beam_file` and :meth:`output_basename`.
         """
         if self.turns <= 1:
             return [(None, None)]
@@ -1931,19 +1667,7 @@ class frameworkLattice(BaseModel):
         return [(self.turns, None)]
 
     def beam_turn(self, turn: int | None) -> int:
-        """
-        Which turn a beam from an :meth:`output_turns` entry actually is.
-
-        Parameters
-        ----------
-        turn: int | None
-            Either half of an :meth:`output_turns` pair
-
-        Returns
-        -------
-        int
-            A 1-based turn number, never ``None``
-        """
+        """The 1-based turn for either half of an :meth:`output_turns` pair; None means the last."""
         return self.turns if turn is None else turn
 
     def output_beam_file(self, name: str) -> str:
@@ -1958,16 +1682,13 @@ class frameworkLattice(BaseModel):
         Write ``beam``, recorded at ``name``, to :meth:`output_beam_file`.
 
         ``turn`` is an :meth:`output_turns` ``name_turn``. When the run
-        :attr:`bundles_turns` each turn becomes that turn of the one file,
-        so they must come in order; a beam with no turn is then the last
-        turn, which a code may write again at the end of the line (or for
-        the first time, if the end was not recorded each turn). The start of
-        the line is never written (:meth:`writes_output`).
+        :attr:`bundles_turns`, turns go into one file and must come in order;
+        no turn then means the last.
 
         Returns
         -------
         bool
-            Whether it was written
+            Whether it was written (see :meth:`writes_output`).
         """
         if not self.writes_output(name):
             return False
@@ -1991,27 +1712,12 @@ class frameworkLattice(BaseModel):
 
         The aperture is searched along ``n_lines`` rays (:meth:`da_rays`), the
         frequency map over the ``nx`` by ``ny`` grid (:meth:`da_grid`).
-
-        Returns
-        -------
-        dict
-            Dictionary containing `dynamic_aperture` settings from the `tracking`
-            block for this section.
         """
         tracking = self.file_block.get("tracking") or {}
         return tracking.get("dynamic_aperture") or {}
 
     def da_grid(self):
-        """
-        ``(xs, ys)`` starting amplitudes for a dynamic-aperture scan.
-
-        Both start one step off zero rather than at it; see :meth:`da_settings`.
-
-        Returns
-        -------
-        list
-            Two numpy `linspace` with grid settings for the DA scan.
-        """
+        """``(xs, ys)`` starting amplitudes, each from one step off zero; see :attr:`da_settings`."""
         settings = self.da_settings
         nx = max(1, int(settings.get("nx", 10)))
         ny = max(1, int(settings.get("ny", 1)))
@@ -2024,16 +1730,10 @@ class frameworkLattice(BaseModel):
 
     def da_rays(self) -> list:
         """
-        ``(x, y)`` starts for a dynamic-aperture scan, along the rays
-        elegant's ``find_aperture`` searches in ``n-line`` mode: ``n_lines``
-        rays evenly spaced from +x round to -x, each with ``nx - 1`` points
-        out to the ellipse through ``(x_max, 0)`` and ``(0, y_max)``, so
-        every code tracks the same starts.
+        ``(x, y)`` starts along the rays of elegant's ``find_aperture`` ``n-line`` mode.
 
-        Returns
-        -------
-        list
-            ``(x, y)`` floats, ray by ray, outward along each.
+        ``n_lines`` rays from +x round to -x, each with ``nx - 1`` points out to the
+        ellipse through ``(x_max, 0)`` and ``(0, y_max)``, so every code tracks the same starts.
         """
         settings = self.da_settings
         nx = max(2, int(settings.get("nx", 10)))
@@ -2048,23 +1748,19 @@ class frameworkLattice(BaseModel):
 
     def dynamic_aperture_boundary(self, results) -> list:
         """
-        The aperture boundary from :meth:`run_dynamic_aperture`: the last
-        survivor before the first loss along each ray, as elegant's
-        ``find_aperture`` reports it.
+        The last survivor before the first loss on each ray, as elegant's ``find_aperture`` reports it.
 
-        A particle counts as surviving if it reached the last turn. Note the
-        off-by-one.
+        See :func:`~simba.Modules.plotting.ring.aperture_boundary` for the survival rule.
 
         Parameters
         ----------
         results : list
-            Results produced by :meth:`run_dynamic_aperture`.
+            From :meth:`run_dynamic_aperture`.
 
         Returns
         -------
         list
-            ``(x, y)`` ordered from +x round to -x. A ray whose first point
-            was lost is absent rather than zero.
+            ``(x, y)`` from +x round to -x; a ray lost at its first point is absent.
         """
         from .Modules.plotting.ring import aperture_boundary
 
@@ -2073,26 +1769,20 @@ class frameworkLattice(BaseModel):
     @staticmethod
     def tune_from_harmonic(line_position: float, reference_tune: float) -> float:
         """
-        Rebuild a tune from the harmonic position.
+        Rebuild a tune from a ``freq_analysis`` harmonic position.
 
-        ``freq_analysis`` reports ``|nearest integer - Q|``, not the
-        fractional tune. The reference tune says which side of the
-        integer to come back on.
+        ``freq_analysis`` reports ``|nearest integer - Q|``; the reference tune picks the side.
 
         Parameters
         ----------
         line_position : float
-            The harmonic position reported by `freq_analysis`, which is the
-            absolute difference between the nearest integer and the tune.
+            ``|nearest integer - Q|``.
         reference_tune : float
-            The reference tune, which indicates which side of the nearest integer
-            the tune should be reconstructed from.
+            A tune on the right side of the nearest integer.
 
         Returns
         -------
         float
-            The reconstructed tune, taking into account the harmonic position
-            and the reference tune.
         """
         nearest = round(reference_tune)
         return (
@@ -2104,22 +1794,14 @@ class frameworkLattice(BaseModel):
     @property
     def single_particle(self) -> bool:
         """
-        Track 13 probes instead of the whole bunch, and carry the
-        distribution through the map they measure.
+        Track 13 probes and carry the distribution through the linear map they measure.
 
-        A tracking setting, like :meth:`turns`::
+        A tracking setting, like :attr:`turns`::
 
             files:
               RING:
                 code: madx
                 tracking: {single_particle: true}
-
-        A linear reconstruction, buying a speed-up on some codes.
-
-        Returns
-        -------
-        bool
-            True if `single_particle` was asked, False otherwise.
         """
         tracking = self.file_block.get("tracking") or {}
         return bool(tracking.get("single_particle", False))
@@ -2127,23 +1809,14 @@ class frameworkLattice(BaseModel):
     @property
     def nsuperperiods(self) -> int:
         """
-        How many times the line is traversed per turn.
-        One sector of an N-fold-symmetric ring is a *superperiod*: it is open
-        on its own and closes after N of them::
+        How many times the line is traversed per turn, for one sector of an N-fold-symmetric ring::
 
             files:
               RING:
                 code: ocelot
                 tracking: {turns: 1000, nsuperperiods: 4}
 
-        A turn stays a turn: those settings track 4000 passes through the
-        sector, and the beam files, the turn suffixes and anything else
-        counted per turn still count 1000 of them.
-
-        Returns
-        -------
-        int
-            The declared count, or 1 -- which is the same as not asking.
+        This tracks 4000 passes, but outputs still count 1000 turns. Defaults to 1.
         """
         tracking = self.file_block.get("tracking") or {}
         value = tracking.get("nsuperperiods", 1)
@@ -2159,12 +1832,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def passes_per_turn(self) -> int:
-        """
-        How many times this code will actually traverse the line per turn.
-
-        :meth:`nsuperperiods` is what was *asked* for; this is what will
-        *happen*, so it is 1 on a code that cannot repeat the line.
-        """
+        """:attr:`nsuperperiods` if this code supports it, else 1."""
         return self.nsuperperiods if self.supports_nsuperperiods else 1
 
     def check_nsuperperiods_supported(self) -> None:
@@ -2188,30 +1856,22 @@ class frameworkLattice(BaseModel):
         """
         The reference particle's trajectory, turn by turn.
 
-        What a ring study usually wants and bunch tracking does not give:
-        not a distribution at each screen, but where one particle is on
-        every turn.
-
         Returns
         -------
         dict
-            ``x``/``px``/``y``/``py`` arrays of length :meth:`turns`, or
+            ``x``/``px``/``y``/``py`` arrays of length :attr:`turns`, or
             ``{}`` if this code cannot produce one.
         """
         return {}
 
     def normalisation_twiss(self) -> dict:
         """
-        Periodic Twiss and closed orbit for Courant-Snyder normalisation.
-
-        Handed to :func:`~simba.Modules.Matrices.tune_diffusion` so a
-        frequency map works in normalised coordinates.
+        Periodic Twiss and closed orbit for :func:`~simba.Modules.Matrices.tune_diffusion`.
 
         Returns
         -------
         dict
-            Empty if the lattice has no one-turn map, in which case the
-            tunes are taken from raw coordinates instead.
+            Empty without a one-turn map, so tunes come from raw coordinates.
         """
         parameters = self.ring_parameters()
         wanted = (
@@ -2231,16 +1891,13 @@ class frameworkLattice(BaseModel):
 
     def run_frequency_map(self) -> list:
         """
-        Tune per starting amplitude, over the same grid as the aperture scan.
-
-        This asks at what tune particles survive.
+        Tune per starting amplitude over :meth:`da_grid`.
 
         Returns
         -------
         list
-            ``(x, y, tune_x, tune_y)`` per surviving grid point. Lost
-            particles are absent. Empty, with a warning, if this code
-            cannot do it.
+            ``(x, y, tune_x, tune_y)`` per surviving grid point; empty, with a
+            warning, if this code cannot do it.
         """
         warn(exceptions.FrequencyMapUnsupportedWarning(
             self.objectname, self.code, self.codes_that_can("supports_frequency_map")
@@ -2277,16 +1934,13 @@ class frameworkLattice(BaseModel):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Track a grid of single particles and see which survive.
-
-        The standard nonlinear ring study:
-        one particle per grid point, each tracked for :meth:`turns`.
+        Track one particle per grid point for :attr:`turns` and record which survive.
 
         Returns
         -------
         list
-            ``(x, y, turns_survived)`` per grid point. Empty, with a
-            warning, if this code cannot do it.
+            ``(x, y, turns_survived)`` per grid point; empty, with a warning,
+            if this code cannot do it.
         """
         warn(exceptions.DynamicApertureUnsupportedWarning(
             self.objectname, self.code, self.codes_that_can("supports_dynamic_aperture")
@@ -2304,12 +1958,8 @@ class frameworkLattice(BaseModel):
     def check_turns_closed(self, tolerance: float = 1e-4) -> None:
         """Warn when a line that does not close is treated as though it did.
 
-        Closure is tested on LAURA's geometry: the first
-        element's entrance against the last element's exit, to ``tolerance``
-        relative to the path length.
-
-        A **superperiod** is the legitimate exception -- one sector of an
-        N-fold-symmetric ring is open on its own and closes after N of them.
+        Compares LAURA's first entrance and last exit, to ``tolerance`` relative to
+        the path length; superperiods go to :meth:`check_superperiods_close`.
         """
         if self.turns <= 1 and not self.periodic:
             return
@@ -2336,9 +1986,7 @@ class frameworkLattice(BaseModel):
         ))
 
     def check_superperiods_close(self) -> None:
-        """
-        Warn when the declared superperiod count and the geometry disagree.
-        """
+        """Warn when the declared superperiod count and the geometry disagree."""
         count = self.nsuperperiods
         angle = abs(self.net_bend_angle)
         if angle <= 1e-9:
@@ -2350,11 +1998,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def net_bend_angle(self) -> float:
-        """Total bending angle of the line, in radians.
-
-        ``2*pi`` for a closed planar ring, or an even fraction for one
-        superperiod, see :meth:`check_turns_closed`.
-        """
+        """Total bending angle of the line, in radians; ``2*pi`` for a closed planar ring."""
         total = 0.0
         for element in self.elements.values():
             magnetic = getattr(element, "magnetic", None)
@@ -2367,14 +2011,9 @@ class frameworkLattice(BaseModel):
         return total
 
     def check_pass_rigidity(self, brho: float, tolerance: float = 0.01) -> None:
-        """Warn if the tracked beam disagrees with this pass's stated momentum.
+        """Warn if the beam's ``brho`` disagrees with this pass's stated momentum.
 
-        Codes that take a field rather than a normalised strength get ``Brho``
-        from the beam actually loaded.
-        The ``k`` came from the layout, resolved at the momentum that
-        pass states.
-
-        A warning rather than a refusal.
+        Field-based codes take ``Brho`` from the loaded beam, but ``k`` was resolved at the stated momentum.
         """
         stated = None
         layout = None
@@ -2394,13 +2033,8 @@ class frameworkLattice(BaseModel):
     def output_basename(self, name: str, turn: int | None = None) -> str:
         """Filename stem for ``name``'s output beam file, qualified if needed.
 
-        Output beam files are named by element alone, so they must not clash for
-        multi-turn tracking. Qualifies only what actually collides:
-        :attr:`colliding_outputs` is empty unless ``Framework.track`` found the
-        same name written by more than one line.
-
-        ``turn`` qualifies the other axis. Files are not named by
-        turn: every turn goes in the one file (:meth:`write_beam_file`).
+        Prefixed with the line name only if in :attr:`colliding_outputs`, and
+        suffixed with ``turn`` when given on a multi-turn run.
         """
         qualified = name in self.colliding_outputs
         name = flatten_occurrence(name)
@@ -2411,20 +2045,14 @@ class frameworkLattice(BaseModel):
         return name
 
     def sampled_index(self, index: int | None) -> int | None:
-        """
-        A particle's index once the beam is sampled to every
-        :attr:`sample_interval`-th particle, or None if sampling drops it.
-        """
+        """A particle's index after :meth:`sample_beam`, or None if sampling drops it."""
         if index is None:
             return None
         interval = max(1, int(self.sample_interval))
         return int(index) // interval if int(index) % interval == 0 else None
 
     def sample_beam(self, bm):
-        """
-        Every :attr:`sample_interval`-th particle of a beam, conserving the
-        total charge; see :meth:`sampled_index`.
-        """
+        """Every :attr:`sample_interval`-th particle of a beam, conserving the total charge."""
         from .Modules.units import UnitValue
 
         interval = max(1, int(self.sample_interval))
@@ -2446,28 +2074,14 @@ class frameworkLattice(BaseModel):
 
     def writes_output(self, name: str) -> bool:
         """
-        Whether a beam recorded at ``name`` gets a file of its own,
-        :meth:`output_beam_file`.
-        Every recorded element does, except the start of the line: that file
-        is the input beam, the previous line's end. In a ring the start of
-        turn n + 1 is the end of turn n, so no turn is lost.
+        Whether a beam recorded at ``name`` gets an :meth:`output_beam_file`.
 
-        Parameters
-        ----------
-        name: str
-            The element
+        Not at the start of the line: that is the input beam, the previous line's end.
         """
         return name != self.start
 
     def get_prefix(self) -> str:
-        """
-        Get the prefix from the input file block.
-
-        Returns
-        -------
-        str
-            The prefix string used in the input file block.
-        """
+        """The ``input: prefix`` of the file block, defaulting to the master subdirectory."""
         if "input" not in self.file_block:
             self.file_block["input"] = {}
         if "prefix" not in self.file_block["input"]:
@@ -2475,14 +2089,7 @@ class frameworkLattice(BaseModel):
         return self.file_block["input"]["prefix"]
 
     def set_prefix(self, prefix: str) -> None:
-        """
-        Set the prefix for the input file block.
-
-        Parameters
-        ----------
-        prefix: str
-            The prefix string used in the input file block.
-        """
+        """Set the ``input: prefix`` of the file block."""
         if not hasattr(self, "file_block") or self.file_block is None:
             self.file_block = {}
         if "input" not in self.file_block or self.file_block["input"] is None:
@@ -2541,9 +2148,7 @@ class frameworkLattice(BaseModel):
     @property
     def input_particle_definition(self) -> str:
         """
-        The input beam's file name, without its extension: ``input:
-        particle_definition``, where ``initial_distribution`` is the
-        generator's ``laser``; else this line's start.
+        The input beam's file stem: ``input: particle_definition`` (``initial_distribution`` maps to ``laser``), else :attr:`start`.
         """
         stated = (self.file_block.get("input") or {}).get("particle_definition")
         if stated is None:
@@ -2552,36 +2157,24 @@ class frameworkLattice(BaseModel):
 
     def load_input_beam(self, prefix: str, particle_definition: str) -> str:
         """
-        Read the incoming beam and make it the beam this lattice should see.
-        The ``s`` a code reports is anchored to :attr:`entrance_s`.
+        Read the incoming beam and prepare it for this lattice, shared by every code's ``preProcess``.
 
-        Every code does the same things once its input is read, so they
-        are done here rather than in each ``preProcess``:
-
-        * record the beam's reference, :attr:`reference_p0c` and
-          :attr:`reference_t0`, which every code takes as its own;
-        * keep every :attr:`sample_interval`-th particle, conserving the total
-          charge (:meth:`sample_beam`);
-        * refuse a beam the code cannot track, :meth:`check_species`;
-        * rematch to ``input: twiss`` if it is given;
-        * take :attr:`ref_idx` from the beam;
-        * check a ring's beam against its design energy,
-          :meth:`check_design_energy`;
-        * run the beam-dependent ramp checks, :func:`check_ramp_beam`;
-        * fix the reference clock every code reports ``t`` on,
-          :meth:`reference_time`.
+        Records the reference for :attr:`reference_p0c` and :attr:`reference_t0`,
+        samples (:meth:`sample_beam`), runs :meth:`check_species`, rematches to
+        ``input: twiss``, sets :attr:`ref_idx`, runs :meth:`check_design_energy` and
+        :meth:`check_ramp_beam`, and resets the :meth:`reference_time` clock.
 
         Parameters
         ----------
         prefix: str
-            Prefix of the input beam file
+            Prefix of the input beam file.
         particle_definition: str
-            Name of the input beam file, without its extension
+            Input beam file name, without its extension.
 
         Returns
         -------
         str
-            Path of the file that was read; see :func:`read_input_file`
+            Path of the file read by :meth:`read_input_file`.
         """
         filepath = self.read_input_file(prefix, particle_definition)
         full = self.global_parameters["beam"]
@@ -2607,9 +2200,7 @@ class frameworkLattice(BaseModel):
         return filepath
 
     def update_groups(self) -> None:
-        """
-        Update the group objects in the lattice with their settings.
-        """
+        """Update the group objects in the lattice with their settings."""
         for g in list(self.groupSettings.keys()):
             if g in self.groupObjects:
                 setattr(self, g, self.groupObjects[g])
@@ -2618,20 +2209,18 @@ class frameworkLattice(BaseModel):
 
     def getElement(self, element: str, param: str = None) -> dict | PhysicalBaseElement:
         """
-        Get an element or group object by its name and optionally a specific parameter.
-        This method checks if the element exists in the allElements dictionary or in the groupObjects dictionary.
-        If the element exists, it returns the element object or the specified parameter of the element.
+        Get an element or group by name, or one of its parameters.
 
         Parameters
         ----------
         element: str
         param: str, optional
-            The parameter to retrieve from the element object. If None, returns the entire element object.
+            Parameter to return instead of the object.
 
         Returns
         -------
         dict | :class:`~laura.models.element.Element`
-            The element object or the specified parameter of the element.
+            Empty dict, with a warning, if the name is unknown.
         """
         if element in self.elements:
             if param is not None:
@@ -2653,21 +2242,19 @@ class frameworkLattice(BaseModel):
         param: list | tuple | str = None,
     ) -> list | tuple | zip:
         """
-        Get all elements of a specific type or types from the lattice.
+        Get all elements of a hardware type, or their parameters.
 
         Parameters
         ----------
         typ: list, tuple, or str
-            The type or types of elements to retrieve.
-            If a list or tuple is provided, it retrieves elements of all specified types.
+            Type(s); a sequence gives one list per type.
         param: list, tuple, or str, optional
-            The specific parameter to retrieve from each element.
+            Parameter(s) to return instead of the elements.
 
         Returns
         -------
-        list | tuple | zip
-            A list or tuple of elements of the specified type(s), or a zip object if multiple parameters are specified.
-            If `param` is provided, it returns the specified parameter for each element.
+        list | zip
+            A zip of per-parameter values when ``param`` is a sequence.
         """
         if isinstance(typ, (list, tuple)):
             return [self.getElementType(t, param=param) for t in typ]
@@ -2683,21 +2270,19 @@ class frameworkLattice(BaseModel):
         self, typ: list | tuple | str, setting: str, values: list | tuple | Any
     ) -> None:
         """
-        Set a specific setting for all elements of a specific type or types in the lattice.
+        Set ``setting`` on every element of a hardware type, one value each.
 
         Parameters
         ----------
         typ: list, tuple, or str
-            The type or types of elements to set the setting for.
         setting: str
-            The setting to be updated for the elements. This can be a single setting or a list of settings.
         values: list, tuple, or Any
-            The values to set for the specified setting.
+            One per element.
 
         Raises
         ------
         ValueError
-            If the number of elements of the specified type does not match the number of values provided.
+            If the element and value counts differ.
         """
         elems = self.getElementType(typ)
         if len(elems) == len(values):
@@ -2710,62 +2295,27 @@ class frameworkLattice(BaseModel):
 
     @property
     def quadrupoles(self) -> list:
-        """
-        Property to get all quadrupole elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of quadrupole elements in the lattice.
-        """
+        """All quadrupoles in the lattice."""
         return self.getElementType("quadrupole")
 
     @property
     def cavities(self) -> list:
-        """
-        Property to get all cavity elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of cavity elements in the lattice.
-        """
+        """All RF cavities in the lattice."""
         return self.getElementType("RFCavity")
 
     @property
     def solenoids(self) -> list:
-        """
-        Property to get all solenoid elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of solenoid elements in the lattice.
-        """
+        """All solenoids in the lattice."""
         return self.getElementType("solenoid")
 
     @property
     def dipoles(self) -> list:
-        """
-        Property to get all dipole elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of dipole elements in the lattice.
-        """
+        """All dipoles in the lattice."""
         return self.getElementType("dipole")
 
     @property
     def kickers(self) -> list:
-        """
-        Property to get all kicker elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of kicker elements in the lattice.
-        """
+        """All horizontal, vertical and combined correctors in the lattice."""
         return sum(
             (self.getElementType(t) for t in ("Horizontal_Corrector", "Vertical_Corrector", "Combined_Corrector")),
             [],
@@ -2773,14 +2323,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def dipoles_and_kickers(self) -> list:
-        """
-        Property to get all dipole and kicker elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of dipole and kicker elements in the lattice.
-        """
+        """All dipoles and kickers, sorted by end ``z``."""
         return sorted(
             self.dipoles + self.kickers,
             key=lambda x: x.physical.end.z,
@@ -2788,26 +2331,12 @@ class frameworkLattice(BaseModel):
 
     @property
     def wakefields(self) -> list:
-        """
-        Property to get all wakefield elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of wakefield elements in the lattice.
-        """
+        """All wakefield elements in the lattice."""
         return self.getElementType("wakefield")
 
     @property
     def wakefields_and_cavity_wakefields(self) -> list:
-        """
-        Property to get all wakefield and cavity wakefield elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of wakefield and cavity wakefield elements in the lattice.
-        """
+        """Cavities with a wakefield definition, then wakefield elements."""
         cavities = [
             cav
             for cav in self.cavities
@@ -2818,26 +2347,12 @@ class frameworkLattice(BaseModel):
 
     @property
     def screens(self) -> list:
-        """
-        Property to get all screen elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of screen elements in the lattice.
-        """
+        """All screens in the lattice."""
         return self.getElementType("screen")
 
     @property
     def screens_and_bpms(self) -> list:
-        """
-        Property to get all screen and BPM elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of screen and BPM elements in the lattice.
-        """
+        """All screens and BPMs, sorted by start ``z``."""
         return sorted(
             self.getElementType("screen")
             + self.getElementType("beam_position_monitor"),
@@ -2846,14 +2361,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def screens_and_markers_and_bpms(self) -> list:
-        """
-        Property to get all screen and BPM and marker elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of screen and BPM and marker elements in the lattice.
-        """
+        """All screens, markers and BPMs, sorted by start ``z``."""
         return sorted(
             self.getElementType("screen")
             + self.getElementType("marker")
@@ -2863,14 +2371,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def apertures(self) -> list:
-        """
-        Property to get all aperture and collimator elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of aperture and collimator elements in the lattice.
-        """
+        """All apertures and collimators, sorted by start ``z``."""
         return sorted(
             self.getElementType("aperture") + self.getElementType("collimator"),
             key=lambda x: x.physical.start.z,
@@ -2878,42 +2379,21 @@ class frameworkLattice(BaseModel):
 
     @property
     def wigglers(self) -> list:
-        """
-        Property to get all wiggler elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of wiggler elements in the lattice.
-        """
+        """All wigglers in the lattice."""
         return self.getElementType("wiggler")
 
     @property
     def photon_monitors(self) -> list:
-        """
-        Property to get all photon monitor elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of photon monitor elements in the lattice.
-        """
+        """All photon monitors in the lattice."""
         return self.getElementType("photon_monitor")
 
     @property
     def start(self) -> str:
         """
-        Property to get the name of the starting element of the lattice.
-        This method checks if the file block contains a "start_element" key or a "zstart" key.
-        If "start_element" is present, it returns the corresponding element.
-        If "zstart" is present, it iterates through the elementObjects to find the element
-        with the matching start position. If no match is found, it returns the first element in the elementObjects.
+        Name of the lattice's first element.
 
-
-        Returns
-        -------
-        str
-            The name of the starting element of the lattice.
+        ``output: start_element`` if given, else the element starting at ``zstart``
+        (preferring one with length), else the first on the beam path.
         """
         if "start_element" in self.file_block["output"]:
             return self.file_block["output"]["start_element"]
@@ -2936,32 +2416,16 @@ class frameworkLattice(BaseModel):
 
     @property
     def startObject(self) -> "PhysicalBaseElement":
-        """
-        Property to get the starting element of the lattice.
-        See :func:`start` for more details.
-
-
-        Returns
-        -------
-        Element
-            The starting element of the lattice.
-        """
+        """The element named by :attr:`start`."""
         return self.elementObjects[self.start]
 
     @property
     def end(self) -> str:
         """
-        Property to get the name of the ending element of the lattice.
-        This method checks if the file block contains an "end_element" key or a "zstop" key.
-        If "end_element" is present, it returns the corresponding element.
-        If "zstop" is present, it iterates through the elementObjects to find the element
-        with the matching end position. If no match is found, it returns the last element in the elementObjects.
+        Name of the lattice's last element.
 
-
-        Returns
-        -------
-        str
-            The name of final element of the lattice.
+        ``output: end_element`` if given, else the element ending at or past ``zstop``,
+        else the last element.
         """
         if "end_element" in self.file_block["output"]:
             return self.file_block["output"]["end_element"]
@@ -2986,33 +2450,15 @@ class frameworkLattice(BaseModel):
 
     @property
     def endObject(self) -> "PhysicalBaseElement":
-        """
-        Property to get the final element of the lattice.
-        See :func:`end` for more details.
-
-
-        Returns
-        -------
-        Element
-            The final element of the lattice.
-        """
+        """The element named by :attr:`end`."""
         return self.elementObjects[self.end]
 
     @property
     def start_s(self) -> float:
         """
-        Property to get the s position of the start of the lattice, measured along
-        the reference trajectory from the start of the machine.
+        ``s`` at the exit of the first element, along the reference path from the machine start.
 
-        This is what every tracking code should anchor its reported s to. It is not
-        the same as ``startObject.physical.start.z`` -- anything that bends (a
-        chicane, a dogleg) makes the path longer than its projection onto z, and
-        that difference has to carry forward into every downstream lattice.
-
-        Returns
-        -------
-        float
-            S position of the first element of the lattice.
+        Not ``startObject.physical.start.z``: bends make the path longer than its z projection.
         """
         if self._start_s is None:
             self._start_s = self.machine.get_elements_s_pos(end=self.start)[self.start]
@@ -3021,32 +2467,17 @@ class frameworkLattice(BaseModel):
     @property
     def entrance_s(self) -> float:
         """
-        Property to get the s position of the lattice entrance.
+        ``s`` of the lattice entrance: :attr:`start_s` less the first element's length.
 
-        :attr:`start_s` is the s at the *exit* of the first element, so its length has to
-        come back off. The two are equal for the usual case of a lattice starting on a
-        zero-length marker, and differ for one starting on a real element.
-
-        This is the anchor for per-element s positions, which are measured from the
-        lattice entrance.
-
-        Returns
-        -------
-        float
-            S position of the entrance of the lattice.
+        Per-element ``s`` positions are measured from here.
         """
         return float(self.start_s - self.startObject.physical.length)
 
     def _machine_space_charge(self):
         """
-        The collective-field resolution of the machine section this lattice cuts.
-        `csr_bins` set on this lattice still wins, being applied after.
+        Space-charge settings of this lattice's LAURA section, or None for code defaults.
 
-        Returns
-        -------
-        SpaceChargeSettings | None
-            The settings to run this lattice with, or None to leave each code on
-            its own defaults.
+        This lattice's own ``csr_bins`` is applied after, so still wins.
         """
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
@@ -3055,17 +2486,7 @@ class frameworkLattice(BaseModel):
 
     def _machine_geometry(self):
         """
-        Whether LAURA says the reference orbit of this lattice's section closes.
-
-        ``geometry`` is section metadata in LAURA (``open``/``closed``, mirroring
-        Bmad's ``parameter[geometry]``), so a ring already says so in the layout
-        and does not need saying again here. Bmad is the backend that reads it
-        straight through; see :meth:`periodic`.
-
-        Returns
-        -------
-        LatticeGeometryEnum | None
-            The section's geometry, or None when the layout does not say.
+        The LAURA section's ``geometry`` (``open``/``closed``, as Bmad's), or None; see :attr:`periodic`.
         """
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
@@ -3073,9 +2494,7 @@ class frameworkLattice(BaseModel):
         return None
 
     def _machine_reference_energy(self) -> float | None:
-        """The total energy [eV] LAURA's section records for its design
-        particle, or None when the layout does not say; see
-        :attr:`design_p0c`."""
+        """The LAURA section's design total energy in eV, or None; see :attr:`design_p0c`."""
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
                 energy = getattr(section, "reference_energy", None)
@@ -3085,14 +2504,7 @@ class frameworkLattice(BaseModel):
     @computed_field
     @property
     def section(self) -> SectionLatticeTranslator:
-        """
-        Property to get the lattice elements as a `SectionLatticeTranslator`.
-
-        Returns
-        -------
-        SectionLatticeTranslator
-            LAURA `SectionLatticeTranslator`
-        """
+        """The lattice's elements as a LAURA ``SectionLatticeTranslator``, built once and cached."""
         if not isinstance(self._section, SectionLatticeTranslator):
             keys = self.machine.elements_between(start=self.start, end=self.end)
             layout = self.machine.lattices.get(self.machine.default_path)
@@ -3128,14 +2540,7 @@ class frameworkLattice(BaseModel):
 
     @property
     def elements(self) -> dict:
-        """
-        Property to get a dictionary of elements in the lattice.
-
-        Returns
-        -------
-        dict
-            A dictionary where keys are element names and values are the corresponding element objects.
-        """
+        """The lattice's elements, by name."""
         return self.section.elements.elements
 
     def write(self):
@@ -3143,20 +2548,17 @@ class frameworkLattice(BaseModel):
 
     def run_command(self, command: list, logfile: str, **kwargs) -> None:
         """
-        Run a simulation code, logging to `logfile`, and raise if the code says it failed.
+        Run a simulation code, logging to ``logfile``, and raise if it exits non-zero.
 
-        A code that gives up part-way still looks like a successful run to everything
-        downstream, which then dies reading output that was never written -- so the
-        exit status is read here, once, for every code that runs a subprocess.
+        Otherwise a failed run surfaces later as missing output.
 
         Parameters
         ----------
         command: list
-            The command to run, as passed to :mod:`subprocess`
         logfile: str
-            Where the code's output is written; its tail is quoted if the code fails
+            Its tail is quoted if the code fails.
         kwargs:
-            Passed through to :func:`subprocess.call` (``cwd``, ``env``, ...)
+            Passed to :func:`subprocess.call`.
 
         Raises
         ------
@@ -3181,11 +2583,9 @@ class frameworkLattice(BaseModel):
 
     def run(self) -> None:
         """
-        Run the code with input 'filename'
-        This method constructs the command to run the simulation using the specified executable
-        and the name of the lattice. It redirects the output to a log file in the master subdirectory.
+        Run the code on this lattice's input file, logging to ``<name>.log`` in the master subdirectory.
 
-        If  :attr:`~remote_setup` is set, then :func:`~run_remote` will be called instead.
+        Calls :meth:`run_remote` instead if :attr:`remote_setup` is set.
 
         Raises
         ------
@@ -3211,18 +2611,10 @@ class frameworkLattice(BaseModel):
 
     def run_remote(self) -> None:
         """
-        Run the simulation on a remote server using SSH and SFTP, following these steps:
+        Run the simulation on a remote server over SSH (:meth:`connect_remote`).
 
-        1. Connect to the remote server using :func:`~connect_remote`.
-
-        2. Create a subdirectory on the remote server with the same name as `master_subdir`.
-
-        3. Send the required files (simulation input file(s), initial beam distribution file,
-        field/wakefield files).
-
-        4. Execute the simulation and wait for completion.
-
-        5. Retrieve all output files created since the start of the simulation back into `master_subdir`
+        Uploads the input, beam and field files to a directory named after
+        ``master_subdir``, runs, then fetches every file modified since the start.
         """
         ssh = self.connect_remote()
         subdir = self.global_parameters["master_subdir"]
@@ -3263,12 +2655,8 @@ class frameworkLattice(BaseModel):
 
         with ssh.open_sftp() as sftp:
             for attr in sftp.listdir_attr(rel_subdir):
-
-                # Skip directories
                 if stat.S_ISDIR(attr.st_mode):
                     continue
-
-                # Only download files modified since starttime
                 if attr.st_mtime >= starttime:
                     remote_path = os.path.join(rel_subdir, attr.filename)
                     local_path = os.path.join(self.global_parameters["master_subdir"], attr.filename)
@@ -3282,22 +2670,20 @@ class frameworkLattice(BaseModel):
 
     def connect_remote(self) -> Any:
         """
-        Set up an SSH connection to a remote server using the parameters defined in `remote_setup`.
-        These keys must include `host`, `username`, and `password`.
+        Open an SSH connection from :attr:`remote_setup`'s ``host``, ``username`` and ``password``.
 
         Returns
         -------
         paramiko.SSHClient
-            The SSH client for the established connection.
 
         Raises
         ------
         KeyError
-            If the `remote_setup` attribute of this class does not contain the required keys.
+            If a required key is missing.
         paramiko.AuthenticationException
-            If the SSH authentication fails (i.e. due to incorrect credentials).
+            If authentication fails.
         TimeoutError
-            If the SSH connection fails, for example if the server is unreachable.
+            If the server is unreachable.
         """
         if not all(name in self.remote_setup for name in ["host", "username", "password"]):
             raise KeyError("remote_setup must contain 'host', 'username' and 'password'")
@@ -3324,16 +2710,12 @@ class frameworkLattice(BaseModel):
 
     def getInitialTwiss(self) -> dict:
         """
-        Get the initial Twiss parameters from the file block
-        This method checks if the file block contains an "input" key with a "twiss" subkey.
-        If the "twiss" subkey exists and contains values, it retrieves the alpha, beta, and normalized emittance
-        parameters for both horizontal and vertical planes.
+        The ``input: twiss`` alpha, beta and normalised emittance per plane.
 
         Returns
         -------
         dict
-            A dictionary containing the initial Twiss parameters for horizontal and vertical planes.
-            If the parameters are not found, it returns False for each parameter.
+            ``horizontal`` and ``vertical`` entries; missing values are False.
         """
         if (
             "input" in self.file_block
@@ -3461,12 +2843,7 @@ class frameworkLattice(BaseModel):
 
     def preProcess(self) -> None:
         """
-        Pre-process the lattice before running the simulation.
-        This method initializes the initial Twiss parameters by calling the `getInitialTwiss` method.
-
-        Returns
-        -------
-        None
+        Run the pre-tracking checks, apply section settings, read :meth:`getInitialTwiss` and do any matching.
         """
         self.check_turns_supported()
         self.check_periodic_supported()
@@ -3494,11 +2871,7 @@ class frameworkLattice(BaseModel):
 
     def read_closed_orbit(self):
         """
-        The orbit that closes on itself, at the start of the line.
-
-        Everything else in a ring is defined about the closed orbit.
-        On a perfectly aligned lattice it is identically zero, which is why
-        a test of it needs a steering error to mean anything.
+        The closed orbit at the start of the line; zero on a perfectly aligned lattice.
 
         Returns
         -------
@@ -3509,24 +2882,18 @@ class frameworkLattice(BaseModel):
 
     def read_optics_summary(self) -> dict:
         """
-        The code's own tune and chromaticity, from its periodic solution.
-
-        Not derived here, instead read back from the code, giving the integer
-        part of the tune, and the chromaticity.
+        The code's own full tune and chromaticity, from its periodic solution.
 
         Returns
         -------
         dict
             Any of ``tune_x_total``, ``tune_y_total``, ``chromaticity_x``,
-            ``chromaticity_y``. Empty when the code reports none of them.
+            ``chromaticity_y``; empty if the code reports none.
         """
         return {}
 
     def read_one_turn_map(self):
-        """This code's 6x6 one-turn map, or None if it has none to give.
-
-        Overridden by the backends that can; every ring code has a native call
-        for this, so none of them need the map rebuilding by hand.
+        """This code's 6x6 one-turn map, or None; overridden by the backends that can.
 
         Returns
         -------
@@ -3538,34 +2905,23 @@ class frameworkLattice(BaseModel):
         self, beta0: float | None = None, magnitude: bool = True
     ):
         """
-        :attr:`one_turn_map` in one common convention, so codes compare.
+        :attr:`one_turn_map` in Xsuite's ``(x, px, y, py, zeta, delta)``, so codes compare.
 
-        Canonical here is Xsuite's ``(x, px, y, py, zeta, delta)``. The
-        conversion is a *diagonal similarity* ``D R D^-1`` with
-        ``D = diag(1, 1, 1, 1, d5, d6)``. Normalising cannot invent or
-        destroy a tune; it can only fix the longitudinal block.
-
-        With ``magnitude=True`` (the default) it returns ``None`` where the
-        conversion is not a rescale. Elegant's
-        fifth coordinate is geometric path length, not time of flight, so a
-        drift has ``R56 = 0`` where the other codes have
-        ``L / (beta0 * gamma0)**2``.
-
-        ``magnitude=False`` applies :attr:`otm_longitudinal_sign` alone.
+        A diagonal similarity ``D R D^-1`` that rescales only the longitudinal block,
+        so tunes are unchanged. Elegant's fifth coordinate is path length, not time
+        of flight, so it cannot be rescaled (a drift has ``R56 = 0``).
 
         Parameters
         ----------
         beta0: float | None
-            Reference ``v/c``. Read from the tracked beam when not given, and
-            not needed at all when ``magnitude`` is False.
+            Reference ``v/c``; read from the beam if not given. Unused without ``magnitude``.
         magnitude: bool
-            Convert sizes as well as signs.
+            Convert sizes as well as signs; False applies only :attr:`otm_longitudinal_sign`.
 
         Returns
         -------
         numpy.ndarray | None
-            The 6x6 map in canonical coordinates, or None when ``magnitude``
-            was asked for and this code's conversion is not a rescale.
+            None when ``magnitude`` is set and this code's conversion is not a rescale.
         """
         matrix = self.one_turn_map
         if matrix is None or np is None:
@@ -3591,20 +2947,17 @@ class frameworkLattice(BaseModel):
 
     def ring_parameters(self) -> dict:
         """
-        Tune, periodic Twiss and momentum compaction, from the one-turn map.
-        The first two come from the raw map, and the latter comes from the
-        canonical map.
+        Tune and periodic Twiss from the one-turn map, plus momentum compaction from its canonical form.
 
-        Chromaticity is deliberately absent: it is not in a single one-turn
-        map. It needs maps at two momenta, or the code's own periodic Twiss.
+        Also merges :attr:`optics_summary` and :attr:`closed_orbit`. Chromaticity
+        needs more than one map, so comes only from the code's own summary.
 
         Returns
         -------
         dict
-            ``{}`` if there is no map. Otherwise ``tune_x``/``tune_y``
-            (fractional), ``beta_x``/``alpha_x``/``gamma_x`` and the ``y``
-            equivalents, ``stable_x``/``stable_y``, and ``slip_factor`` /
-            ``momentum_compaction`` where the convention allows.
+            ``{}`` without a map; else ``stable_*``, fractional ``tune_*``, ``beta_*``,
+            ``alpha_*``, ``gamma_*``, ``closed_orbit_*`` and, where the convention
+            allows, ``slip_factor`` and ``momentum_compaction``.
         """
         from .Modules.Matrices import (
             fractional_tune,
@@ -3650,12 +3003,7 @@ class frameworkLattice(BaseModel):
         return result
 
     def check_one_turn_map(self, tolerance: float = 1e-3) -> None:
-        """
-        Warn when the map that came back cannot be a one-turn map.
-
-        ``det(R) == 1`` for a linear map that neither creates nor destroys
-        phase-space volume.
-        """
+        """Warn when the one-turn map is not 6x6 or its determinant is not 1 to ``tolerance``."""
         matrix = self.one_turn_map
         if matrix is None or np is None:
             return
@@ -3672,12 +3020,7 @@ class frameworkLattice(BaseModel):
             ))
 
     def postProcess(self):
-        """
-        Read back whatever the run produced that is not a beam file.
-
-        For a ring that means the one-turn map, which every capable code
-        offers natively; see :attr:`supports_periodic`.
-        """
+        """For a periodic run, read back the one-turn map, optics summary and closed orbit."""
         if self.periodic and self.supports_periodic:
             self.one_turn_map = self.read_one_turn_map()
             self.check_one_turn_map()
@@ -3696,14 +3039,7 @@ class frameworkLattice(BaseModel):
         return str + ")"
 
     def createDrifts(self) -> dict:
-        """
-        Insert drifts into a sequence of 'elements'.
-
-        Returns
-        -------
-        dict
-            A dictionary containing the new drift elements created for the lattice.
-        """
+        """The lattice's elements with drifts inserted between them."""
         return self.section.create_drifts()
 
     def getSValues(
@@ -3713,27 +3049,20 @@ class frameworkLattice(BaseModel):
         drifts: bool = True,
     ) -> list | dict:
         """
-        Get the S values for the elements in the lattice.
-        This method calculates the cumulative length of the elements in the lattice,
-        starting from the entrance or the first element, depending on the `at_entrance` parameter.
-        It returns a list or dict of S values, which represent the positions of the elements along the lattice.
+        Cumulative ``s`` of each element from the lattice entrance.
 
         Parameters
         ----------
         as_dict: bool, optional
-            If True, returns a dictionary with element names as keys and their S values as values.
+            Return ``{name: s}`` instead of a list.
         at_entrance: bool, optional
-            If True, calculates S values starting from the entrance of the lattice.
-            If False, calculates S values starting from the first element.
+            Give each element's entrance ``s`` rather than its exit.
         drifts: bool, optional
-            If True, include s-values for drift elements
+            Include drifts.
 
         Returns
         -------
         list | dict
-            A list or dictionary of S values for the elements in the lattice.
-            If `as_dict` is True, returns a dictionary with element names as keys and their S values as values.
-            If `as_dict` is False, returns a list of S values.
         """
         if drifts:
             lengths = self.section.drift_lengths()
@@ -3751,25 +3080,18 @@ class frameworkLattice(BaseModel):
 
     def getZValues(self, drifts: bool = True, as_dict: bool = False) -> list | dict:
         """
-        Get the Z values for the elements in the lattice.
-        This method calculates the cumulative length of the elements in the lattice,
-        starting from the entrance or the first element, depending on the `at_entrance` parameter.
-        It returns a list or dict of S values, which represent the positions of the elements along the lattice.
+        ``[start z, end z]`` of each element.
 
         Parameters
         ----------
         drifts: bool, optional
-            If True, includes drift elements in the calculation.
-            If False, only considers the main elements in the lattice.
+            Include drifts.
         as_dict: bool, optional
-            If True, returns a dictionary with element names as keys and their Z values as values.
+            Return ``{name: [start, end]}`` instead of a list.
 
         Returns
         -------
         list | dict
-            A list or dictionary of Z values for the elements in the lattice.
-            If `as_dict` is True, returns a dictionary with element names as keys and their Z values as values.
-            If `as_dict` is False, returns a list of Z values.
         """
         elems = self.createDrifts() if drifts else self.elements
         if as_dict:
@@ -3778,37 +3100,34 @@ class frameworkLattice(BaseModel):
 
     def getNames(self, drifts: bool = True) -> list:
         """
-        Get the names of the elements in the lattice.
+        Names of the elements in the lattice.
 
         Parameters
         ----------
         drifts: bool, optional
-            If True, includes drift elements in the list of names.
+            Include drifts.
 
         Returns
         -------
         list
-            A list of names of the elements in the lattice.
-            If `drifts` is True, includes drift elements; otherwise, only includes main elements.
         """
         elems = self.createDrifts() if drifts else self.elements
         return [e.name for e in list(elems.values())]
 
     def getElems(self, drifts: bool = True, as_dict: bool = False) -> list | dict:
         """
-        Get the elements in the lattice.
+        The elements in the lattice.
 
         Parameters
         ----------
         drifts: bool, optional
-            If True, includes drift elements in the list of elements.
+            Include drifts.
         as_dict: bool, optional
-            If True, returns a dictionary with element names as keys and their corresponding element objects as values.
+            Return ``{name: element}`` instead of a list.
 
         Returns
         -------
         list | dict
-            A list or dictionary of elements in the lattice.
         """
         elems = self.createDrifts() if drifts else self.elements
         if as_dict:
@@ -3816,47 +3135,20 @@ class frameworkLattice(BaseModel):
         return list(elems.values())
 
     def getSNames(self) -> list:
-        """
-        Get the names and S values of the elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of tuples, where each tuple contains the name of an element and its corresponding S value.
-        """
+        """``(name, s)`` for each element, drifts included; see :meth:`getSValues`."""
         s = self.getSValues()
         names = self.getNames()
         return list(zip(names, s))
 
     def getSNamesElems(self) -> tuple:
-        """
-        Get the names, elements, and S values of the elements in the lattice.
-
-        Returns
-        -------
-        tuple
-            A tuple containing three elements:
-            - A list of names of the elements.
-            - A list of element objects.
-            - A list of S values corresponding to the elements.
-        """
+        """``(names, elements, s)`` lists, drifts included."""
         s = self.getSValues()
         names = self.getNames()
         elems = self.getElems()
         return names, elems, s
 
     def getZNamesElems(self) -> tuple:
-        """
-        Get the names, elements, and Z values of the elements in the lattice.
-
-        Returns
-        -------
-        tuple
-            A tuple containing three elements:
-            - A list of names of the elements.
-            - A list of element objects.
-            - A list of Z values corresponding to the elements.
-        """
+        """``(names, elements, z)`` lists, drifts included; ``z`` as in :meth:`getZValues`."""
         z = self.getZValues()
         names = self.getNames()
         elems = self.getElems()
@@ -3864,19 +3156,16 @@ class frameworkLattice(BaseModel):
 
     def findS(self, elem) -> list:
         """
-        Find the S values for a specific element in the lattice.
+        ``(name, s)`` entries of :meth:`getSNames` for element ``elem``.
 
         Parameters
         ----------
         elem: str
-            The name of the element to find in the lattice.
-
 
         Returns
         -------
         list
-            A list of tuples, where each tuple contains the name of the element and its corresponding S value.
-            If the element does not exist in the lattice, returns an empty list.
+            Empty if the element is not in the lattice.
         """
         if elem in self.allElements:
             sNames = self.getSNames()
@@ -3885,18 +3174,16 @@ class frameworkLattice(BaseModel):
 
     def updateRunSettings(self, runSettings: runSetup) -> None:
         """
-        Update the run settings for the lattice.
+        Replace the lattice's run settings.
 
         Parameters
         ----------
-        runSettings: runSetup
-            An instance of runSetup containing the new run settings.
+        runSettings: :class:`runSetup`
 
         Raises
         ------
         TypeError
-            If the `runSettings` argument is not an instance of `runSetup`.
-
+            If ``runSettings`` is not a :class:`runSetup`.
         """
         if isinstance(runSettings, runSetup):
             self.runSettings = runSettings
@@ -3907,14 +3194,12 @@ class frameworkLattice(BaseModel):
 
     def setup_xsuite_line(self) -> tuple:
         """
-        Set up an Xsuite Line object from the current lattice elements.
+        Build an Xsuite line from this lattice, reading the input beam.
 
         Returns
         -------
-        tuple (xt.Line, rbf.beam, List)
-            * An Xsuite Line object representing the current lattice.
-            * An rbf.beam object containing the beam parameters.
-            * A list of element names in the Xsuite Line.
+        tuple
+            ``(xt.Line, beam copy, element names)``.
         """
         prefix = self.get_prefix()
         self.read_input_file(prefix, self.particle_definition)
@@ -3940,24 +3225,20 @@ class frameworkLattice(BaseModel):
             element_by_element: bool = True,
     ) -> np.ndarray:
         """
-        Compute the one-turn transfer matrix for the lattice using Xsuite.
-        This method sets up an Xsuite Line object from the current lattice elements
-        and computes the one-turn transfer matrix using finite differences.
+        Transfer matrix by Xsuite finite differences.
 
         Parameters
         ----------
         start: str, optional
-            The first element from which to compute the transfer matrix (first element by default).
+            First element; defaults to the line start.
         end: str, optional
-            The last element from which to compute the transfer matrix (last element by default).
+            Last element; defaults to the line end.
         element_by_element: bool, optional
-            Return the element-by-element transfer matrices if True; if not return the full
-            transfer matrix for the entire line
+            Return each element's matrix rather than the whole line's.
 
         Returns
         -------
         np.ndarray
-            Transfer matrix (or matrices) as a NumPy array.
         """
         line, beam, names = self.setup_xsuite_line()
         matrix = line.compute_one_turn_matrix_finite_differences(
@@ -3972,53 +3253,32 @@ class frameworkLattice(BaseModel):
 
     def match(self, params: Dict) -> None:
         """
-        Perform transverse matching of the lattice using Ocelot's built-in matching algorithm.
+        Transverse matching with Ocelot's ``match``, setting the variables' strengths in place.
 
-        The `params` dictionary should contain the following keys:
-
-        - "variables": A list of element names (magnets only).
-        - "targets": A dictionary where keys are element names and values are dictionaries
-          with keys corresponding to Twiss parameters ("beta_x", "beta_y", "alpha_x",
-          "alpha_y", "eta_x", "eta_y", "eta_xp", "eta_yp", "mux", "muy") and their target values.
-        - "start": (optional) The name of the starting element for matching. Defaults to the first element.
-        - "end": (optional) The name of the ending element for matching. Defaults to the last element.
-
-        The matching dictionary should have this structure within the lattice file block:
+        ``variables`` are quadrupole, sextupole or octupole names; ``targets`` maps
+        element names (or ``global``) to Ocelot Twiss constraints; ``max_iterations``
+        defaults to 10000:
 
         .. code-block:: yaml
 
             files:
               line:
-                <.....>
                 match:
-                  variables:
-                    Q1
-                    Q2
-                    S1
+                  variables: [Q1, Q2, S1]
                   targets:
                     SCR1: {beta_x: 10.0, alpha_x: 0.0}
                     SCR2: {beta_y: 12.0, alpha_y: 0.0}
                     SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
-                  start: Q1
-                  end: SCR3
 
         Parameters
         ----------
         params: Dict
-            Dictionary containing matching variables, targets, and optional start and end elements.
-
-        Returns
-        -------
-        Dict | None
-            Updated elementObjects if matching is successful, None otherwise.
+            The ``match`` block.
 
         Raises
         ------
         ValueError
-            If required keys are missing in the `params` dictionary or
-            if specified elements are not found in the lattice.
-        RuntimeError
-            If the matching process fails.
+            If ``variables`` or ``targets`` is missing, or no variable is a usable magnet.
         """
         if "variables" not in params:
             raise ValueError("No matching variables provided")
@@ -4078,15 +3338,10 @@ class frameworkLattice(BaseModel):
             print("\t", elem.name, f"k{magnetic_order}l =", r * magnetic_length)
 
 class global_error(frameworkObject):
-    """
-    Class defining a global error element.
-    """
+    """A global error element."""
 
 class frameworkCommand(frameworkObject):
-    """
-    Class defining a framework command, which is used to generate commands used in setup files
-    for various simulation codes.
-    """
+    """A command written into a simulation code's setup file."""
 
     def model_post_init(self, __context):
         if self.objecttype not in commandkeywords:
@@ -4094,14 +3349,7 @@ class frameworkCommand(frameworkObject):
         super().model_post_init(__context)
 
     def write_Elegant(self) -> str:
-        """
-        Writes the command string for ELEGANT.
-
-        Returns
-        -------
-        str
-            String representation of the command for ELEGANT
-        """
+        """The ``&command ... &end`` block for ELEGANT."""
         string = "&" + self.objecttype + "\n"
         for key in commandkeywords[self.objecttype]:
             if (
@@ -4116,15 +3364,7 @@ class frameworkCommand(frameworkObject):
         return string
 
     def write_Genesis(self) -> str:
-        """
-        Writes the command string for Genesis.
-        # TODO deprecated?
-
-        Returns
-        -------
-        str
-            String representation of the command for Genesis
-        """
+        """The ``&command ... &end`` block for Genesis. TODO: deprecated?"""
         string = "&" + self.objecttype + "\n"
         for key in commandkeywords_genesis[self.objecttype]:
             if (
@@ -4142,10 +3382,7 @@ class frameworkCommand(frameworkObject):
 
 
 class frameworkGroup:
-    """
-    Class defining a framework group, which is used to group together elements to perform coordinated
-    actions on them.
-    """
+    """A named group of elements acted on together."""
 
     def __init__(self, name, framework, type, elements, **kwargs):
         super().__init__()
@@ -4167,17 +3404,15 @@ class frameworkGroup:
 
     def get_Parameter(self, p: str) -> Any:
         """
-        Get a specific parameter associated with the group, i.e. bunch compressor angle
+        A group parameter (e.g. a chicane's angle), else the first member's.
 
         Parameters
         ----------
         p: str
-            A parameter associated with the group
 
         Returns
         -------
         Any
-            The parameter, if defined.
         """
         try:
             return getattr(self, p)
@@ -4188,14 +3423,12 @@ class frameworkGroup:
 
     def change_Parameter(self, p: Any, v: Any) -> None:
         """
-        Set a parameter on all elements in the group.
+        Set a group parameter, else set it on every member.
 
         Parameters
         ----------
         p: str
-            The parameter to be set
         v: Any
-            The value to be set.
         """
         try:
             getattr(self, p)
@@ -4220,10 +3453,7 @@ class frameworkGroup:
 
 
 class element_group(frameworkGroup):
-    """
-    Class defining a group of elements, which is used to group together elements to perform coordinated
-    actions on them.
-    """
+    """A plain :class:`frameworkGroup` of elements."""
 
     def __init__(self, name, elementObjects, type, elements, **kwargs):
         super().__init__(name, elementObjects, type, elements, **kwargs)
@@ -4233,9 +3463,7 @@ class element_group(frameworkGroup):
 
 
 class r56_group(frameworkGroup):
-    """
-    Class defining a group of elements with a total R56.
-    """
+    """A group whose members' settings follow a total R56 through ``ratios`` expressions."""
 
     def __init__(self, name, elementObjects, type, elements, ratios, keys, **kwargs):
         super().__init__(name, elementObjects, type, elements, **kwargs)
@@ -4247,19 +3475,7 @@ class r56_group(frameworkGroup):
         return str(dict(zip(self.elements, self.keys)))
 
     def get_Parameter(self, p: str) -> Any:
-        """
-        Get a parameter associated with the group.
-
-        Parameters
-        ----------
-        p: str
-            The parameter to be retrieved.
-
-        Returns
-        -------
-        Any
-            The parameter.
-        """
+        """As :meth:`frameworkGroup.get_Parameter`, plus ``r56``."""
         if str(p) == "r56":
             return self.r56
         else:
@@ -4267,26 +3483,12 @@ class r56_group(frameworkGroup):
 
     @property
     def r56(self) -> float:
-        """
-        Get the R56 of the group of elements
-
-        Returns
-        -------
-        float
-            The R56 pararmeter
-        """
+        """The group's R56; setting it updates each member from ``ratios``."""
         return self._r56
 
     @r56.setter
     def r56(self, r56: float) -> None:
-        """
-        Set the R56 of the group of elements
-
-        Parameters
-        ----------
-        r56: float
-            The R56 to be set
-        """
+        """Set the R56 and update each member."""
         self._r56 = r56
         data = {"r56": self._r56}
         parser = MathParser(data)
@@ -4296,16 +3498,13 @@ class r56_group(frameworkGroup):
 
     def updateElements(self, element: str | list | tuple, key: str, value: Any) -> None:
         """
-        Update one or more elements in the group.
+        Set ``key`` on one or more elements or groups.
 
         Parameters
         ----------
         element: str, list or tuple
-            The element(s) to be updated
         key: str
-            The parameter in the element or group of elements to be changed
         value: Any
-            The value to which the parameter should be set
         """
         if isinstance(element, (list, tuple)):
             [self.updateElements(e, key, value) for e in element]
@@ -4317,9 +3516,7 @@ class r56_group(frameworkGroup):
 
 
 class chicane(frameworkGroup):
-    """
-    Class defining a 4-dipole chicane.
-    """
+    """A 4-dipole chicane."""
 
     def __init__(self, name, elementObjects, type, elements, **kwargs):
         super().__init__(name, elementObjects, type, elements, **kwargs)
@@ -4328,12 +3525,7 @@ class chicane(frameworkGroup):
 
     def update(self, **kwargs) -> None:
         """
-        Update the bending angle and/or dipole width and/or dipole gap of all magnets in the chicane.
-
-        Parameters
-        ----------
-        **kwargs: Dict
-            Dictionary containing parameters to be updated -- must be in ["dipoleangle", "width", "gap"]
+        Update any of ``dipoleangle``, ``width`` and ``gap`` on every dipole; other keys are ignored.
         """
         if "dipoleangle" in kwargs:
             self.set_angle(kwargs["dipoleangle"])
@@ -4344,77 +3536,44 @@ class chicane(frameworkGroup):
 
     @property
     def drift_d1_to_d2(self) -> float:
-        """
-        Drift length between dipole 1 and dipole 2
-
-        Returns
-        -------
-        float
-            The drift length between dipole 1 and dipole 2
-        """
+        """Straight-line distance from dipole 1's exit to dipole 2's entrance."""
         e1 = self.elementObjects[0]
         e2 = self.elementObjects[1]
         return np.sqrt(np.sum([(getattr(e2.start, d) - getattr(e1.end, d)) ** 2 for d in ["x", "y", "z"]]))
 
     @property
     def r56(self) -> float:
-        """
-        R56 of the chicane
-
-        Returns
-        -------
-        float
-            R56 = 2 * angle^2 * (L1 + 2/3 * L2)
-        """
+        """R56 of the chicane, ``2 * angle**2 * (drift_d1_to_d2 + 2/3 * dipole length)``."""
         e1 = self.elementObjects[0]
         ld = self.drift_d1_to_d2
         return 2 * self.angle ** 2 * (ld + 2 * e1.magnetic.length / 3)
 
     @property
     def delay(self) -> float:
-        """
-        Delay (longitudinal slippage) of the chicane
-
-        Returns
-        -------
-        float
-            Delay = 2 * R56
-        """
+        """Delay (longitudinal slippage) of the chicane, ``2 * r56``."""
         return 2 * self.r56
 
     @property
     def angle(self) -> float:
-        """
-        Bending angle of the chicane
-
-        Returns
-        -------
-        float
-            The bending angle
-        """
+        """The first dipole's bending angle; setting it calls :meth:`set_angle`."""
         obj = [self.allElementObjects[e] for e in self.elements]
         return float(obj[0].magnetic.KnL(0))
 
     @angle.setter
     def angle(self, theta: float) -> None:
-        """
-        Set the bending angle of the chicane; see :func:`~simba.Framework_objects.chicane.set_angle`.
-
-        Parameters
-        -----------
-        theta: float
-            Chicane bending angle
-        """
+        """Set the bending angle; see :meth:`set_angle`."""
         self.set_angle(theta)
 
     def set_angle(self, a: float) -> None:
         """
-        Set the chicane bending angle, including updating the inter-dipole drift lengths.
+        Set the chicane bending angle, re-laying out the dipoles and everything between them.
+
+        Dipoles keep their z extent (:meth:`_z_extent`) and lengths become the arc.
 
         Parameters
         ----------
         a: float
-            The angle to be set
+            Bending angle of the first dipole, in radians; the others follow ``ratios``.
         """
         rotation, theta0, origin = self._design_axis
         across, _, along = rotation.T
@@ -4473,18 +3632,9 @@ class chicane(frameworkGroup):
     @property
     def _design_axis(self) -> tuple:
         """
-        The axis the beam arrives on: LAURA's orientation matrix for the first dipole,
-        the yaw that goes back onto the elements, and the dipole's entrance, which sits
-        on the axis whatever the angle. Everything :func:`set_angle` lays out is
-        measured in this frame.
+        ``(rotation_matrix, theta, entrance)`` of the first dipole: the frame :meth:`set_angle` lays out in.
 
-        Cached on first use, because :func:`set_angle` moves the entrance it is read
-        from.
-
-        Returns
-        -------
-        tuple
-            ``(rotation_matrix, theta, entrance)``.
+        Cached on first use, because :meth:`set_angle` moves the entrance it is read from.
         """
         if not hasattr(self, "_axis"):
             d0 = self.allElementObjects[self.elements[0]].physical
@@ -4497,13 +3647,9 @@ class chicane(frameworkGroup):
 
     def _z_extent(self, dipole, index: int) -> float:
         """
-        The z that the magnet spans, which a variable chicane holds fixed while the angle
-        changes -- the magnets translate but never rotate, so their faces stay
-        perpendicular to the 0mm axis.
+        The z a dipole spans, held fixed as the angle changes: its design (zero-angle) length.
 
-        This is the length in the lattice, which is the zero-angle case where the arc and
-        the z extent coincide. Cached on first use because :func:`set_angle` overwrites
-        the element's length with the (longer) arc.
+        Cached on first use because :meth:`set_angle` overwrites the length with the arc.
         """
         if not hasattr(self, "_design_z_extents"):
             self._design_z_extents = {}
@@ -4528,10 +3674,7 @@ class chicane(frameworkGroup):
 
 
 class s_chicane(chicane):
-    """
-    Class defining an s-type chicane; in this case the bending ratios for
-    :func:`~simba.Framework_objects.chicane.set_angle` are different.
-    """
+    """An s-type chicane: :class:`chicane` with bending ratios ``(-1, 2, -2, 1)``."""
 
     def __init__(self, name, elementObjects, type, elements, **kwargs):
         super().__init__(name, elementObjects, type, elements, **kwargs)
@@ -4539,27 +3682,23 @@ class s_chicane(chicane):
 
 
 class getGrids:
-    """
-    Class defining the appropriate number of space charge bins given the number of particles,
-    defined as the closest power of 8 to the cube root of the number of particles.
-    """
+    """Space-charge grid size per dimension: the power of 2 nearest the cube root of the particle count."""
 
     def __init__(self):
         self.powersof8 = np.asarray([2**j for j in range(1, 20)])
 
     def getGridSizes(self, x: PositiveInt) -> int:
         """
-        Calculate the 3D space charge grid size given the number of particles, minimum of 4
+        Space-charge grid size for ``x`` particles, at least 4.
 
         Parameters
         ----------
         x: PositiveInt
-            Number of particles
+            Number of particles.
 
         Returns
         -------
         int
-            The number of space charge grids
         """
         self.x = abs(x)
         self.cuberoot = int(round(self.x ** (1.0 / 3)))
@@ -4567,19 +3706,16 @@ class getGrids:
 
     def find_nearest(self, array: np.ndarray | list, value: int) -> int:
         """
-        Get the nearest value in an array to the value provided; in this case the array should be a list of
-        powers of 8.
+        The entry of ``array`` nearest ``value``.
 
         Parameters
         ----------
         array: np.ndarray or list
-            Array of values to be checked
-        value: Value to be found in the array
+        value: int
 
         Returns
         -------
         int
-            The closest value in `array` to `value`
         """
         self.array = array
         self.value = value

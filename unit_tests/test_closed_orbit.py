@@ -74,21 +74,10 @@ def madx_orbit(kick):
     return np.array([float(tw[k][0]) for k in ("x", "px", "y", "py")])
 
 
-# --- a clean ring has no closed orbit to speak of -----------------------
-
-
 def test_a_perfect_ring_has_a_zero_closed_orbit():
-    """Which is why this needs an error to be a test of anything.
-
-    MAD-X returns exact zeros; Xsuite returns ~1e-9, because it *searches*
-    for the orbit and stops at its convergence tolerance. Both are right --
-    the tolerance here is set by the method, not by the physics.
-    """
+    """Xsuite searches for the orbit, so stops at ~1e-9; MAD-X gives exact zeros."""
     assert np.allclose(madx_orbit(0.0), 0.0, atol=1e-15)
     assert np.allclose(xsuite_orbit(0.0), 0.0, atol=1e-8)
-
-
-# --- with a steering error ----------------------------------------------
 
 
 def test_a_kick_produces_a_closed_orbit():
@@ -97,20 +86,13 @@ def test_a_kick_produces_a_closed_orbit():
 
 
 def test_the_orbit_stays_in_the_kicked_plane():
-    """A horizontal kick must not move the vertical orbit."""
     for orbit in (xsuite_orbit(KICK), madx_orbit(KICK)):
         assert orbit[2] == pytest.approx(0.0, abs=1e-12)
         assert orbit[3] == pytest.approx(0.0, abs=1e-12)
 
 
 def test_the_orbit_scales_almost_linearly_with_the_kick():
-    """Twice the kick, twice the orbit -- to 0.03%.
-
-    Not exactly: the displaced orbit samples the sector bends off-axis,
-    where their map is not linear. The residual is the nonlinearity, so
-    pinning it loosely is right and pinning it at 1e-6 would just be
-    asserting that the ring is something it is not.
-    """
+    """To 0.03%: the displaced orbit samples the sector bends off-axis."""
     one = xsuite_orbit(KICK)[0]
     two = xsuite_orbit(2 * KICK)[0]
     assert two == pytest.approx(2 * one, rel=1e-3)
@@ -118,15 +100,10 @@ def test_the_orbit_scales_almost_linearly_with_the_kick():
 
 
 def test_the_two_codes_agree_on_the_size_of_the_orbit():
-    """Signs are opposite because `hkicker kick` and `Multipole knl[0]`
-    deflect opposite ways -- a convention of the inputs, not the codes. The
-    magnitudes are the physics, and they agree to about 5%."""
+    """To about 5%; `hkicker kick` and `Multipole knl[0]` deflect opposite ways."""
     xsuite = abs(xsuite_orbit(KICK)[0])
     madx = abs(madx_orbit(KICK)[0])
     assert madx == pytest.approx(xsuite, rel=0.06)
-
-
-# --- the plumbing -------------------------------------------------------
 
 
 class FakeRing:
@@ -162,8 +139,7 @@ def test_the_orbit_is_reported_componentwise():
 
 
 def test_a_short_orbit_vector_is_not_padded():
-    """Ocelot gives four meaningful components; naming two more would be
-    inventing numbers."""
+    """Ocelot gives four components; naming two more would invent numbers."""
     got = FakeRing([1.0, 2.0, 3.0, 4.0]).ring_parameters()
     assert got["closed_orbit_py"] == 4.0
     assert "closed_orbit_zeta" not in got

@@ -7,7 +7,7 @@ from . import constants
 from copy import copy
 
 try:
-    from ..units import nice_array, nice_scale_prefix
+    from beamphysics.units import nice_array, nice_scale_prefix
 except Exception:
     pass
 
@@ -37,14 +37,7 @@ def density_plot(
         filename=None,
         **kwargs,
 ):
-    """
-    1D density plot. Also see: marginal_plot
-
-    Example:
-
-        density_plot(P, 'x', bins=100)
-
-    """
+    """1D charge-density histogram of `key`, e.g. ``density_plot(P, 'x', bins=100)``."""
 
     if not bins:
         n = len(particle_group)
@@ -55,7 +48,7 @@ def density_plot(
         w = abs(particle_group.charge)
     else:
         w = np.ones(len(getattr(particle_group, key)))
-    u1 = ""  # particle_group.units(key).unitSymbol
+    u1 = ""
     ux = p1 + u1
 
     labelx = f"{key} ({ux})"
@@ -91,14 +84,7 @@ def slice_plot(
         filename=None,
         **kwargs,
 ):
-    """
-    slice plot. Also see: marginal_plot
-
-    Example:
-
-        slice plot(P, 'slice_current', bins=100)
-
-    """
+    """Plot slice properties against slice `xkey`, e.g. ``slice_plot(P, ykey='slice_current', bins=100)``."""
 
     P = particle_group
 
@@ -130,7 +116,7 @@ def slice_plot(
         good = slice(None, None, None)  # everything
 
     # X axis scaling
-    units_x = "s"  # str(P.units(xkey))
+    units_x = "s"
     if nice:
         X, factor_x, prefix_x = nice_array(X)
         units_x = prefix_x + units_x
@@ -142,8 +128,6 @@ def slice_plot(
         ax.set_xlim(xlim[0] / factor_x, xlim[1] / factor_x)
         ax.set_xlabel(f"{xkey} ({units_x})")
 
-    # Draw for Y1 and Y2
-
     linestyles = ["solid", "dashed"]
 
     ii = -1  # counter for colors
@@ -154,7 +138,7 @@ def slice_plot(
         linestyle = linestyles[ix]
 
         # Check that units are compatible
-        ulist = [getattr(P.slice, key).units for key in keys]  # [I.units(key) for key in keys]
+        ulist = [getattr(P.slice, key).units for key in keys]
         if len(ulist) > 1:
             for u2 in ulist[1:]:
                 assert ulist[0] == u2, f"Incompatible units: {ulist[0]} and {u2}"
@@ -172,7 +156,6 @@ def slice_plot(
 
         # Make a line and point
         for key, dat in zip(keys, data):
-            #
             ii += 1
             color = "C" + str(ii)
             ax.plot(
@@ -212,14 +195,7 @@ def marginal_plot(
     filename=None,
     **kwargs,
 ):
-    """
-    Density plot and projections
-
-    Example:
-
-        marginal_plot(P, 't', 'energy', bins=200)
-
-    """
+    """2D density plot with projections, e.g. ``marginal_plot(P, 't', 'energy', bins=200)``."""
 
     if not bins:
         n = len(particle_group)
@@ -244,7 +220,7 @@ def marginal_plot(
     x = x / scale[0]
     y = y / scale[1]
 
-    w = np.full(len(x), 1)  #
+    w = np.full(len(x), 1)
     charge = particle_group.charge
 
     u1, u2 = [getattr(particle_group, k).units for k in [key1, key2]]
@@ -508,7 +484,6 @@ def plotScreenImage(
         ax.set_xlabel(labelx)
         ax.set_ylabel(labely)
 
-    # --- Suptitle ---
     file, ext = os.path.splitext(os.path.basename(beam.filename))
 
     # --- Save file ---
@@ -572,9 +547,6 @@ def getScreenImage(
     # normalise the PDF to 1
     myPDF = myPDF / myPDF.max() * iscale
 
-
-    # Define ticks
-    # Major ticks every 5, minor ticks every 1
     xmin, xmax = [min(v1.flatten()), max(v1.flatten())]
     ymin, ymax = [min(v2.flatten()), max(v2.flatten())]
     return v1, v2, myPDF, colormap, labelx, labely

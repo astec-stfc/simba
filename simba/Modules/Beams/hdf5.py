@@ -41,7 +41,6 @@ def rotate_beamXZ(self, theta, preOffset=[0, 0, 0], postOffset=[0, 0, 0]):
         ) = (
             np.dot([beam - preOffset], rotation_matrix)[0] - postOffset
         )
-        # print 'rotated ref part = ', np.dot([beam-preOffset], rotation_matrix)[0]
         beam = np.array(
             [
                 self.reference_particle[3],

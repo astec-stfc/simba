@@ -16,9 +16,9 @@ def rereference(particles, p0c_new: float, rest_energy: float):
     particles: ParticleArray
         The beam; changed in place
     p0c_new: float
-        The new reference momentum [eV/c]
+        New reference momentum [eV/c]
     rest_energy: float
-        The species' rest energy [eV]
+        Species' rest energy [eV]
 
     Returns
     -------
@@ -40,7 +40,7 @@ class FixedReference(PhysProc):
     """
     Put the reference back after a cavity, for a line whose reference is its own.
 
-    Ocelot's cavity map always moves the reference energy on by ``V cos(phi)``, see
+    Ocelot's cavity map always moves the reference energy on by ``V cos(phi)``
     (see :attr:`~simba.Framework_objects.frameworkLattice.fixed_reference`).
     Placed on the element after the cavity, so it applies at the cavity's exit.
     """

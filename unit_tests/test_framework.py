@@ -89,52 +89,6 @@ def test_framework_initialization(simple_machine):
     assert framework.machine == machine
     assert framework.directory == os.path.join(outdir, "ocelot")
 
-def test_framework_settings_and_tracking(simple_machine, simple_generator):
-    machine, outdir = simple_machine
-    settings = fw.FrameworkSettings()
-    files = {}
-    for sec, elems in machine.sections.items():
-        files[sec] = {
-            "code": "ocelot",
-            "charge": {"space_charge_mode": "False"},
-            "input": {
-                "twiss": {
-                    "beta_x": 3.2844606,
-                    "alpha_x": 2.48956886,
-                    "nemit_x": 1e-6,
-                    "beta_y": 3.2846606,
-                    "alpha_y": -2.48956886,
-                    "nemit_y": 1e-6,
-                }
-            },
-            "output": {
-                "start_element": elems[0].name,
-                "end_element": elems[-1].name,
-            },
-        }
-    settings.files = files
-    settings.layout = machine.layout
-    settings.section = {"sections": {name: e.names for name, e in machine.sections.items()}}
-    settings.element_list = os.path.join(outdir, "lattice")
-    framework = fw.Framework(
-        machine=machine,
-        directory=os.path.join(outdir, "ocelot"),
-        clean=True,
-        verbose=True
-    )
-    framework.loadSettings(settings=settings)
-    framework.save_settings("test.def", directory=str(simple_generator))
-    framework.loadSettings(filename=str(simple_generator / "test.def"))
-    framework["FODO"].lsc_enable = False
-    framework["FODO"].csr_enable = False
-    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
-    framework.track()
-    assert os.path.isfile(os.path.join(outdir, "ocelot", "M3.openpmd.hdf5"))
-    with pytest.raises(FileNotFoundError):
-        framework.loadSettings(filename="non_existent.def")
-    with pytest.raises(ValueError):
-        framework.loadSettings()
-
 @pytest.fixture
 def sample_framework(tmp_path):
     fw_obj = fw.Framework(directory=str(tmp_path))
@@ -181,6 +135,20 @@ def framework_with_machine(simple_machine):
     framework.loadSettings(settings=settings)
     return framework
 
+def test_framework_settings_and_tracking(framework_with_machine, simple_generator):
+    framework = framework_with_machine
+    framework.save_settings("test.def", directory=str(simple_generator))
+    framework.loadSettings(filename=str(simple_generator / "test.def"))
+    framework["FODO"].lsc_enable = False
+    framework["FODO"].csr_enable = False
+    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
+    framework.track()
+    assert os.path.isfile(os.path.join(framework.directory, "M3.openpmd.hdf5"))
+    with pytest.raises(FileNotFoundError):
+        framework.loadSettings(filename="non_existent.def")
+    with pytest.raises(ValueError):
+        framework.loadSettings()
+
 def test_getElement(sample_framework):
     fw_obj = sample_framework
     assert fw_obj.getElement("E1").name == "E1"
@@ -189,9 +157,7 @@ def test_getElement(sample_framework):
         assert fw_obj.getElement("NonExistent") == {}
 
 def test_original_elements_are_copies_sharing_one_trajectory(framework_with_machine):
-    """The originals ``save_changes_file`` compares against are independent of
-    the live elements, but copied in one go: per element, each copied the shared
-    section trajectory, and CLIC DR's 5324 elements needed 8.8 GB."""
+    """Copied per element, each took the section trajectory: CLIC DR needed 8.8 GB."""
     fw_obj = framework_with_machine
     names = [n for n in fw_obj.elementObjects if fw_obj.elementObjects[n].physical._trajectory]
     assert len(names) > 1
@@ -238,8 +204,7 @@ def test_check_lattice_after_chicane_angle_change(sample_framework):
 
 
 def test_check_lattice_catches_a_magnet_the_layout_was_not_told_about(sample_framework):
-    """Changing the field without moving the magnet leaves the machine being tracked
-    through and the machine being drawn disagreeing about where the beam goes."""
+    """A field change without a move leaves tracking and layout disagreeing."""
     def dipole(layout_angle):
         return Dipole(
             name="D1",
@@ -269,24 +234,13 @@ def test_modifyElementType(sample_framework):
     fw_obj.modifyElementType("Dipole", "machine_area", "new_area")
     assert fw_obj.elementObjects["E1"].machine_area == "new_area"
 
-def test_detect_changes(sample_framework):
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"elements": ["E1"]}, {"elementtype": "Dipole"}], ids=["all", "single", "by_type"]
+)
+def test_detect_changes(sample_framework, kwargs):
     fw_obj = sample_framework
     fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes()
-    assert "E1" in changes
-    assert "machine_area" in str(changes["E1"])
-
-def test_detect_changes_single(sample_framework):
-    fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes(elements=["E1"])
-    assert "E1" in changes
-    assert "machine_area" in str(changes["E1"])
-
-def test_detect_changes_by_type(sample_framework):
-    fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes(elementtype="Dipole")
+    changes = fw_obj.detect_changes(**kwargs)
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 

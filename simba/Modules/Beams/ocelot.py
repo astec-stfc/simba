@@ -46,18 +46,22 @@ def write_ocelot_beam_file(self, filename, write=True):
 
 
 def particle_group_to_parray(self, s_start=0, energy=None, t0=None) -> ParticleArray:
-    """Construct an Ocelot ParticleArray from an openPMD-beamphysics ParticleGroup.
-    The particle type is assumed to be electrons.
+    """
+    Build an OCELOT ParticleArray from this beam, assuming electrons.
 
-    :param pgroup: ParticleGroup from which to construct the ParticleArray
-    :param s_start: deprecated
-    :param energy: reference energy in eV; the beam's mean if not given
-    :param t0: time tau is measured from, in s; the beam's mean if not given.
-        A lattice passes the incoming beam's, so a sampled beam keeps the full
-        beam's reference
-    :return: ParticleArray corresponding to the provided ParticleGroup
-    :rtype: ParticleArray
+    Parameters
+    ----------
+    s_start: float
+        Unused
+    energy: float, optional
+        Reference energy in eV; defaults to the beam's mean
+    t0: float, optional
+        Time tau is measured from, in s; defaults to the beam's mean. Pass the
+        full beam's so a sampled beam keeps its reference.
 
+    Returns
+    -------
+    ParticleArray
     """
     E = (self.energy.mean().val if energy is None else energy) * 1e-9
     if t0 is None:

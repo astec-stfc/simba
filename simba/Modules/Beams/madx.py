@@ -9,25 +9,22 @@ elementary_charge = constants.elementary_charge
 
 def beam_to_madx_coords(self, p0c: float, tbar: float | None = None) -> dict:
     """
-    Convert this :class:`~simba.Modules.Beams.beam` object into MAD-X
-    canonical coordinates (X, PX, Y, PY, T, PT) for a given reference
-    momentum. The momenta are normalised to `p0c`, ``PT`` is the energy
-    deviation ``(E - E0)/(p0*c)``, and ``T = -c(t - tbar)`` (T > 0 = bunch
-    head), following the conventions in Chapter 1 of the MAD-X manual.
+    Convert the beam to MAD-X canonical coordinates (X, PX, Y, PY, T, PT).
+
+    Momenta are normalised to `p0c`, ``PT = (E - E0)/(p0*c)`` and
+    ``T = -c(t - tbar)`` (T > 0 is the bunch head), as in Chapter 1 of the MAD-X manual.
 
     Parameters
     ----------
     p0c: float
         Reference momentum in eV/c
-    tbar: float | None
-        The reference particle's time [s]; the bunch's mean time if not
-        given. A ring passes its own
+    tbar: float, optional
+        Reference time [s]; defaults to the bunch's mean time
 
     Returns
     -------
-    Dict
-        Dictionary with the canonical coordinate arrays, the reference time
-        `tbar` and the reference beta/energy
+    dict
+        Coordinate arrays plus ``tbar``, ``beta0`` and ``E0ref``
     """
     m0 = np.mean(self.particle_rest_energy_eV.val)
     E0ref = np.sqrt(p0c**2 + m0**2)
@@ -59,17 +56,14 @@ def madx_coords_to_beam(
     ref_index: int = None,
 ):
     """
-    Convert MAD-X canonical coordinates at an observation point back into
-    a generic :class:`~simba.Modules.Beams.beam` object, so that the
-    distributions can be interpreted in the same way as those produced by
-    the other tracking codes. The mass, charge sign and species of the new
-    beam are taken from this (reference) beam.
+    Build a new :class:`~simba.Modules.Beams.beam` from MAD-X canonical coordinates.
+
+    Mass, charge sign and species are taken from this (reference) beam.
 
     Parameters
     ----------
-    coords: Dict
-        Dictionary with (x, px, y, py, t, pt) arrays from the MAD-X track
-        table
+    coords: dict
+        (x, px, y, py, t, pt) arrays from the MAD-X track table
     p0c: float
         Reference momentum in eV/c
     tbar0: float
@@ -77,18 +71,17 @@ def madx_coords_to_beam(
     s_local: float
         Position of the observation point along the segment [m]
     zpos: float
-        Global z position of the observation point [m]
+        Global z of the observation point [m]
     spos: float
-        Global s position of the observation point [m]
+        Global s of the observation point [m]
     charge_total: float
-        Total charge of the (surviving) bunch [C]
+        Total charge of the surviving bunch [C]
     ref_index: int, optional
         Index of the reference particle
 
     Returns
     -------
     :class:`~simba.Modules.Beams.beam`
-        The output beam object
     """
     m0 = np.mean(self.particle_rest_energy_eV.val)
     E0ref = np.sqrt(p0c**2 + m0**2)

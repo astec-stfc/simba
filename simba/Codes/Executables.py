@@ -36,15 +36,12 @@ WINDOWS_UNSUPPORTED_CODES = ("opal", "genesis")
 
 def container_user() -> str:
     """
-    Get the `uid:gid` string for runing via container so files written into a
-    mounted directory are owned by the invoking user rather than root.
-
-    Returns an empty string for Windows / POSIX.
+    Get the ``uid:gid`` to run a container as, so files it writes to a mount are not owned by root.
 
     Returns
     -------
-    str:
-        `uid:gid` on POSIX, otherwise an empty string
+    str
+        ``uid:gid`` on POSIX, otherwise (Windows) an empty string.
     """
     if hasattr(os, "getuid"):
         return f"{os.getuid()}:{os.getgid()}"
@@ -58,25 +55,20 @@ def ensure_image(
     simcodes_location: str | None = None,
 ) -> None:
     """
-    Ensure the container image is available locally for the given runtime.
-
-    For Docker: checks the daemon registry; pulls or builds if missing.
-    For Apptainer: checks for a .sif file on disk; pulls from registry if missing.
+    Pull (or, for Docker, build) the container image if it is not available locally.
 
     Parameters
     ----------
     runtime : str
-        Container runtime to use: 'docker' or 'apptainer'.
+        'docker' or 'apptainer'.
     image : str
-        Docker image name (used for Docker pull/build, and as Apptainer pull source).
+        Image name; the pull source for both runtimes.
     build_context : str, optional
-        Path to a directory containing a Dockerfile. If provided and the image is
-        missing, the image will be built rather than pulled. Docker only.
+        Directory with a Dockerfile; if given, a missing image is built rather than pulled. Docker only.
     sif : str, optional
-        Path to the Apptainer .sif file. Used for Apptainer only.
-    simcodes_location: str, optional
-        Path to the SimCodes directory, used for substituting $simcodes$ in the sif path if pulling the image;
-        if `None`, this goes to a default location depending on the OS.
+        Apptainer .sif path; defaults to ``SIMCODES_SIF``. Apptainer only.
+    simcodes_location : str, optional
+        Unused; callers substitute ``$simcodes$`` in ``sif`` themselves.
     """
     if runtime == "docker":
         result = subprocess.run(
@@ -156,10 +148,7 @@ class executable:
             return param.replace("$sif$", self.settings.get("apptainer", {}).get("sif", ""))
 
     def _substitute_user(self, param):
-        """
-        Substitute `$user$` with the invoking user's `uid:gid`. For POSIX user IDs
-        `--user $user$` is dropped.
-        """
+        """Substitute ``$user$`` with ``uid:gid``, or drop ``--user $user$`` where there is none (Windows)."""
         user = container_user()
         if user:
             return [s.replace("$user$", user) if isinstance(s, str) else s for s in param]
@@ -204,25 +193,19 @@ class executable:
 
 class Executables:
     """
-    Class for interpreting the accelerator code executables defined in
-    :download:`Executables <../../simba/Executables.yaml>` for a given computer architecture and linking
-    to the `SimCodes` directory. This enables the simulation code with the lattice input file
-    to be called from within the `Framework` instance.
+    The code executables in :download:`Executables <../../simba/Executables.yaml>` for this machine.
 
-    Executables for Windows and POSIX architectures are defined, as are executables for
-    specific clusters based at Daresbury Laboratory. Others can be added by the user.
-
+    Entries exist for Windows, POSIX and some Daresbury clusters; users can add others.
     Each ``define_<code>_command`` sets the attribute named after the code and takes:
 
     location: str, optional
-        Location of the executable; overrides the default under `SimCodes`.
+        Location of the executable; overrides the default under ``SimCodes``.
     ncpu: int
-        Number of CPUs to run
+        Number of CPUs to run.
     scaling: int, optional
-        Scaling parameter for number of CPUs.
+        See :meth:`getNCPU`.
     override_location: str, optional
-        Name of remote server on which to run the executable;
-        must be defined in `Executables.yaml`
+        Name of a remote server, defined in ``Executables.yaml``, to run on.
     """
 
     def __init__(self, global_parameters):
@@ -291,21 +274,19 @@ class Executables:
 
     def build_command(self, cmd: list, workdir: str) -> list:
         """
-        Inject workdir into the container command if using a container runtime.
-        For Docker, inserts the -v bind mount. For Apptainer, substitutes $workdir$.
-        Returns the command unchanged if no container runtime is set.
+        Substitute ``$workdir$`` in a container command; unchanged if no container runtime is set.
 
         Parameters
         ----------
-        cmd: list
-            List of commands as strings
-        workdir: str
-            Working directory to mount in Docker
+        cmd : list
+            Command and arguments.
+        workdir : str
+            Working directory to mount in the container.
 
         Returns
         -------
-        int:
-            Number of CPUs to run
+        list
+            The command with ``$workdir$`` substituted.
         """
         if self.runtime is None:
             return cmd
@@ -324,15 +305,15 @@ class Executables:
 
         Parameters
         ----------
-        ncpu: int
-            Number of CPUs for multi-threaded runs
-        scaling: int
-            Scaling factor for the number of particles
+        ncpu : int
+            Requested CPUs.
+        scaling : int
+            Particle-number scaling; if given and ``ncpu`` is 1, ``3 * scaling`` CPUs are used.
 
         Returns
         -------
-        int:
-            Number of CPUs to run
+        int
+            Number of CPUs to run.
         """
         if scaling is not None and ncpu == 1:
             return 3 * scaling
@@ -348,10 +329,7 @@ class Executables:
             ncpu: int,
             override_location: str | None,
     ) -> None:
-        """
-        Build the :class:`~executable` `name`, keep it as ``<attr>Executable`` and its
-        command as `attr`; see the class docstring for the other parameters.
-        """
+        """Build :class:`executable` ``name``; keep it as ``<attr>Executable`` and its command as ``attr``."""
         exe = executable(
             name,
             settings=self.settings,

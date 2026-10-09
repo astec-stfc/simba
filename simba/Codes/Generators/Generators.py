@@ -1,90 +1,9 @@
 """
-SIMBA Beam Generator module
+Beam generators.
 
-This module defines a class for generating a beam distribution. The beam properties, code and number of particles
-should be provided. The beam properties can either represent a photoinjector laser profile (if `cathode=True`) or
-beam sizes and distribution types for generating a 6D phase space.
-
-All of the possible attributes of the class are not generic to each code, and some codes require these properties to
-be defined. The ``<code>.yaml`` files defined below are fed into ``<code>_generator_keywords`` dictionaries, which
-exclude attributes that cannot be understood by that specific code. It is noted that not all possible options
-are provided for the beam generators every single code; specific options can be added on request.
-
-Other attributes have generic (human-readable) names, which are then translated to the names required for that code
-based on the definitions in ``aliases.yaml``, which is read into the ``aliases`` dictionary.
-
-These attributes can be loaded in from a .yaml file, or modified after the class is instantiated. The top-level
-:class:`~simba.Framework.Framework` class has a
-:attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
-``<master_lattice>.Generators`` directory. Specific distributions can be specified therein.
-
-Example: loading generator defaults
-
-Prepare `defaults.yaml` file for generators in ``<master_lattice>/Generators/``
-
-.. code-block:: yaml
-
-    defaults:
-      combine_distributions: false
-      species: electron
-      probe_particle: true
-      noise_reduction: false
-      high_resolution: true
-      cathode: true
-      reference_position: 0
-      reference_time: 0
-      initial_momentum: 0
-      distribution_type_pz: i
-      thermal_emittance: 0.0009
-      distribution_type_x: radial
-      sigma_x: 0.00025
-      distribution_type_y: radial
-      sigma_y: 0.00025
-      offset_x: 0
-      offset_y: 0
-    laser_3ps_gaussian:
-      distribution_type_z: g
-      sigma_t: 0.000000000003
-      gaussian_cutoff_x: 3
-      gaussian_cutoff_y: 3
-      gaussian_cutoff_z: 3
-    laser_2ps_flattop:
-      distribution_type_z: p
-      plateau_bunch_length: 0.000000000002
-      plateau_rise_time: 0.0000000000002
-
-
-Define `generator` in `settings.def` file:
-
-.. code-block:: yaml
-
-    generator:
-      default: laser_2ps_flattop
-    files:
-      ...
-
-
-Load in generator settings
-
-.. code-block:: python
-
-    import simba.Framework as fw
-
-    framework = fw.Framework(
-            master_lattice=master_lattice,
-            simcodes=simcodes_location,
-            directory=directory,
-            generator_defaults=f"defaults.yaml"
-            clean=True,
-            verbose=False,
-        )
-    framework.loadSettings("Lattices/settings.def")
-    framework.change_generator("GPT")
-    framework.generator.load_defaults("laser_3ps_gaussian")
-
-
-Classes:
-     - :class:`~simba.Codes.Generators.frameworkGenerator`: Defines parameters to be fed into a beam generator for specific codes.
+Each code's ``<code>.yaml`` lists the :class:`frameworkGenerator` attributes it
+accepts, and ``aliases.yaml`` maps the generic names (with unit multipliers) to
+the code's own.
 """
 
 import os
@@ -146,90 +65,37 @@ cathode_codes = ["ASTRA", "astra", "GPT", "gpt", "OPAL", "opal"]
 
 class frameworkGenerator(BaseModel):
     """
-    Base class for defining a beam generator.
-    This class defines the parameters to be fed into a beam generator for specific codes.
-    The parameters can be modified after the class is instantiated, and the defaults can be loaded in from a .yaml file.
-    The top-level :class:`~simba.Framework.Framework` class has a
-    :attr:`~simba.Framework.Framework.generator_defaults` attribute which points to a .yaml file in the
-    `<master_lattice>.Generators` directory. Specific distributions can be specified therein.
+    Code-agnostic beam-generator parameters: a cathode laser profile
+    (``cathode=True``) or a 6D phase space.
 
-    Example: loading generator defaults.
-
-    Prepare `defaults.yaml` file for generators in `<master_lattice>/Generators/`:
+    Named parameter sets can be kept in the YAML file named by
+    :attr:`~simba.Framework.Framework.generator_defaults` (in
+    ``<master_lattice>/Generators/``):
 
     .. code-block:: yaml
 
         defaults:
-          combine_distributions: false
           species: electron
-          probe_particle: true
-          noise_reduction: false
-          high_resolution: true
           cathode: true
-          reference_position: 0
-          reference_time: 0
-          initial_momentum: 0
-          distribution_type_pz: i
           thermal_emittance: 0.0009
           distribution_type_x: radial
           sigma_x: 0.00025
-          distribution_type_y: radial
-          sigma_y: 0.00025
-          offset_x: 0
-          offset_y: 0
-
         laser_3ps_gaussian:
           distribution_type_z: g
           sigma_t: 0.000000000003
-          gaussian_cutoff_x: 3
-          gaussian_cutoff_y: 3
-          gaussian_cutoff_z: 3
 
-        laser_2ps_flattop:
-          distribution_type_z: p
-          plateau_bunch_length: 0.000000000002
-          plateau_rise_time: 0.0000000000002
-
-    Define `generator` in `settings.def` file:
-
-    .. code-block:: yaml
-
-        <global>:
-          ...
-        generator:
-          default: laser_2ps_flattop
-        files:
-          ...
-
-    Load in generator settings
-
-    .. code-block:: python
-
-        import simba.Framework as fw
-
-        framework = fw.Framework(
-            master_lattice=master_lattice,
-            simcodes=simcodes_location,
-            directory=directory,
-            generator_defaults=f"defaults.yaml"
-            clean=True,
-            verbose=False,
-        )
-        framework.loadSettings("Lattices/settings.def")
-        framework.change_generator("opal")
-        framework.generator.load_defaults("laser_3ps_gaussian")
+    and chosen with ``generator: {default: laser_3ps_gaussian}`` in ``settings.def``
+    or ``framework.generator.load_defaults("laser_3ps_gaussian")``.
     """
     name: str = "generator"
-    """Name of this generator class"""
+    """Name of this generator."""
 
     code: Literal[
         "ASTRA", "astra", "GPT", "gpt", "OPAL", "opal",
         "generic", "framework", "simba", "SIMBA",
     ] = "ASTRA"
-    """Simulation code to be used for generating distributions. 
-    ``opal`` is supported only for beam generation and
-    acceleration in a single run with OPAL; see
-    :func:`~simba.Codes.OPAL.OPAL.opalLattice.all_in_one`."""
+    """Code generating the distribution. ``opal`` only generates and accelerates
+    in a single OPAL run; see :attr:`~simba.Codes.OPAL.OPAL.opalLattice.all_in_one`."""
 
     sigma_x: float = 0.0
     """Horizontal beam sigma [m]"""
@@ -259,27 +125,25 @@ class frameworkGenerator(BaseModel):
     """Beam distribution filename to be generated"""
 
     probe_particle: bool = True
-    """[ASTRA only] If true, 6 probe particles are generated"""
+    """[ASTRA only] Generate 6 probe particles."""
 
     noise_reduction: bool = False
-    """[ASTRA only] If true, particle coordinates are generated quasi-randomly following a Hammersley sequence."""
+    """[ASTRA only] Quasi-random (Hammersley) coordinates."""
 
     high_resolution: bool = True
     """[ASTRA only] High-resolution cathode emission."""
 
     combine_distributions: bool = False
-    """[ASTRA only] If true the input list has to be specified N_add times and N_add different 
-    distributions will be added"""
+    """[ASTRA only] Add N_add distributions, each given in the input list."""
 
     cathode: bool = False
-    """Emit the beam from a cathode?"""
+    """Emit the beam from a cathode."""
 
     cathode_radius: float = 0.0
-    """Radius in case of a curved, i.e. non planar cathode
-    # TODO is this ever used?"""
+    """[ASTRA only] Radius of a curved cathode."""
 
     charge: float = 0.0
-    """Bunch charge"""
+    """Bunch charge [C]"""
 
     species: str = "electron"
     """Particle type"""
@@ -291,35 +155,32 @@ class frameworkGenerator(BaseModel):
     """Mean initial momentum [eV/c]"""
 
     distribution_type_z: Literal["p", "plateau", "flattop", "g", "gaussian", "i", "f", "file"] = "g"
-    """Longitudinal distribution type -- flattop or Gaussian available"""
+    """Longitudinal distribution type."""
 
     distribution_type_x: Literal[
         "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial"
     ] = "r"
-    """Horizontal distribution type -- flattop, uniform or Gaussian available"""
+    """Horizontal distribution type."""
 
     distribution_type_y: Literal[
         "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial"
     ] = "r"
-    """Vertical distribution type -- flattop, uniform or Gaussian available"""
+    """Vertical distribution type."""
 
     distribution_type_pz: Literal[
         "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial", "i",
     ] = "i"
-    """Longitudinal momentum distribution type -- not sure about options
-    # TODO not sure what this means or what the other options are"""
+    """Longitudinal momentum distribution type."""
 
     distribution_type_px: Literal[
         "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial"
     ] = "r"
-    """Horizontal momentum distribution type -- uniform or radial available
-    # TODO not sure what this means or what the other options are"""
+    """Horizontal momentum distribution type."""
 
     distribution_type_py: Literal[
         "g", "gaussian", "2dgaussian", "u", "uniform", "r", "radial"
     ] = "r"
-    """Vertical momentum distribution type -- uniform or radial available
-    # TODO not sure what this means or what the other options are"""
+    """Vertical momentum distribution type."""
 
     gaussian_cutoff_x: float = 3
     """Cut-off for Gaussian distribution in horizontal direction [sigma]"""
@@ -349,7 +210,7 @@ class frameworkGenerator(BaseModel):
     """Fall-time for flat-top distribution [s]"""
 
     plateau_rise_distance: float = 0.0  # TODO deprecated?
-    """Rise-distance for flat-top distribution [m] -- deprecated?"""
+    """[ASTRA only] Rise-distance for flat-top distribution [m]"""
 
     offset_x: float = 0
     """Horizontal offset from axis [m]"""
@@ -379,22 +240,22 @@ class frameworkGenerator(BaseModel):
     """Fields defining longitudinal beam distribution (GPT only)"""
 
     correlation_px: float = 0  # TODO is this ever used?
-    """Horizontal momentum correlation (with what?)"""
+    """Correlated horizontal divergence (ASTRA ``cor_px``, GPT ``addxdiv``)."""
 
     correlation_py: float = 0  # TODO is this ever used?
-    """Vertical momentum correlation (with what?)"""
+    """Correlated vertical divergence (ASTRA ``cor_py``)."""
 
     correlation_kinetic_energy: float = 0  # TODO is this ever used?
-    """Kinetic energy correlation (with what?)"""
+    """Correlated energy spread (ASTRA ``cor_Ekin``)."""
 
     sigma_kinetic_energy: float = 0  # TODO is this ever used?
-    """Average kinetic energy [units?]"""
+    """Kinetic-energy spread [eV] (ASTRA ``sig_Ekin``)."""
 
     covariance_xxp: confloat(lt=1, gt=-1) = 0.0
-    """Covariance of horizontal position and momentum [m-rad]"""
+    """Correlation coefficient of horizontal position and momentum."""
 
     covariance_yyp: confloat(lt=1, gt=-1) = 0.0
-    """Covariance of horizontal position and momentum [m-rad]"""
+    """Correlation coefficient of vertical position and momentum."""
 
     chirp: float | list = 0.0
     """Energy chirp of the beam [eV/m] or list of higher-order chirps for each particle"""
@@ -412,10 +273,10 @@ class frameworkGenerator(BaseModel):
     """[OPAL only] Photocathode temperature [K]"""
 
     rf_frequency: float = 2.9985e9
-    """[OPAL only] Photoinjector RF frequency [Hz] (not currently implemented)"""
+    """[OPAL only] Photoinjector RF frequency [Hz]"""
 
     emission_model: Literal["ASTRA", "NONEQUIL"] = "ASTRA"
-    """[OPAL only] Photoemission model (not currently implemented)"""
+    """[OPAL only] Photoemission model"""
 
     particle_mass: float = constants.m_e
     """Particle mass [kg]"""
@@ -433,11 +294,8 @@ class frameworkGenerator(BaseModel):
     """[OPAL only] Time step for tracking [s]"""
 
     emission_steps: int = 500
-    """[OPAL only] Number of emission steps.
-
-    This has to stay small enough that each step emits a useful number of
-    particles.
-    """
+    """[OPAL only] Number of emission steps; capped by
+    :meth:`~simba.Codes.Generators.opal.OPALGenerator.capped_emission_steps`."""
 
     n_bin: int = 10
     """[OPAL only] Number of energy bins"""
@@ -449,7 +307,7 @@ class frameworkGenerator(BaseModel):
     """Global parameters from :class:`~simba.Framework.Framework` class"""
 
     objectdefaults: Dict = {}
-    """Seems not to be used"""
+    """Unused."""
 
     executables: Any = {}
     """Generator executables from :class:`~simba.Framework.Framework` class"""
@@ -458,7 +316,7 @@ class frameworkGenerator(BaseModel):
     """Additional arguments"""
 
     allowedKeyWords: List = []
-    """Is this ever used?"""
+    """Unused."""
 
     generator_keywords: Dict = {}
     """Generator keywords from :class:`~simba.Framework.Framework` class"""
@@ -472,15 +330,10 @@ class frameworkGenerator(BaseModel):
 
     def apply_alias_and_multiplier(self, config: Dict, code: str) -> None:
         """
-        Dynamically apply alias and multiplier to fields to translate them to the required names for a specific code.
-        Multipliers are also applied, such as converting bunch length in seconds to nanoseconds as required for ASTRA.
-        Aliases are defined in `aliases.yaml`, where each `code` has strings to be translated.
+        Set each aliased field under its `code` name, times any multiplier (e.g. s to ns for ASTRA).
 
-        These translated attributes are then set as new attributes to this class,
-        with the appropriate multipliers applied.
-
-        :param config: Dictionary read in from `aliases.yaml`
-        :param code: Name of code to convert attributes.
+        :param config: contents of ``aliases.yaml``
+        :param code: code whose aliases to apply
         """
         alias_config = config.get("aliases", {}).get(code, {})
         for k, v in alias_config.items():
@@ -549,10 +402,9 @@ class frameworkGenerator(BaseModel):
 
     def load_defaults(self, defaults: str | Dict) -> None:
         """
-        Load in defaults settings either from a key in :attr:~`generator_keywords` or with a Dict.
-        Sets these parameters as attributes of this class.
+        Set attributes from a named set in :attr:`generator_keywords`, or from a dict.
 
-        :param defaults: Default generator settings
+        :param defaults: name of the set, or the settings
         """
         if isinstance(defaults, str) and defaults in self.generator_keywords:
             for k, v in self.generator_keywords[defaults].items():
@@ -566,11 +418,7 @@ class frameworkGenerator(BaseModel):
     @property
     def particles(self) -> int:
         """
-        Number of particles
-
-        :getter: Number of particles
-        :setter: Set number of particles
-        :rtype: int
+        Number of particles (default 512).
         """
         return self.number_of_particles if self.number_of_particles is not None else 512
 
@@ -582,12 +430,9 @@ class frameworkGenerator(BaseModel):
     @property
     def thermal_kinetic_energy(self) -> float:
         """
-        Thermal kinetic energy of electrons [eV] emitted from a photocathode based on :attr:`~thermal_emittance`.
-        See Eq. (39) of `Dowell & Schmerge_`
+        Thermal kinetic energy [eV] from :attr:`thermal_emittance`, Eq. (39) of `Dowell & Schmerge`_.
 
         .. _Dowell & Schmerge: https://journals.aps.org/prab/abstract/10.1103/PhysRevSTAB.12.074201
-
-        :returns: thermal kinetic energy
         """
         return float(
             (
@@ -602,9 +447,7 @@ class frameworkGenerator(BaseModel):
 
     @property
     def objectname(self):
-        """
-        Name of this object
-        """
+        """Name of this object."""
         return self.name
 
     def generate(self):
@@ -650,11 +493,11 @@ class frameworkGenerator(BaseModel):
 
     def generate_transverse_distribution(self, name: str) -> np.ndarray:
         """
-        Generate a transverse distribution.
+        Sample a transverse plane's position and divergence.
 
-        :param name: Name of the distribution
-        :return: Samples particles according to sigma_{name}, distribution_type_{name} and
-            gaussian_cutoff_{name} attributes.
+        :param name: the plane, ``"x"`` or ``"y"``
+        :return: ``(N, 2)`` samples from its ``sigma_``, ``offset_``, ``covariance_``
+            and ``gaussian_cutoff_`` attributes
         """
         dist_i = getattr(self, f"distribution_type_{name}")
         dist_pi = getattr(self, f"distribution_type_p{name}")
@@ -683,9 +526,8 @@ class frameworkGenerator(BaseModel):
 
     def generate_longitudinal_distribution(self) -> np.ndarray:
         """
-        Generate a longitudinal distribution with optional chirp (nonlinear z–pz correlation).
+        Sample ``(z, pz)``, with optional polynomial chirp.
         """
-        # Validate and convert input
         if self.sigma_t > 0 and self.sigma_z > 0:
             warnings.warn(
                 "Both sigma_t and sigma_z are set, using sigma_z for longitudinal distribution"
@@ -699,7 +541,6 @@ class frameworkGenerator(BaseModel):
         if self.sigma_pz <= 0:
             raise ValueError("sigma_pz must be positive")
 
-        # Generate z distribution
         if self.distribution_type_z.lower() in ["g", "gaussian", "r", "radial"]:
             z = sample_gaussian(self.offset_z, self.sigma_z, self.gaussian_cutoff_z, self.particles)
         elif self.distribution_type_z.lower() in ["u", "uniform", "flat", "flattop", "i", "plateau", "p"]:
@@ -707,20 +548,14 @@ class frameworkGenerator(BaseModel):
         else:
             raise NotImplementedError(f"Unsupported z distribution: {self.distribution_type_z}")
 
-        # Generate base centered pz
         pz_base = sample_gaussian(0, self.sigma_pz, self.gaussian_cutoff_pz, self.particles)
 
-        # Compute chirped curve
         chirp_coeffs = [self.chirp] if isinstance(self.chirp, float) else list(self.chirp)
         chirped_curve = poly_curve(z - np.mean(z), chirp_coeffs)
-
-        # Optionally center the chirp (if desired)
         chirped_curve -= np.mean(chirped_curve)
 
-        # Compose final pz: base momentum + chirped shape + Gaussian noise
         pz_chirped = self.initial_momentum + chirped_curve + pz_base
 
-        # Check for negative pz values if physical constraint applies
         if np.any(pz_chirped < 0):
             warnings.warn("Some pz values are negative — consider reducing sigma_pz or curvature")
 
@@ -740,24 +575,19 @@ def poly_curve(x, coeffs):
 
 def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
     """
-    Generate N samples from 2D Gaussian with different per-axis cutoffs in whitened space.
-    cutoffs: tuple of (cutoff_x, cutoff_y) in standard deviation units.
+    `N` samples of a 2D Gaussian, cut per axis at `cutoffs` sigma in whitened space.
     """
-    L = np.linalg.cholesky(cov)  # Covariance decomposition
+    L = np.linalg.cholesky(cov)
     L_inv = np.linalg.inv(L)
 
     samples = []
     batch_size = int(N * 1.5)
 
     while len(samples) < N:
-        z = np.random.randn(batch_size, 2)  # Standard normal
-        # Apply Cholesky to get correlated samples
+        z = np.random.randn(batch_size, 2)
         x = z @ L.T + mean
 
-        # Transform to whitened space
-        z_white = (x - mean) @ L_inv.T  # Now z_white ~ N(0, I)
-
-        # Apply per-axis cutoffs
+        z_white = (x - mean) @ L_inv.T
         mask = (
                 (np.abs(z_white[:, 0]) <= cutoffs[0]) &
                 (np.abs(z_white[:, 1]) <= cutoffs[1])
@@ -779,8 +609,8 @@ def sample_gaussian(offset, sigma, cutoff, size):
 
 def sample_flat_top(offset, sigma, cutoff, edge_width, size):
     """
-    Create a flat-top distribution centered at 0,
-    with total half-width = cutoff * sigma, and soft edges of width `edge_width * sigma`
+    Flat-top samples about `offset`, half-width ``cutoff * sigma``, with cosine edges
+    ``edge_width * sigma`` wide.
     """
     total_width = cutoff * sigma
     ramp = edge_width * sigma

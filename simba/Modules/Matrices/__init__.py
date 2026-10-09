@@ -33,22 +33,21 @@ def tune_from_trajectory(positions, momenta=None) -> float:
     """
     Fractional tune from one particle's turn-by-turn motion.
 
-    The code-independent half of a frequency map: any backend that can hand
-    back a trajectory gets a tune from the same arithmetic, which is what
-    makes a footprint comparable across codes.
+    Uses NAFF (``nafflib``) when installed and momenta are given, else an
+    interpolated FFT peak. Momenta resolve the ``q``/``1 - q`` ambiguity of a real signal.
 
-    Uses NAFF (``nafflib``) when it is installed and momenta are given, and
-    an interpolated FFT peak otherwise.
-
-    With positions alone the spectrum of a real signal
-    is symmetric. The analytic signal
-    ``x - i*px`` breaks the degeneracy and gives the full ``[0, 1)``.
+    Parameters
+    ----------
+    positions: array-like
+        Turn-by-turn position
+    momenta: array-like, optional
+        Turn-by-turn momentum
 
     Returns
     -------
     float
-        The tune, in ``[0, 1)`` with momenta and ``[0, 0.5]`` without, or
-        NaN for a trajectory too short, flat or not finite.
+        Tune in ``[0, 1)`` with momenta, ``[0, 0.5]`` without; NaN for a
+        trajectory too short, flat or not finite
     """
     values = np.asarray(positions, dtype=float)
     if len(values) < 8 or not np.all(np.isfinite(values)):
@@ -84,23 +83,21 @@ def tune_from_trajectory(positions, momenta=None) -> float:
 
 def probe_grid(centroid, delta: float = 1e-6):
     """
-    The 13 particles a single-particle run tracks instead of a bunch.
+    The centroid plus a pair of probes straddling it in each of the six coordinates.
 
-    The centroid, plus a pair straddling it along each of the six
-    coordinates. Linear map is created by finite differences
-    (:func:`map_from_probes`).
+    Track these instead of a bunch and recover the linear map with :func:`map_from_probes`.
 
     Parameters
     ----------
     centroid: array-like
-        Six coordinates of the reference particle.
+        Six coordinates of the reference particle
     delta: float
-        Finite-difference step.
+        Finite-difference step
 
     Returns
     -------
     numpy.ndarray
-        ``6 x 13``, the centroid first.
+        ``6 x 13``, the centroid first
     """
     centre = np.asarray(centroid, dtype=float)
     step = abs(float(delta))
@@ -120,15 +117,14 @@ def map_from_probes(tracked, delta: float = 1e-6):
     Parameters
     ----------
     tracked: array-like
-        ``6 x 13`` of the probes' coordinates at the observation point, in
-        the order :func:`probe_grid` produced them.
+        ``6 x 13`` probe coordinates at the observation point, in :func:`probe_grid` order
     delta: float
-        The same step the probes were built with.
+        Step the probes were built with
 
     Returns
     -------
     tuple
-        ``(centroid, R)``, or ``(None, None)`` if any probe is missing.
+        ``(centroid, R)``, or ``(None, None)`` if any probe is missing
     """
     values = np.asarray(tracked, dtype=float)
     if values.shape != (6, 13) or not np.all(np.isfinite(values)):
@@ -143,10 +139,7 @@ def map_from_probes(tracked, delta: float = 1e-6):
 
 
 def transform_distribution(coordinates, centroid_in, centroid_out, matrix):
-    """Push a full distribution through a map without tracking it.
-
-    ``z_out = c_out + R (z_in - c_in)``.
-    """
+    """Push a distribution through a linear map: ``z_out = c_out + R (z_in - c_in)``."""
     values = np.asarray(coordinates, dtype=float)
     return np.asarray(centroid_out, dtype=float)[:, np.newaxis] + np.asarray(
         matrix, dtype=float
@@ -157,12 +150,23 @@ def normalise_coordinates(positions, momenta, beta, alpha, orbit=(0.0, 0.0)):
     """
     Courant-Snyder normalisation of one plane's turn-by-turn motion.
 
-    ``X = (x - x_co) / sqrt(beta)`` and
+    ``X = (x - x_co) / sqrt(beta)``,
     ``PX = (alpha * (x - x_co) + beta * (px - px_co)) / sqrt(beta)``.
+    This turns the betatron ellipse into a circle, which sharpens the tune line.
 
-    Normalising turns the betatron ellipse into a circle, leaving a single
-    line. Subtracting the closed orbit is the other half: on a ring with errors
-    an amplitude measured from the axis is measured from the wrong centre.
+    Parameters
+    ----------
+    positions, momenta: array-like
+        Turn-by-turn motion
+    beta, alpha: float
+        Twiss parameters at the observation point
+    orbit: tuple
+        Closed orbit ``(x_co, px_co)``
+
+    Returns
+    -------
+    tuple
+        ``(X, PX)``
     """
     offsets = np.asarray(positions, dtype=float) - orbit[0]
     slopes = np.asarray(momenta, dtype=float) - orbit[1]
@@ -172,30 +176,25 @@ def normalise_coordinates(positions, momenta, beta, alpha, orbit=(0.0, 0.0)):
 
 def tune_diffusion(x, px, y, py, twiss=None) -> tuple:
     """
-    Tunes and a diffusion index from one particle's turn-by-turn motion. The
-    record is split into two consecutive halves and a tune taken from each;
-    a particle on regular motion gives the same tune twice, one near a
-    resonance does not. The index is
+    Tunes and diffusion index ``D = log10(sqrt(dQx**2 + dQy**2))`` from turn-by-turn motion.
 
-    ``D = log10(sqrt(dQx**2 + dQy**2))``
-
-    so more negative is more regular. The tune difference is taken
-    *circularly* -- ``(q2 - q1 + 0.5) % 1 - 0.5``
-    Needs the momenta, and really wants NAFF.
+    ``dQ`` is the (circular) tune change between the two halves of the record, so more
+    negative ``D`` is more regular. Works best with NAFF installed.
 
     Parameters
     ----------
+    x, px, y, py: array-like
+        Turn-by-turn motion
     twiss: dict | None
         ``beta_x``/``alpha_x``/``beta_y``/``alpha_y``, and optionally
-        ``closed_orbit_x``/``_px``/``_y``/``_py``. Given these the motion is
-        Courant-Snyder normalised first; see :func:`normalise_coordinates`
-        for why that sharpens the line.
+        ``closed_orbit_x``/``_px``/``_y``/``_py``; if given, the motion is
+        normalised first (:func:`normalise_coordinates`)
 
     Returns
     -------
     tuple
-        ``(tune_x, tune_y, D)`` from the **first** window, or NaNs if either
-        window has no usable tune.
+        ``(tune_x, tune_y, D)`` with tunes from the first half, or NaNs if
+        either half has no usable tune
     """
     arrays = [np.asarray(a, dtype=float) for a in (x, px, y, py)]
     if twiss:
@@ -238,20 +237,18 @@ def tune_diffusion(x, px, y, py, twiss=None) -> tuple:
 
 def is_stable(matrix, plane: str = "x") -> bool:
     """
-    Whether motion in ``plane`` is bounded turn after turn.
-    ``|trace / 2| <= 1`` is the condition.
+    Whether motion in ``plane`` is bounded, i.e. ``|trace / 2| <= 1``.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        One-turn 6x6 map
     plane: str
-        Plane to check
+        'x' or 'y'
 
     Returns
     -------
     bool
-        True is the plane is stable.
     """
     block = _block(matrix, plane)
     return bool(abs((block[0, 0] + block[1, 1]) / 2.0) <= 1.0)
@@ -259,19 +256,19 @@ def is_stable(matrix, plane: str = "x") -> bool:
 
 def phase_advance(matrix, plane: str = "x") -> float:
     """
-    One turn's phase advance in ``plane``, radians in ``[0, 2*pi)``.
+    One turn's phase advance in ``plane``.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        One-turn 6x6 map
     plane: str
-        Plane to check
+        'x' or 'y'
 
     Returns
     -------
     float
-        The phase advance in radians.
+        Phase advance in ``[0, 2*pi)`` rad; NaN if unstable
     """
     block = _block(matrix, plane)
     if not is_stable(matrix, plane):
@@ -282,41 +279,38 @@ def phase_advance(matrix, plane: str = "x") -> float:
 
 def fractional_tune(matrix, plane: str = "x") -> float:
     """
-    The fractional tune in ``plane``.
+    Fractional tune in ``plane``.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        One-turn 6x6 map
     plane: str
-        Plane to check
+        'x' or 'y'
 
     Returns
     -------
     float
-        The fractional tune in ``plane``.
+        Fractional tune; NaN if unstable
     """
     return phase_advance(matrix, plane) / (2.0 * math.pi)
 
 
 def periodic_twiss(matrix, plane: str = "x") -> dict:
     """
-    The periodic ``beta``, ``alpha`` and ``gamma`` in ``plane``.
-
-    The Twiss the lattice itself determines, as opposed to whatever the
-    incoming beam happened to have.
+    Periodic ``beta``, ``alpha`` and ``gamma`` in ``plane``, set by the lattice rather than the beam.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        One-turn 6x6 map
     plane: str
-        Plane to check
+        'x' or 'y'
 
     Returns
     -------
     dict
-        ``beta``, ``alpha``, ``gamma``, all NaN if the plane is unstable.
+        ``beta``, ``alpha``, ``gamma``; all NaN if the plane is unstable
     """
     block = _block(matrix, plane)
     mu = phase_advance(matrix, plane)
@@ -330,25 +324,21 @@ def periodic_twiss(matrix, plane: str = "x") -> dict:
 
 def slip_factor(matrix, circumference: float, step: float = 1e-3) -> float:
     """
-    ``eta``, the fractional change in revolution period per unit ``delta``.
-
-    The map is in canonical coordinates, so pass
-    :meth:`~simba.Framework_objects.frameworkLattice.one_turn_map_canonical`,
-    not the raw map.
+    Slip factor ``eta``, the fractional change in revolution period per unit ``delta``.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        Canonical one-turn map, from
+        :meth:`~simba.Framework_objects.frameworkLattice.one_turn_map_canonical`, not the raw map
     circumference: float
-        Ring circumference
+        Ring circumference [m]
     step: float, optional
-        Step size for finite difference, by default 1e-3
+        Finite-difference step in ``delta``
 
     Returns
     -------
     float
-        The slip factor.
     """
     matrix = np.asarray(matrix, dtype=float)
     solve_matrix = matrix - np.eye(6)
@@ -364,23 +354,22 @@ def momentum_compaction(
     matrix, circumference: float, gamma0: float, step: float = 1e-3
 ) -> float:
     """
-    ``alpha_c``, the fractional change in path length per unit ``delta``.
-
-    ``alpha_c = eta + 1 / gamma0**2``; see :func:`slip_factor`.
+    Momentum compaction ``alpha_c = eta + 1 / gamma0**2``; see :func:`slip_factor`.
 
     Parameters
     ----------
-    matrix: Any
-        Data containing matrix information
+    matrix: array-like
+        Canonical one-turn map
     circumference: float
-        Ring circumference
+        Ring circumference [m]
+    gamma0: float
+        Reference Lorentz factor
     step: float, optional
-        Step size for finite difference, by default 1e-3
+        Finite-difference step in ``delta``
 
     Returns
     -------
     float
-        The momentum compaction factor.
     """
     return (
         slip_factor(matrix, circumference, step) + 1.0 / float(gamma0) ** 2
@@ -388,26 +377,12 @@ def momentum_compaction(
 
 
 class matrices(munch.Munch):
-    """Class for dealing with R-matrices produced by Elegant.
+    """R-matrices from ELEGANT's ``matrix_output``.
 
-    Usage::
-
-        mat = matrices()
-        mat.load(<filename>, reset=False, cumulative=True)
-
-    ``load`` reads the sdds output file from the ``matrix_output`` command, with
-    ``reset`` resetting all parameters to ``None`` and ``cumulative`` saying
-    whether the R-matrices are cumulative or element-by-element.
-
-    ``mat.R``
-        The nx6x6 R-matrices that have been loaded, where ``n`` is the number of
-        elements.
-
-    ``mat.cumulativeR``
-        The cumulative R-matrices for the loaded R-matrices in order.
-
-    ``mat.elementR``
-        The element-by-element R-matrices for the loaded R-matrices in order.
+    Load with ``mat.load(filename, reset=False, cumulative=True)``, where ``cumulative``
+    says whether the file holds cumulative or element-by-element matrices. ``mat.R`` is
+    the list of loaded ``n x 6 x 6`` arrays; ``cumulativeR()`` and ``individualR()``
+    convert between the two forms.
     """
 
     def __init__(self):

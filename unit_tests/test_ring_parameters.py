@@ -17,8 +17,7 @@ from simba.Modules.Matrices import (
 
 
 def rotation(mu, beta=1.0, alpha=0.0, plane="x"):
-    """A one-turn map with phase advance `mu` and known Twiss, built from the
-    textbook form, so the functions can be checked against their own input."""
+    """A one-turn map with phase advance `mu` and known Twiss, in textbook form."""
     index = {"x": 0, "y": 2}[plane]
     gamma = (1 + alpha**2) / beta
     block = np.array(
@@ -32,7 +31,16 @@ def rotation(mu, beta=1.0, alpha=0.0, plane="x"):
     return matrix
 
 
-# --- stability ----------------------------------------------------------
+def xsuite_drift():
+    """Xsuite's R matrix of a 2 m drift at 5 MeV/c, and its gamma."""
+    xt = pytest.importorskip("xtrack")
+    line = xt.Line(elements=[xt.Drift(length=2.0)])
+    line.particle_ref = xt.Particles(p0c=5e6, mass0=xt.ELECTRON_MASS_EV)
+    line.build_tracker()
+    matrix = np.asarray(
+        line.compute_R_matrix(particle_on_co=line.particle_ref.copy())["R_matrix"]
+    )
+    return matrix, float(line.particle_ref.gamma0[0])
 
 
 def test_an_identity_map_is_stable():
@@ -53,27 +61,16 @@ def test_a_diverging_map_is_unstable():
 
 
 def test_an_unstable_plane_has_no_tune_or_beta():
-    """NaN rather than a number, because there is no answer to give."""
     matrix = np.eye(6)
     matrix[0, 0], matrix[1, 1] = 3.0, 1 / 3.0
     assert math.isnan(fractional_tune(matrix, "x"))
     assert math.isnan(periodic_twiss(matrix, "x")["beta"])
 
 
-# --- tune ---------------------------------------------------------------
-
-
 @pytest.mark.parametrize("q", [0.05, 0.25, 0.4, 0.5, 0.6, 0.75, 0.95])
 def test_the_tune_round_trips(q):
-    """Including above 0.5, which the trace alone cannot distinguish from
-    its reflection -- the R12 sign is what separates them."""
+    """Above 0.5 the trace alone matches the reflection; the R12 sign separates them."""
     assert fractional_tune(rotation(2 * math.pi * q), "x") == pytest.approx(q)
-
-
-def test_tunes_above_and_below_a_half_are_not_confused():
-    """The specific failure the R12 sign check prevents."""
-    assert fractional_tune(rotation(2 * math.pi * 0.7), "x") == pytest.approx(0.7)
-    assert fractional_tune(rotation(2 * math.pi * 0.3), "x") == pytest.approx(0.3)
 
 
 def test_an_identity_map_has_zero_tune():
@@ -93,9 +90,6 @@ def test_the_phase_advance_stays_in_one_turn():
         assert 0 <= phase_advance(rotation(2 * math.pi * q), "x") < 2 * math.pi
 
 
-# --- periodic Twiss -----------------------------------------------------
-
-
 @pytest.mark.parametrize("beta,alpha", [(1.0, 0.0), (12.5, -2.3), (0.4, 1.7)])
 def test_the_periodic_twiss_round_trips(beta, alpha):
     got = periodic_twiss(rotation(2 * math.pi * 0.37, beta, alpha), "x")
@@ -108,14 +102,9 @@ def test_gamma_follows_the_twiss_identity():
     assert got["gamma"] == pytest.approx((1 + got["alpha"] ** 2) / got["beta"])
 
 
-# --- momentum compaction, against an exact answer -----------------------
-
-
 def test_a_circle_has_unit_momentum_compaction():
-    """A ring of pure bends: every particle follows a radius proportional to
-    its momentum, so C scales with p and alpha_c is exactly 1. No theory and
-    no second code involved -- this is the anchor the sign and the 1/gamma**2
-    term are fixed by."""
+    """A ring of pure bends has alpha_c exactly 1: the anchor for the sign and
+    the 1/gamma**2 term."""
     xt = pytest.importorskip("xtrack")
     n, rho = 64, 1.5
     line = xt.Line(
@@ -134,59 +123,14 @@ def test_a_circle_has_unit_momentum_compaction():
 
 
 def test_a_straight_line_has_no_momentum_compaction():
-    """The other exact case: nothing bends, so the path length cannot change
-    with momentum however fast the particle goes."""
-    xt = pytest.importorskip("xtrack")
-    line = xt.Line(elements=[xt.Drift(length=2.0)])
-    line.particle_ref = xt.Particles(p0c=5e6, mass0=xt.ELECTRON_MASS_EV)
-    line.build_tracker()
-    matrix = np.asarray(
-        line.compute_R_matrix(particle_on_co=line.particle_ref.copy())["R_matrix"]
-    )
-    gamma0 = float(line.particle_ref.gamma0[0])
+    matrix, gamma0 = xsuite_drift()
     assert momentum_compaction(matrix, 2.0, gamma0) == pytest.approx(0.0, abs=1e-9)
 
 
-def test_the_slip_factor_matches_xsuite_on_a_ring_with_dispersion(fodo):
-    """The case that discriminates. A drift and a pure-bend circle both have
-    no dispersion correction, so they agree whether or not the dispersion
-    orbit is solved for -- they are necessary anchors but not sufficient
-    ones. On a FODO ring the R56-only answer is 0.30499 against the correct
-    0.29138, a 4.7% error that does not shrink with weaker bending."""
-    tw, matrix = fodo
-    assert slip_factor(matrix, tw.s[-1]) == pytest.approx(tw.slip_factor, rel=1e-8)
-
-
-def test_the_r56_only_shortcut_would_have_been_wrong(fodo):
-    """Pinned so the correction cannot quietly be undone as a simplification."""
-    tw, matrix = fodo
-    naive = -matrix[4, 5] / tw.s[-1]
-    assert not np.isclose(naive, tw.slip_factor, rtol=1e-3)
-
-
-def test_the_momentum_compaction_matches_xsuite(fodo):
-    tw, matrix = fodo
-    gamma0 = math.sqrt(1 + float(tw.particle_on_co.beta0[0] * tw.particle_on_co.gamma0[0]) ** 2)
-    assert momentum_compaction(matrix, tw.s[-1], gamma0) == pytest.approx(
-        tw.momentum_compaction_factor, rel=1e-8
-    )
-
-
 def test_the_slip_factor_is_negative_below_transition_for_a_drift():
-    """A drift has alpha_c = 0, so eta = -1/gamma**2, which is the whole of
-    the slip factor and is negative."""
-    xt = pytest.importorskip("xtrack")
-    line = xt.Line(elements=[xt.Drift(length=2.0)])
-    line.particle_ref = xt.Particles(p0c=5e6, mass0=xt.ELECTRON_MASS_EV)
-    line.build_tracker()
-    matrix = np.asarray(
-        line.compute_R_matrix(particle_on_co=line.particle_ref.copy())["R_matrix"]
-    )
-    gamma0 = float(line.particle_ref.gamma0[0])
+    """alpha_c = 0, so eta = -1/gamma**2."""
+    matrix, gamma0 = xsuite_drift()
     assert slip_factor(matrix, 2.0) == pytest.approx(-1 / gamma0**2, rel=1e-6)
-
-
-# --- agreement with Xsuite where it agrees ------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -214,6 +158,28 @@ def fodo():
     return tw, matrix
 
 
+def test_the_slip_factor_matches_xsuite_on_a_ring_with_dispersion(fodo):
+    """The discriminating case: drift and circle have no dispersion correction.
+    The R56-only answer is 4.7% out here, however weak the bending."""
+    tw, matrix = fodo
+    assert slip_factor(matrix, tw.s[-1]) == pytest.approx(tw.slip_factor, rel=1e-8)
+
+
+def test_the_r56_only_shortcut_would_have_been_wrong(fodo):
+    """So the correction cannot quietly be undone as a simplification."""
+    tw, matrix = fodo
+    naive = -matrix[4, 5] / tw.s[-1]
+    assert not np.isclose(naive, tw.slip_factor, rtol=1e-3)
+
+
+def test_the_momentum_compaction_matches_xsuite(fodo):
+    tw, matrix = fodo
+    gamma0 = math.sqrt(1 + float(tw.particle_on_co.beta0[0] * tw.particle_on_co.gamma0[0]) ** 2)
+    assert momentum_compaction(matrix, tw.s[-1], gamma0) == pytest.approx(
+        tw.momentum_compaction_factor, rel=1e-8
+    )
+
+
 def test_the_fractional_tune_matches_xsuite(fodo):
     tw, matrix = fodo
     assert fractional_tune(matrix, "x") == pytest.approx(tw.qx % 1.0, abs=1e-6)
@@ -221,9 +187,7 @@ def test_the_fractional_tune_matches_xsuite(fodo):
 
 
 def test_the_integer_part_is_not_recoverable(fodo):
-    """Stated as a test so it is not mistaken for a bug later: Xsuite says
-    qx = 1.93, the map says 0.93, and the map is not withholding anything --
-    it cannot know how many times the phase wrapped."""
+    """Not a bug: the map cannot know how many times the phase wrapped."""
     tw, matrix = fodo
     assert tw.qx > 1.0
     assert fractional_tune(matrix, "x") < 1.0
@@ -234,9 +198,6 @@ def test_the_periodic_twiss_matches_xsuite(fodo):
     got = periodic_twiss(matrix, "x")
     assert got["beta"] == pytest.approx(tw.betx[0], rel=1e-6)
     assert got["alpha"] == pytest.approx(tw.alfx[0], rel=1e-6)
-
-
-# --- the lattice accessor wires the two maps to the right places --------
 
 
 class FakeElement:
@@ -294,21 +255,16 @@ def test_the_accessor_omits_compaction_for_an_unconvertible_code():
 
 
 def test_chromaticity_is_not_invented_from_the_map():
-    """It is not in a one-turn map -- dQ/ddelta needs two momenta -- so with
-    nothing read back from the code, no chromaticity may appear."""
+    """dQ/ddelta needs two momenta, so it is not in a one-turn map."""
     assert not [k for k in FakeRing(np.eye(6)).ring_parameters() if "chrom" in k]
 
 
 def test_chromaticity_appears_when_the_code_reports_it():
-    """The other half: where the code computed it off its matched solution,
-    it is passed through rather than recomputed."""
     got = FakeRing(np.eye(6), summary={"chromaticity_x": -1.4}).ring_parameters()
     assert got["chromaticity_x"] == -1.4
 
 
 def test_the_total_tune_comes_from_the_code_not_the_map():
-    """The map gives only the fractional part; both end up in the dict under
-    names that say which is which."""
     got = FakeRing(np.eye(6), summary={"tune_x_total": 1.93}).ring_parameters()
     assert got["tune_x_total"] == 1.93
     assert got["tune_x"] == pytest.approx(0.0)

@@ -1,52 +1,8 @@
 """
-Simframe GPT Module
+SIMBA GPT module: writes GPT input files, runs GPT and converts its output.
 
-Various objects and functions to handle GPT lattices and commands.
-
-Classes:
-    - :class:`~simba.Codes.GPT.GPT.gptLattice`: The GPT lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-      the lattice suitable for GPT input and lattice files.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_element`: Base class for defining
-      commands in a GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_setfile`: Class for defining the
-      input files for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_charge`: Class for defining the
-      bunch charge for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.GptSetReduce`: Class for reducing the
-      number of particles for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_accuracy`: Class for setting the
-      accuracy for GPT tracking.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_spacecharge`: Class for defining the
-      space charge setup for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.GptTout`: Class for defining the
-      number of steps for particle distribution output for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_csr1d`: Class for defining the
-      CSR calculations for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_writefloorplan`: Class for setting up the
-      writing of the lattice floor plan for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_Zminmax`: Class for defining the
-      minimum and maximum z-positions for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_forwardscatter`: Class for defining
-      scattering parameters for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_scatterplate`: Class for defining a
-      scattering object for the GPT input file.
-
-    - :class:`~simba.Codes.GPT.GPT.gpt_dtmaxt`: Class for defining the
-      step size(s) for the GPT input file.
+The GPT header commands (``GptSetFile``, ``GptTout``, ...) live in
+:mod:`laura.translator.converters.codes.gpt`.
 """
 
 import os
@@ -75,12 +31,7 @@ gpt_defaults = {}
 
 
 class gptLattice(frameworkLattice):
-    """
-    Class for defining the GPT lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for a GPT input file.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
     code: str = "gpt"
     """String indicating the lattice object type"""
@@ -101,8 +52,7 @@ class gptLattice(frameworkLattice):
     """Step size for screen output"""
 
     time_step_size: float = 5e-10
-    """Interval between ``tout`` beam dumps [s].
-    Diagnostic only -- GPT integrates adaptively under :attr:`~accuracy`."""
+    """Interval between ``tout`` beam dumps [s]; GPT's own step is adaptive (:attr:`accuracy`)."""
 
     override_meanBz: float | int | None = None
     """Set the average particle longitudinal velocity manually"""
@@ -126,8 +76,7 @@ class gptLattice(frameworkLattice):
     """Integration time step size"""
 
     crest_scan_particles: int = 10
-    """Particles retained during a crest scan (:func:`~find_crest`). The crest is
-    a single-particle property of the RF, so a handful is enough."""
+    """Particles kept for :meth:`find_crest`; the crest is single-particle, so a handful will do."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -142,15 +91,11 @@ class gptLattice(frameworkLattice):
     @property
     def space_charge_mode(self) -> str | None:
         """
-        Get the space charge mode based on
-        :attr:`~simba.Framework_objects.frameworkLattice.globalSettings` or
-        :attr:`~simba.Framework_objects.frameworkLattice.file_block`.
+        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
 
         Returns
         -------
-        str
-            Space charge mode as string, or None if not provided.
-
+        str | None
         """
         if (
             "charge" in self.file_block
@@ -168,12 +113,11 @@ class gptLattice(frameworkLattice):
     @space_charge_mode.setter
     def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
         """
-        Set the space charge mode manually ["2D", "3D"].
+        Set the space charge mode in :attr:`file_block`.
 
         Parameters
         ----------
         mode: Literal["2d", "3d", "2D", "3D"]
-            The space charge calculation mode
         """
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
@@ -181,16 +125,12 @@ class gptLattice(frameworkLattice):
 
     def writeElements(self) -> str:
         """
-        Write the lattice elements defined in this object into a GPT-compatible format; see
-        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.
-
-        The appropriate headers required for GPT are written at the top of the file, see the `write_GPT`
-        function in :class:`~simba.Codes.GPT.gpt_element`.
+        Build the :attr:`headers` and render the section as GPT input.
 
         Returns
         -------
         str
-            The lattice represented as a string compatible with GPT
+            GPT input file text
         """
         self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
         if "charge" not in self.file_block:
@@ -219,10 +159,7 @@ class gptLattice(frameworkLattice):
         )
 
     def write(self) -> None:
-        """
-        Writes the GPT input file from :func:`~simba.Codes.GPT.gptLattice.writeElements`
-        to <master_subdir>/<self.objectname>.in.
-        """
+        """Write :meth:`writeElements` to ``<master_subdir>/<objectname>.in``."""
         code_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
@@ -231,23 +168,19 @@ class gptLattice(frameworkLattice):
 
     def _cavity_phase_variable(self, name: str, text: str) -> str:
         """
-        Find the GPT variable holding the RF phase of a named cavity.
-
-        The converter names a cavity's variables after its position with the
-        decimal point stripped. The ``map1D_TM`` lines are parsed and matched
-        against the element's own start position.
+        Find the GPT phase variable of a cavity, by matching ``map1D_TM`` lines to its start z.
 
         Parameters
         ----------
         name: str
-            Name of the cavity element.
+            Cavity name
         text: str
-            Contents of the generated GPT input file.
+            Generated GPT input file
 
         Returns
         -------
         str
-            The name of the phase variable, e.g. ``phi119357``.
+            e.g. ``phi119357``
         """
         element = self.elementObjects[name]
         zpos = float(element.physical.start.z)
@@ -274,32 +207,25 @@ class gptLattice(frameworkLattice):
         refine: bool = True,
     ) -> float:
         """
-        Find the crest phase of an RF cavity by scanning it with GPT's ``mr``.
-        ``mr`` runs GPT once per phase and concatenates the output, and ``gdfa``
-        reduces each run to an average Lorentz factor, so the crest is simply the
-        phase of maximum ``avgG``.
+        Find a cavity's crest phase as the maximum ``avgG`` of a GPT ``mr`` phase scan.
 
-        The converter writes ``phi = (crest + 90 - phase)``, so running on crest
-        means ``phase = 0`` and therefore ``phi = crest + 90``. A scan peaking at
-        ``phi*`` gives ``crest = phi* - 90``.
+        The converter writes ``phi = crest + 90 - phase``, so a peak at ``phi*`` is ``crest = phi* - 90``.
 
         Parameters
         ----------
         name: str
-            Name of the cavity element to phase.
+            Cavity name
         phase_range: tuple
-            ``(from, to)`` of the coarse scan in degrees.
+            ``(from, to)`` of the coarse scan [deg]
         step: float
-            Coarse scan step in degrees.
+            Coarse scan step [deg]
         refine: bool
-            Follow the coarse scan with a finer one, one coarse step either side
-            of the peak, to a tenth of the step.
+            Rescan one coarse step either side of the peak at a tenth of the step
 
         Returns
         -------
         float
-            The measured crest phase in degrees, also written back onto the
-            element.
+            Crest phase [deg], also written back onto the element
         """
         self.write()
         subdir = self.global_parameters["master_subdir"]
@@ -371,42 +297,30 @@ class gptLattice(frameworkLattice):
         refine: bool = True,
     ) -> dict:
         """
-        Phase every RF cavity in the section, upstream to downstream.
+        Phase every RF cavity in the section with :meth:`find_crest`, upstream to downstream.
 
-        The order matters and the cavities cannot be done independently. While
-        the beam is still slow, the time it arrives at a cavity depends on how
-        much energy it gained in the ones before it, so the crest of the second
-        cavity is only meaningful once the first is already on crest. Scanning
-        them in isolation, or in the wrong order, measures the crest of a beam
-        that will never exist.
-
-        Each cavity is therefore scanned with every upstream cavity already set
-        to its measured crest -- which happens naturally, because
-        :func:`~find_crest` writes the result back onto the element and the input
-        file is regenerated for the next scan.
+        A slow beam's arrival time depends on upstream energy gain, so each cavity
+        is scanned with those before it already on crest.
 
         Parameters
         ----------
         names: list or None
-            Cavities to phase, in any order; they are sorted by position. When
-            None, every cavity in the section is phased.
+            Cavities to phase, in any order; None means every accelerating cavity in the section
         phase_range: tuple
-            ``(from, to)`` of the coarse scan in degrees.
+            ``(from, to)`` of the coarse scan [deg]
         step: float
-            Coarse scan step in degrees.
+            Coarse scan step [deg]
         refine: bool
-            Follow each coarse scan with a finer one around the peak.
+            Follow each coarse scan with a finer one around the peak
 
         Returns
         -------
         dict
-            ``{name: crest}`` in the order the cavities were phased.
+            ``{name: crest}`` in phasing order
         """
         if names is None:
-            # elementObjects spans the whole machine, so restrict to accelerating
-            # cavities that actually sit inside this section. Deflecting cavities
-            # are excluded: they are not run on crest and their energy gain is
-            # nominally zero, so an avgG scan says nothing about them.
+            # elementObjects spans the whole machine; keep accelerating cavities in
+            # this section (an avgG scan says nothing about a deflector).
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
@@ -429,16 +343,14 @@ class gptLattice(frameworkLattice):
     @staticmethod
     def _read_crest_scan(filename: str, z_eval: float | None = None) -> tuple:
         """
-        Pull the scanned phase and average Lorentz factor out of a ``gdfa``
-        aggregate, which nests them one level below the screen position.
+        Read ``(crestscan, avgG)`` arrays from a ``gdfa`` aggregate file.
 
         Parameters
         ----------
         filename: str
-            The ``gdfa`` aggregate file.
+            ``gdfa`` aggregate file
         z_eval: float or None
-            Preferred evaluation position; the screen at or just beyond it is
-            used. When None the furthest downstream screen is taken.
+            Use the screen at or just beyond this z; None means the furthest downstream
         """
         import easygdf
 
@@ -469,11 +381,7 @@ class gptLattice(frameworkLattice):
         return ph, en
 
     def preProcess(self) -> None:
-        """
-        Convert the beam file from the previous lattice section into GPT format and set the number of
-        particles based on the input distribution, see
-        :func:`~simba.Codes.GPT.GPT.gptLattice.hdf5_to_astra`.
-        """
+        """Convert the input beam to GDF via :meth:`hdf5_to_gdf`."""
         super().preProcess()
         self.headers["setfile"].particle_definition = self.objectname + ".gdf"
         prefix = self.get_prefix()
@@ -481,13 +389,9 @@ class gptLattice(frameworkLattice):
 
     def run(self) -> None:
         """
-        Run the code with input 'filename'
+        Run GPT, then ``gdfa`` for the averaged beam properties (``_emit.gdf``, ``_emitt.gdf``, ``traj.gdf``).
 
-        `GPTLICENSE` must be provided in
-        :attr:`~simba.Framework_objects.frameworkLattice.global_parameters`.
-
-        Average properties of the distribution are also calculated and written
-        to an `<>emit.gdf` file in `master_subdir`.
+        Needs ``GPTLICENSE`` in :attr:`global_parameters`.
         """
         main_command = (
             self.executables[self.code]
@@ -620,10 +524,7 @@ class gptLattice(frameworkLattice):
             )
 
     def postProcess(self) -> None:
-        """
-        Convert the beam file(s) from the GPT output into HDF5 format, see
-        :func:`~simba.Elements.screen.screen.gdf_to_hdf5`.
-        """
+        """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
         super().postProcess()
         cathode = self.particle_definition == "laser"
         svals = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
@@ -659,13 +560,7 @@ class gptLattice(frameworkLattice):
 
     def hdf5_to_gdf(self, prefix: str="") -> None:
         """
-        Convert the HDF5 beam distribution to GDF format.
-
-        Certain properties of this class, including
-        :attr:`~simba.Codes.GPT.GPT.gptLattice.override_meanBz`,
-        :attr:`~simba.Codes.GPT.GPT.gptLattice.override_tout` are also
-        used to update
-        :attr:`~simba.Codes.GPT.GPT.gptLattice.headers`.
+        Load the input beam, write it as GDF and set the ``setfile``/``tout`` :attr:`headers`.
 
         Parameters
         ----------
@@ -728,22 +623,21 @@ class gptLattice(frameworkLattice):
             sval: float = 0.0,
     ) -> None:
         """
-        Convert the GDF beam file to HDF5 format and write the beam file.
+        Read the beam at a screen from GPT output and write it as openPMD.
 
         Parameters
         ----------
         screen: laura.models.diagnostic.DiagnosticElement
-            Diagnostic element
         gptbeamfilename: str
-            Name of GPT beam file
+            GPT output file, relative to `master_subdir`
         cathode: bool
-            True if beam was emitted from a cathode
-        gdf: gdfbeam or None
-            GDF beam object
+            Unused
+        gdf: gdf_beam or None
+            Already-loaded GDF file, to avoid re-reading it
         t0: float
-            Initial time co-ordinate
+            Time offset added to the beam [s]
         sval: float
-            S-position of screen
+            s of the screen [m]
         """
         beam = rbf.beam()
         rbf.gdf.read_gdf_beam_file(

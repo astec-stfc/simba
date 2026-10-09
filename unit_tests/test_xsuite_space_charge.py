@@ -74,9 +74,7 @@ def bunch(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def faint(tmp_path_factory):
-    """1e-19 C, a fraction of an electron per macroparticle: space charge
-    scaled from the 100 pC bunch moves a particle 4e-13 m. (At 1 fC it is
-    4e-9 m, and visible.)"""
+    """1e-19 C: space charge moves a particle about 4e-13 m (4e-9 m at 1 fC)."""
     return _beam(tmp_path_factory.mktemp("faint"), 1e-19, 2000)
 
 
@@ -122,9 +120,6 @@ def _growth(beam, out):
     return float(np.std(out.x.val) / np.std(beam.x.val))
 
 
-# --- the setting ----------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "mode, on", [("3d", True), ("3D", True), ("False", False), ("", False), ("off", False)]
 )
@@ -150,9 +145,6 @@ def test_a_mode_xsuite_has_no_model_for_is_warned_about(mode, warns, tmp_path, f
     assert said is warns
 
 
-# --- the model ------------------------------------------------------------
-
-
 def test_a_kick_every_step_at_its_middle(tmp_path, faint):
     framework = _framework(tmp_path, faint)
     _track(framework)
@@ -162,10 +154,8 @@ def test_a_kick_every_step_at_its_middle(tmp_path, faint):
 
 
 def test_a_bunch_without_charge_is_tracked_as_without_space_charge(tmp_path, faint):
-    """The kicks, and the slices they cut the line into, change nothing else.
-
-    ``atol`` sits above the faint bunch's own kicks: 4e-13 m typically, but the
-    beam is drawn afresh each session and a 5-sigma particle reached 1.04e-12."""
+    """The kicks and their slices change nothing else. ``atol`` clears the faint
+    bunch's own kicks, which reached 1.04e-12 m on a 5-sigma particle."""
     with_sc = _track(_framework(tmp_path / "on", faint, quadrupole=True))
     without = _track(_framework(tmp_path / "off", faint, mode="False", quadrupole=True))
     for coord in ("x", "y", "z"):
@@ -195,10 +185,8 @@ def test_xsuite_and_ocelot_agree(tmp_path, bunch):
 
 @pytest.mark.parametrize("solver", ["FFTSolver3D", "FFTSolver2p5D", "FFTSolver2p5DAveraged"])
 def test_every_solver_runs_on_cpu(solver, tmp_path, faint):
-    """With pyFFTW installed, xobjects plans every FFT with it, and its plan
-    asserts it is handed the array it was planned on. No xfields solver does,
-    so the first kick raised an ``AssertionError``; simba gives each a numpy
-    plan of the shape that solver uses."""
+    """With pyFFTW installed the first kick raised an ``AssertionError``; simba
+    now gives each solver a numpy plan of its own shape."""
     framework = _framework(tmp_path, faint)
     framework["D"].pic_solver = solver
     _track(framework)
@@ -211,12 +199,8 @@ def test_space_charge_over_several_turns(tmp_path, faint):
     assert len(out.x.val) == 2000
 
 
-# --- what is not a bunch --------------------------------------------------
-
-
 def test_single_particle_studies_see_no_space_charge(tmp_path, faint):
-    """The reference orbit, DA and the frequency map track probes, not the
-    bunch; a kick would make a field of them."""
+    """The reference orbit, DA and the frequency map track probes, not a bunch."""
     framework = _framework(tmp_path, faint)
     _track(framework)
     line = framework["D"]
@@ -233,39 +217,31 @@ def test_without_space_charge_the_line_is_its_own(tmp_path, faint):
     assert line.single_particle_line is line.line
 
 
-# --- the grids ------------------------------------------------------------
+def _grid_and_particles():
+    """An 8-cell grid over +-1 mm, and three particles, the last 5 mm out."""
+    import xtrack as xt
 
-
-def _grid_line(kick):
-    return SimpleNamespace(line=SimpleNamespace(elements=[kick]), objectname="D")
+    solver = SimpleNamespace(pic_solver="FFTSolver3D")
+    kick = _space_charge_kick(xsuiteLattice._space_charge_fftplan(solver, 8))
+    line = SimpleNamespace(line=SimpleNamespace(elements=[kick]), objectname="D")
+    particles = xt.Particles(
+        p0c=5e6, mass0=xt.ELECTRON_MASS_EV, x=[0.0, 0.0, 5e-3], y=[0, 0, 0], zeta=[0, 0, 0]
+    )
+    return line, particles
 
 
 def test_a_beam_that_outgrows_its_grid_is_warned_about():
-    """The grids are sized on the first pass. A particle outside one feels no
-    field there (measured: zero kick) and adds none."""
-    import xtrack as xt
-
-    line = SimpleNamespace(pic_solver="FFTSolver3D")
-    kick = _space_charge_kick(xsuiteLattice._space_charge_fftplan(line, 8))
-    particles = xt.Particles(
-        p0c=5e6, mass0=xt.ELECTRON_MASS_EV, x=[0.0, 0.0, 5e-3], y=[0, 0, 0], zeta=[0, 0, 0]
-    )
+    """Grids are sized on the first pass, and a particle outside feels no field."""
+    line, particles = _grid_and_particles()
     with pytest.warns(exceptions.SpaceChargeOffGridWarning, match="33%"):
-        xsuiteLattice.check_space_charge_grids(_grid_line(kick), particles)
+        xsuiteLattice.check_space_charge_grids(line, particles)
 
 
+@pytest.mark.filterwarnings("error")
 def test_a_lost_particle_outside_the_grid_is_not_counted():
-    import xtrack as xt
-
-    line = SimpleNamespace(pic_solver="FFTSolver3D")
-    kick = _space_charge_kick(xsuiteLattice._space_charge_fftplan(line, 8))
-    particles = xt.Particles(
-        p0c=5e6, mass0=xt.ELECTRON_MASS_EV, x=[0.0, 0.0, 5e-3], y=[0, 0, 0], zeta=[0, 0, 0]
-    )
+    line, particles = _grid_and_particles()
     particles.state[2] = -1
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        xsuiteLattice.check_space_charge_grids(_grid_line(kick), particles)
+    xsuiteLattice.check_space_charge_grids(line, particles)
 
 
 @pytest.mark.parametrize(
@@ -283,8 +259,7 @@ def test_the_grids_are_not_resized_unless_asked():
 
 @pytest.fixture(scope="module")
 def strong(tmp_path_factory):
-    """3 nC: the bunch grows 8-fold over the 2 m, and 57% of it leaves grids
-    sized without space charge."""
+    """3 nC: grows 8-fold over 2 m, and 57% leaves grids sized without space charge."""
     return _beam(tmp_path_factory.mktemp("strong"), 3e-9, 5000)
 
 

@@ -1,22 +1,6 @@
 """
-SIMBA Beams Module
-
-This module defines the base class and utilities for representing particle beams and groups of beams.
-
-Each beam consists of particles (see :class:`~simba.Modules.Beams.Particles.Particles`),
-represented in 6-dimensional phase space (x, cpx, y, cpy, z, cpz).
-
-Functions are provided to read/write the particle distribution from a range of simulation codes.
-
-The `beamGroup` class is used for loading and analysing a group of beam distributions,
-for example from a directory.
-
-Classes:
-    - :class:`~simba.Modules.Beams.beam`: Generic container for a particle beam.
-
-    - :class:`~simba.Modules.Beams.beamGroup`: Container for a group of particle beams.
-
-    - :class:`~simba.Modules.Beams.particlesGroup`: Container for a group of particle distributions.
+Particle beams (:class:`beam`) and groups of beams (:class:`beamGroup`), with readers and
+writers for each supported code's distribution format.
 """
 import os
 from pydantic import (
@@ -77,7 +61,6 @@ SPECIES = {
 SPECIES_ALIASES = {f"{name}s": name for name in SPECIES} | {"hydrogen": "proton"}
 
 
-# I can't think of a clever way of doing this, so...
 def get_properties(obj):
     props = [f for f in dir(obj) if type(getattr(obj, f)) is property and f != "__fields_set__"]
     if hasattr(obj, "model_fields"):
@@ -98,19 +81,13 @@ parameters = {
 
 
 class particlesGroup(BaseModel):
-    """
-    Class for grouping together properties of multiple particle distributions, such as
-    the :class:`~simba.Modules.Beams.Particles.emittance.emittance` objects.
-    """
+    """The same analysis object (e.g. ``emittance``) from each beam in a :class:`beamGroup`."""
     particles: List = None
-    """List of :class:`~simba.Modules.Beams.Particles.Particles` or its 
-    sub-classes"""
+    """:class:`~simba.Modules.Beams.Particles.Particles` or analysis objects, one per beam"""
 
 
 class statsGroup:
-    """
-    Class for grouping together statistical properties of multiple particle distributions.
-    """
+    """Applies a numpy reduction (e.g. ``np.mean``) to a parameter of each beam in a :class:`beamGroup`."""
 
     def __init__(self, beam, function):
         self._beam = beam
@@ -123,22 +100,15 @@ class statsGroup:
 
 class beamGroup(BaseModel):
     """
-    Class for grouping together multiple particle distributions. These distributions can be loaded in
-    from a directory, for example, using the function
-    :func:`~simba.Modules.Beams.load_directory`.
-
-    Properties such as the :class:`~simba.Modules.Beams.Particles.emittance.emittance` objects
-    for these distributions are stored as properties of the `beamGroup`.
-
-    (see :class:`~simba.Modules.Beams.particlesGroup`).
+    A set of :class:`beam` objects, e.g. from :func:`load_directory`; analysis properties
+    return a :class:`particlesGroup`.
     """
 
     sddsindex: int = 0
     """Index for SDDS files"""
 
     beams: Dict = {}
-    """Dictionary containing the :class:`~simba.Modules.Beams.beam` objects,
-    keyed by (file)name"""
+    """:class:`beam` objects keyed by filename"""
 
     def __repr__(self):
         return repr(list(self.beams.keys()))
@@ -244,34 +214,8 @@ class beamGroup(BaseModel):
 
 class beam(BaseModel):
     """
-    Class describing a particle distribution. The distribution is contained in the `beam` or `Particles` property
-    of this class (see :class:`~simba.Modules.Beams.Particles.Particles`).
-
-    Additional results from analysis of the beam are contained in the following properties:
-
-    - :attr:`~simba.Modules.Beams.beam.sigmas` -- average beam properties,
-      see :class:`~simba.Modules.Beams.Particles.sigmas.sigmas`.
-
-    - :attr:`~simba.Modules.Beams.beam.centroids` -- beam centroids,
-      see :class:`~simba.Modules.Beams.Particles.centroids.centroids`.
-
-    - :attr:`~simba.Modules.Beams.beam.centroids` -- various emittance calculations,
-      see :class:`~simba.Modules.Beams.Particles.emittance.emittance`.
-
-    - :attr:`~simba.Modules.Beams.beam.kde` -- kernel density estimator,
-      see :class:`~simba.Modules.Beams.Particles.kde.kde`.
-
-    - :attr:`~simba.Modules.Beams.beam.mve` -- minimum volume ellipse,
-      see :class:`~simba.Modules.Beams.Particles.mve.MVE`.
-
-    - :attr:`~simba.Modules.Beams.beam.slices` -- calculations of slice properties,
-      see :class:`~simba.Modules.Beams.Particles.slice.slice`.
-
-    - :attr:`~simba.Modules.Beams.beam.twiss` -- Twiss parameters,
-      see :class:`~simba.Modules.Beams.Particles.twiss.twiss`.
-
-    Functions are also provided for translating the particle distribution from and to HDF5 format
-    (in-house developed or OpenPMD), ASTRA, GPT, OCELOT, or SDDS.
+    A particle distribution (:class:`~simba.Modules.Beams.Particles.Particles`, via
+    :attr:`Particles`) plus its analysis objects and per-code read/write methods.
     """
     q_over_c: UnitValue = UnitValue(constants.elementary_charge / constants.speed_of_light, "C/c")
     """Elementary charge divided by speed of light"""
@@ -280,7 +224,7 @@ class beam(BaseModel):
     """Speed of light"""
 
     filename: str | None = None
-    """Name of beam distribution file; if provided on instantiation, load the file into this object"""
+    """Beam distribution file; loaded on instantiation if given"""
 
     sddsindex: int = 0
     """Index for SDDS files"""
@@ -289,8 +233,7 @@ class beam(BaseModel):
     """Code from which the beam distribution was generated"""
 
     turn: int | None = None
-    """Which turn of a multi-turn run this distribution was recorded on, 1-based;
-    always 1 for single-pass lines."""
+    """Turn of a multi-turn run this distribution was recorded on (1-based; 1 for single-pass lines)"""
 
     reference_particle: np.ndarray | None  = None
     """Reference particle for ASTRA-type distributions"""
@@ -343,7 +286,6 @@ class beam(BaseModel):
             self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
-        # Only include computed fields
         full_dump = super().model_dump(*args, **kwargs)
         full_dump.update({"Particles": self._beam.model_dump()})
         return full_dump
@@ -365,16 +307,7 @@ class beam(BaseModel):
 
     @property
     def E0_eV(self) -> float:
-        """
-        Particle rest mass energy in eV
-
-        Returns
-        -------
-        float
-            Particle rest mass energy in eV; if already defined, just return the attribute;
-            if not, calculate from the :attr:`~simba.Modules.Beams.Particles` object;
-            if not possible, assume electrons and calculate its rest mass energy
-        """
+        """Particle rest mass energy in eV, falling back to the electron's if the mass is unknown."""
         if self._beam.particle_rest_energy_eV is not None:
             return self._beam.particle_rest_energy_eV
         elif self._beam.particle_rest_energy is not None:
@@ -386,14 +319,7 @@ class beam(BaseModel):
 
     @property
     def beam(self) -> Particles:
-        """
-        Property defining the particle distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.Particles`
-            The particle distribution
-        """
+        """The particle distribution."""
         return self._beam
 
     @property
@@ -410,127 +336,64 @@ class beam(BaseModel):
 
     @property
     def Particles(self) -> Particles:
-        """
-        Property defining the particle distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.Particles`
-            The particle distribution
-        """
+        """The particle distribution."""
         return self._beam
 
     @property
     def data(self) -> Particles:
-        """
-        Property defining the particle distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.Particles`
-            The particle distribution
-        """
+        """The particle distribution."""
         return self._beam
 
     @property
     def sigmas(self) -> sigmasobject:
-        """
-        Property defining the beam sigmas
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.sigmas.sigmas`
-            Beam sigmas
-        """
+        """Beam sigmas (:class:`~simba.Modules.Beams.Particles.sigmas.sigmas`)."""
         return self._beam.sigmas
 
     @property
     def centroids(self) -> centroidsobject:
-        """
-        Property defining the beam centroids
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.centroids.centroids`
-            Beam centroids
-        """
+        """Beam centroids (:class:`~simba.Modules.Beams.Particles.centroids.centroids`)."""
         return self._beam.centroids
 
     @property
     def twiss(self) -> twissobject:
-        """
-        Property defining the beam twiss properties
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.twiss.twiss`
-            Beam Twiss parameters
-        """
+        """Twiss parameters (:class:`~simba.Modules.Beams.Particles.twiss.twiss`)."""
         return self._beam.twiss
 
     @property
     def slice(self) -> sliceobject:
-        """
-        Property defining the beam slice properties
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.slice.slice`
-            Beam slice properties
-        """
+        """Slice properties (:class:`~simba.Modules.Beams.Particles.slice.slice`)."""
         return self._beam.slice
 
     @property
     def emittance(self) -> emittanceobject:
-        """
-        Property defining the beam emittances
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.emittance.emittance`
-            Beam emittance
-        """
+        """Emittances (:class:`~simba.Modules.Beams.Particles.emittance.emittance`)."""
         return self._beam.emittance
 
     @property
     def kde(self) -> kdeobject:
-        """
-        Property defining the beam kernel density estimator
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.kde.kde`
-            KDE
-        """
+        """Kernel density estimator (:class:`~simba.Modules.Beams.Particles.kde.kde`)."""
         return self._beam.kde
 
     @property
     def mve(self) -> Any:
-        """
-        Property defining the beam minimum volume ellipse
-
-        Returns
-        -------
-        :class:`~simba.Modules.Beams.Particles.`
-            Beam sigmas
-        """
+        """Minimum volume ellipse (:class:`~simba.Modules.Beams.Particles.mve.MVE`)."""
         return self._beam.mve
 
     def rms(self, x, axis: int=None) -> float | np.ndarray   :
         """
-        Calculate the RMS of a distribution
+        RMS of an array (about zero, not the mean).
 
         Parameters
         ----------
         x: np.ndarray
-            Array from which to calculate the RMS
+            Input array
         axis: int, optional
-            Axis along which to calculate the RMS
+            Axis along which to reduce
 
         Returns
         -------
         float or np.ndarray
-            RMS of the distribution
+            RMS of ``x``
         """
         return np.sqrt(np.mean(x**2, axis=axis))
 
@@ -575,8 +438,7 @@ class beam(BaseModel):
 
     def set_particle_mass(self, mass: float=constants.m_e) -> None:
         """
-        Set the mass of all particles in the distribution by updating
-        :attr:`~simba.Modules.Beams.beam.particle_mass`.
+        Set every particle's mass.
 
         Parameters
         ----------
@@ -650,134 +512,94 @@ class beam(BaseModel):
 
     def normalise_to_ref_particle(self, array, index=0, subtractmean=False) -> np.ndarray:
         """
-        Normalise a distribution to the first element in the array (i.e. the ASTRA reference particle)
+        Add the reference particle (element 0, as in ASTRA files) to the other elements.
 
         Parameters
         ----------
         array: np.ndarray
-            The array to normalise
+            Values with elements 1: relative to element 0
         index: int
-            Not in use
+            Unused
         subtractmean: bool
-            If true, subtract the reference particle from the array
+            If true, then subtract the reference particle from the result
 
         Returns
         -------
         np.ndarray
-            The normalised array
+            A copy of ``array`` with absolute values
         """
         array = copy.copy(array)
         array[1:] = array[0] + array[1:]
         if subtractmean:
-            array = array - array[0]  # np.mean(array)
+            array = array - array[0]
         return array
 
     def reset_dicts(self) -> None:
-        """
-        Clear out the :attr:`~simba.Modules.Beams.Particles.Particles` object,
-        removing the distribution from this object.
-        """
+        """Replace the particle distribution with an empty one."""
         self._beam = Particles()
 
     def read_HDF5_beam_file(self, *args, **kwargs):
-        """
-        Load in an HDF5-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an HDF5 beam file; see :func:`~simba.Modules.Beams.hdf5.read_HDF5_beam_file`."""
         hdf5.read_HDF5_beam_file(self, *args, **kwargs)
 
     def read_SDDS_beam_file(self, *args, **kwargs):
-        """
-        Load in an SDDS-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an SDDS beam file; see :func:`~simba.Modules.Beams.sdds.read_SDDS_beam_file`."""
         sdds.read_SDDS_beam_file(self, *args, **kwargs)
 
     def read_gdf_beam_file(self, *args, **kwargs):
-        """
-        Load in a GDF-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load a GDF beam file; see :func:`~simba.Modules.Beams.gdf.read_gdf_beam_file`."""
         gdf.read_gdf_beam_file(self, *args, **kwargs)
 
     def read_astra_beam_file(self, *args, **kwargs):
-        """
-        Load in an ASTRA-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an ASTRA beam file; see :func:`~simba.Modules.Beams.astra.read_astra_beam_file`."""
         astra.read_astra_beam_file(self, *args, **kwargs)
 
     def read_xsuite_beam_file(self, *args, **kwargs):
-        """
-        Load in an Xsuite-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an Xsuite beam file; see :func:`~simba.Modules.Beams.xsuite.read_xsuite_beam_file`."""
         xsuite.read_xsuite_beam_file(self, *args, **kwargs)
 
     def read_ocelot_beam_file(self, *args, **kwargs):
-        """
-        Load in an OCELOT-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an OCELOT beam file; see :func:`~simba.Modules.Beams.ocelot.read_ocelot_beam_file`."""
         from . import ocelot
 
         ocelot.read_ocelot_beam_file(self, *args, **kwargs)
 
     def read_opal_beam_file(self, *args, **kwargs):
-        """
-        Load in an OPAL-type beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-        """
+        """Load an OPAL beam file; see :func:`~simba.Modules.Beams.opal.read_opal_beam_file`."""
         opal.read_opal_beam_file(self, *args, **kwargs)
 
     def write_openpmd_beam_file(self, *args, **kwargs):
-        """
-        Write out an openpmd-type beam distribution file.
-        """
+        """Write an openPMD beam file; see :func:`~simba.Modules.Beams.openpmd.write_openpmd_beam_file`."""
         openpmd.write_openpmd_beam_file(self, *args, **kwargs)
 
     def write_HDF5_beam_file(self, *args, **kwargs):
-        """
-        Write out an HDF5-type beam distribution file.
-        """
+        """Write an HDF5 beam file; see :func:`~simba.Modules.Beams.hdf5.write_HDF5_beam_file`."""
         hdf5.write_HDF5_beam_file(self, *args, **kwargs)
 
     def write_SDDS_beam_file(self, *args, **kwargs):
-        """
-        Write out an SDDS-type beam distribution file.
-        """
+        """Write an SDDS beam file; see :func:`~simba.Modules.Beams.sdds.write_SDDS_file`."""
         sdds.write_SDDS_file(self, *args, **kwargs)
 
     def write_gdf_beam_file(self, *args, **kwargs):
-        """
-        Write out a GDF-type beam distribution file.
-        """
+        """Write a GDF beam file; see :func:`~simba.Modules.Beams.gdf.write_gdf_beam_file`."""
         gdf.write_gdf_beam_file(self, *args, **kwargs)
 
     def write_astra_beam_file(self, *args, **kwargs):
-        """
-        Write out an ASTRA-type beam distribution file.
-        """
+        """Write an ASTRA beam file; see :func:`~simba.Modules.Beams.astra.write_astra_beam_file`."""
         astra.write_astra_beam_file(self, *args, **kwargs)
 
     def write_xsuite_beam_file(self, *args, **kwargs):
-        """
-        Write out an Xsuite-type beam distribution file.
-        """
+        """Write an Xsuite beam file; see :func:`~simba.Modules.Beams.xsuite.write_xsuite_beam_file`."""
         return xsuite.write_xsuite_beam_file(self, *args, **kwargs)
 
     def write_ocelot_beam_file(self, *args, **kwargs):
-        """
-        Write out an OCELOT-type beam distribution file.
-        """
+        """Write an OCELOT beam file; see :func:`~simba.Modules.Beams.ocelot.write_ocelot_beam_file`."""
         from . import ocelot
 
         return ocelot.write_ocelot_beam_file(self, *args, **kwargs)
 
     def write_opal_beam_file(self, *args, **kwargs):
-        """
-        Write out an OPAL-type beam distribution file.
-        """
+        """Write an OPAL beam file; see :func:`~simba.Modules.Beams.opal.write_opal_beam_file`."""
         opal.write_opal_beam_file(self, *args, **kwargs)
 
     def write_cheetah_beam_file(self, *args, **kwargs):
@@ -785,43 +607,32 @@ class beam(BaseModel):
         return cheetah.write_cheetah_beam_file(self, *args, **kwargs)
 
     def write_mad8_beam_file(self, *args, **kwargs):
-        """
-        Write out a MAD8-type beam distribution file.
-        """
+        """Write a MAD8 beam file; see :func:`~simba.Modules.Beams.mad8.write_mad8_beam_file`."""
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
     def beam_to_madx_coords(self, *args, **kwargs):
-        """
-        Convert this beam into MAD-X canonical coordinates (X, PX, Y, PY,
-        T, PT) for a given reference momentum.
-        """
+        """MAD-X canonical coordinates (X, PX, Y, PY, T, PT); see :func:`~simba.Modules.Beams.madx.beam_to_madx_coords`."""
         return madx.beam_to_madx_coords(self, *args, **kwargs)
 
     def madx_coords_to_beam(self, *args, **kwargs):
-        """
-        Build a new beam from MAD-X canonical coordinates, taking the
-        mass/charge/species from this (reference) beam.
-        """
+        """New beam from MAD-X coordinates, with this beam's mass/charge/species; see :func:`~simba.Modules.Beams.madx.madx_coords_to_beam`."""
         return madx.madx_coords_to_beam(self, *args, **kwargs)
 
     def read_beam_file(self, filename, run_extension="001", step=0, turn=None):
         """
-        Load in a beam distribution file and update the
-        :attr:`~simba.Modules.Beams.beam.Particles` object.
-
-        Based on the extension in `filename`, the appropriate function will be called.
+        Load a beam distribution file, picking the reader from the file extension.
 
         Parameters
         ----------
         filename: str
-            The name of the file to be loaded
+            File to load
         run_extension: str
-            Run extension for ASTRA-type beam distribution files.
+            ASTRA run extension
         step: int, optional
-            Step number in output file (for OPAL beam distributions)
+            Step number in an OPAL output file
         turn: int, optional
-            Turn of a multi-turn openPMD file, which otherwise reads as its
-            last; see :func:`~simba.Modules.Beams.openpmd.openpmd_turns`
+            Turn of a multi-turn openPMD file (default: the last);
+            see :func:`~simba.Modules.Beams.openpmd.openpmd_turns`
         """
         pre, ext = os.path.splitext(os.path.basename(filename))
         if ext.lower()[:4] == ".hdf":
@@ -871,19 +682,17 @@ class beam(BaseModel):
 
     def resample(self, npart, **kwargs) -> beam:
         """
-        Resample the beam using a kernel density estimator, updating the number of particles.
-        See :class:`~simba.Modules.Beams.Particles.kde.kde`.
+        Resample the beam to ``npart`` particles with the :attr:`kde`.
 
         Parameters
         ----------
         npart: int
-            Number of particles for the new distribution
+            Number of particles in the new beam
 
         Returns
         -------
         :class:`~simba.Modules.Beams.beam`
-            The resampled beam.
-
+            The resampled beam
         """
         postbeam = self.kde.resample(npart, **kwargs)
         newbeam = beam()
@@ -914,22 +723,21 @@ class beam(BaseModel):
 
 def load_directory(directory=".", types={"SIMBA": ".hdf5"}, verbose=False) -> beamGroup:
     """
-    Load in all beam distribution files from a directory and create a
-    :class:`~simba.Modules.Beams.beamGroup` object.
+    Load every beam file in a directory into a :class:`beamGroup`.
 
     Parameters
     ----------
     directory: str
-        Directory from which to load the files
+        Directory to search
     types: Dict
-        Beam distribution file types to load
+        File suffix to glob for, keyed by code name
     verbose: bool
         If true, print progress
 
     Returns
     -------
     :class:`~simba.Modules.Beams.beamGroup`
-        A new `beamGroup`.
+        The loaded beams, sorted by mean z
     """
     bg = beamGroup()
     if verbose:
@@ -945,18 +753,17 @@ def load_directory(directory=".", types={"SIMBA": ".hdf5"}, verbose=False) -> be
 
 def load_file(filename, *args, **kwargs) -> beam:
     """
-    Load in a beam distribution files and create a
-    :class:`~simba.Modules.Beams.beam` object.
+    Load a beam distribution file into a new :class:`beam`.
 
     Parameters
     ----------
     filename: str
-        Name of file to load
+        File to load
 
     Returns
     -------
     :class:`~simba.Modules.Beams.beam`
-        A new `beam`.
+        The loaded beam
     """
     b = beam()
     b.read_beam_file(filename)

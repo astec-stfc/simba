@@ -34,9 +34,6 @@ def close_figures():
     plt.close("all")
 
 
-# --- the aperture plot --------------------------------------------------
-
-
 def test_rays_are_drawn_as_their_boundary():
     """One point per ray: the outermost survivor, with the next step lost."""
     rays = []
@@ -61,8 +58,7 @@ def test_an_island_past_a_loss_is_not_the_boundary():
 
 
 def test_elegant_boundary_is_drawn_as_it_is():
-    """``find_aperture`` returns survivors only, on both sides of x = 0,
-    two at y = 0; they come back up the +x side and down the -x side."""
+    """``find_aperture`` survivors, ordered up the +x side and down the -x side."""
     boundary = [(-0.0057, 0.0, TURNS), (0.0041, 0.0, TURNS), (0.0, 0.0032, TURNS), (0.0022, 0.002, TURNS)]
     assert aperture_boundary(boundary, TURNS) == [(0.0041, 0.0), (0.0022, 0.002), (0.0, 0.0032), (-0.0057, 0.0)]
 
@@ -70,9 +66,6 @@ def test_elegant_boundary_is_drawn_as_it_is():
 def test_an_empty_scan_does_not_raise():
     axes = plot_dynamic_aperture([], TURNS)
     assert "no data" in axes.get_title()
-
-
-# --- the frequency map --------------------------------------------------
 
 
 def test_the_footprint_is_drawn_in_tune_space(footprint):
@@ -94,8 +87,7 @@ def test_no_resonance_lines_when_order_is_zero(footprint):
 
 
 def test_resonance_lines_do_not_rescale_the_axes():
-    """They are reference, not data -- a line running off to infinity must
-    not stretch the footprint into a corner."""
+    """They are reference, not data."""
     _, axes = plt.subplots()
     axes.set_xlim(0.30, 0.32)
     axes.set_ylim(0.20, 0.22)
@@ -117,12 +109,7 @@ def test_an_empty_footprint_does_not_raise():
     assert "no data" in plot_frequency_map([]).get_title()
 
 
-# --- the amplitude map --------------------------------------------------
-
-
 def test_the_amplitude_map_shares_the_diffusion_scale(footprint):
-    """Same quantity as the frequency map, different axes -- one says which
-    resonance, the other says where in the aperture."""
     axes = plot_amplitude_map(footprint)
     assert "x [mm]" in axes.get_xlabel()
     mapped = [c for c in axes.collections if c.get_array() is not None][0]

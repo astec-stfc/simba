@@ -1,10 +1,7 @@
-"""Plots for the two nonlinear ring studies: dynamic aperture and frequency map.
+"""Plots for the nonlinear ring studies: dynamic aperture and frequency map.
 
-The dynamic aperture is drawn as its boundary, the same for every code. The
-frequency map is a *magnitude* plot (a diffusion index), so it uses a single
-sequential hue rather than a rainbow, which keeps the ordering readable and
-survives colour-vision deficiency and greyscale printing. ``viridis`` is the
-default that `Modules.Beams.plot` already uses.
+The frequency map is a magnitude (diffusion index), so it uses a sequential
+colormap rather than a rainbow.
 """
 
 import math
@@ -14,10 +11,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 CMAP = copy(plt.get_cmap("viridis"))
-"""Sequential, perceptually uniform and CVD-safe; matches `Beams.plot`."""
+"""Sequential and CVD-safe; matches ``Beams.plot``."""
 
 SURVIVED_COLOUR = "#2a4858"
-"""A single dark step for the aperture boundary."""
+"""Aperture boundary colour."""
 
 
 def _tidy(axes) -> None:
@@ -38,15 +35,15 @@ def plot_dynamic_aperture(
     title: str = "Dynamic aperture",
     **kwargs,
 ):
-    """The aperture boundary, from :func:`aperture_boundary`, drawn the same
-    for every code.
+    """Plot the dynamic aperture boundary from :func:`aperture_boundary`.
 
     Parameters
     ----------
     aperture: list
-        ``(x, y, turns_survived)`` as :meth:`run_dynamic_aperture` returns.
+        ``(x, y, turns_survived)`` as
+        :meth:`~simba.Framework_objects.frameworkLattice.run_dynamic_aperture` returns.
     turns: int
-        Turns asked for, so survivors can be told from losses.
+        Turns tracked, so survivors can be told from losses.
     axes: matplotlib.axes.Axes | None
         Drawn into if given, otherwise a new figure.
 
@@ -75,11 +72,10 @@ def plot_dynamic_aperture(
 def aperture_boundary(aperture, turns: int) -> list:
     """The edge of the stable region, as ``(x, y)`` ordered from +x round to -x.
 
-    Along each ray from the origin (:meth:`da_rays`), the last survivor
-    before the first loss, as elegant's ``find_aperture`` stops each ray, so
-    islands past a loss are left out. elegant's boundary, one survivor per
-    ray, comes back as it is. A survivor reaches ``turns - 1``: Ocelot
-    numbers turns from zero.
+    Takes the last survivor before the first loss on each ray
+    (:meth:`~simba.Framework_objects.frameworkLattice.da_rays`), as elegant's
+    ``find_aperture`` does, so islands past a loss are left out. A survivor
+    reaches ``turns - 1`` because Ocelot numbers turns from zero.
     """
     rays = {}
     for x, y, turn in aperture:
@@ -100,11 +96,9 @@ def aperture_boundary(aperture, turns: int) -> list:
 
 
 def resonance_lines(axes, order: int = 4, **kwargs) -> None:
-    """Overlay ``m*Qx + n*Qy = p`` up to ``|m| + |n| <= order``.
+    """Overlay resonance lines ``m*Qx + n*Qy = p`` with ``|m| + |n| <= order``.
 
-    Drawn recessively and thinner with increasing order, because a frequency
-    map is read by *which* line a feature sits on -- the lines are reference,
-    not data.
+    Drawn faint, and thinner with increasing order: they are reference, not data.
     """
     x_min, x_max = axes.get_xlim()
     y_min, y_max = axes.get_ylim()
@@ -148,7 +142,10 @@ def plot_frequency_map(
     Parameters
     ----------
     footprint: list
-        ``(x, y, tune_x, tune_y, D)`` as :meth:`run_frequency_map` returns.
+        ``(x, y, tune_x, tune_y, D)`` as
+        :meth:`~simba.Framework_objects.frameworkLattice.run_frequency_map` returns.
+    axes: matplotlib.axes.Axes | None
+        Drawn into if given, otherwise a new figure.
     order: int
         Highest resonance order drawn; 0 draws none.
 
@@ -193,10 +190,7 @@ def plot_amplitude_map(
     title: str = "Amplitude map",
     **kwargs,
 ):
-    """The same diffusion index against *starting amplitude* rather than tune.
-
-    The companion to :func:`plot_frequency_map`: one says which resonance a
-    particle is on, this says where in the machine aperture it started.
+    """Diffusion index against starting amplitude; :func:`plot_frequency_map` plots it against tune.
 
     Returns
     -------

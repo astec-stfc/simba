@@ -8,7 +8,6 @@ Subpackages
    :maxdepth: 4
 
    simba.Modules.Beams
-   simba.Modules.Fields
    simba.Modules.Matrices
    simba.Modules.Twiss
    simba.Modules.plotting
@@ -60,14 +59,6 @@ simba.Modules.gdf\_emit module
 ------------------------------
 
 .. automodule:: simba.Modules.gdf_emit
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.pmd\_units module
--------------------------------
-
-.. automodule:: simba.Modules.pmd_units
    :members:
    :show-inheritance:
    :undoc-members:

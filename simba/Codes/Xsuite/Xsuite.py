@@ -1,16 +1,7 @@
 """
-SIMBA Xsuite Module
-
-Various objects and functions to handle Xsuite lattices and commands. See `Xsuite github`_ for more details.
+SIMBA Xsuite module: builds and tracks an Xsuite line. See `Xsuite github`_.
 
     .. _Xsuite github: https://github.com/xsuite
-
-Classes:
-    - :class:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice`: The Xsuite lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
-      and for tracking through it.
-
 """
 try:
     import cupy as cp
@@ -33,9 +24,6 @@ from warnings import warn
 def _select_turn(data: Dict, turn: int) -> Dict:
     """One turn's rows out of a ``ParticlesMonitor``'s flattened dump.
 
-    A monitor records one row per particle per turn -- ``monitor.x`` is
-    ``(particle, turn)``.
-
     Anything not the same length as ``at_turn`` (scalars, metadata) is passed
     through untouched.
     """
@@ -54,12 +42,7 @@ def _select_turn(data: Dict, turn: int) -> Dict:
 
 
 class xsuiteLattice(frameworkLattice):
-    """
-    Class for defining the Xsuite lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into an Xsuite lattice object,
-    and for tracking through it.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as an Xsuite line."""
 
     code: str = "xsuite"
     """String indicating the lattice object type"""
@@ -85,22 +68,16 @@ class xsuiteLattice(frameworkLattice):
     """``line.twiss()`` with no initial conditions."""
 
     supports_nsuperperiods: ClassVar[bool] = True
-    """A superperiod is an extra factor on ``num_turns``: Xtrack has no
-    separate notion of a sector, so N passes are asked for per turn and
-    everything counted per turn is converted back."""
+    """As N passes per turn: Xtrack has no notion of a sector."""
 
     supports_programs: ClassVar[bool] = True
-    """Natively, and without simba looping: an element attribute bound to a
-    ``FunctionPieceWiseLinear`` of ``t_turn_s`` varies inside a single
-    ``line.track(num_turns=N)`` call."""
+    """Natively: attributes bound to a ``FunctionPieceWiseLinear`` of ``t_turn_s``."""
 
     supports_ramp: ClassVar[bool] = True
     """Natively, by ``xt.EnergyProgram``; see :meth:`bind_ramp`."""
 
     native_rf: ClassVar[str] = "synchronous"
-    """Under a ramp, the gain per turn is what a cavity phased to
-    the reference every pass gives -- ``zeta`` is from the reference. Moved
-    by :meth:`bind_rf_phases`."""
+    """Cavities are re-phased to the reference every pass; moved by :meth:`bind_rf_phases`."""
 
     rf_phase_sign: ClassVar[float] = 1.0
     """``lag`` (degrees) moved by this times a phase the reference sees."""
@@ -115,9 +92,7 @@ class xsuiteLattice(frameworkLattice):
     """Canonical by definition: this is the convention the others convert to."""
 
     trackBeam: bool = True
-    """Flag to indicate whether to track the beam.
-    If False, run in single-particle mode; the beam is not tracked and the output beam distributions
-    will be generated from Gaussians."""
+    """Track the beam; if False, run single-particle and generate output beams from Gaussians."""
 
     names: List = None
     """Names of elements in the lattice"""
@@ -210,11 +185,7 @@ class xsuiteLattice(frameworkLattice):
 
 
     def writeElements(self) -> None:
-        """
-        Create Xsuite objects for all the elements in the lattice and set the
-        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.lat_obj` and
-        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.names`.
-        """
+        """Build :attr:`line` from the section, install monitors and set :attr:`names`."""
         import xtrack as xt
         self.env = xt.Environment()
         particle_ref = xt.Particles(
@@ -241,7 +212,7 @@ class xsuiteLattice(frameworkLattice):
         Parameters
         ----------
         num_particles: int
-            Number of particles in the beam
+            Particles in the beam
         """
         import xtrack as xt
         for elem in self.screens_and_markers_and_bpms:
@@ -291,24 +262,17 @@ class xsuiteLattice(frameworkLattice):
 
     @property
     def single_particle_line(self):
-        """
-        :attr:`line` without its collective elements, for tracking particles
-        that are not a bunch: the reference orbit, dynamic aperture and the
-        frequency map.
-        """
+        """:attr:`line` without collective elements, for single-particle tracking (orbit, DA, FMA)."""
         if self.line.iscollective:
             return self.line._get_non_collective_line()
         return self.line
 
     def install_space_charge(self) -> None:
         """
-        Put a space-charge kick every :attr:`space_charge_step` metres of
-        :attr:`line`, before the tracker is built.
-        The grids are sized by walking
-        a sample of the beam once through the line, without space charge.
-        A beam that outgrows its grids on later passes is caught by
-        :meth:`check_space_charge_grids`. With :attr:`space_charge_resize`,
-        the sample walks the line again, and every grid is re-sized from that pass.
+        Put a space-charge kick every :attr:`space_charge_step` metres of :attr:`line`.
+
+        Grids are sized from one pass of a beam sample without space charge
+        (again with it, if :attr:`space_charge_resize`).
         """
         import xtrack as xt
 
@@ -338,8 +302,7 @@ class xsuiteLattice(frameworkLattice):
         self, half_widths: dict, step: float, buffer: Any
     ) -> None:
         """
-        Put a ``SpaceCharge3D`` at every kick in ``half_widths``, replacing
-        whatever is there; see :meth:`install_space_charge`.
+        Put a ``SpaceCharge3D`` at every kick in ``half_widths``, replacing whatever is there.
 
         Parameters
         ----------
@@ -348,7 +311,7 @@ class xsuiteLattice(frameworkLattice):
         step: float
             Length each kick stands for, in m
         buffer: xobjects buffer
-            The line's
+            The line's buffer
         """
         import xfields as xf
         import xobjects as xo
@@ -400,9 +363,7 @@ class xsuiteLattice(frameworkLattice):
         self, kicks: set, sample: int = 10000, with_space_charge: bool = False
     ) -> dict:
         """
-        The half-widths of the beam at each space-charge kick, from one pass
-        of (at most ``sample`` particles of) :attr:`pin`: without space charge,
-        or through the kicks already installed.
+        Beam half-widths at each space-charge kick, from one pass of a sample of :attr:`pin`.
 
         Parameters
         ----------
@@ -411,15 +372,13 @@ class xsuiteLattice(frameworkLattice):
         sample: int
             Most particles to walk
         with_space_charge: bool
-            Kick the sample at each kick, its weights scaled up to the whole
-            beam's charge
+            Apply the installed kicks, with weights scaled up to the whole beam's charge
 
         Returns
         -------
         dict
             ``{kick: (x, y, zeta)}``: :attr:`space_charge_sigmas` rms sizes
-            beyond the beam's centre, from zero. A kick no particle reaches
-            alive has none.
+            beyond the beam's centre, from zero. Kicks no live particle reaches are absent.
         """
         import xtrack as xt
 
@@ -468,7 +427,7 @@ class xsuiteLattice(frameworkLattice):
         particles: xtrack.Particles
             The beam at the end of the line
         tolerance: float
-            The fraction of the beam allowed off the grid
+            Fraction of the beam allowed off the grid
         """
         import xfields as xf
 
@@ -486,16 +445,11 @@ class xsuiteLattice(frameworkLattice):
             warn(exceptions.SpaceChargeOffGridWarning(self.objectname, fraction))
 
     def write(self) -> None:
-        """
-        Create the lattice object via :func:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.writeElements`
-        and save it to `master_subdir`.
-        """
+        """Build the line via :meth:`writeElements`."""
         self.writeElements()
 
     def preProcess(self) -> None:
-        """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
-        """
+        """Load the input beam, convert it to Xsuite and check the space-charge mode."""
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
@@ -507,15 +461,14 @@ class xsuiteLattice(frameworkLattice):
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
         """
-        Convert the initial HDF5 particle distribution to Xsuite format and set
-        :attr:`~simba.Codes.Xsuite.Xsuite.xsuiteLattice.pin` accordingly.
+        Convert the input beam to Xsuite and set :attr:`pin`.
 
         Parameters
         ----------
         prefix: str
-            Prefix for particle file
+            Unused
         write: bool
-            Flag to indicate whether to save the file
+            Also save it as ``<particle_definition>.xsuite.json``
         """
         xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
         self.pin = rbf.beam.write_xsuite_beam_file(
@@ -528,10 +481,7 @@ class xsuiteLattice(frameworkLattice):
         )
 
     def insert_reference_energy_increases(self) -> None:
-        """
-        Insert an ``xtrack.ReferenceEnergyIncrease`` immediately ahead of every
-        cavity in :attr:`~line`.
-        """
+        """Insert an ``xtrack.ReferenceEnergyIncrease`` ahead of every cavity in :attr:`line`."""
         import xtrack as xt
         from xtrack import Cavity, ReferenceEnergyIncrease
 
@@ -560,12 +510,9 @@ class xsuiteLattice(frameworkLattice):
     @property
     def revolution_period(self) -> float:
         """
-        Seconds per turn, as Xsuite itself counts them:
-        ``line_length / (beta0 * clight)``.
+        Seconds per turn: ``passes_per_turn * line_length / (beta0 * clight)``.
 
-        That expression is what ``t_turn_s`` advances by per *pass*, so with
-        superperiods it is multiplied by
-        :meth:`~simba.Framework_objects.frameworkLattice.passes_per_turn`.
+        ``t_turn_s`` advances by one *pass* per Xsuite turn, hence the superperiod factor.
         """
         from ...Modules.constants import speed_of_light
 
@@ -574,10 +521,7 @@ class xsuiteLattice(frameworkLattice):
         return self.passes_per_turn * pass_time
 
     def bind_programs(self) -> None:
-        """
-        Bind each programmed element's attribute to a function of ``t_turn_s``.
-        Done once, before tracking, rather than per turn.
-        """
+        """Bind each programmed element's attribute to a function of ``t_turn_s``, once before tracking."""
         import xtrack as xt
 
         if not self.programs:
@@ -613,10 +557,11 @@ class xsuiteLattice(frameworkLattice):
 
     def bind_rf_phases(self) -> None:
         """
-        Bind each cavity's ``lag`` to a staircase in ``t_turn_s``, one step a
-        pass, so Xsuite's cavities, phased to the reference every pass, run as
-        :attr:`rf_mode` asks; see
-        :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`.
+        Bind each cavity's ``lag`` to a per-pass staircase in ``t_turn_s``.
+
+        Xsuite re-phases cavities to the reference every pass; the staircase makes them run
+        as :attr:`rf_mode` asks (see
+        :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`).
         """
         import xtrack as xt
 
@@ -651,11 +596,9 @@ class xsuiteLattice(frameworkLattice):
 
     def bind_ramp(self) -> None:
         """
-        Give the line an ``xt.EnergyProgram`` holding :meth:`ramp`.
-        Done before the tracker is built.
+        Give the line an ``xt.EnergyProgram`` holding :attr:`ramp`, one knot per pass.
 
-        One knot per pass, at the times of
-        :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock`.
+        Knot times come from :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock`.
         """
         import xtrack as xt
 
@@ -670,9 +613,7 @@ class xsuiteLattice(frameworkLattice):
         )
 
     def run(self) -> None:
-        """
-        Run the code, and set :attr:`~tws` and :attr:`~pout`
-        """
+        """Track the beam and set :attr:`tws` and :attr:`pout`."""
         if not self.fixed_reference:
             self.insert_reference_energy_increases()
         self.bind_ramp()
@@ -723,13 +664,12 @@ class xsuiteLattice(frameworkLattice):
             element.track(particles, increment_at_element=True)
 
     def bunch_statistics(self, particles) -> dict:
-        """Per-element bunch statistics, as the twiss file wants them;
-        based on tracking rather than optics via ``line.twiss()``.
+        """Tracked (not ``line.twiss()``) bunch statistics at one point, for the twiss file.
 
         Parameters
         ----------
         particles: xtrack.Particles
-            The distribution at one point in the line
+            Distribution at one point in the line
 
         Returns
         -------
@@ -785,16 +725,11 @@ class xsuiteLattice(frameworkLattice):
 
     def _twiss(self):
         """
-        Twiss the line: the periodic solution if asked for, else the beam's.
-
-        ``line.twiss()`` with no initial conditions is Xsuite's closed
-        solution, so a ring is a matter of not passing them.
-        Always the machine of turn 1.
+        Twiss the line as at turn 1: periodic if :attr:`periodic`, else from the beam's twiss.
 
         Returns
         -------
-        xt.Line.twiss
-            Xtrack's twiss object
+        xtrack.TwissTable
         """
         dependent = self.line.enable_time_dependent_vars
         if not dependent:
@@ -830,14 +765,12 @@ class xsuiteLattice(frameworkLattice):
 
     def track_reference_particle(self) -> dict:
         """
-        One particle on the closed orbit, recorded every turn.
-        Launched a hair off the closed orbit rather than on it.
-        One sample per *completed* turn.
+        Track one particle launched just off the closed orbit, sampled after each turn.
 
         Returns
         -------
         dict
-            ``x``/``px``/``y``/``py``, each of length :meth:`turns`.
+            ``x``/``px``/``y``/``py``, each of length :attr:`turns`.
         """
         import xtrack as xt
 
@@ -880,12 +813,7 @@ class xsuiteLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Track one particle per point of :meth:`da_rays` and record who
-        survived. Particles are tracked together, so the scan costs one
-        tracking call.
-
-        The ±1 m global aperture marks a particle lost when the line has no
-        apertures of its own.
+        Track one particle per point of :meth:`da_rays` in a single call and record survival.
 
         Returns
         -------
@@ -906,15 +834,12 @@ class xsuiteLattice(frameworkLattice):
 
     def run_frequency_map(self) -> list:
         """
-        Tune footprint over the aperture grid.
-
-        A `ParticlesMonitor` records every turn, and the tunes come from the
-        shared :func:`~simba.Modules.Matrices.tune_from_trajectory`.
+        Tune footprint over the aperture grid, from turn-by-turn monitor data.
 
         Returns
         -------
         list
-            ``(x, y, tune_x, tune_y)`` per surviving grid point.
+            ``(x, y, tune_x, tune_y, diffusion)`` per surviving grid point.
         """
         import xtrack as xt
 
@@ -1007,27 +932,20 @@ class xsuiteLattice(frameworkLattice):
 
     def compute_norm_emit_corrected(self, coord, mom, particles):
         """
-        Normalised emittance with the dispersive contribution removed.
-
-        Both coordinates have their linear correlation with ``delta`` subtracted
-        before the emittance is formed, matching
-        :func:`~simba.Modules.Beams.Particles.emittance.horizontal_emittance_corrected`
-        (which regresses against the momentum column -- the regression is
-        scale-invariant, so ``delta`` gives the same answer).
+        Normalised emittance with the linear correlation to ``delta`` removed.
 
         Parameters
         ----------
         coord: np.ndarray
-            Transverse coordinate column (x or y)
+            x or y
         mom: np.ndarray
-            Conjugate momentum column (px or py)
+            px or py
         particles: xtrack.Particles
-            The distribution, used for delta and the normalisation factor
+            Source of ``delta`` and the normalisation
 
         Returns
         -------
         float
-            Dispersion-corrected normalised emittance
         """
         delta = np.asarray(particles.delta)
         var_delta = np.var(delta)
@@ -1038,11 +956,7 @@ class xsuiteLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        Convert the outputs from Xsuite to HDF5 format and save them to `master_subdir`.
-
-        A beam is written at every screen, marker and BPM (see
-        :meth:`install_monitors`) and at the end of the line, for each of
-        :meth:`output_turns`.
+        Write beams at every monitor and the line end, for each of :meth:`output_turns`, and the twiss CSV.
         """
         super().postProcess()
         svals = {
@@ -1082,8 +996,7 @@ class xsuiteLattice(frameworkLattice):
         zstart: float, s: float,
     ) -> None:
         """
-        Write one beam to ``.openpmd.hdf5`` (:meth:`write_beam_file`), and
-        the last turn's also as ``.xsuite.json``, Xsuite's own record of it.
+        Write one beam via :meth:`write_beam_file`; the last turn's also as ``.xsuite.json``.
 
         Parameters
         ----------

@@ -1,11 +1,4 @@
-"""
-SIMBA Sigmas Module
-
-This module calculates the sigmas of a particle distribution.
-
-Classes:
-    - :class:`~simba.Modules.Particles.sigmas.sigmas`: Sigma calculations.
-"""
+"""RMS sizes and spreads of a particle distribution."""
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -16,9 +9,7 @@ from ...units import UnitValue
 
 
 class sigmas(BaseModel):
-    """
-    Class for calculating sigmas of a particle distribution.
-    """
+    """RMS sizes and spreads of a particle distribution."""
 
     model_config = ConfigDict(
         extra="allow",
@@ -38,222 +29,103 @@ class sigmas(BaseModel):
     @computed_field
     @property
     def sigma_x(self) -> UnitValue:
-        """
-        Horizontal beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-x
-        """
+        """RMS x in m."""
         return self.Sx
 
     @computed_field
     @property
     def sigma_y(self) -> UnitValue:
-        """
-        Vertical beam sigma <y^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-y
-        """
+        """RMS y in m."""
         return self.Sy
 
     @computed_field
     @property
     def sigma_t(self) -> UnitValue:
-        """
-        Temporal beam sigma <t^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-t
-        """
+        """RMS t in s."""
         return self.St
 
     @computed_field
     @property
     def sigma_z(self) -> UnitValue:
-        """
-        Longitudinal beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-z
-        """
+        """RMS z in m."""
         return self.Sz
 
     @computed_field
     @property
     def sigma_px(self) -> UnitValue:
-        """
-        Horizontal momentum signa <px^2>
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-px
-        """
+        """RMS px in kg*m/s."""
         return np.sqrt(self.beam.covariance(self.beam.px, self.beam.px))
 
     @computed_field
     @property
     def sigma_py(self) -> UnitValue:
-        """
-        Vertical momentum signa <px^2>
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-py
-        """
+        """RMS py in kg*m/s."""
         return np.sqrt(self.beam.covariance(self.beam.py, self.beam.py))
 
     @computed_field
     @property
     def sigma_pz(self) -> UnitValue:
-        """
-        Longitudinal momentum signa <py^2>
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-pz
-        """
+        """RMS pz in kg*m/s."""
         return np.sqrt(self.beam.covariance(self.beam.pz, self.beam.pz))
 
     @computed_field
     @property
     def sigma_cp(self) -> UnitValue:
-        """
-        Beam momentum spread.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Momentum spread
-        """
+        """Momentum spread in eV/c; alias of :attr:`momentum_spread`."""
         return self.momentum_spread
 
     @computed_field
     @property
     def sigma_cp_eV(self) -> UnitValue:
-        """
-        Beam momentum spread.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Momentum spread
-        """
+        """Momentum spread in eV/c; alias of :attr:`momentum_spread`."""
         return self.momentum_spread
 
     @computed_field
     @property
     def Sx(self) -> UnitValue:
-        """
-        Horizontal beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-x
-        """
+        """RMS x in m."""
         return np.sqrt(self.beam.covariance(self.beam.x, self.beam.x))
 
     @computed_field
     @property
     def Sy(self) -> UnitValue:
-        """
-        Vertical beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-y
-        """
+        """RMS y in m."""
         return np.sqrt(self.beam.covariance(self.beam.y, self.beam.y))
 
     @computed_field
     @property
     def Sz(self) -> UnitValue:
-        """
-        Longitudinal beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-z
-        """
+        """RMS z in m."""
         return np.sqrt(self.beam.covariance(self.beam.z, self.beam.z))
 
     @computed_field
     @property
     def St(self) -> UnitValue:
-        """
-        Temporal beam sigma <x^2>.
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-t
-        """
+        """RMS t in s."""
         return np.sqrt(self.beam.covariance(self.beam.t, self.beam.t))
 
     @computed_field
     @property
     def momentum_spread(self) -> UnitValue:
-        """
-        Beam momentum spread
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            sigma-x
-        """
+        """Standard deviation of cp in eV/c."""
         return np.std(self.beam.cp)
 
     @computed_field
     @property
     def linear_chirp_t_cpz(self) -> UnitValue:
-        """
-        Linear chirp of the beam as std(t) / (max(cpz) - min(cpz))
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Linear chirp t/cpz
-        """
+        """Linear chirp, -std(t) / (max(cpz) - min(cpz))."""
         return -1 * np.std(self.beam.t) / (max(self.beam.cpz) - min(self.beam.cpz))
 
     @computed_field
     @property
     def linear_chirp_t_pz(self) -> UnitValue:
-        """
-        Linear chirp of the beam as std(t) / (max(pz) - min(pz))
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Linear chirp t/pz
-        """
+        """Linear chirp, -std(t) / (max(pz) - min(pz))."""
         return -1 * np.std(self.beam.t) / (max(self.beam.pz) - min(self.beam.pz))
 
     @computed_field
     @property
     def linear_chirp_z(self) -> UnitValue:
-        """
-        Linear chirp of the beam as v_z * t / momentum_spread
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Linear chirp in z
-        """
+        """Linear chirp, -std(v_z * t) / momentum_spread / 100."""
         return (
             -1
             * np.std(self.beam.Bz * self.beam.speed_of_light * self.beam.t)

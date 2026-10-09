@@ -60,7 +60,6 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         len(index),
     )
 
-    # print self.Bz
     self._beam.t = UnitValue(
         [
             (
@@ -74,8 +73,8 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         ],
         units="s",
     )
-    self._beam.x = UnitValue(x, units="m")  # - self.xp * (self.t - np.mean(self.t))
-    self._beam.y = UnitValue(y, units="m")  # - self.yp * (self.t - np.mean(self.t))
+    self._beam.x = UnitValue(x, units="m")
+    self._beam.y = UnitValue(y, units="m")
     self._beam.total_charge = UnitValue(np.sum(1.0e-9 * charge), units="C")
     self._beam.nmacro = UnitValue(
         np.array(np.array(self._beam.charge) / self._beam.particle_charge)
@@ -138,7 +137,7 @@ def write_astra_beam_file(
             else np.full(len(self._beam.x), 5)
         )
     )
-    """ if a particle is emitting from the cathode it's z value is 0 and it's clock value is finite, otherwise z is finite and clock is irrelevant (thus zero) """
+    """Particles still emitting from the cathode have z = 0 and a finite clock."""
     if self.longitudinal_reference == "t":
         zvector = np.array([
             0 if status == -1 and t == 0 else z
@@ -146,9 +145,7 @@ def write_astra_beam_file(
         ])
     else:
         zvector = self._beam.z
-    """ if the clock value is finite, we calculate it from the z value, using Betaz """
     clockvector = 1.0e9 * self._beam.t
-    """ this is the ASTRA array in all it's glory """
     array = np.array(
         [
             self._beam.x,
@@ -182,14 +179,12 @@ def write_astra_beam_file(
         """ set the closest mean vector to be in position 0 in the array """
         array = np.roll(array, -1 * nearest_idx, axis=0)
 
-    """ normalise Z to the reference particle """
+    """ASTRA stores z and pz of non-reference particles relative to the reference particle."""
     array[1:, 2] = array[1:, 2] - ref_particle[2]
-    """ should we leave Z as the reference value, set it to 0, or set it to be some offset? """
     if normaliseZ is not False:
         array[0, 2] = 0
     if isinstance(normaliseZ, (int, float)):
         array[0, 2] += normaliseZ
-    """ normalise pz and the clock """
     array[1:, 5] = array[1:, 5] - ref_particle[5]
     array[0, 6] = array[0, 6] + ref_particle[6]
     np.savetxt(filename, array, fmt=("%.12e",) * 8 + ("%d", "%d"))

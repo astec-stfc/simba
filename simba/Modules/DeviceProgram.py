@@ -1,12 +1,9 @@
 """
 Device programs: an element's strength as a function of turn number.
 
-An injection kicker or an extraction septum is not a static element: its
-strength is a *program over turn number*, zero for the first N turns, up for
-one, and down again. The pulse **shape** is hardware and lives in LAURA, as
-``ACDipoleSimulationElement.waveform``. *When it fires and at what amplitude*
-is the study, and lives here, in simba's ``tracking:`` block alongside
-``turns``, ``periodic``, ``radiation`` and ``write_turns``::
+For kickers and septa. The pulse *shape* is hardware and lives in LAURA
+(``ACDipoleSimulationElement.waveform``); *when it fires and how hard* is the
+study, and lives in simba's ``tracking:`` block::
 
     files:
       RING:
@@ -19,26 +16,16 @@ is the study, and lives here, in simba's ``tracking:`` block alongside
               values: [0.0, 1.0e-3, 0.0]
               interpolation: hold
 
-**Turns are 1-based.** Turn 1 is the first turn tracked, matching
+Turns are 1-based, matching
 :meth:`~simba.Framework_objects.frameworkLattice.output_turns` and the
 ``_turn`` suffixes on the beam files.
 
-**``values`` are the element's strength as the lattice states it, not as a
-code states it**. A program is read as "put the kicker at this value
-on this turn". Naming an attribute with ``parameter:`` sets the
-named attribute verbatim.
+``values`` are the element's strength as the lattice states it, not as a code
+states it; ``parameter:`` instead sets the named code attribute verbatim.
 
-**The default rule is** ``hold``: the rule those
-devices want, no code offers it, so SIMBA implements it and states it here
-rather than letting a code's default stand.
-
-Outside the listed turns the value is **clamped** to the first or last knot,
-which is what every code's interpolation does too. A pulse that has to come
-back down therefore says so, with a final knot at zero; a slow bumper that
-stays on simply stops listing knots.
-
-Classes:
-    - :class:`DeviceProgram`: one element's strength against turn number.
+The default rule is ``hold``, which those devices want and no code offers, so
+SIMBA implements it. Outside the listed turns the value is clamped to the
+first or last knot, so a pulse that comes back down needs a final knot at zero.
 """
 
 from __future__ import annotations
@@ -49,15 +36,14 @@ from warnings import warn
 import numpy as np
 
 INTERPOLATIONS = ("hold", "linear", "spline")
-"""The rules a program may ask for; see the module docstring for the default."""
+"""The rules a program may ask for."""
 
 _HOLD_RISER = (0.75, 0.25)
 """Where a ``hold`` step is written, in turns before the knot it steps to.
 
-A step is a vertical line and the codes only draw straight ones, so ``hold``
-is exported as a riser that climbs over the half turn *between* two tracked
-turns. Half a turn either side is also the tolerance on the revolution
-period.
+Codes only draw sloped lines, so a step becomes a riser over the half turn
+between two tracked turns, which also tolerates half a turn of error in the
+revolution period.
 """
 
 
@@ -69,17 +55,15 @@ class DeviceProgram:
     Attributes
     ----------
     element: str
-        Name of the element being programmed, as the lattice names it
+        Element name, as the lattice names it.
     turns: list
-        Knot turn numbers, 1-based and ascending
+        Knot turn numbers, 1-based and ascending.
     values: list
-        The element attribute's value at each knot, in that attribute's
-        own units
+        The attribute's value at each knot, in its own units.
     interpolation: str
-        ``hold`` (the default), ``linear`` or ``spline``
+        ``hold`` (the default), ``linear`` or ``spline``.
     parameter: str | None
-        The code-native attribute to set, or None to let the backend
-        choose one from the element it built
+        The code-native attribute to set, or None to let the backend choose.
     """
 
     element: str
@@ -125,17 +109,16 @@ class DeviceProgram:
         Parameters
         ----------
         entry: dict
-            One mapping from the ``programs`` list
+            One mapping from the ``programs`` list.
 
         Returns
         -------
         DeviceProgram
-            The program described by `entry`
 
         Raises
         ------
         ValueError
-            If the entry names no element, or its knots do not pair up
+            If the entry names no element, or its knots do not pair up.
         """
         if not isinstance(entry, dict):
             raise ValueError(
@@ -175,7 +158,7 @@ class DeviceProgram:
 
     @property
     def last_turn(self) -> int:
-        """The last knot's turn; after it the value is held, see the module docstring."""
+        """The last knot's turn; after it the value is held."""
         return self.turns[-1]
 
     @property
@@ -183,26 +166,24 @@ class DeviceProgram:
         """
         The knot value of largest magnitude, keeping its sign.
 
-        What a code wanting ``strength x factor(t)`` -- elegant's ``BUMPER``
-        is the one -- is given as the strength, so that every factor lands
-        in ``[-1, 1]``.
+        The strength given to codes wanting ``strength x factor(t)`` (elegant's
+        ``BUMPER``), so every factor lands in ``[-1, 1]``.
         """
         return max(self.values, key=abs)
 
     def value_at(self, turn: int) -> float:
         """
-        The programmed value on `turn`.
+        The programmed value on ``turn``.
 
         Parameters
         ----------
         turn: int
-            Turn number, 1-based
+            Turn number, 1-based.
 
         Returns
         -------
         float
-            The element attribute's value for that turn, clamped to the
-            first or last knot outside the programmed range
+            The value, clamped to the first or last knot outside the programmed range.
         """
         if turn <= self.turns[0]:
             return self.values[0]
@@ -232,18 +213,14 @@ class DeviceProgram:
         """
         Knots whose *linear* interpolation reproduces this program exactly.
 
-        Every code that takes a programmed attribute takes it as samples
-        joined by straight lines, so ``hold`` and ``spline`` have to be
-        rewritten into knots a straight-line reading gets right. The
-        guarantee is only at integer turns, which is the only place a
-        tracked particle ever asks.
+        Codes take programmed attributes as piecewise-linear samples; exact only
+        at integer turns, the only place a tracked particle asks.
 
         Returns
         -------
         tuple
-            ``(turns, values)``, both lists of float. `turns` are turn
-            numbers and need not be integers -- a ``hold`` step is written
-            as a riser between two of them.
+            ``(turns, values)``, both lists of float; ``turns`` need not be
+            integers, as a ``hold`` step is a riser between two of them.
         """
         if self.interpolation == "linear":
             return ([float(t) for t in self.turns], list(self.values))
@@ -269,20 +246,19 @@ class DeviceProgram:
         Parameters
         ----------
         revolution_period: float
-            Seconds per turn, ``C / (beta0 * c)`` -- **beta0 and not c**,
-            which matters at the turn counts a ring study uses
+            Seconds per turn, ``C / (beta0 * c)``; using c instead of beta0*c
+            drifts over many turns.
         origin_turn: int
-            The turn sitting at ``t = 0``. 1 for Xsuite, whose ``t_turn_s``
-            is counted from the start of the run; the firing pass for
-            elegant, whose ``WAVEFORM`` is counted from there
+            The turn at ``t = 0``: 1 for Xsuite (``t_turn_s`` counts from the
+            start of the run), the firing pass for elegant's ``WAVEFORM``.
         clock: :class:`~simba.Modules.EnergyRamp.RampClock` | None
-            Seconds at the start of a turn, for a ramped run.
-            Replaces `revolution_period` when given
+            Seconds at the start of a turn, for a ramped run; replaces
+            ``revolution_period`` when given.
 
         Returns
         -------
         tuple
-            ``(times, values)``, times in seconds
+            ``(times, values)``, times in seconds.
         """
         turns, values = self.linear_knots()
         if clock is not None:
@@ -294,15 +270,12 @@ class DeviceProgram:
         self, revolution_period: float, origin_turn: int = 1, clock=None
     ) -> tuple:
         """
-        :meth:`time_knots` with the values divided through by :attr:`peak`.
-
-        For a code stating a programmed strength as an amplitude times a
-        dimensionless waveform.
+        :meth:`time_knots` divided by :attr:`peak`, for codes taking amplitude times a waveform.
 
         Returns
         -------
         tuple
-            ``(times, factors)``, factors in ``[-1, 1]``
+            ``(times, factors)``, factors in ``[-1, 1]``.
         """
         times, values = self.time_knots(revolution_period, origin_turn, clock)
         peak = self.peak

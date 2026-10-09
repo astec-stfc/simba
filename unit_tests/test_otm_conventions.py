@@ -36,9 +36,8 @@ def ocelot_drift(pc):
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
     from ocelot.cpbd.optics import lattice_transfer_map
 
-    # Ocelot takes the TOTAL energy in GeV, not pc -- at PC_FAST the two are
-    # within 1e-5 of each other, which is exactly how a unit slip like this
-    # survives a high-energy-only check.
+    # Ocelot takes TOTAL energy in GeV, not pc; at PC_FAST they differ by 1e-5,
+    # which is how this unit slip survives a high-energy-only check.
     e_tot = np.sqrt(pc**2 + MC2**2)
     return np.asarray(
         lattice_transfer_map(MagneticLattice((Drift(l=L),)), e_tot / 1e9)
@@ -91,13 +90,9 @@ def canonical(matrix, cls, pc, magnitude=True):
     )
 
 
-# --- transverse needs no conversion -------------------------------------
-
-
 @pytest.mark.parametrize("pc", [PC_SLOW, PC_FAST], ids=["slow", "fast"])
 def test_xsuite_and_madx_agree_transversely(pc):
-    """`x'` and `px` are the same thing at the closed orbit, so R12 == L in
-    both. This is why a cross-code tune check needs no normalising."""
+    """`x'` and `px` coincide at the closed orbit, so tunes need no normalising."""
     for matrix in (xsuite_drift(pc), madx_drift(pc)):
         assert matrix[0, 1] == pytest.approx(L, rel=1e-9)
         assert matrix[2, 3] == pytest.approx(L, rel=1e-9)
@@ -111,15 +106,11 @@ def test_ocelot_agrees_transversely_where_it_works():
 
 
 def test_ocelot_works_at_low_energy_given_the_right_units():
-    """Ocelot has no low-energy floor. It looked like it did until the units
-    were right: `lattice_transfer_map` wants TOTAL energy, and feeding it pc
-    asks for a particle below its own rest mass, which NaNs in
-    `sqrt(1 - igamma2)`. Guards the fixture's conversion, not Ocelot."""
+    """Guards the fixture's pc-to-total conversion: pc alone is below rest mass and NaNs."""
     assert not np.isnan(ocelot_drift(PC_SLOW)).any()
 
 
 def test_ocelot_nans_only_on_an_impossible_particle():
-    """The trap itself, pinned: total energy below the rest mass."""
     from ocelot.cpbd.elements import Drift
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
     from ocelot.cpbd.optics import lattice_transfer_map
@@ -129,9 +120,6 @@ def test_ocelot_nans_only_on_an_impossible_particle():
             MagneticLattice((Drift(l=L),)), 0.5 * MC2 / 1e9
         )
     assert np.isnan(np.asarray(impossible)).any()
-
-
-# --- longitudinal is three different problems ---------------------------
 
 
 def test_madx_measures_the_time_of_flight_term():
@@ -151,9 +139,7 @@ def test_ocelot_is_sign_flipped():
 
 
 def test_elegant_and_ocelot_are_the_sign_flipped_pair():
-    """Measured on a 1 m / 0.3 rad dipole: R51 is the same magnitude in all
-    four codes and differs only in sign, which is what makes a sign-only
-    normalisation exact rather than approximate."""
+    """Dipole R51 differs only in sign across codes, so sign-only alignment is exact."""
     assert elegantLattice.otm_longitudinal_sign == -1
     assert ocelotLattice.otm_longitudinal_sign == -1
     assert xsuiteLattice.otm_longitudinal_sign == 1
@@ -161,13 +147,8 @@ def test_elegant_and_ocelot_are_the_sign_flipped_pair():
     assert bmadLattice.otm_longitudinal_sign == 1
 
 
-# --- the conversion puts them together ----------------------------------
-
-
 def test_ocelot_follows_madx_magnitude_not_xsuite():
-    """The one that had to be measured down the energy range: at beta0 ~ 1 a
-    beta0**2 factor is invisible, so a high-energy check cannot tell the two
-    apart. Ocelot is -L/(beta0.gamma0)**2 at every energy it works at."""
+    """Measured at low energy, where a beta0**2 factor is visible."""
     for pc in (1.0e6, 2e6, 5e6):
         beta, gamma = beta_gamma(pc)
         assert ocelot_drift(pc)[4, 5] == pytest.approx(
@@ -183,7 +164,7 @@ def test_normalising_makes_ocelot_and_xsuite_agree(pc):
 
 
 def test_normalising_makes_madx_and_xsuite_agree():
-    """The one that actually does work: beta0**2 at beta0 = 0.62."""
+    """beta0**2 at beta0 = 0.62."""
     left = canonical(madx_drift(PC_SLOW), madxLattice, PC_SLOW)
     right = canonical(xsuite_drift(PC_SLOW), xsuiteLattice, PC_SLOW)
     assert left[4, 5] == pytest.approx(right[4, 5], rel=1e-3)
@@ -200,27 +181,21 @@ def test_normalising_leaves_the_transverse_block_alone():
 
 
 def test_normalising_cannot_change_the_tune():
-    """A diagonal similarity preserves trace and determinant, so whatever the
-    conversion gets wrong, it cannot be the tune."""
+    """A diagonal similarity preserves trace and determinant."""
     raw = madx_drift(PC_SLOW)
     converted = canonical(raw, madxLattice, PC_SLOW)
     assert np.trace(converted[:2, :2]) == pytest.approx(np.trace(raw[:2, :2]))
     assert np.linalg.det(converted) == pytest.approx(np.linalg.det(raw))
 
 
-# --- elegant is the one that must not be rescaled -----------------------
-
-
 def test_elegant_declines_to_normalise_magnitudes():
-    """Its conversion is additive, not a factor, so it returns None rather
-    than a plausible wrong answer."""
+    """Its conversion is additive, not a factor, so None beats a plausible wrong answer."""
     assert elegantLattice.otm_longitudinal_scale is None
     assert canonical(np.eye(6), elegantLattice, PC_SLOW) is None
 
 
 def test_elegant_still_aligns_its_signs():
-    """The magnitude is unconvertible, the sign is not -- and a sign is
-    enough to stop a comparison tripping over direction."""
+    """The magnitude is unconvertible, the sign is not."""
     raw = np.eye(6)
     raw[4, 0] = +0.295520  # elegant's measured dipole R51
     aligned = canonical(raw, elegantLattice, PC_SLOW, magnitude=False)
@@ -236,19 +211,13 @@ def test_sign_alignment_needs_no_energy():
 
 
 def test_a_rescale_of_elegant_would_have_been_silently_wrong():
-    """elegant's drift R56 is 0 -- its fifth coordinate is geometric path
-    length, so the drift's time-of-flight term simply is not in there. Every
-    scale factor maps 0 to 0, so a normalised elegant map would report zero
-    momentum compaction and raise nothing. Hence the None above."""
+    """elegant's drift R56 is 0 (path length, not time), and every scale maps
+    0 to 0: hence the None above."""
     for factor in (1.0, -1.0, 0.38, 1 / 0.38):
         assert not np.isclose(0.0 * factor, drift_r56(PC_SLOW))
 
 
-# --- MAD-X composes its map from per-element pieces ---------------------
-#
-# `sectortable` is element by element, not cumulative, which reads like the
-# opposite until you notice the zero-length end marker comes back as the
-# identity. So the line's map is the ordered product.
+# MAD-X's `sectortable` is per element, so the line's map is the ordered product.
 
 
 @cache
@@ -282,8 +251,7 @@ def ordered_product(matrices):
 
 
 def test_the_end_marker_proves_the_table_is_not_cumulative():
-    """A zero-length marker at the end of a 2.5 m line: identity if the rows
-    are per-element, the whole line's map if they were cumulative."""
+    """The zero-length end marker's row is the identity, not the whole line's map."""
     assert np.allclose(madx_drift_and_dipole(PC_SLOW)[-1], np.eye(6), atol=1e-12)
 
 
@@ -302,8 +270,7 @@ def test_the_ordered_product_matches_xsuite():
 
 
 def test_the_product_order_matters():
-    """Guards the test above: the reversed product is a different matrix, so
-    agreement is not an accident of a symmetric lattice."""
+    """Guards the test above against a symmetric-lattice accident."""
     maps = madx_drift_and_dipole(PC_SLOW)
     assert not np.allclose(
         ordered_product(maps), ordered_product(list(reversed(maps))), atol=1e-6

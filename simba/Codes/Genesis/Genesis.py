@@ -1,102 +1,11 @@
 """
-SIMBA Genesis Module
+Genesis 1.3 v4 backend: the lattice, and one class per ``&command`` of the input file.
 
-Various objects and functions to handle Genesis lattices and commands. See `Genesis manual`_ for more details.
+SASE and HGHG are supported (EEHG is not). For HGHG, give the lattice a
+:attr:`~genesisLattice.split_element` and a chicane after the first undulator; the
+harmonic follows from the first undulator after the split. See the `Genesis manual`_.
 
-    .. _Genesis manual: https://github.com/svenreiche/Genesis-1.3-Version4/tree/master/manual
-
-SASE and HGHG are currently supported, with HGHG running if a laser is associated with the first
-undulator in the lattice. In this case, a chicane should also be defined after the first undulator in
-the simulation configuration file. Harmonic conversion is calculated based on the strength of
-the first undulator in the beamline after `<lattice>.split_element` which must also be passed
-to the simulation configuration file.
-
-Advanced schemes such as EEHG are not yet supported.
-
-Classes:
-    - :class:`~simba.Codes.Genesis.Genesis.genesisLattice`: The Genesis lattice object, used for
-      creating a string representation of the lattice suitable for Genesis input and lattice files.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesisCommandFile`: Base class for defining
-      commands in a Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_setup_command`: Class for defining the
-      &setup portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_alter_setup_command`: Class for defining the
-      &alter_setup portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_lattice_command`: Class for defining the
-      &lattice portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_time_command`: Class for defining the
-      &time portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_const_command`: Class for defining the
-      &profile_const portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_gauss_command`: Class for defining the
-      &profile_gauss portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_step_command`: Class for defining the
-      &profile_step portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_polynom_command`: Class for defining the
-      &profile_polynom portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_profile_file_command`: Class for defining the
-      &profile_file portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_const_command`: Class for defining the
-      &sequence_const portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_polynom_command`: Class for defining the
-      &sequence_polynom portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_power_command`: Class for defining the
-      &sequence_power portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sequence_random_command`: Class for defining the
-      &sequence_random portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_beam_command`: Class for defining the
-      &beam portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_alter_beam_command`: Class for defining the
-      &alter_beam portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`: Class for defining the
-      &field portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_importdistribution_command`: Class for defining the
-      &importdistribution portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_importbeam_command`: Class for defining the
-      &importbeam portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_importfield_command`: Class for defining the
-      &importfield portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_importtransformation_command`: Class for defining the
-      &importtransformation portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_efield_command`: Class for defining the
-      &efield portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sponrad_command`: Class for defining the
-      &sponrad portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_wake_command`: Class for defining the
-      &wake portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_sort_command`: Class for defining the
-      &sort portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_write_command`: Class for defining the
-      &write portion of the Genesis input file.
-
-    - :class:`~simba.Codes.Genesis.Genesis.genesis_track_command`: Class for defining the
-      &track portion of the Genesis input file.
+.. _Genesis manual: https://github.com/svenreiche/Genesis-1.3-Version4/tree/master/manual
 """
 
 import os
@@ -156,35 +65,29 @@ beam_profile_properties = [
     "gamma",
     "delgam",
     "current",
-    # "xcenter",
-    # "ycenter",
-    # "pxcenter",
-    # "pycenter",
     "ex",
     "ey"
 ]
 
 class genesisLattice(frameworkLattice):
     """
-    Class for defining the Genesis lattice object, used for
-    creating a string representation of
-    the lattice suitable for a Genesis input file.
+    A line written as Genesis lattice (``.lat``) and input (``.in``) files.
     """
 
     code: str = "genesis"
-    """String indicating the lattice object type"""
+    """The lattice object type."""
 
     allow_negative_drifts: bool = False
-    """Flag to indicate whether negative drifts are allowed"""
+    """Whether negative drifts are allowed."""
 
     particle_definition: str | None = None
-    """String representation of the initial particle distribution"""
+    """Name of the initial particle distribution."""
 
     bunch_charge: float | None = None
-    """Bunch charge"""
+    """Bunch charge [C]"""
 
     trackBeam: bool = True
-    """Flag to indicate whether to track the beam"""
+    """Whether to track the beam."""
 
     betax: float | None = None
     """Initial beta_x for matching"""
@@ -199,18 +102,16 @@ class genesisLattice(frameworkLattice):
     """Initial alpha_y for matching"""
 
     commandFiles: Dict = {}
-    """Dictionary of :class:`~simba.Codes.Genesis.Genesis.elegantCommandFile`
-    objects for writing to the Genesis input file"""
+    """:class:`genesisCommandFile` objects (or lists of them) for the input file, by key."""
 
     commandFilesOrder: List = []
-    """Order in which commands are to be written in the Genesis input file"""
+    """Unused; the order is the module's ``command_files_order``."""
 
     element_name_converted: Dict = {}
-    """Genesis elements may need their names to be converted"""
+    """Unused."""
 
     fundamental_wavelength: float = None
-    """Fundamental wavelength of the beamline; if not provided, it is calculated from the beam
-    energy and the strength of the first undulator"""
+    """Fundamental wavelength [m]; by default from the beam energy and first undulator."""
 
     shot_noise: bool = True
     """Include shot noise in the calculation"""
@@ -225,57 +126,50 @@ class genesisLattice(frameworkLattice):
     """Random number seed"""
 
     match_location: float = None
-    """If True, use `zmatch` in :class:`~simba.Codes.Genesis.Genesis.genesis_lattice_command`
-    and set the location to the middle of the first undulator"""
+    """``zmatch`` [m] for :class:`genesis_lattice_command`; unset means no matching."""
 
     field_power: float = 1e3
-    """Initial power for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
+    """Initial power [W] for :class:`genesis_field_command`; see :meth:`get_field_power`."""
 
     dgrid: float = 1e-3
-    """Grid size for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
+    """Grid extent [m] for :class:`genesis_field_command`"""
 
     ngrid: int = 251
-    """Number of grids for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
+    """Number of grid points for :class:`genesis_field_command`"""
 
     waist_size: float = 1e-5
-    """Waist size for :class:`~simba.Codes.Genesis.Genesis.genesis_field_command`"""
+    """Waist size [m] for :class:`genesis_field_command`; see :meth:`get_waist_size`."""
 
     beam_type: Literal["beam", "profile", "distribution"] = "beam"
-    """Method for loading in electron beam: `beam`=use `&beam` with numerical values; 
-    `profile`=use `&beam` with profile labels; `distribution`: use `&importdistribution`"""
+    """How the beam is loaded: ``beam`` uses ``&beam`` with average values,
+    ``profile`` uses ``&beam`` with profiles, ``distribution`` uses ``&importdistribution``."""
 
     beam_slices: int = 128
-    """Number of beam slices for `profile`, and the number of slices a steady-state
-    output beam is replicated over when it is handed to the next code."""
+    """Number of slices for ``profile``, and that a steady-state output beam is
+    replicated over for the next code."""
 
     slicewidth: float = 0.01
-    """Fraction of the distribution length used to reconstruct each slice for
-    `distribution`; see
-    :class:`~simba.Codes.Genesis.Genesis.genesis_importdistribution_command`."""
+    """Fraction of the distribution length used for each slice with ``distribution``;
+    see :class:`genesis_importdistribution_command`."""
 
     sample: int = 1
-    """Simulate only every `sample`-th wavelength when time-dependent. Cost scales
-    with the slice count, so a long bunch usually needs this above 1."""
+    """Simulate only every `sample`-th wavelength when time-dependent; a long bunch
+    usually needs this above 1."""
 
     time_window: float = 99.8
-    """Percentile range of the bunch the simulation window covers; see
-    :func:`~simba.Codes.Genesis.Genesis.genesisLattice.beam_length`."""
+    """Percentile range of the bunch the simulation window covers; see :meth:`beam_length`."""
 
     steady_state: bool = True
-    """If `True`, run in steady-state mode; if not, set `time=true` and set up simulation window
-    based on beam length"""
+    """Run steady-state; if False, run time-dependent over :meth:`beam_length`."""
 
     one4one: bool = False
-    """If `True`, run in one-for-one mode; if not, use :attr:`~npart` and :attr:`~nbins`"""
+    """Run one-for-one; if False, use :attr:`npart` and :attr:`nbins`."""
 
     chicanes: str | list = None
-    """Names of chicanes in the beamline; these should be defined as `chicane` groups
-    in the simulation configuration file."""
+    """Names of the chicanes, each a ``chicane`` group in the configuration file."""
 
     split_element: str = None
-    """Name of the element at which to split the lattice for hamonic conversion.
-    Only one split is currently allowed. Harmonic conversion is based on the strength of the 
-    first undulator after the split."""
+    """Element at which to split the lattice for harmonic conversion (one split only)."""
 
     electrons_only: ClassVar[bool] = True
     """FELs are electrons only."""
@@ -294,13 +188,12 @@ class genesisLattice(frameworkLattice):
 
     def writeElements(self) -> str:
         """
-        Write the lattice elements defined in this object into a Genesis-compatible format; see
-        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.
+        Genesis lattice string for this section, with chicanes from :attr:`chicanes`.
 
         Returns
         -------
         str
-            The lattice represented as a string compatible with Genesis
+            The Genesis lattice
         """
         chicane_dict = {}
         if self.chicanes is not None:
@@ -326,9 +219,7 @@ class genesisLattice(frameworkLattice):
 
     def write(self) -> None:
         """
-        Write the Genesis lattice and command files to `master_subdir` using the functions
-        :func:`~simba.Codes.Genesis.Genesis.writeElements` and
-        based on the output of :func:`~simba.Codes.Genesis.Genesis.createCommandFiles`.
+        Write the ``.lat`` and ``.in`` files to `master_subdir`; run :meth:`preProcess` first.
         """
         lattice_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".lat"
@@ -354,7 +245,7 @@ class genesisLattice(frameworkLattice):
 
     def preProcess(self) -> None:
         """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
+        Load the input beam and build the command files.
         """
         super().preProcess()
         prefix = self.get_prefix()
@@ -412,9 +303,8 @@ class genesisLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        PostProcess the simulation results, i.e. write the final beam output to HDF5.
-
-        :attr:`~simba.Codes.Genesis.Genesis.commandFiles` is also cleared
+        Write the final beam to openPMD, rename monitor outputs, shift output ``z`` to
+        lattice coordinates and clear :attr:`commandFiles`.
         """
         super().postProcess()
         beam = rbf.beam()
@@ -496,12 +386,10 @@ class genesisLattice(frameworkLattice):
         )
 
     def beam_length(self) -> float:
-        """Length of the input distribution, from its time profile.
+        """Length [m] of the input bunch over the :attr:`time_window` percentile range.
 
-        Between percentiles rather than end to end: after an arc a handful of
-        particles sit far out in the energy tails, and taking the full range lets
-        them set the simulation window. The slice count, and so the run time and
-        the size of the beam handed to the next code, scale straight off it.
+        Percentiles stop a few far-tail particles (e.g. after an arc) setting the
+        window, which the slice count and run time scale with.
         """
         t = np.asarray(self.global_parameters["beam"].t)
         edges = [50 - self.time_window / 2, 50 + self.time_window / 2]
@@ -516,14 +404,7 @@ class genesisLattice(frameworkLattice):
 
     def hdf5_to_genesis(self) -> None:
         """
-        Convert the initial HDF5 particle distribution to Genesis format.
-
-        Parameters
-        ----------
-        prefix: str
-            Prefix for particle file
-        write: bool
-            Flag to indicate whether to save the file
+        Set up the beam command(s) for :attr:`beam_type`, writing a Genesis beam file if needed.
         """
         hdf5outname = f'{self.global_parameters["master_subdir"]}/{self.start}.hdf5'
         genesisbeamfilename = hdf5outname.replace("hdf5", "genesis.hdf5")
@@ -591,13 +472,13 @@ class genesisLattice(frameworkLattice):
 
     def get_field_power(self) -> float | str:
         """
-        Get the initial field power if the first undulator has a laser associated with it.
-        If not, return :attr:`~field_power`.
+        Initial field power: a laser profile label if the first undulator has a laser,
+        else :attr:`field_power`.
 
         Returns
         -------
-        float
-            Label of laser field profile if laser is associated with first undulator; else, :attr:`~field_power`
+        float | str
+            :attr:`field_power` or the ``@<name>_laser_profile`` label
         """
         first_wiggler = self.wigglers[0]
         if first_wiggler.laser:
@@ -613,13 +494,7 @@ class genesisLattice(frameworkLattice):
 
     def get_waist_size(self) -> float:
         """
-        Get the waist size if the first undulator has a laser associated with it.
-        If not, return :attr:`~waist_size`.
-
-        Returns
-        -------
-        float
-            Waist size
+        Waist size [m] of the first undulator's laser, else :attr:`waist_size`.
         """
         first_wiggler = self.wigglers[0]
         if first_wiggler.laser:
@@ -629,16 +504,8 @@ class genesisLattice(frameworkLattice):
 
     def run(self) -> None:
         """
-        Run the code with input 'filename'
-        This method constructs the command to run the simulation using the specified executable
-        and the name of the lattice. It redirects the output to a log file in the master subdirectory.
-
-        If  :attr:`~remote_setup` is set, then :func:`~run_remote` will be called instead.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the executable for the specified code is not found in the executables dictionary.
+        Run Genesis in `master_subdir`, logging to ``<name>.log``; uses :meth:`run_remote`
+        if :attr:`remote_setup` is set.
         """
         if self.remote_setup:
             self.run_remote()
@@ -659,187 +526,112 @@ class genesisLattice(frameworkLattice):
 
 class genesisCommandFile(frameworkCommand):
     """
-    Generic class for generating elements for a Genesis input file
+    Base class for Genesis input-file namelists.
     """
 
 class genesis_setup_command(genesisCommandFile):
     """
-    Class for defining the &setup portion of the Genesis input file.
+    ``&setup`` namelist.
     """
 
     objectname: str = "setup"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "setup"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     rootname: str
-    """The basic string, with which all output files will start, 
-    unless the output filename is directly overwritten (see write namelist)"""
-
-    #outputdir: str
-    #"""Output directory name."""
+    """Prefix for all output files unless overridden by ``&write``."""
 
     lattice: str
-    """The name of the file which contains the undulator lattice description. 
-    This can also include some relative paths if the lattice file is not in the same directory as the input file."""
+    """Lattice filename, relative to the input file."""
 
     beamline: str
-    """The name of the beamline, which has to be defined within the lattice file."""
+    """Beamline name, defined in the lattice file."""
 
     gamma0: float
-    """The reference energy in units of the electron rest mass."""
+    """Reference energy in units of the electron rest mass."""
 
     lambda0: float
-    """The reference wavelength in meter, which is used as the wavelength in 
-    steady-state simulation or for defining the sample distance in time-dependent runs. 
-    It also acts as the default value when field distributions are generated."""
+    """Reference wavelength [m]; also sets the sample spacing in time-dependent runs."""
 
     delz: float
-    """Preferred integration stepsize in meter."""
+    """Preferred integration step [m]."""
 
     seed: int = Field(default_factory=lambda: randint(1, 10000000))
-    """Seed to initialize the random number generator, 
-    which is used for shot noise calculation and undulator lattice errors"""
+    """Random seed for shot noise and lattice errors."""
 
     npart: int
-    """Number of macro particles per slice. Note that the number must be a multiple of the used 
-    bins nbins otherwise Genesis will exit with an error. 
-    If one-for-one simulations are used, this parameter has no meaning."""
+    """Macroparticles per slice; must be a multiple of :attr:`nbins`. Ignored if :attr:`one4one`."""
 
     nbins: int
-    """Number of macro particles, which are grouped into beamlets for generating the correct shot noise. 
-    For one-for-one simulations this parameter has no meaning"""
+    """Macroparticles per beamlet for shot noise. Ignored if :attr:`one4one`."""
 
     one4one: bool = False
-    """Flag to enable or disable resolving each electron in the simulation. 
-    This is mandatory for certain features, such as sorting or slicing of particle distributions. 
-    If set to true other parameters such as :attr:`~npart` and attr:`~nbins` are obsolete 
-    and do not need to be defined. 
-    It is recommended to estimate the number of electrons, which are generated in the simulations, 
-    because this can easily required memory beyond what is available on the computer."""
+    """Resolve every electron; needed for sorting/slicing but can use a lot of memory."""
 
     shotnoise: bool = True
-    """Flag to enable the calculation of shotnoise per each slice during generation 
-    of the electron distribution. It is recommended to set the value to false for 
-    steady-state or scan simulations."""
+    """Add shot noise per slice; best off for steady-state or scans."""
 
     beam_global_stat: bool = False
-    """Flag to enable extra output of beam parameters of the entire bunch, 
-    such as energy, energy spread etc. 
-    The data are placed in the HDF group ”Global” within the group ”Beam” of the output file"""
+    """Write whole-bunch beam statistics to ``Beam/Global``."""
 
     field_global_stat: bool = False
-    """Flag for the field output, similar to attr:`~beam_global_stat`."""
+    """Write whole-pulse field statistics, as :attr:`beam_global_stat`."""
 
     exclude_spatial_output: bool = False
-    """Flag to suppress the datasets in the output file for the x- and y-position and size 
-    (both Beam and Field) and px- and py-position (Beam only). 
-    This might be useful to reduce the file size of the output file, 
-    if these datasets are not needed for the post-processing"""
+    """Omit transverse position/size datasets from the output."""
 
     exclude_fft_output: bool = False
-    """Flag to suppress the datasets in the output file for the field divergence and pointing. 
-    Since it also disable the FFT calculation of the 2D wavefronts it speeds up the 
-    execution time slightly. If the code has been compiled without the support of the 
-    FFTW library this parameter has no effect."""
+    """Omit field divergence/pointing (skips the FFT)."""
 
     exclude_intensity_output: bool = False
-    """Flag to suppress the datasets for the near and farfield intensity and phase 
-    for the radiation field. If excluded the output file size becomes smaller 
-    but no post-processing calculation of the spectra is possible."""
+    """Omit near/far-field intensity and phase; spectra then cannot be computed."""
 
     exclude_energy_output: bool = False
-    """Flag to suppress the datasets in the output file for the mean 
-    energy and energy spread of the electron beam."""
+    """Omit mean energy and energy spread datasets."""
 
     exclude_aux_output: bool = False
-    """Flag to suppress the auxiliary datasets in the output file. 
-    In the moment it is the long-range longitudinal electric field as seen by the electrons."""
+    """Omit auxiliary datasets (currently the long-range longitudinal field)."""
 
     exclude_current_output: bool = True
-    """Flag to reduce the size of the current dataset for the electron beam. 
-    Under most circumstances the current profile is constant and only the initial current 
-    profile is written out. However, simulation with one-4-one set to true and sorting 
-    events the current profile might change. Example are ESASE/HGHG schemes. 
-    By setting the flag to false the current profile is written out at each output step 
-    similar to radiation power and bunching profile."""
-
-    #exclude_twiss_output: bool = True
-    #"""Flag to reduce the size of the twiss (emittance, beta and alpha values) dataset
-    #for the electron beam. Under most circumstances the twiss parameters are constant
-    #and only the initial values are written out. However, simulation with :attr:`~one4one`
-    #set to True and sorting events the twiss parameters might change. Example are
-    #ESASE/HGHG schemes. By setting the flag to false the twiss values written out
-    #at each output step similar to radiation power and bunching profile."""
+    """Write the current profile only once; set False when it can change
+    (one-for-one with sorting, e.g. ESASE/HGHG)."""
 
     exclude_field_dump: bool = False
-    """Exclude the field dump to .fld.h5."""
-
-    #write_meta_file: bool = False
-    #"""Write a metadata file."""
-
-    #semaphore_file_name: str = ""
-    #"""Providing a file name for the semaphore file always switches on writing the
-    #"done" semaphore file, overriding 'write_semaphore_file' flag.
-    #This allows to switch on semaphore functionality just by specifying corresponding
-    #command line argument -- no modification of G4 input file needed."""
-
-    #write_semaphore_file: bool = False
-    #"""Write a semaphore file when the simulation has completed."""
-
-    #write_semaphore_file_done: bool = False
-    #"""Alias for write_semaphore_file.
-    #This takes precedence over :attr:`~write_semaphore_file` if both are specified."""
-
-    #write_semaphore_file_started: bool = False
-    #"""Write a semaphore file at startup, after the setup block is parsed."""
+    """Skip the field dump to ``.fld.h5``."""
 
 class genesis_alter_setup_command(genesisCommandFile):
     """
-    Class for defining the &alter_setup portion of the Genesis input file.
+    ``&alter_setup`` namelist.
     """
 
     objectname: str = "alter_setup"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "alter_setup"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     rootname: str | None = None
-    """The basic string, with which all output files will start, 
-    unless the output filename is directly overwritten (see 
-    :class:`~simba.Codes.Genesis.Genesis.genesis_write_command`)"""
+    """New output-file prefix; see :class:`genesis_write_command`."""
 
     beamline: str
-    """The name of the beamline, which has to be defined within the lattice file. 
-    This way another beamline can be selected in the case the simulation has multiple stages"""
+    """Beamline to switch to, defined in the lattice file."""
 
     delz: float
-    """Preferred integration stepsize in meter. Note that this is not a strict value because 
-    Genesis tries to optimized the stepsize according to the elements it can resolve."""
+    """Preferred integration step [m]; Genesis may adjust it."""
 
     harmonic: int = 1
-    """If the value is not 1 than a harmonic conversion is done. This has several consequences. 
-    The reference wavelength in setup is divided by the harmonic number, the sample rate in time 
-    is multiplied by the harmonic number, the ponderomotive phases of all macro particles are 
-    scaled with the harmonic number, all radiation fields, which are not identical to the harmonic 
-    numbers are deleted, while an existing harmonic field is changed to be at the fundamental wavelength"""
+    """Up-convert to this harmonic: scales wavelength, sample rate and phases, and
+    keeps only the matching harmonic field as the new fundamental."""
 
     subharmonic: int = 1
-    """If the value is not 1 than a down conversion is done. It is similar to the action of harmonics 
-    but in the opposite directions. For the radiation field all field definitions are deleted except 
-    for the fundamental, which is converted to a harmonic. In this case the fundamental field needs 
-    to be defined before another tracking is called."""
+    """Down-convert by this factor; the fundamental becomes a harmonic, so a new
+    fundamental field must be defined before tracking."""
 
     resample: bool = False
-    """If this is set to true and only if one-for-one simulations are used the harmonic and subharmonic 
-    conversion can re-sample to the new wavelength. In the case of up-conversion the slices are 
-    split and the total number of slices increases. Same with the radiation field. An previously 
-    existing harmonic field, which is now becoming the fundamental, is interpolated between the 
-    existing sample points (still needs to be implemented). If a new field is generated it has 
-    automatically the new number of slices. If also prevents that the sample rate is changed by 
-    remaining unchanged."""
+    """With :attr:`~genesis_setup_command.one4one`, resample slices to the new
+    wavelength on (sub)harmonic conversion."""
 
     disable: bool = False
     """Disable non-matching radiation harmonic."""
@@ -847,158 +639,139 @@ class genesis_alter_setup_command(genesisCommandFile):
 
 class genesis_lattice_command(genesisCommandFile):
     """
-    Class for defining the &lattice portion of the Genesis input file.
+    ``&lattice`` namelist.
     """
 
     objectname: str = "lattice"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "lattice"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     zmatch: float = 0.0
-    """If the position within the undulator in meter is non-zero than Genesis tries to 
-    calculate the matched optics function for a periodic solution. In the case that it 
-    cannot find a solution than it will report it. Found solution will also be the default 
-    values for a succeeding beam generation, so that no explicit optical functions need to 
-    be defined any longer. If the lattice is highly non-periodic it is recommended to 
-    find the matching condition with an external program such as MAdX."""
+    """If non-zero, position [m] at which to compute periodic matched optics, used as
+    the default for the following beam."""
 
     element: str = ""
-    """Name of the element type, which will be changed, e.g. Undulator if undulator modules 
-    are altered. Only the first 4 letters need to be defined. If there is no match, e.g. due 
-    to a type, nothing will be changed. It acts rather as a filter than a mandatory element. 
-    Elements of the type MARKER are not supported."""
+    """Element type to alter (first 4 letters suffice; MARKER unsupported)."""
 
     field: str = ""
-    """Attribute name for a given element. The names are the same as in the definition of the 
-    lattice file. The field acts as a filter again. With non-matching events nothing will be changed."""
+    """Element attribute to alter, as named in the lattice file."""
 
     value: float | str = 0.0
-    """The new value. If a reference to a sequence is used, values can be different depending 
-    on how many elements are changed. For a double the value would be the same for all elements affected."""
+    """New value, or a sequence reference."""
 
     instance: int = 0
-    """The instances of affected elements. If a positive value is given, than only that element is 
-    changed, where its occurence matches the number. E.g. for a value of 3 only the third element 
-    is selected. For a value of 0 all elements are changed. The ability to change more than 
-    one but less than all is currently not supported."""
+    """Which occurrence to alter; 0 means all."""
 
     add: bool = True
-    """If true, the changes are added to the existing value; if false, the old values are overwritten."""
+    """Add to the existing value rather than overwrite it."""
 
 
 class genesis_time_command(genesisCommandFile):
     """
-    Class for defining the &time portion of the Genesis input file.
+    ``&time`` namelist; its presence makes the run time-dependent.
     """
 
     objectname: str = "time"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "time"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     s0: float = 0.0
-    """Starting point of the time-window in meters."""
+    """Start of the time window [m]."""
 
     slen: float = 0.0
-    """Length of the time window in meters. 
-    Note that for parallel jobs this might be adjusted towards larger values."""
+    """Length of the time window [m]; may be enlarged to fit the MPI size."""
 
     sample: int = 1
-    """Sample rate in units of the reference wavelength from the 
-    :class:`~simba.Codes.Genesis.Genesis.genesis_setup_command` namelist, 
-    so that the number of slices is given by SLEN / LAMBDA0 / SAMPLE after SLEN 
-    has been adjusted to fit the MPI size."""
+    """Sample rate in units of ``lambda0``; slices = slen / lambda0 / sample."""
 
     time: bool = True
-    """Flag to indicate time-dependent run. Note that time-dependent simulations are 
-    enabled already by using this namelist. This flag has the functionality to differentiate 
-    between time-dependent run and scans, which disable the slippage in the tracking. 
-    To restrict the simulation to steady-state the time namelist has to be omitted from the input deck."""
+    """Time-dependent run; False gives a scan (no slippage)."""
 
 
 class genesis_profile_const_command(genesisCommandFile):
     """
-    Class for defining the &profile_const portion of the Genesis input file.
+    ``&profile_const`` namelist.
     """
 
     objectname: str = "profile_const"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "profile_const"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Profile name, referenced as ``@label``."""
 
     c0: float
-    """Constant value to be used."""
+    """Constant value."""
 
 
 class genesis_profile_gauss_command(genesisCommandFile):
     """
-    Class for defining the &profile_gauss portion of the Genesis input file.
+    ``&profile_gauss`` namelist.
     """
 
     objectname: str = "profile_gauss"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "profile_gauss"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Profile name, referenced as ``@label``."""
 
     c0: float
-    """Constant value to be used."""
+    """Peak value."""
 
     s0: float
-    """Center point of the Gaussian distribution"""
+    """Centre of the Gaussian [m]."""
 
     sig: float
-    """Standard deviation of the Gaussian distribution"""
+    """RMS width of the Gaussian [m]."""
 
 class genesis_profile_step_command(genesisCommandFile):
     """
-    Class for defining the &profile_step portion of the Genesis input file.
+    ``&profile_step`` namelist.
     """
 
     objectname: str = "profile_step"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "profile_step"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Profile name, referenced as ``@label``."""
 
     c0: float
-    """Constant value to be used."""
+    """Value inside the step."""
 
     s_start: float
-    """Starting point of the step function"""
+    """Start of the step [m]."""
 
     s_end: float
-    """End point of the step function"""
+    """End of the step [m]."""
 
 class genesis_profile_polynom_command(genesisCommandFile):
     """
-    Class for defining the &profile_polynom portion of the Genesis input file.
+    ``&profile_polynom`` namelist.
     """
 
     objectname: str = "profile_polynom"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "profile_polynom"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Profile name, referenced as ``@label``."""
 
     c0: float
-    """Constant value to be used."""
+    """Constant term."""
 
     c1: float = 0.0
     """Term proportional to s."""
@@ -1014,71 +787,67 @@ class genesis_profile_polynom_command(genesisCommandFile):
 
 class genesis_profile_file_command(genesisCommandFile):
     """
-    Class for defining the &profile_file portion of the Genesis input file.
+    ``&profile_file`` namelist (look-up table from HDF5).
     """
 
     objectname: str = "profile_file"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "profile_file"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Profile name, referenced as ``@label``."""
 
     xdata: str
-    """Points to a dataset in an HDF5 file to define the s-position for the look-up table. 
-    The format is filename/group1/.../groupn/datasetname, where the naming of groups is 
-    not required if the dataset is at root level of the HDF file"""
+    """HDF5 dataset of s-positions, as ``filename/group/.../dataset``."""
 
     ydata: str
-    """Same as :attr:`~xdata` but for the function values of the look-up table."""
+    """HDF5 dataset of values, as :attr:`xdata`."""
 
     isTime: bool = False
-    """If true the s-position is a time variable and therefore multiplied 
-    with the speed of light c to get the position in meters."""
+    """:attr:`xdata` is time, multiplied by c to give position."""
 
     reverse: bool = False
-    """If true the order in the look-up table is reverse. 
-    This is sometimes needed because time and spatial coordinates differ sometimes by a minus sign."""
+    """Reverse the table order (time and position can differ in sign)."""
 
     autoassign: bool = False
-    """Use the HDF5 file from :attr:`~xdata`."""
+    """Use the HDF5 file from :attr:`xdata`."""
 
 
 class genesis_sequence_const_command(genesisCommandFile):
     """
-    Class for defining the &sequence_const portion of the Genesis input file.
+    ``&sequence_const`` namelist.
     """
 
     objectname: str = "sequence_const"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sequence_const"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Sequence name, referenced in the lattice."""
 
     c0: float
-    """Constant value to be used."""
+    """Constant value."""
 
 class genesis_sequence_polynom_command(genesisCommandFile):
     """
-    Class for defining the &sequence_polynom portion of the Genesis input file.
+    ``&sequence_polynom`` namelist.
     """
 
     objectname: str = "sequence_polynom"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sequence_polynom"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Sequence name, referenced in the lattice."""
 
     c0: float
-    """Constant value to be used."""
+    """Constant term."""
 
     c1: float = 0.0
     """Term proportional to s."""
@@ -1094,71 +863,70 @@ class genesis_sequence_polynom_command(genesisCommandFile):
 
 class genesis_sequence_power_command(genesisCommandFile):
     """
-    Class for defining the &sequence_power portion of the Genesis input file.
+    ``&sequence_power`` namelist.
     """
 
     objectname: str = "sequence_power"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sequence_power"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the profile, which is used to refer to it in later calls of namelists"""
+    """Sequence name, referenced in the lattice."""
 
     c0: float
-    """Constant value to be used."""
+    """Constant term."""
 
     dc: float
-    """Term scaling the growing power series before added to the constant term."""
+    """Scale of the power series added to :attr:`c0`."""
 
     alpha: float
     """Power of the series."""
 
     n0: int = 1
-    """Starting index of power growth. Otherwise the sequence uses only the constant term"""
+    """Index at which the power growth starts."""
 
     c4: float = 0.0
-    """Term proportional to s^4."""
+    """Not a Genesis ``&sequence_power`` parameter."""
 
 class genesis_sequence_random_command(genesisCommandFile):
     """
-    Class for defining the &sequence_random portion of the Genesis input file.
+    ``&sequence_random`` namelist.
     """
 
     objectname: str = "sequence_random"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sequence_random"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     label: str
-    """Name of the sequence, which is used to refer to it in the lattice"""
+    """Sequence name, referenced in the lattice."""
 
     c0: float = 0.0
-    """Mean value"""
+    """Mean value."""
 
     dc: float = 0.0
-    """Amplitude of the error, either the standard division for normal 
-    distribution or the min and max value for uniform distribution."""
+    """RMS (normal) or half-range (uniform) of the error."""
 
     seed: int = 100
-    """Seed for the random number generator"""
+    """Random seed."""
 
     normal: bool = True
-    """Flag for Gaussian distribution. If False a uniform distribution is used."""
+    """Gaussian distribution; if False, uniform."""
 
 
 class genesis_beam_command(genesisCommandFile):
     """
-    Class for defining the &beam portion of the Genesis input file.
+    ``&beam`` namelist; any value may be a ``@profile`` label.
     """
 
     objectname: str = "beam"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "beam"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     gamma: float | str
     """Mean energy in units of the electron rest mass."""
@@ -1167,139 +935,131 @@ class genesis_beam_command(genesisCommandFile):
     """RMS energy spread in units of the electron rest mass."""
 
     current: float | str
-    """Current in Amperes."""
+    """Current [A]."""
 
     ex: float | str
-    """Normalized emittance in x in units of m-rad"""
+    """Normalised horizontal emittance [m-rad]."""
 
     ey: float | str
-    """Normalized emittance in y in units of m-rad"""
+    """Normalised vertical emittance [m-rad]."""
 
     betax: float | str
-    """Initial beta-function in x in meters. If the matched command has been invoked 
-    before the default values are set to the results;
-    see :attr:`~simba.Codes.Genesis.Genesis.genesis_lattice_command.zmatch`."""
+    """Initial horizontal beta [m]; defaults to the matched value if
+    :attr:`genesis_lattice_command.zmatch` was used."""
 
     betay: float | str
-    """Initial beta-function in y in meters; see :attr:`~betax`"""
+    """Initial vertical beta [m]; see :attr:`betax`."""
 
     alphax: float | str
-    """Initial alpha-function in x; see :attr:`~betax`"""
+    """Initial horizontal alpha; see :attr:`betax`."""
 
     alphay: float | str
-    """Initial alpha-function in y; see :attr:`~betax`"""
+    """Initial vertical alpha; see :attr:`betax`."""
 
     xcenter: float | str = 0.0
-    """Initial centroid position in x in meter."""
+    """Horizontal centroid [m]."""
 
     ycenter: float | str = 0.0
-    """Initial centroid position in y in meter."""
+    """Vertical centroid [m]."""
 
     pxcenter: float | str = 0.0
-    """Initial centroid momentum in x in units of γβx."""
+    """Horizontal centroid momentum [γβx]."""
 
     pycenter: float | str = 0.0
-    """Initial centroid momentum in y in units γβy."""
+    """Vertical centroid momentum [γβy]."""
 
     bunch: float | str = 0.0
-    """Initial bunching value"""
+    """Initial bunching."""
 
     bunchphase: float | str = 0.0
-    """Initial phase of the bunching"""
+    """Initial bunching phase."""
 
     emod: float | str = 0.0
-    """Initial energy modulation in units of the electron rest mass. 
-    This modulation is on the scale of the reference wavelength"""
+    """Energy modulation at the reference wavelength, in units of the electron rest mass."""
 
     emodphase: float | str = 0.0
-    """Initial phase of the energy modulation"""
+    """Energy modulation phase."""
 
 
 class genesis_alter_beam_command(genesisCommandFile):
     """
-    Class for defining the &alter_beam portion of the Genesis input file.
+    ``&alter_beam`` namelist.
     """
 
     objectname: str = "alter_beam"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "alter_beam"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     dgamma: float | str = 0.0
-    """Amplitude of the sinusoidal modulation in units of the electron rest mass"""
+    """Sinusoidal energy modulation amplitude, in units of the electron rest mass."""
 
     phase: float | str = 0.0
-    """Phase of the energy modulation in units of radians."""
+    """Energy modulation phase [rad]."""
 
     # lambda (a Python keyword): wavelength in m of the external energy modulation;
     # pass it as an extra field, e.g. ``**{"lambda": 1e-6}``, so write_Genesis finds it.
 
     r56: float = 0
-    """R56 element of the magnetic chicane in m"""
+    """Chicane R56 [m]."""
 
 
 class genesis_field_command(genesisCommandFile):
     """
-    Class for defining the &field portion of the Genesis input file.
+    ``&field`` namelist (Gauss-Hermite mode).
     """
 
     objectname: str = "field"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "field"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     # lambda (a Python keyword): central frequency of the radiation mode, defaulting to
     # genesis_setup_command.lambda0; pass it as an extra field, e.g. ``**{"lambda": 1e-9}``.
 
     power: float | str = 0.0
-    """Radiation power in Watts"""
+    """Radiation power [W]."""
 
     phase: float | str = 0.0
-    """Radiation phase in rads. Note that a linear profile results in a shift in the 
-    radiation wavelength, which is also the method if for the variable lambda a different 
-    value than the reference wavelength is used. In case of conflicts the profile 
-    for the phase definition has priority."""
+    """Radiation phase [rad]; a linear profile shifts the wavelength."""
 
     waist_pos: float | str = 0.0
-    """Position where the focal point is located relative to the undulator entrance. 
-    Negative values place it before, resulting in a diverging radiation field."""
+    """Focus position relative to the undulator entrance [m]; negative is upstream."""
 
     waist_size: float | str | None = None
-    """Waist size according to the definition of w 0 according to Siegman’s ’Laser’ handbook"""
+    """Waist size w0 (Siegman's definition) [m]."""
 
     xcenter: float = 0.0
-    """Center position in x in meter of the Gauss-Hermite mode"""
+    """Horizontal centre [m]."""
 
     ycenter: float = 0.0
-    """Center position in y in meter of the Gauss-Hermite mode"""
+    """Vertical centre [m]."""
 
     xangle: float = 0.0
-    """Injection angle in x in rad of the Gauss-Hermite mode"""
+    """Horizontal injection angle [rad]."""
 
     yangle: float = 0.0
-    """Injection angle in y in rad of the Gauss-Hermite mode"""
+    """Vertical injection angle [rad]."""
 
     dgrid: float = 0.001
-    """Grid extension from the center to one edge. The whole grid is twice as 
-    large with 0 as the center position"""
+    """Half-width of the grid [m]."""
 
     ngrid: int = Field(default=151, gt=1)
-    """Number of grid points in one dimension. This value should be odd to 
-    enforce a grid point directly on axis. Otherwise the convergence in the simulations could be worse."""
+    """Grid points per dimension; must be odd so a point sits on axis."""
 
     harm: int = 1
-    """Harmonic number of the radiation field with respect to the reference wavelength."""
+    """Harmonic of the reference wavelength."""
 
     nx: int = 0
-    """Mode number in x of the Gauss-Hermite mode"""
+    """Horizontal mode number."""
 
     ny: int = 0
-    """Mode number in y of the Gauss-Hermite mode"""
+    """Vertical mode number."""
 
     accumulate: bool = True
-    """If True the generated field is added to an existing field instead of overwriting it."""
+    """Add to an existing field rather than overwrite it."""
 
     @field_validator("ngrid")
     def check_odd(cls, v: int) -> int:
@@ -1310,59 +1070,56 @@ class genesis_field_command(genesisCommandFile):
 
 class genesis_importdistribution_command(genesisCommandFile):
     """
-    Class for defining the &importdistribution portion of the Genesis input file.
+    ``&importdistribution`` namelist.
     """
 
     objectname: str = "importdistribution"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "importdistribution"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     file: str
-    """The file name of the distribution, including possible relative directories."""
+    """Distribution filename."""
 
     charge: float
-    """Total charge of the distribution to calculate the current and individual charge per macro particle."""
+    """Total charge [C]."""
 
     slicewidth: float
-    """The fraction in length of the distribution which is used for reconstruction. 
-    E.g if the length is 10 μm and slice width 0.02 then the reconstruction at the 
-    positions s = 4 μm is using those particles in the distribution, 
-    which are located in the slice from 3.9 μm to 4.1 μm."""
+    """Fraction of the distribution length used to reconstruct each slice."""
 
     center: bool = False
-    """If True the particle distribution is recentered in transverse position, momenta and energy."""
+    """Recentre position, momentum and energy to the values below."""
 
     gamma0: float
-    """If :attr:`~center` is enabled, new center in energy in units of electron rest mass."""
+    """New mean energy with :attr:`center`, in units of the electron rest mass."""
 
     x0: float = 0.0
-    """If :attr:`~center` is enabled, new center in x in meter."""
+    """New horizontal centre with :attr:`center` [m]."""
 
     y0: float = 0.0
-    """If :attr:`~center` is enabled, new center in y in meter."""
+    """New vertical centre with :attr:`center` [m]."""
 
     px0: float = 0.0
-    """If :attr:`~center` is enabled, new mean momentum in x in γβx."""
+    """New horizontal mean momentum with :attr:`center` [γβx]."""
 
     py0: float = 0.0
-    """If :attr:`~center` is enabled, new mean momentum in y in γβy."""
+    """New vertical mean momentum with :attr:`center` [γβy]."""
 
     match: bool = False
-    """If True, the particle distribution is matched to new optical function values."""
+    """Match the distribution to the optics below."""
 
     betax: float = 15.0
-    """If matching is enabled, new beta function in x in meters."""
+    """New horizontal beta with :attr:`match` [m]."""
 
     betay: float = 15.0
-    """If matching is enabled, new beta function in y in meters."""
+    """New vertical beta with :attr:`match` [m]."""
 
     alphax: float = 0.0
-    """If matching is enabled, new alpha function in x."""
+    """New horizontal alpha with :attr:`match`."""
 
     alphay: float = 0.0
-    """If matching is enabled, new alpha function in y."""
+    """New vertical alpha with :attr:`match`."""
 
     eval_start: float = 0.0
     """Evaluation start."""
@@ -1376,281 +1133,235 @@ class genesis_importdistribution_command(genesisCommandFile):
 
 class genesis_importbeam_command(genesisCommandFile):
     """
-    Class for defining the &importbeam portion of the Genesis input file.
+    ``&importbeam`` namelist.
     """
 
     objectname: str = "importbeam"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "importbeam"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     file: str
-    """File name of a hdf5 complient datafile to contain the slice-wise particle distribution. 
-    It has to follow the internal Genesis 1.3 syntax."""
+    """Genesis 1.3 slice-wise particle dump (HDF5)."""
 
     time: bool = True
-    """If the time window hasn’t been defined it allows to run Genesis with the imported distribution 
-    in scan mode, when set to false. This would disable all slippage and long-range 
-    collective effects in the simulation"""
+    """If False and no time window is set, run as a scan (no slippage)."""
 
 
 class genesis_importfield_command(genesisCommandFile):
     """
-    Class for defining the &importfield portion of the Genesis input file.
+    ``&importfield`` namelist.
     """
 
     objectname: str = "importfield"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "importfield"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     file: str
-    """File name of a hdf5 compliant datafile to contain the slice-wise particle distribution. 
-    It has to follow the internal Genesis 1.3 syntax."""
+    """Genesis 1.3 field dump (HDF5)."""
 
     harmonic: int = 1
-    """Defines the harmonic for the given Genesis run."""
+    """Harmonic the field is imported as."""
 
     time: bool = True
-    """If the time window hasn’t been defined it allows to run Genesis with the 
-    imported distribution in scan mode, when set to false. This would disable 
-    all slippage and long-range collective effects in the simulation"""
+    """If False and no time window is set, run as a scan (no slippage)."""
 
     attenuation: float = 1.0
-    """Apply an on-the-flight scaling factor to the field to be imported, 
-    without the need of modifying the original field file."""
+    """Scale factor applied to the imported field."""
 
     offset: float = 0.0
-    """Additional offset of the field with respect to the time frame. 
-    It should be an integer multiple of the slice length as defined in the field dump file"""
+    """Time-frame offset of the field; should be a multiple of the dump's slice length."""
 
 
 class genesis_importtransformation_command(genesisCommandFile):
     """
-    Class for defining the &importtransformation portion of the Genesis input file.
+    ``&importtransformation`` namelist.
     """
 
     objectname: str = "importtransformation"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "importtransformation"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     file: str
-    """File name of a hdf5 compliant datafile to contain the vector and matrix informations"""
+    """HDF5 file holding the vector and matrix."""
 
     vector: str
-    """Name of the dataset which contains the vector information. The shape must be either (6) or (n,6)"""
+    """Dataset of the vector, shape (6) or (n,6)."""
 
     matrix: str
-    """Name of the dataset which contains the matrix information. The shape must be either (6,6) or (n,6,6)"""
+    """Dataset of the matrix, shape (6,6) or (n,6,6)."""
 
     slen: float = 0.0
-    """The length in meters between adjacent sample points (n>1), needed for the interpolation. 
-    If the value is zero only a global transformation is applied using the first entry."""
+    """Spacing [m] between sample points for interpolation; 0 applies the first entry globally."""
 
 
 class genesis_efield_command(genesisCommandFile):
     """
-    Class for defining the &efield portion of the Genesis input file.
+    ``&efield`` namelist (space charge).
     """
 
     objectname: str = "efield"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "efield"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     longrange: bool = False
-    """Flag to enable the calculation of the long range space charge field."""
+    """Compute the long-range space-charge field."""
 
     rmax: float = 0.0
-    """Size of radial grid in meters. If the beam size gets larger than the grid the size is 
-    automatically adjusted to the maximum radius of the electrons with an additional 50% extension. 
-    When the mesh size is adjusted a message will be printed on screen."""
+    """Radial grid size [m]; enlarged automatically if the beam outgrows it."""
 
     nz: int = 0.0
-    """Number of longitudinal Fourier component of the short range space charge field. 
-    Note that this should be not in conflict with the beamlet size."""
+    """Longitudinal Fourier components of the short-range field; keep compatible with the beamlet size."""
 
     nphi: int = 0.0
-    """Number of azimuthal modes in the calculation of the short range space charge field."""
+    """Azimuthal modes of the short-range field."""
 
     ngrid: int = 100
-    """Number of grid points of the radial grid for the short range space charge field."""
+    """Radial grid points of the short-range field."""
 
 
 class genesis_sponrad_command(genesisCommandFile):
     """
-    Class for defining the &sponrad portion of the Genesis input file.
+    ``&sponrad`` namelist (spontaneous radiation).
     """
 
     objectname: str = "sponrad"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sponrad"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     seed: int = 1234
-    """Seed for random number generator to model the quantum fluctuation of hard photons."""
+    """Random seed for quantum fluctuations."""
 
     doLoss: bool = False
-    """If True, electrons will lose energy due to the emission of spontaneous radiation within the undulator"""
+    """Apply spontaneous-radiation energy loss."""
 
     doSpread: bool = False
-    """If True, the energy spread will increase due to the fluctuation in the emission 
-    of hard photons of the spontaneous radiation."""
+    """Apply quantum-fluctuation energy spread growth."""
 
 
 class genesis_wake_command(genesisCommandFile):
     """
-    Class for defining the &wake portion of the Genesis input file.
+    ``&wake`` namelist.
     """
 
     objectname: str = "wake"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "wake"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     loss: float | str = 0.0
-    """Loss in eV/m . This is a global loss function (in particular if a profile is defined). 
-    Its function values V(s) remains unchanged even if the current profile changes"""
+    """Global loss [eV/m], independent of the current profile."""
 
     radius: float = 0.0025
-    """Radius of the aperture if it is a round chamber or half the distance in the case of two parallel plates."""
+    """Pipe radius, or half-gap for parallel plates [m]."""
 
     roundpipe: bool = True
-    """Flag to indicate the shape of the transverse cross-section of the aperture. 
-    If True, a round aperture is assumed, otherwise the model has two parallel plates."""
+    """Round pipe; if False, parallel plates."""
 
     conductivity: float = 0.0
-    """Conductivity of the vacuum material for the resistive wall wakefield function"""
+    """Wall conductivity for resistive-wall wakes."""
 
     relaxation: float = 0.0
-    """Relaxation distance (aka the mean free path of the electron in the vacuum material) 
-    for the resistive wall wakefields"""
+    """Wall relaxation distance (mean free path) for resistive-wall wakes."""
 
     material: Literal["CU", "AL", ""] = ""
-    """String literal to define conductivity and relaxation distance for either copper or aluminum 
-    by using the two character label ’CU’ or ’AL’ respectively. 
-    This overwrites also any explicit definition of the conductivity and relaxation value."""
+    """Set conductivity and relaxation for copper or aluminium, overriding both."""
 
     gap: float = 0.0
-    """Length in mm of a longitudinal gap in the aperture, exciting geometric wakes."""
+    """Longitudinal gap length [mm] for geometric wakes."""
 
     lgap: float = 1.0
-    """Effective length over which a single gap is applied. E.g. if there is a periodicity of 
-    4.5 m at which there is always the same gap in the aperture for the geometric wakes,
-    then this value should be put to 4.5 m."""
+    """Length [m] over which one gap applies (its period)."""
 
     hrough: float = 0.0
-    """Amplitude in meters of a sinusoidal corrugation, modeling the effect of surface roughness wakes."""
+    """Roughness corrugation amplitude [m]."""
 
     lrough: float = 0.0
-    """Period length in meters of the sinusoidal corrugation of the surface roughness model."""
+    """Roughness corrugation period [m]."""
 
     transient: bool = False
-    """If True, Genesis includes the catch-up length of the origin of the wakefield 
-    to the particle effects. E.g. particles do not see immediately the wake from those closer 
-    ahead of them than those further away. The catch-up distance is the distance in the 
-    undulator added to the starting position :attr:`~ztrans`. If set to false the steady-state model is 
-    used, effectively setting :attr:`~ztrans` to infinity. Enabling transient calculation will update 
-    the wakefield at each integration step, which can slow down the calculations."""
+    """Model wake catch-up from :attr:`ztrans` (slower; updates every step); False is steady-state."""
 
     ztrans: float = 0.0
-    """Reference location of the first source of the wake fields. 
-    A positive value means that the condition for wakes (e.g. a small aperture in the vacuum chamber) 
-    has already started and there has been already some length to establish the wakes. 
-    For a value of zero the source is right at the undulator start, while a negative value prevents 
-    any wake, till the interation position has passed that point."""
+    """Position of the wake source relative to the undulator start [m]."""
 
     output: str = ""
-    """Root of the filename, where the single particle wakes are written. 
-    The root is extended by .wake.h5 to form the filename."""
+    """Root of the ``.wake.h5`` file for single-particle wakes."""
 
 
 class genesis_sort_command(genesisCommandFile):
     """
-    Class for defining the &sort portion of the Genesis input file.
+    ``&sort`` namelist.
     """
 
     objectname: str = "sort"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "sort"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
 class genesis_write_command(genesisCommandFile):
     """
-    Class for defining the &write portion of the Genesis input file.
+    ``&write`` namelist.
     """
 
     objectname: str = "write"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "write"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     field: str = ""
-    """If a filename is defined, Genesis writes out the field distribution of all harmonics. 
-    The harmonics are indicated by the suffix ’.hxxx.’ where xxx is the harmonic number. 
-    The filename gets the extension.fld.h5 automatically"""
+    """Root of the ``.fld.h5`` field dump (all harmonics, suffixed ``.hNNN``)."""
 
     beam: str = ""
-    """If a filename is defined, Genesis writes out the particle distribution. 
-    The filename gets the extension.par.h5 automatically"""
-
-    #stride: int = 1
-    #"""For values larger than 1 the amount of particles written to the file is reduced
-    #by only writing each stride-th particle to the dump file."""
+    """Root of the ``.par.h5`` particle dump."""
 
 
 class genesis_track_command(genesisCommandFile):
     """
-    Class for defining the &track portion of the Genesis input file.
+    ``&track`` namelist.
     """
 
     objectname: str = "track"
-    """Name of object for frameworkObject"""
+    """Name of the namelist object."""
 
     objecttype: str = "track"
-    """Type of object for frameworkObject"""
+    """Type of the namelist object."""
 
     zstop: float = 1e9
-    """If zstop is shorter than the lattice length the tracking stops at the specified position."""
+    """Stop tracking here [m] if shorter than the lattice."""
 
     output_step: int = 1
-    """Defines the number of integration steps before the particle and field distribution is analyzed for output."""
+    """Integration steps between output samples."""
 
     field_dump_step: int = 0
-    """Defines the number of integration steps before a field dump is written. 
-    Be careful because for time-dependent simulation it can generate many large output files."""
+    """Integration steps between field dumps (files can be large when time-dependent)."""
 
     beam_dump_step: int = 0
-    """Defines the number of integration steps before a particle dump is written. 
-    Be careful because for time-dependent simulation it can generate many large output files."""
+    """Integration steps between particle dumps (files can be large when time-dependent)."""
 
     sort_step: int = 0
-    """Defines the number of steps of integration before the particle distribution is sorted. 
-    Works only for one-4-one simulations."""
+    """Integration steps between particle sorts (one-for-one only)."""
 
     s0: float = None
-    """Option to override the default time window start from 
-    :class:`~simba.Codes.Genesis.Genesis.genesis_time_command`."""
+    """Override the :class:`genesis_time_command` window start."""
 
     slen: float = None
-    """Option to override the default time window length from 
-    :class:`~simba.Codes.Genesis.Genesis.genesis_time_command`."""
+    """Override the :class:`genesis_time_command` window length."""
 
     field_dump_at_undexit: bool = False
-    """Field dumps at the exit of the undulator (one dump for each undulator in the expanded lattice)."""
+    """Dump the field at each undulator exit."""
 
     bunchharm: int = Field(default=1, ge=1)
-    """Bunching harmonic output setting. Must be >= 1."""
-
-    #exclusive_harmonics: bool = False
-    #"""If set to true than only the requested bunching harmonic is included in output.
-    #Otherwise all harmonic sup and including the specified harmonics are included."""
+    """Bunching harmonic for output."""

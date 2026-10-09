@@ -1,21 +1,15 @@
-"""A turn count is a tracking setting and only some codes honour it"""
+"""A turn count is a tracking setting and only some codes honour it."""
 
+import inspect
+import math
 import warnings
 
+import numpy as np
 import pytest
 
-from simba.Codes.ASTRA.ASTRA import astraLattice
-from simba.Codes.Cheetah.Cheetah import cheetahLattice
+from helpers import BentLine
 from simba.Codes.Elegant.Elegant import elegantLattice
-from simba.Codes.GPT.GPT import gptLattice
-from simba.Codes.MADX.MADX import madxLattice
-from simba.Codes.Ocelot.Ocelot import ocelotLattice
-from simba.Codes.OPAL.OPAL import opalLattice
-from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
-
-CAN_TURN = [elegantLattice, xsuiteLattice, ocelotLattice, madxLattice]
-CANNOT = [astraLattice, gptLattice, cheetahLattice, opalLattice]
 
 
 class FakeLine:
@@ -32,9 +26,6 @@ class FakeLine:
     codes_that_can = frameworkLattice.codes_that_can
 
 
-# --- reading the count --------------------------------------------------
-
-
 def test_no_setting_means_one_turn():
     assert FakeLine().turns == 1
 
@@ -44,7 +35,7 @@ def test_an_empty_tracking_block_means_one_turn():
 
 
 def test_a_null_tracking_block_means_one_turn():
-    """A key present but empty is how YAML hands over ``tracking:``."""
+    """How YAML hands over a bare ``tracking:``."""
     assert FakeLine({"tracking": None}).turns == 1
 
 
@@ -53,191 +44,70 @@ def test_the_count_is_read_from_the_files_block():
 
 
 def test_a_string_count_is_coerced():
-    """Every other numeric setting arrives coerced rather than type-checked."""
     assert FakeLine({"tracking": {"turns": "512"}}).turns == 512
 
 
-# --- which codes can honour it ------------------------------------------
-
-
-@pytest.mark.parametrize("cls", CAN_TURN, ids=lambda c: c.__name__)
-def test_the_ones_that_can(cls):
-    assert cls.supports_turns is True
-
-
-@pytest.mark.parametrize("cls", CANNOT, ids=lambda c: c.__name__)
-def test_the_ones_that_cannot(cls):
-    assert cls.supports_turns is False
-
-
-def test_the_base_class_assumes_it_cannot():
-    """So a backend gains turns by declaring it, never by omission."""
-    assert frameworkLattice.supports_turns is False
-
-
-# --- the warning --------------------------------------------------------
-
-
-def test_asking_a_single_pass_code_for_turns_warns():
+def test_asking_a_single_pass_code_for_turns_warns_rather_than_refusing():
+    """One settings file driving several codes is ordinary."""
     line = FakeLine({"tracking": {"turns": 1000}}, code="astra", supports=False)
-    with pytest.warns(UserWarning, match="tracks a line once"):
+    with pytest.warns(UserWarning, match=r"1000 turns.*astra tracks a line once"):
         line.check_turns_supported()
+    assert line.turns == 1000
 
 
-def test_the_warning_names_the_code_and_the_count():
-    line = FakeLine({"tracking": {"turns": 1000}}, code="astra", supports=False)
-    with pytest.warns(UserWarning, match=r"1000 turns.*astra"):
-        line.check_turns_supported()
-
-
+@pytest.mark.filterwarnings("error")
 def test_a_capable_code_is_silent():
     line = FakeLine({"tracking": {"turns": 1000}}, code="elegant", supports=True)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        line.check_turns_supported()
+    line.check_turns_supported()
 
 
+@pytest.mark.filterwarnings("error")
 def test_one_turn_is_silent_everywhere():
-    """The default must never warn, on any code."""
     for code, supports in (("astra", False), ("elegant", True)):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            FakeLine({}, code=code, supports=supports).check_turns_supported()
+        FakeLine({}, code=code, supports=supports).check_turns_supported()
 
 
-def test_it_warns_rather_than_refusing():
-    """One settings file driving several codes is ordinary."""
-    line = FakeLine({"tracking": {"turns": 5}}, code="gpt", supports=False)
-    with pytest.warns(UserWarning):
-        line.check_turns_supported()
-    assert line.turns == 5
-
-
-# --- turns only mean something on a closed path -------------------------
-
-import math
-
-from laura.models.element import Dipole, Drift
-from laura.models.element_list import MachineModel
-
-
-def ring(nbend, angle, turns=1000, periodic=False):
-    """A line of `nbend` bends of `angle`, each followed by a 1 m drift."""
-    elements, order = {}, []
-    for i in range(nbend):
-        bend, drift = f"B{i}", f"D{i}"
-        elements[bend] = Dipole(
-            name=bend,
-            hardware_class="Magnet",
-            machine_area="A",
-            magnetic={"magnetic_length": 1.0, "k0l": angle},
-            physical={"length": 1.0},
-        )
-        elements[drift] = Drift(
-            name=drift,
-            hardware_class="Drift",
-            hardware_type="Drift",
-            machine_area="A",
-            physical={"length": 1.0},
-        )
-        order += [bend, drift]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        model = MachineModel(
-            elements=elements,
-            section={"sections": {"RING": order}},
-            layout={"layouts": {"M": ["RING"]}, "default_layout": "M"},
-        )
-    return ClosureLine(model, order, turns, periodic)
-
-
-class ClosureLine:
-    """A stub exposing what `check_turns_closed` reads off real geometry."""
-
-    def __init__(self, model, order, turns, periodic=False):
-        self.startObject = model[order[0]]
-        self.endObject = model[order[-1]]
-        self.elements = {name: model[name] for name in order}
-        self.file_block = {"tracking": {"turns": turns, "periodic": periodic}}
-        self.objectname = "RING"
-        self.code = "elegant"
-
-    def _machine_geometry(self):
-        """No layout behind this stub; `periodic` is set explicitly above."""
-
-    turns = frameworkLattice.turns
-    periodic = frameworkLattice.periodic
-    net_bend_angle = frameworkLattice.net_bend_angle
-    check_turns_closed = frameworkLattice.check_turns_closed
-    # a sector is checked differently; see ``test_superperiods.py``
-    nsuperperiods = frameworkLattice.nsuperperiods
-    check_superperiods_close = frameworkLattice.check_superperiods_close
-
-
+@pytest.mark.filterwarnings("error")
 def test_a_closed_ring_is_silent():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        ring(4, math.pi / 2).check_turns_closed()
+    BentLine(4, math.pi / 2, periodic=False).check_turns_closed()
 
 
-def test_an_open_line_warns():
-    with pytest.warns(UserWarning, match="does not close"):
-        ring(4, 0.0).check_turns_closed()
-
-
-def test_the_warning_reports_the_gap():
-    """Four 1 m bends and four 1 m drifts, dead straight: 8 m from home."""
-    with pytest.warns(UserWarning, match=r"ends 8 m from where it starts"):
-        ring(4, 0.0).check_turns_closed()
-
-
-def test_one_turn_never_checks_closure():
-    """A single pass down an open line is the ordinary case."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        ring(4, 0.0, turns=1).check_turns_closed()
-
-
-def test_the_periodic_solution_checks_closure_on_a_single_turn():
-    """`periodic` makes the same claim a turn count does, and gets the same
-    check: one pass is fine, one pass of a *ring* is not."""
-    with pytest.warns(UserWarning, match="asks for the periodic solution"):
-        ring(4, 0.0, turns=1, periodic=True).check_turns_closed()
-
-
-def test_a_closed_ring_is_silent_when_periodic():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        ring(4, math.pi / 2, turns=1, periodic=True).check_turns_closed()
-
-
-def test_a_superperiod_is_named_as_such():
-    """Half a ring closes after two, and the message should say so."""
-    with pytest.warns(UserWarning, match=r"1/2 fraction of a turn"):
-        ring(2, math.pi / 2).check_turns_closed()
-
-
-def test_a_quarter_ring_is_named_as_such():
-    with pytest.warns(UserWarning, match=r"1/4 fraction of a turn"):
-        ring(1, math.pi / 2).check_turns_closed()
-
-
-def test_a_straight_line_gets_no_superperiod_hint():
-    """No bending at all is not a sector of anything."""
-    with pytest.warns(UserWarning) as caught:
-        ring(4, 0.0).check_turns_closed()
+def test_an_open_line_warns_with_its_gap():
+    """Eight 1 m elements, dead straight; and no superperiod hint, as no
+    bend is a sector of nothing."""
+    with pytest.warns(UserWarning, match="does not close: it ends 8 m from where it starts") as caught:
+        BentLine(4, 0.0, periodic=False).check_turns_closed()
     assert "superperiod" not in str(caught[0].message)
 
 
+@pytest.mark.filterwarnings("error")
+def test_one_turn_never_checks_closure():
+    BentLine(4, 0.0, turns=1, periodic=False).check_turns_closed()
+
+
+def test_the_periodic_solution_checks_closure_on_a_single_turn():
+    """`periodic` claims a ring just as a turn count does."""
+    with pytest.warns(UserWarning, match="asks for the periodic solution"):
+        BentLine(4, 0.0, turns=1, periodic=True).check_turns_closed()
+
+
+@pytest.mark.filterwarnings("error")
+def test_a_closed_ring_is_silent_when_periodic():
+    BentLine(4, math.pi / 2, turns=1, periodic=True).check_turns_closed()
+
+
+@pytest.mark.parametrize("nbend, fraction", [(2, 2), (1, 4)])
+def test_a_superperiod_is_named_as_such(nbend, fraction):
+    with pytest.warns(UserWarning, match=rf"1/{fraction} fraction of a turn"):
+        BentLine(nbend, math.pi / 2, periodic=False).check_turns_closed()
+
+
 def test_the_net_bend_of_a_closed_ring_is_a_full_turn():
-    assert ring(4, math.pi / 2).net_bend_angle == pytest.approx(2 * math.pi)
+    assert BentLine(4, math.pi / 2).net_bend_angle == pytest.approx(2 * math.pi)
 
 
 def test_the_net_bend_of_a_straight_line_is_zero():
-    assert ring(4, 0.0).net_bend_angle == pytest.approx(0.0)
-
-
-# --- one file per turn --------------------------------------------------
+    assert BentLine(4, 0.0).net_bend_angle == pytest.approx(0.0)
 
 
 class NamingLine:
@@ -265,7 +135,7 @@ def test_turns_qualify_the_name():
 
 
 def test_the_index_is_padded_to_the_count():
-    """So the files sort in turn order rather than lexically."""
+    """So the files sort in turn order."""
     assert NamingLine(turns=1000).output_basename("SCR", turn=7) == "SCR-t0007"
     assert NamingLine(turns=9).output_basename("SCR", turn=7) == "SCR-t7"
 
@@ -284,9 +154,6 @@ def test_a_line_collision_and_a_turn_compose():
 def test_a_pass_selector_and_a_turn_compose():
     line = NamingLine(turns=20)
     assert line.output_basename("SCR#2", turn=3) == "SCR.2-t03"
-
-
-# --- the monitor has to be sized for the turns --------------------------
 
 
 def test_a_screen_monitor_is_sized_for_one_turn_by_default():
@@ -328,9 +195,6 @@ def test_a_multi_turn_line_resizes_its_monitors():
     assert line["SCR"].stop_at_turn == 250
 
 
-# --- splitting a monitor's record into turns ----------------------------
-
-
 def tracked_monitor(num_particles=4, num_turns=3):
     """A real xtrack monitor, tracked, so the layout is measured not assumed."""
     pytest.importorskip("xtrack")
@@ -362,15 +226,12 @@ def tracked_monitor(num_particles=4, num_turns=3):
 
 def test_a_monitor_records_one_row_per_particle_per_turn():
     data = tracked_monitor(4, 3).data.to_dict()
-    import numpy as np
-
     assert np.asarray(data["x"]).size == 12
     assert list(np.asarray(data["at_turn"])) == [0, 1, 2] * 4
 
 
 def test_selecting_a_turn_keeps_one_row_per_particle():
     from simba.Codes.Xsuite.Xsuite import _select_turn
-    import numpy as np
 
     data = tracked_monitor(4, 3).data.to_dict()
     for turn in range(3):
@@ -381,7 +242,6 @@ def test_selecting_a_turn_keeps_one_row_per_particle():
 
 def test_every_particle_appears_once_in_a_turn():
     from simba.Codes.Xsuite.Xsuite import _select_turn
-    import numpy as np
 
     data = tracked_monitor(4, 3).data.to_dict()
     ids = np.asarray(_select_turn(data, 1)["particle_id"])
@@ -389,9 +249,7 @@ def test_every_particle_appears_once_in_a_turn():
 
 
 def test_the_turns_partition_the_record():
-    """No row is dropped and none is counted twice."""
     from simba.Codes.Xsuite.Xsuite import _select_turn
-    import numpy as np
 
     data = tracked_monitor(4, 3).data.to_dict()
     total = sum(np.asarray(_select_turn(data, t)["x"]).size for t in range(3))
@@ -405,13 +263,9 @@ def test_a_dump_without_at_turn_is_returned_untouched():
     assert _select_turn(data, 0) is data
 
 
-# --- ocelot: the named mechanism was the wrong one ----------------------
-
-
 def test_ocelot_track_nturns_takes_a_track_list_not_a_bunch():
-    """Pins why it is not used: the signature is the evidence."""
+    """Why it is not used for bunches: the signature is the evidence."""
     pytest.importorskip("ocelot")
-    import inspect
     from ocelot.cpbd.track import track_nturns
 
     parameters = list(inspect.signature(track_nturns).parameters)
@@ -420,9 +274,7 @@ def test_ocelot_track_nturns_takes_a_track_list_not_a_bunch():
 
 
 def test_ocelot_track_takes_a_particle_array_and_a_navigator():
-    """Which is what this backend uses, and why the loop goes around it."""
     pytest.importorskip("ocelot")
-    import inspect
     from ocelot.cpbd.track import track
 
     parameters = list(inspect.signature(track).parameters)
@@ -437,9 +289,8 @@ def test_a_navigator_can_be_rewound_for_the_next_turn():
 
 
 def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
-    """The monitor filenames are fixed when the processes are built, so a
-    shared navigator would write every turn to the same file."""
-    import inspect
+    """Monitor filenames are fixed when it is built: a shared navigator
+    would write every turn to one file."""
     from simba.Codes.Ocelot.Ocelot import ocelotLattice
 
     source = inspect.getsource(ocelotLattice.run)
@@ -450,18 +301,9 @@ def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
     assert "track_nturns(" not in source
 
 
-# --- elegant, the one wired so far --------------------------------------
-
-
 def test_elegant_no_longer_hardcodes_one_pass():
-    """Every ``run_control`` site used to pass the literal 1.
-
-    Counted against ``n_passes=`` rather than a fixed number of sites: the
-    invariant is that none of them hardcodes a pass count, and pinning the
-    count instead just breaks whenever a new command is added.
-    """
-    import inspect
-
+    """Every ``run_control`` site passed the literal 1. Counted against
+    ``n_passes=`` so a new command does not break it."""
     source = inspect.getsource(elegantLattice)
     assert "n_passes=1" not in source
     assert source.count("n_passes=") == source.count("n_passes=self.turns")

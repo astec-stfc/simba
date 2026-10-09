@@ -1,57 +1,9 @@
 """
-SIMBA ELEGANT Module
+ELEGANT backend: the lattice, and one class per ``&command`` of the input file.
 
-Various objects and functions to handle ELEGANT lattices and commands. See `Elegant manual`_ for more details.
+See the `Elegant manual`_.
 
-    .. _Elegant manual: https://ops.aps.anl.gov/manuals/elegant_latest/elegant.html
-
-Classes:
-    - :class:`~simba.Codes.Elegant.Elegant.elegantLattice`: The ELEGANT lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-      the lattice suitable for ELEGANT input and lattice files.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegantCommandFile`: Base class for defining
-      commands in an ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_global_settings_command`: Class for defining the
-      &global_settings portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_run_setup_command`: Class for defining the
-      &run_setup portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_error_elements_command`: Class for defining the
-      &error_elements portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_error_elements_command`: Class for defining the
-      &error_elements portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_scan_elements_command`: Class for defining the
-      &scan_elements portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_run_control_command`: Class for defining the
-      &run_control portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_twiss_output_command`: Class for defining the
-      &twiss_output portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_floor_coordinates_command`: Class for defining the
-      &floor_coordinates portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_matrix_output_command`: Class for defining the
-      &matrix_output portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_sdds_beam_command`: Class for defining the
-      &sdds_beam portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_track_command`: Class for defining the
-      &track portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.elegant_track_command`: Class for defining the
-      &track portion of the ELEGANT input file.
-
-    - :class:`~simba.Codes.Elegant.Elegant.sddsFile`: Class for creating, modifying and
-      saving SDDS files.
+.. _Elegant manual: https://ops.aps.anl.gov/manuals/elegant_latest/elegant.html
 """
 
 import math
@@ -89,15 +41,12 @@ def elegant_element_name(name: str) -> str:
 
 class elegantLattice(frameworkLattice):
     """
-    Class for defining the ELEGANT lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for an ELEGANT input file.
+    A line written as ELEGANT lattice (``.lte``) and command (``.ele``) files.
     """
 
 
     code: str = "elegant"
-    """String indicating the lattice object type"""
+    """The lattice object type."""
 
     electrons_only: ClassVar[bool] = True
     """elegant can track other species with ``&change_particle``, but simba
@@ -111,7 +60,7 @@ class elegantLattice(frameworkLattice):
     elements' own ``sr_enable``/``isr_enable``."""
 
     radiates_by_default: ClassVar[bool] = True
-    """Flag to state that Elegant radiates by default (based on LAURA)."""
+    """LAURA's elegant bends radiate unless told not to."""
 
     supports_dynamic_aperture: ClassVar[bool] = True
     """``&find_aperture``, elegant's own search."""
@@ -149,19 +98,19 @@ class elegantLattice(frameworkLattice):
     ``R56 = 0`` as opposed to ``L/(beta0.gamma0)**2``."""
 
     allow_negative_drifts: bool = False
-    """Flag to indicate whether negative drifts are allowed"""
+    """Whether negative drifts are allowed."""
 
     particle_definition: str | None = None
-    """String representation of the initial particle distribution"""
+    """Name of the initial particle distribution."""
 
     bunch_charge: float | None = None
-    """Bunch charge"""
+    """Bunch charge [C]; defaults to the input beam's."""
 
     q: Any = None
-    """:class:`~simba.Elements.charge.charge` object"""
+    """Charge element."""
 
     trackBeam: bool = True
-    """Flag to indicate whether to track the beam"""
+    """Whether to track the beam."""
 
     betax: float | None = None
     """Initial beta_x for matching"""
@@ -176,20 +125,17 @@ class elegantLattice(frameworkLattice):
     """Initial alpha_y for matching"""
 
     commandFiles: Dict = {}
-    """Dictionary of :class:`~simba.Codes.Elegant.Elegant.elegantCommandFile`
-    objects for writing to the ELEGANT input file"""
+    """:class:`elegantCommandFile` objects for the input file, by key."""
 
     final_screen: Any = None
-    """:class:`simba.Elements.screen.screen` object at the end of the line"""
+    """Screen at the end of the line."""
 
     commandFilesOrder: List = []
-    """Order in which commands are to be written in the ELEGANT input file"""
+    """Order of :attr:`commandFiles` in the input file."""
 
     program_elements: ClassVar[tuple] = ("bumper", "mbumper")
-    """The elegant element types a device program can be written onto.
-    The only ones with a ``WAVEFORM``, and so the only ones whose strength
-    can change from pass to pass.
-    """
+    """The elegant element types a device program can be written onto: the
+    only ones with a ``WAVEFORM``."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -197,13 +143,11 @@ class elegantLattice(frameworkLattice):
 
     def writeElements(self) -> str:
         """
-        Write the lattice elements defined in this object into an ELEGANT-compatible format; see
-        :attr:`~simba.Framework_objects.frameworkLattice.elementObjects`.
+        The ELEGANT lattice file, via LAURA, with any ramp inserted.
 
         Returns
         -------
         str
-            The lattice represented as a string compatible with ELEGANT
         """
         if self.bunch_charge is not None:
             q = abs(self.bunch_charge)
@@ -213,14 +157,11 @@ class elegantLattice(frameworkLattice):
 
     def write_ramp_waveform(self) -> str:
         """
-        Write :meth:`ramp` as a ``RAMPP`` waveform beside the lattice.
+        Write :attr:`ramp` as a ``RAMPP`` waveform beside the lattice.
 
-        ``RAMPP`` reads its waveform at the **bunch's mean arrival time**;
-        the shared
-        :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock` plus the
-        input bunch's mean ``t``. It is a staircase, flat for a quarter turn
-        either side of each turn's start.
-
+        ``RAMPP`` reads it at the bunch's mean arrival time, so it is a staircase
+        on :meth:`~simba.Framework_objects.frameworkLattice.ramp_clock` plus the
+        bunch's mean ``t``, flat a quarter turn either side of each turn's start.
         The ratio is to ``run_setup``'s ``p_central``.
 
         Returns
@@ -251,14 +192,13 @@ class elegantLattice(frameworkLattice):
 
     def rf_fiducial_corrections(self) -> dict:
         """
-        How far to move each cavity's phase for elegant to phase it to the
-        ring's :attr:`reference_t0` rather than to the bunch.
+        How far to move each cavity's phase so elegant phases it to the ring's
+        :attr:`reference_t0` rather than to the bunch.
 
         Returns
         -------
         dict
-            Radians by cavity name, empty on an open line, whose reference is
-            the bunch
+            Radians by cavity name; empty on an open line, whose reference is the bunch
         """
         if not self.fixed_reference:
             return {}
@@ -293,18 +233,14 @@ class elegantLattice(frameworkLattice):
     def rf_phase_commands(self) -> dict:
         """
         ``&modulate_elements`` commands moving each cavity's ``PHASE`` pass by
-        pass, so that elegant's fixed oscillators run as :attr:`rf_mode` asks;
-        see :meth:`~simba.Framework_objects.frameworkLattice.rf_phase_corrections`.
+        pass, so elegant's fixed oscillators run as :attr:`rf_mode` asks.
 
-        * ``modulate_elements`` reads its table at the **bunch's** time, as
-          ``RAMPP`` does;
-        * a ``PHASE`` larger by the correction is the phase the reference
-          sees moved by it, as for ``RFCA``'s ``PHASE`` itself.
+        Like ``RAMPP``, ``modulate_elements`` reads its table at the bunch's time.
 
         Returns
         -------
         dict
-            Command files to insert, keyed for ``commandFiles``. Empty unless
+            Command files to insert, keyed for ``commandFiles``; empty unless
             a correction is needed
         """
         from ...Modules.SDDSFile import SDDSFile
@@ -347,12 +283,12 @@ class elegantLattice(frameworkLattice):
 
     def insert_ramp(self, lattice: str) -> str:
         """
-        Put a ``RAMPP`` at the head of the beamline, if :meth:`ramp` asks for one.
+        Put a ``RAMPP`` at the head of the beamline, if the line is :attr:`ramped`.
 
         Parameters
         ----------
         lattice: str
-            The lattice file LAURA wrote
+            Lattice file LAURA wrote
 
         Returns
         -------
@@ -375,16 +311,12 @@ class elegantLattice(frameworkLattice):
 
     def processRunSettings(self) -> tuple:
         """
-        Process the runSettings object to extract the number of runs and the random number seed,
-        and extract error definitions or a parameter scan definiton pertaining to this lattice section.
+        Number of runs, seed, and this section's element errors and scan from ``runSettings``.
 
         Returns
         -------
         tuple
-            nruns: Number of runs
-            seed: Random number seedoutput
-            elementErrors: Dict of errors on elements
-            elementScan: Dict of elements and parameters to scan
+            ``(nruns, seed, elementErrors, elementScan)``; the last two may be None
         """
         nruns = self.runSettings.nruns
         seed = self.runSettings.seed
@@ -402,17 +334,19 @@ class elegantLattice(frameworkLattice):
 
     def processElementErrors(self, elementErrors: Dict) -> Dict:
         """
-        Process the elementErrors dictionary to prepare it for use with the current lattice section in ELEGANT
+        Turn `elementErrors` into ``&error_elements`` settings for this section.
+
+        Element names may use ``*`` wildcards; errors on matches are bound together.
 
         Parameters
         ----------
         elementErrors: Dict
-            Dictionary of element names and error definitions
+            Element name to ``{parameter: error definition}``
 
         Returns
         -------
         Dict
-            Formatted dictionary of errors on elements
+            Element name to ``{elegant keyword: error settings}``
         """
 
         output = {}
@@ -469,8 +403,7 @@ class elegantLattice(frameworkLattice):
                             f"Element type {ele_type} has no associated keyword {param}"
                         )
 
-                    # check for keyword conversions between simframe and elegant
-                    # for example, in simframe the elegant parameter 'voltage' for RF cavities is called 'amplitude'
+                    # e.g. simba's cavity 'amplitude' is elegant's 'voltage'
                     conversions = keyword_conversion_rules_elegant[ele_type]
                     keyword = conversions.get(param, param)
                     output[ele][keyword] = copy(default_err)
@@ -488,19 +421,19 @@ class elegantLattice(frameworkLattice):
 
     def processElementScan(self, elementScan: Dict, nsteps: int) -> Dict | None:
         """
-        Process the elementScan dictionary to prepare it for use with the current lattice section in ELEGANT
-
-        #TODO deprecated?
+        Turn `elementScan` into ``&scan_elements`` settings, writing the scan values to SDDS.
 
         Parameters
         ----------
-        elementScan: Dict[name, item]
-            Dictionary of elements and parameters to scan
+        elementScan: Dict
+            ``name``, ``item``, ``min``, ``max`` and ``multiplicative`` of the scan
+        nsteps: int
+            Number of steps, the first being the unchanged baseline
 
         Returns
         -------
         Dict or None
-            Dictionary of processed elements to scan if valid, else None
+            The scan settings, or None if the element is not in this section
         """
         # extract the name of the beamline element, and the parameter to scan
         ele, param = elementScan["name"], elementScan["item"]
@@ -522,7 +455,6 @@ class elegantLattice(frameworkLattice):
                     f"Element type {ele_type} has no associated parameter {param}"
                 )
 
-            # check for keyword conversions between simframe and elegant
             conversions = keyword_conversion_rules_elegant[ele_type]
             keyword = conversions.get(param, param)
 
@@ -564,9 +496,8 @@ class elegantLattice(frameworkLattice):
 
     def write(self) -> None:
         """
-        Write the ELEGANT lattice and command files to `master_subdir` using the functions
-        :func:`~simba.Codes.Elegant.Elegant.writeElements` and
-        based on the output of :func:`~simba.Codes.Elegant.Elegant.createCommandFiles`.
+        Write the lattice (:meth:`writeElements`) and command files (from
+        :meth:`createCommandFiles`) to `master_subdir`.
         """
         lattice_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".lte"
@@ -599,7 +530,7 @@ class elegantLattice(frameworkLattice):
         Returns
         -------
         str
-            Name of ELEGANT element
+            ELEGANT element type, or "" if unknown
         """
         element = self.elements.get(name)
         if element is None:
@@ -611,16 +542,13 @@ class elegantLattice(frameworkLattice):
 
     def write_program_waveform(self, program) -> str:
         """
-        Write one program's ``(t, factor)`` table beside the lattice.
-
-        The times are seconds from the firing pass, which is where
-        elegant measures a ``WAVEFORM`` from; see
-        :meth:`~simba.Modules.DeviceProgram.DeviceProgram.linear_knots`.
+        Write one program's ``(t, factor)`` table beside the lattice, timed in
+        seconds from the firing pass, where elegant starts a ``WAVEFORM``.
 
         Parameters
         ----------
         program: :class:`~simba.Modules.DeviceProgram.DeviceProgram`
-            The program to write
+            Program to write
 
         Returns
         -------
@@ -650,17 +578,15 @@ class elegantLattice(frameworkLattice):
 
     def program_commands(self) -> dict:
         """
-        ``&alter_elements`` commands putting each program onto its element.
-        Three per program -- the peak strength, the firing pass and the
-        waveform.
+        ``&alter_elements`` commands for each program's peak, firing pass and waveform.
 
-        ``FIRE_ON_PASS`` is **zero-based**, measured: ``FIRE_ON_PASS=2``
-        first kicks on the third pass.
+        ``FIRE_ON_PASS`` is zero-based (measured): ``FIRE_ON_PASS=2`` first kicks
+        on the third pass.
 
         Returns
         -------
         dict
-            Command files to insert, keyed for ``commandFiles``. Empty if
+            Command files to insert, keyed for ``commandFiles``; empty if
             nothing is programmed
         """
         commands = {}
@@ -693,12 +619,8 @@ class elegantLattice(frameworkLattice):
 
     def createCommandFiles(self) -> None:
         """
-        Create the :class:`~simba.Codes.Elegant.elegantCommandFile` objects
-        based on the run settings, lattice and beam parameters, including scans of elements,
-        if defined.
-
-        Updates :attr:`~simba.Codes.Elegant.Elegant.commandFiles` and
-        :attr:`~simba.Codes.Elegant.Elegant.commandFilesOrder`
+        Fill :attr:`commandFiles` and :attr:`commandFilesOrder` from the run settings,
+        lattice and beam, unless already filled.
         """
         if not isinstance(self.commandFiles, dict) or self.commandFiles == {}:
             nruns, seed, elementErrors, elementScan = self.processRunSettings()
@@ -798,12 +720,11 @@ class elegantLattice(frameworkLattice):
             )
             self.commandFilesOrder = list(
                 self.commandFiles.keys()
-            )  # ['global_settings', 'run_setup', 'error_elements', 'scan_elements', 'run_control', 'twiss', 'sdds_beam', 'track']
+            )
 
     def preProcess(self) -> None:
         """
-        Prepare the input distribution for ELEGANT based on the `prefix` in the settings
-        file for this lattice section, and create the ELEGANT command files.
+        Load the input beam, write it as SDDS, and create the command files.
         """
         super().preProcess()
         prefix = self.get_prefix()
@@ -816,10 +737,8 @@ class elegantLattice(frameworkLattice):
         """
         Write a second, focused ``.ele`` for a ring study and run it.
 
-        It also gets its own directory: LAURA writes each screen's
-        ``WATCH`` filename literally as ``./<name>.SDDS``, so a second run
-        over the same lattice silently overwrites every screen file the
-        tracking run produced.
+        It runs in its own directory, since LAURA's ``WATCH`` filenames are
+        ``./<name>.SDDS`` and would overwrite the tracking run's.
 
         Returns
         -------
@@ -874,8 +793,7 @@ class elegantLattice(frameworkLattice):
 
     def track_reference_particle(self) -> dict:
         """
-        One particle, recorded every turn, from a screen's ``WATCH`` file.
-        Uses ``&bunched_beam`` with ``n_particles_per_bunch = 1``.
+        One particle (``&bunched_beam``), recorded every turn by a screen's ``WATCH``.
 
         Returns
         -------
@@ -944,8 +862,7 @@ class elegantLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        ``&find_aperture``: elegant searches for the boundary itself.
-        A boundary, not a survival grid.
+        ``&find_aperture``'s own search for the boundary (not a survival grid).
 
         Returns
         -------
@@ -984,15 +901,13 @@ class elegantLattice(frameworkLattice):
 
     def run_frequency_map(self) -> list:
         """
-        ``&frequency_map``, which computes the tunes itself.
-        This does not go through
-        :func:`~simba.Modules.Matrices.tune_from_trajectory`, so it is an
-        independent check on that function rather than a repeat of it.
+        ``&frequency_map``, whose own tunes are an independent check on
+        :func:`~simba.Modules.Matrices.tune_from_trajectory`.
 
         Returns
         -------
         list
-            ``(x, y, tune_x, tune_y)`` per surviving grid point.
+            ``(x, y, tune_x, tune_y, diffusion)`` per surviving grid point.
         """
         grid_x, grid_y = self.da_grid()
         bounds = {
@@ -1078,18 +993,13 @@ class elegantLattice(frameworkLattice):
 
     def read_one_turn_map(self):
         """
-        The last cumulative matrix in elegant's ``%s.mat``.
-
-        ``matrix_output`` is written on every run already.
-        The matrices are cumulative from the start of the
-        line, so the one covering the whole line -- the one turn -- is the
-        last.
+        The last cumulative matrix in elegant's ``%s.mat``: the whole line.
 
         Returns
         -------
         numpy.ndarray | None
-            The 6x6 map, or None if elegant wrote no matrix file (it writes
-            none when LSC is in use; see :func:`write`).
+            The 6x6 map, or None if elegant wrote no matrix file (as with LSC;
+            see :meth:`createCommandFiles`).
         """
         from ...Modules.Matrices import matrices
 
@@ -1105,10 +1015,7 @@ class elegantLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """
-        PostProcess the simulation results, i.e. gather the screens and markers
-        and write their outputs to HDF5.
-
-        :attr:`~simba.Codes.Elegant.Elegant.commandFiles` is also cleared
+        Convert the screens' and markers' outputs, and clear :attr:`commandFiles`.
         """
         super().postProcess()
         if self.trackBeam:
@@ -1134,8 +1041,7 @@ class elegantLattice(frameworkLattice):
 
     def hdf5_to_sdds(self, write: bool = True) -> None:
         """
-        Convert the HDF5 beam input file to an SDDS file, and create a
-        :class:`~simba.Elements.charge.charge` object as the first element
+        Write the input beam as ``<objectname>_input.sdds``, if `write`.
         """
         sddsbeamfilename = self.objectname + "_input.sdds"
         if write:
@@ -1152,16 +1058,14 @@ class elegantLattice(frameworkLattice):
             ref_index: int = None
     ) -> None:
         """
-        Convert the SDDS beam file name to HDF5 format and write the beam file.
+        Convert a screen's SDDS output to simba beam files, one per output turn.
 
         Parameters
         ----------
-        screen: PAdantic.models.diagnostic.DiagnosticElement
-            PAdantic DiagnosticElement
-        sddsindex: int
-            Index for SDDS file
+        screen: laura.models.diagnostic.DiagnosticElement
+            The screen
         toffset: float, optional
-            Temporal offset
+            Unused
         ref_index: int, optional
             Reference particle index
         """
@@ -1199,7 +1103,7 @@ class elegantLattice(frameworkLattice):
             os.remove(elegantbeamfilename)
 
     def run(self):
-        """Run the code with input 'filename'"""
+        """Run elegant on ``<objectname>.ele``."""
         command = self.executables[self.code] + [self.objectname + ".ele"]
         workdir = os.path.abspath(self.global_parameters["master_subdir"])
         command = self.executables.build_command(command, workdir)
@@ -1270,7 +1174,7 @@ class elegantLattice(frameworkLattice):
 
 class elegantCommandFile(frameworkCommand):
     """
-    Generic class for generating elements for an ELEGANT input file
+    A generic ``&command`` of an ELEGANT input file.
     """
 
 
@@ -1282,19 +1186,19 @@ class elegant_global_settings_command(elegantCommandFile):
     """
 
     inhibit_fsync: int = 0
-    """See this parameter in `Elegant global settings`_ for more details.    """
+    """See `Elegant global settings`_."""
 
     mpi_io_force_file_sync: int = 0
-    """See this parameter in `Elegant global settings`_ for more details."""
+    """See `Elegant global settings`_."""
 
     mpi_io_read_buffer_size: int = 16777216
-    """See this parameter in `Elegant global settings`_ for more details."""
+    """See `Elegant global settings`_."""
 
     mpi_io_write_buffer_size: int = 16777216
-    """See this parameter in `Elegant global settings`_ for more details."""
+    """See `Elegant global settings`_."""
 
     usleep_mpi_io_kludge: int = 0
-    """See this parameter in `Elegant global settings`_ for more details."""
+    """See `Elegant global settings`_."""
 
     objectname: str = "global_settings"
     """Name of object for frameworkObject"""
@@ -1323,7 +1227,7 @@ class elegant_run_setup_command(elegantCommandFile):
     """The default order of transfer matrices used for elements having matrices."""
 
     lattice: frameworkLattice | str = None
-    """:class:`~simba.Framework_objects.frameworkLattice` object"""
+    """Lattice filename."""
 
     centroid: str = "%s.cen"
     """File to which centroid data is to be written"""
@@ -1375,7 +1279,7 @@ class elegant_error_elements_command(elegantCommandFile):
 
 class elegant_scan_elements_command(elegantCommandFile):
     """
-    Error control for an ELEGANT input file; see `Elegant vary element`_
+    Element scan for an ELEGANT input file; see `Elegant vary element`_
 
     .. _Elegant vary element: https://ops.aps.anl.gov/manuals/elegant_latest/elegantsu85.html#x93-920007.76
     """
@@ -1387,10 +1291,10 @@ class elegant_scan_elements_command(elegantCommandFile):
     """Parameter to scan"""
 
     enumeration_file: str
-    """Name of SDDS file containing element to scan"""
+    """SDDS file of the scan values"""
 
     enumeration_column: str
-    """Parameter to scan in enumeration_file"""
+    """Column of the scan values in `enumeration_file`"""
 
     multiplicative: int = 0
     """Whether to multiply the original value by the values in the scan range"""
@@ -1497,7 +1401,7 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     """Initial horizontal floor position"""
 
     Y0: float = 0.0
-    """Initial horizontal floor position"""
+    """Initial vertical floor position"""
 
     Z0: float = 0.0
     """Initial longitudinal floor position"""
@@ -1506,7 +1410,7 @@ class elegant_floor_coordinates_command(elegantCommandFile):
     """Initial global rotation"""
 
     magnet_centers: float = 0
-    """Global magnet centre"""
+    """Output magnet centres rather than ends"""
 
     objectname: str = "floor_coordinates"
     """Name of object"""
@@ -1553,10 +1457,8 @@ class elegant_bunched_beam_command(elegantCommandFile):
     """Type of object"""
 
     def write_Elegant(self) -> str:
-        """``centroid`` is an *array* keyword, so the generic writer cannot
-        reach it -- ``centroid[6]`` is the declaration, and elegant wants
-        the components addressed individually as ``centroid[0]`` and
-        ``centroid[2]``."""
+        """Adds ``centroid[0]`` and ``centroid[2]``, array components the generic
+        writer cannot address."""
         text = super().write_Elegant()
         offsets = "".join(
             f"\t{name} = {value}\n"
@@ -1651,8 +1553,7 @@ class elegant_frequency_map_command(elegantCommandFile):
     """Momentum grid points"""
 
     include_changes: int = 1
-    """Write the tune *change* between the two halves of the run -- the
-    diffusion that makes a frequency map more than a tune footprint"""
+    """Write the tune change between the run's two halves (the diffusion)"""
 
     full_grid_output: int = 1
     """Write every grid point, not only the surviving ones"""
@@ -1715,16 +1616,16 @@ class elegant_sdds_beam_command(elegantCommandFile):
     """Type of object"""
 
     sample_interval: float | int = 1
-    """Fraction by which to reduce number of particles"""
+    """Use only every n-th particle"""
 
     reuse_bunch: int = 1
-    """Flag to indicate whether bunch is to be reused"""
+    """Reuse the bunch every step"""
 
     fiducialization_bunch: int = 0
-    """Flag to indicate whether bunch is fiducial"""
+    """Index of the bunch used for fiducialization"""
 
     center_arrival_time: int = 0
-    """Flag to indicate whether to centre arrival time"""
+    """Centre the arrival time"""
 
 
 class elegant_track_command(elegantCommandFile):
@@ -1735,7 +1636,7 @@ class elegant_track_command(elegantCommandFile):
     """
 
     trackBeam: bool = True
-    """Flag to indicate whether to include the track command"""
+    """Whether to write the track command"""
 
     objectname: str = "track"
     """Name of object"""
@@ -1745,10 +1646,9 @@ class elegant_track_command(elegantCommandFile):
 
 
 class sddsFile:
-    """simple class for writing generic column data to a new SDDS file"""
+    """Writes column and parameter data to a new SDDS file."""
 
     def __init__(self):
-        """initialise an SDDS instance, prepare for writing to file"""
         self.sdds = sdds.SDDS(0)
 
     def add_column(self, name, data, **kwargs):

@@ -26,7 +26,7 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
         )
 
         if hasattr(gdfbeamdata, "avgz"):
-            # mjohnson code added 2022-08-11
+            # avgz resets at each new lattice section; unwrap it in time order
             nsteps = len(gdfbeamdata.avgz)
             z_sort = np.array(
                 [x for _, x in sorted(zip(gdfbeamdata.avgt, gdfbeamdata.avgz))],
@@ -45,7 +45,6 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
 
                 gdfbeamdata.avgz[order[i]] = z_sort[i] + offset
 
-            # original code begins
             self.append_columns(nsteps, z=gdfbeamdata.avgz, s=gdfbeamdata.avgz)
 
         elif hasattr(gdfbeamdata, "position"):

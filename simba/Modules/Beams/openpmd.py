@@ -11,8 +11,7 @@ from ..units import UnitValue
 
 
 TURN_BASE_PATH = "/data/%T/"
-"""openPMD ``basePath`` of a multi-turn file: every turn is an iteration in the
-one file (openPMD's group-based encoding), ``/data/<turn>/particles``."""
+"""openPMD ``basePath`` of a multi-turn file; each turn is an iteration, ``/data/<turn>/particles``."""
 
 openpmd_coords = [
     "x",
@@ -64,10 +63,9 @@ def _turns(h5file: File) -> list:
 
 
 def openpmd_turns(filename) -> list:
-    """The turns ``filename`` holds, in order: empty for a single beam.
-    A multi-turn run that keeps every turn writes each element's beams into
-    one file, a turn to an iteration; :func:`read_openpmd_beam_file` reads
-    one.
+    """The turns ``filename`` holds, in order; empty for a single beam.
+
+    A multi-turn run stores each turn as one openPMD iteration of the same file.
     """
     with File(os.path.expandvars(filename), "r") as h5file:
         return _turns(h5file)
@@ -80,8 +78,9 @@ def is_openpmd_beam_file(h5file: File) -> bool:
 
 def read_openpmd_beam_file(self, filename, turn=None):
     """Read an openPMD beam file.
-    ``turn`` picks one turn of a multi-turn file (see :func:`openpmd_turns`),
-    which otherwise reads as its last. A single beam is read whatever ``turn`` says.
+
+    ``turn`` picks one turn of a multi-turn file (see :func:`openpmd_turns`);
+    the default is the last. It is ignored for a single-beam file.
     """
     self.filename = filename
     fname = os.path.expandvars(filename)
@@ -115,8 +114,9 @@ def write_openpmd_beam_file(
     turn=None,
 ):
     """Write the beam to an openPMD file.
-    ``turn`` makes it that turn of a multi-turn file (:data:`TURN_BASE_PATH`):
-    turn 1, or a file that is not yet multi-turn, starts it afresh.
+
+    ``turn`` writes it as that turn of a multi-turn file (:data:`TURN_BASE_PATH`);
+    turn 1, or a file that is not yet multi-turn, starts the file afresh.
     """
     fname = os.path.expandvars(filename)
     if turn is None:
@@ -137,7 +137,7 @@ def write_openpmd_beam_file(
 
 
 def _write_particles(self, h5file_particles, pos, toffset):
-    """The beam into an openPMD ``particles`` group."""
+    """Write the beam into an openPMD ``particles`` group."""
     xoffset, yoffset, zoffset = pos
     data = {
         "x": self.x + UnitValue(xoffset, units="m"),

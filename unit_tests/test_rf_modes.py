@@ -9,6 +9,7 @@ import pytest
 from scipy.constants import c
 
 import simba.Framework as fw
+from helpers import fodo_machine, read_beam, skip_missing
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.Generators import frameworkGenerator
@@ -18,19 +19,13 @@ from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.EnergyRamp import rf_phase_slip, wrap_phase
 
-from test_madx_native_turns import _beam, _machine
-
 ELECTRON = 510998.95
 TURNS = 10
 CAVITY_LENGTH = 0.2
-RING = 4.0 + 1.5 * CAVITY_LENGTH  # where _machine puts M3
+RING = 4.0 + 1.5 * CAVITY_LENGTH  # where fodo_machine puts M3
 BETA = 5e6 / np.hypot(5e6, ELECTRON)
 HARMONIC = 10 * c * BETA / RING
 RAMP = {"turns": [1, TURNS], "momentum": [5e6, 5.04e6]}
-CODES = ["elegant", "xsuite", "madx", "ocelot"]
-
-
-# --- the slip -------------------------------------------------------------
 
 
 def test_without_a_ramp_fixed_and_follow_agree():
@@ -56,8 +51,8 @@ def test_off_the_harmonic_follow_slips_by_the_fraction_each_pass():
 
 
 def test_fixed_times_the_reference_as_it_travels():
-    """``sum C / (beta_k c)``, each pass at its own speed -- not the ramp
-    clock's mid-point, which put elegant 4 eV out on the first ramped turn."""
+    """Each pass at its own speed: the ramp clock's mid-point put elegant
+    4 eV out on the first ramped turn."""
     beta = np.array([0.990, 0.991, 0.993])
     s = 1.7
     arrival = np.array([
@@ -80,9 +75,6 @@ def test_an_unknown_mode_is_refused():
 
 def test_a_phase_wraps_into_one_turn():
     assert np.allclose(wrap_phase([np.pi, -np.pi, 3 * np.pi / 2, 0.1]), [np.pi, np.pi, -np.pi / 2, 0.1])
-
-
-# --- the line -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -174,8 +166,7 @@ def test_a_ramp_moves_a_follower_only_for_fixed():
 
 
 def test_a_ramp_moves_a_fixed_oscillator_only_for_follow():
-    """The two corrections are equal and opposite: the same difference
-    between the two modes, seen from either end."""
+    """Equal and opposite to the follower's correction."""
     assert FakeLine({"turns": 10, "ramp": RAMP, "rf": "fixed"}, "fixed").rf_phase_corrections() == {}
     follow = FakeLine({"turns": 10, "ramp": RAMP, "rf": "follow"}, "fixed").rf_phase_corrections()
     fixed = FakeLine({"turns": 10, "ramp": RAMP, "rf": "fixed"}, "synchronous").rf_phase_corrections()
@@ -188,17 +179,14 @@ def test_off_the_harmonic_a_follower_is_moved_even_without_a_ramp():
 
 
 def test_a_slip_too_small_to_matter_over_the_run_is_left_alone():
-    """CLIC DR's frequency, worked out with MAD-X's electron mass, sat 1.5e-11
-    off SIMBA's harmonic: microradians over the run, and binding the cavity's
-    lag to time cost Xsuite its closed orbit and every ring parameter."""
+    """CLIC DR sat 1.5e-11 off the harmonic; moving its lag cost Xsuite its
+    closed orbit and every ring parameter."""
     line = FakeLine({"turns": 20}, "synchronous", frequency=(1 + 1.5e-11) * HARMONIC)
     assert line.rf_phase_corrections() == {}
 
 
 def test_a_cavity_with_no_voltage_is_never_moved():
-    """It does nothing at any phase. Moving it would still have cost MAD-X
-    its native turn loop: LAURA's default cavity is 3 GHz at 0 V, off the
-    harmonic of most test rings, and that switched `use_native_turns` off."""
+    """LAURA's default cavity (3 GHz, 0 V) switched MAD-X's native turns off."""
     line = FakeLine({"turns": 10}, "synchronous", frequency=1.002 * HARMONIC)
     line.elements["CAV"].simulation.field_amplitude = 0.0
     assert line.rf_phase_corrections() == {}
@@ -208,9 +196,6 @@ def test_a_code_that_cannot_move_its_rf_warns():
     line = FakeLine({"turns": 10, "ramp": RAMP, "rf": "fixed"}, None)
     with pytest.warns(UserWarning, match="cannot move a cavity's phase"):
         assert line.rf_phase_corrections() == {}
-
-
-# --- the codes ------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -231,13 +216,12 @@ def seed_beam(tmp_path_factory):
 
 def _track(tmp_path, code, tracking, seed_beam, frequency=HARMONIC):
     """Track the ring; return the lattice and the bunch-mean energy gain per turn."""
-    if code == "elegant" and shutil.which("elegant") is None:
-        pytest.skip("elegant is not installed")
+    skip_missing(code)
     cavity = {
         "cavity": {"frequency": frequency, "phase": 60.0},
         "simulation": {"field_amplitude": 2.0e4},
     }
-    machine, _, section = _machine(
+    machine, _, section = fodo_machine(
         tmp_path, cavity=cavity, closed=True, cavity_length=CAVITY_LENGTH
     )
     settings = fw.FrameworkSettings()
@@ -262,8 +246,8 @@ def _track(tmp_path, code, tracking, seed_beam, frequency=HARMONIC):
         warnings.simplefilter("ignore")
         framework.track()
     subdir = framework.subdirectory
-    cp = [np.mean(_beam(os.path.dirname(seed_beam), "M1").cp.val)]
-    cp.extend(np.mean(_beam(subdir, "M3", turn).cp.val) for turn in range(1, TURNS + 1))
+    cp = [np.mean(read_beam(os.path.dirname(seed_beam), "M1").cp.val)]
+    cp.extend(np.mean(read_beam(subdir, "M3", turn).cp.val) for turn in range(1, TURNS + 1))
     return framework["FODO"], np.diff(cp)
 
 
@@ -289,8 +273,7 @@ def runs(tmp_path_factory, seed_beam):
 
 
 def test_the_two_modes_differ(runs):
-    """Guards the agreement below, which an ignored ``rf`` would also pass:
-    turn 10 is 9050 eV fixed and 9500 eV follow."""
+    """Guards the agreement below: turn 10 is 9050 eV fixed, 9500 eV follow."""
     fixed, follow = runs("elegant", "fixed")[1], runs("elegant", "follow")[1]
     assert follow[-1] - fixed[-1] > 300
 
@@ -298,39 +281,32 @@ def test_the_two_modes_differ(runs):
 @pytest.mark.parametrize("mode", ["fixed", "follow"])
 @pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot"])
 def test_every_code_runs_the_rf_it_is_asked_for(code, mode, runs):
-    """Against elegant, turn by turn. Measured worst, turn 10: MAD-X 23 eV
-    in 9500, about its spread from the thick codes on the flat ring."""
+    """Against elegant; worst measured is MAD-X, 23 eV in 9500 on turn 10."""
     gains, reference = runs(code, mode)[1], runs("elegant", mode)[1]
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
 @pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot"])
 def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
-    """7.2 deg a turn, which takes the gain from 10 to 20 keV in 10 turns.
-    The followers used to stay at 10 keV; measured within 10 eV now."""
+    """7.2 deg a turn takes the gain from 10 to 20 keV; followers stayed at 10."""
     gains, reference = runs(code, "off_harmonic")[1], runs("elegant", "off_harmonic")[1]
     assert reference[-1] > 19000
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
 def test_ocelots_cavity_leaves_a_rings_reference_alone(runs):
-    """Its cavity map moves the reference energy by ``V cos(phi)``. Left in,
-    the gain stayed at 10052 eV every turn, as the reference rode along with
-    the beam; elegant's falls to 9050 by turn 10."""
+    """Its cavity map moved the reference by ``V cos(phi)``, so the gain
+    stayed at 10052 eV where elegant's falls to 9050."""
     gains, reference = runs("ocelot", "flat")[1], runs("elegant", "flat")[1]
     assert reference[0] - reference[-1] > 900
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
 def test_ocelot_finds_a_rings_optics_with_a_cavity_in_it(runs):
-    """``twiss(tws0=None)`` refused outright ("Lattice is contained Cavity.
-    Argument 'tws' must be Twiss class with non zero energy 'tws.E'")."""
+    """``twiss(tws0=None)`` refused a lattice with a cavity."""
     lattice = runs("ocelot", "flat")[0]
     periodic = lattice._ocelot_periodic()
     assert periodic and periodic[0].beta_x > 0
-
-
-# --- the shared phase moves -------------------------------------------------
 
 
 class PhaseLine:
@@ -373,8 +349,7 @@ def test_a_phase_is_moved_in_the_codes_own_sign_and_units():
 
 
 def test_a_phase_changed_between_runs_is_the_one_moved_from():
-    """Ocelot kept the phases it read on its first run for good, so a cavity
-    rephased between runs went back to its old phase on the next."""
+    """Ocelot kept its first run's phases for good."""
     line = PhaseLine({"CAV": np.array([0.0, 0.1])})
     line.begin_rf_phases()
     line.apply_rf_phases(1)

@@ -1,11 +1,4 @@
-"""
-SIMBA Centroids Module
-
-This module calculates the beam centroids of a particle distribution.
-
-Classes:
-    - :class:`~simba.Modules.Particles.centroids.centroids`: Centroid calculations.
-"""
+"""Beam centroids of a particle distribution."""
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -16,9 +9,7 @@ from ...units import UnitValue
 from typing import Dict
 
 class centroids(BaseModel):
-    """
-    Class for calculating centroids of a particle distribution.
-    """
+    """Centroids (means) of a particle distribution."""
 
     model_config = ConfigDict(
         extra="allow",
@@ -38,337 +29,155 @@ class centroids(BaseModel):
     @computed_field
     @property
     def mean_x(self) -> UnitValue:
-        """
-        Mean of horizontal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of x
-        """
+        """Mean x in m."""
         return self.Cx
 
     @computed_field
     @property
     def mean_y(self) -> UnitValue:
-        """
-        Mean of vertical distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of y
-        """
+        """Mean y in m."""
         return self.Cy
 
     @computed_field
     @property
     def mean_t(self) -> UnitValue:
-        """
-        Mean of temporal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of t
-        """
+        """Mean t in s."""
         return self.Ct
 
     @computed_field
     @property
     def mean_z(self) -> UnitValue:
-        """
-        Mean of longitudinal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of t
-        """
+        """Mean z in m."""
         return self.Cz
 
     @computed_field
     @property
     def mean_cpx(self) -> UnitValue:
-        """
-        Mean of horizontal momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpx
-        """
+        """Mean horizontal momentum in eV/c."""
         return self.Cpx
 
     @computed_field
     @property
     def mean_cpy(self) -> UnitValue:
-        """
-        Mean of vertical momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpy
-        """
+        """Mean vertical momentum in eV/c."""
         return self.Cpy
 
     @computed_field
     @property
     def mean_cpz(self) -> UnitValue:
-        """
-        Mean of longitudinal momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpz
-        """
+        """Mean longitudinal momentum in eV/c."""
         return self.Cpz
 
     @computed_field
     @property
     def mean_px(self) -> UnitValue:
-        """
-        Mean of horizontal momentum in kg*m/s
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of px
-        """
+        """Mean horizontal momentum in kg*m/s."""
         return np.mean(self.beam.px)
 
     @computed_field
     @property
     def mean_py(self) -> UnitValue:
-        """
-        Mean of vertical momentum in kg*m/s
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of py
-        """
+        """Mean vertical momentum in kg*m/s."""
         return np.mean(self.beam.py)
 
     @computed_field
     @property
     def mean_pz(self) -> UnitValue:
-        """
-        Mean of longitudinal momentum in kg*m/s
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of pz
-        """
+        """Mean longitudinal momentum in kg*m/s."""
         return np.mean(self.beam.pz)
 
     @computed_field
     @property
     def mean_energy(self) -> UnitValue:
-        """
-        Mean of beam energy in eV
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of E
-        """
+        """Mean total energy in eV."""
         return self.CEn
 
     @computed_field
     @property
     def mean_gamma(self) -> UnitValue:
-        """
-        Mean relativistic Lorentz factor
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of gamma
-        """
+        """Mean Lorentz factor."""
         return self.Cgamma
 
     @computed_field
     @property
     def mean_cp(self) -> UnitValue:
-        """
-        Mean of total momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cp
-        """
+        """Mean total momentum in eV/c."""
         return self.Ccp
 
     @computed_field
     @property
     def Cx(self) -> UnitValue:
-        """
-        Mean of horizontal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of x
-        """
+        """Mean x in m."""
         return np.mean(self.beam.x)
 
     @computed_field
     @property
     def Cy(self) -> UnitValue:
-        """
-        Mean of vertical distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of y
-        """
+        """Mean y in m."""
         return np.mean(self.beam.y)
 
     @computed_field
     @property
     def Cz(self) -> UnitValue:
-        """
-        Mean of longitudinal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of z
-        """
+        """Mean z in m."""
         return np.mean(self.beam.z)
 
     @computed_field
     @property
     def Ct(self) -> UnitValue:
-        """
-        Mean of temporal distribution
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of t
-        """
+        """Mean t in s."""
         return np.mean(self.beam.t)
 
     @computed_field
     @property
     def Cp(self) -> UnitValue:
-        """
-        Mean of total momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cp
-        """
+        """Mean total momentum in eV/c."""
         return np.mean(self.beam.cp)
 
     @computed_field
     @property
     def Cpx(self) -> UnitValue:
-        """
-        Mean of horizontal momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpx
-        """
+        """Mean horizontal momentum in eV/c."""
         return np.mean(self.beam.cpx)
 
     @computed_field
     @property
     def Cpy(self) -> UnitValue:
-        """
-        Mean of vertical momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpy
-        """
+        """Mean vertical momentum in eV/c."""
         return np.mean(self.beam.cpy)
 
     @computed_field
     @property
     def Cpz(self) -> UnitValue:
-        """
-        Mean of longitudinal momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of cpz
-        """
+        """Mean longitudinal momentum in eV/c."""
         return np.mean(self.beam.cpz)
 
     @computed_field
     @property
     def Cxp(self) -> UnitValue:
-        """
-        Mean of horizontal angle in rad
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of xp
-        """
+        """Mean horizontal angle in rad."""
         return np.mean(self.beam.xp)
 
     @computed_field
     @property
     def Cyp(self) -> UnitValue:
-        """
-        Mean of vertical angle in rad
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of yp
-        """
+        """Mean vertical angle in rad."""
         return np.mean(self.beam.yp)
 
     @computed_field
     @property
     def Cgamma(self) -> UnitValue:
-        """
-        Mean of relativistic Lorentz factor
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of gamma
-        """
+        """Mean Lorentz factor."""
         return np.mean(self.beam.gamma)
 
     @computed_field
     @property
     def Ccp(self) -> UnitValue:
-        """
-        Mean of total momentum in eV/c
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean of x
-        """
+        """Mean total momentum in eV/c."""
         return np.mean(self.beam.cp)
 
     @computed_field
     @property
     def CEn(self) -> UnitValue:
-        """
-        Mean beam energy in eV
-
-        Returns
-        -------
-        :class:`~simba.Modules.units.UnitValue`
-            Mean energy
-        """
+        """Mean total energy in eV."""
         return UnitValue(np.mean(np.sqrt(self.beam.cp**2 + self.beam.particle_rest_energy_eV**2)), "eV")

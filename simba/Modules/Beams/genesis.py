@@ -16,7 +16,7 @@ except ImportError:
     )
 from .openpmd import read_openpmd_beam_file, write_openpmd_beam_file
 from ..units import UnitValue
-from .. import pmd_units
+from .. import constants
 
 def read_genesis_beam_file(
         self,
@@ -79,7 +79,9 @@ def write_genesis_beam_file(self, filename: str, n_slice: int = 10):
         f["alphax"] = self.slice.slice_alpha_x.val
         f["betay"] = self.slice.slice_beta_y.val
         f["alphay"] = self.slice.slice_alpha_y.val
-        f["gamma"] = self.slice.slice_momentum.val / pmd_units.m_e
+        f["gamma"] = self.slice.slice_momentum.val / (
+            constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
+        )
         f["delgam"] = self.slice.slice_relative_momentum_spread.val
         f["ex"] = self.slice.slice_normalized_horizontal_emittance.val
         f["ey"] = self.slice.slice_normalized_vertical_emittance.val

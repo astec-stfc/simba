@@ -114,17 +114,8 @@ def madx_ring():
 BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
 
 
-@cache
-def bmad_ring():
-    """The same ring through Tao, with chromaticity by finite difference --
-    the definition, rather than an analytic integral."""
-    pytest.importorskip("pytao")
-    if not os.path.exists(BMAD_SO):
-        pytest.skip("Bmad libtao not installed")
-    from pytao import Tao
-
-    directory = tempfile.mkdtemp()
-    path = os.path.join(directory, "ring.bmad")
+def bmad_ring_file(rf=False):
+    path = os.path.join(tempfile.mkdtemp(), "ring.bmad")
     with open(path, "w") as handle:
         handle.write(
             "parameter[particle] = electron\n"
@@ -134,11 +125,23 @@ def bmad_ring():
             f"qd: quadrupole, l = {QUAD_L}, k1 = {-QUAD_K1}\n"
             f"b: sbend, l = {BEND_L}, angle = {ANGLE!r}\n"
             f"d: drift, l = {DRIFT_L}\n"
+            "rf: rfcavity, l = 0, voltage = 1e6, harmon = 40, phi0 = 0.5\n"
             "cell: line = (qf, d, b, d, qd, d)\n"
-            f"lat: line = ({NCELL}*cell)\n"
+            f"lat: line = ({'rf, ' if rf else ''}{NCELL}*cell)\n"
             "use, lat\n"
         )
-    tao = Tao(lattice_file=path, so_lib=BMAD_SO, noplot=True)
+    return path
+
+
+@cache
+def bmad_ring():
+    """Chromaticity by finite difference: the definition, not an analytic integral."""
+    pytest.importorskip("pytao")
+    if not os.path.exists(BMAD_SO):
+        pytest.skip("Bmad libtao not installed")
+    from pytao import Tao
+
+    tao = Tao(lattice_file=bmad_ring_file(), so_lib=BMAD_SO, noplot=True)
 
     def tunes():
         out = {}
@@ -162,27 +165,13 @@ def bmad_ring():
     }
 
 
-# --- the tune, four ways ------------------------------------------------
-
-
-def test_the_fractional_tune_agrees_across_codes():
-    """The headline check. Transverse blocks need no conversion, so these are
-    directly comparable as the codes produce them."""
+@pytest.mark.parametrize("plane", ["x", "y"])
+def test_the_fractional_tune_agrees_across_codes(plane):
+    """Transverse blocks need no convention conversion."""
     tunes = {
-        "xsuite": fractional_tune(xsuite_ring()[0], "x"),
-        "ocelot": fractional_tune(ocelot_ring()[0], "x"),
-        "madx": fractional_tune(madx_ring()[0], "x"),
-    }
-    reference = tunes["xsuite"]
-    for name, value in tunes.items():
-        assert value == pytest.approx(reference, abs=1e-6), f"{name}: {tunes}"
-
-
-def test_the_vertical_tune_agrees_across_codes():
-    tunes = {
-        "xsuite": fractional_tune(xsuite_ring()[0], "y"),
-        "ocelot": fractional_tune(ocelot_ring()[0], "y"),
-        "madx": fractional_tune(madx_ring()[0], "y"),
+        "xsuite": fractional_tune(xsuite_ring()[0], plane),
+        "ocelot": fractional_tune(ocelot_ring()[0], plane),
+        "madx": fractional_tune(madx_ring()[0], plane),
     }
     reference = tunes["xsuite"]
     for name, value in tunes.items():
@@ -190,17 +179,12 @@ def test_the_vertical_tune_agrees_across_codes():
 
 
 def test_the_ring_is_not_accidentally_on_a_trivial_tune():
-    """Guards every comparison above: agreement on 0.0 would prove nothing."""
+    """Agreement on 0.0 would prove nothing."""
     tune = fractional_tune(xsuite_ring()[0], "x")
     assert 0.05 < tune < 0.95
 
 
-# --- periodic Twiss -----------------------------------------------------
-
-
 def test_the_periodic_beta_agrees_across_codes():
-    """The quantity A1 was built for: the closed solution, which no incoming
-    beam can supply."""
     betas = {
         "xsuite": periodic_twiss(xsuite_ring()[0], "x")["beta"],
         "ocelot": periodic_twiss(ocelot_ring()[0], "x")["beta"],
@@ -222,13 +206,8 @@ def test_the_periodic_alpha_agrees_across_codes():
         assert value == pytest.approx(reference, abs=1e-5), f"{name}: {alphas}"
 
 
-# --- the codes' own numbers, against the map's ---------------------------
-
-
 def test_each_codes_own_tune_matches_the_map():
-    """An independent route to the same number: the map is differentiated
-    about the closed orbit, the code's own tune is accumulated phase. They
-    should not need to agree, and do."""
+    """Accumulated phase against the map's eigenvalues: independent routes."""
     _, tw = xsuite_ring()
     _, periodic, _ = ocelot_ring()
     _, summ = madx_ring()
@@ -244,23 +223,14 @@ def test_each_codes_own_tune_matches_the_map():
 
 
 def test_the_codes_agree_on_the_integer_tune_too():
-    """Which the map cannot give, so this is the only place it is checked."""
+    """The map cannot give it, so this is the only place it is checked."""
     _, tw = xsuite_ring()
     _, summ = madx_ring()
     assert int(float(tw.qx)) == int(float(summ["q1"][-1]))
 
 
-# --- chromaticity -------------------------------------------------------
-
-
 def test_the_horizontal_chromaticity_agrees_across_three_codes():
-    """Chromaticity is not derivable from one map -- it is dQ/ddelta, so it
-    needs two momenta. Every ring code computes it off the matched solution,
-    which is why A1 had to come first.
-
-    Horizontally Xsuite, MAD-X and Bmad agree to six digits at -0.866684,
-    from three independent implementations.
-    """
+    """Xsuite, MAD-X and Bmad: -0.866684 to six digits."""
     _, tw = xsuite_ring()
     _, summ = madx_ring()
     assert float(summ["dq1"][-1]) == pytest.approx(float(tw.dqx), rel=1e-5)
@@ -268,7 +238,7 @@ def test_the_horizontal_chromaticity_agrees_across_three_codes():
 
 
 def test_madx_and_bmad_agree_on_vertical_chromaticity():
-    """Two independent codes, same number to six digits: -0.653642."""
+    """-0.653642 to six digits."""
     _, summ = madx_ring()
     assert bmad_ring()["chromaticity_y"] == pytest.approx(
         float(summ["dq2"][-1]), rel=1e-5
@@ -276,35 +246,12 @@ def test_madx_and_bmad_agree_on_vertical_chromaticity():
 
 
 def test_xsuite_is_the_vertical_chromaticity_outlier():
-    """A real model difference, run down rather than tolerated.
+    """A real model difference in the dipole's off-momentum vertical transport.
 
-    ===========  ==========
-    Xsuite       -0.461311
-    Ocelot       -0.581475
-    MAD-X        -0.653642
-    Bmad         -0.653642
-    ===========  ==========
-
-    Horizontally all but Ocelot agree. What was established:
-
-    * Neither code is misreporting. Each one's quoted chromaticity equals its
-      *own* finite-difference ``dQ/ddelta`` exactly, so this is the models
-      genuinely tracking different vertical tunes off-momentum.
-    * It is the **dipole**. Per-cell divergence shrinks monotonically as the
-      bend angle does -- 45 deg: -0.0240, 22.5: -0.0184, 11.25: -0.0097,
-      5.6: -0.0034 -- and extrapolates to zero for a ring with no bending.
-    * Localised to the bend's off-momentum vertical transport. For a single
-      1 m / 45 deg sector bend, ``R34`` is exactly ``L`` in both at
-      ``delta = 0``, but at ``delta = 0.01`` Xsuite gives 0.991086 and MAD-X
-      1.000987 -- opposite directions, and ``0.991086 * 1.01 = 1.000997``.
-      MAD-X's vertical block is Xsuite's without the ``1/(1+delta)``
-      rigidity factor.
-    * Ruled out: MAD-X's ``chrom`` flag (no change), Xsuite's dipole edge
-      treatment (no change).
-
-    Which is *right* is deliberately not asserted here. The rigidity factor
-    argues for Xsuite; two independent codes agreeing against it argue the
-    other way. Pinned as a baseline either way, so a change anywhere shows up.
+    Each code's chromaticity matches its own finite-difference dQ/ddelta, and
+    the gap vanishes with the bend angle. MAD-X's vertical block is Xsuite's
+    without the 1/(1+delta) rigidity factor. Which is right is not asserted;
+    the values are pinned so a change anywhere shows up.
     """
     from ocelot.cpbd.chromaticity import chromaticity
 
@@ -326,10 +273,7 @@ def test_xsuite_is_the_vertical_chromaticity_outlier():
 
 
 def test_ocelot_horizontal_chromaticity_is_the_outlier():
-    """Three codes agreeing to six digits against one: -1.16126 against
-    -0.866684. Ocelot's chromaticity is an analytic integral over the
-    lattice, where the others difference tunes at two momenta. Failing this
-    test would be good news."""
+    """Ocelot integrates analytically where the others difference two momenta."""
     from ocelot.cpbd.chromaticity import chromaticity
 
     _, tw = xsuite_ring()
@@ -340,16 +284,7 @@ def test_ocelot_horizontal_chromaticity_is_the_outlier():
 
 
 def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
-    """`read_optics_summary` is the only route by which a ring's tune
-    reaches simba from Ocelot, and until now it raised `NameError: name
-    'pi' is not defined` on its first line -- `pi` was never imported into
-    `Ocelot.py`. Nothing caught it: `postProcess` does not guard the call,
-    so every Ocelot ring run died there, and every test went through
-    `ocelot_twiss` directly instead of through simba's own method.
-
-    So this drives the real method. The value is checked against the
-    independent Xsuite tune, not against Ocelot's own.
-    """
+    """`read_optics_summary` once raised NameError on `pi`, killing every Ocelot ring run."""
     from simba.Codes.Ocelot.Ocelot import ocelotLattice
 
     _, tw = xsuite_ring()
@@ -370,29 +305,13 @@ def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
 
 
 def test_bmad_chromaticity_survives_a_live_cavity():
-    """With RF on, Tao's closed orbit is 6D and pins ``pz``, so simba's
-    finite difference read a chromaticity of zero on any ring with a cavity."""
+    """With RF on, Tao's 6D closed orbit pins ``pz``, so the finite difference read zero."""
     from pytao import Tao
 
     from simba.Codes.Bmad.Bmad import bmadLattice
 
     expected = bmad_ring()  # no cavity
-    directory = tempfile.mkdtemp()
-    path = os.path.join(directory, "ring_rf.bmad")
-    with open(path, "w") as handle:
-        handle.write(
-            "parameter[particle] = electron\n"
-            "parameter[geometry] = closed\n"
-            f"parameter[p0c] = {PC}\n"
-            f"qf: quadrupole, l = {QUAD_L}, k1 = {QUAD_K1}\n"
-            f"qd: quadrupole, l = {QUAD_L}, k1 = {-QUAD_K1}\n"
-            f"b: sbend, l = {BEND_L}, angle = {ANGLE!r}\n"
-            f"d: drift, l = {DRIFT_L}\n"
-            "rf: rfcavity, l = 0, voltage = 1e6, harmon = 40, phi0 = 0.5\n"
-            "cell: line = (qf, d, b, d, qd, d)\n"
-            f"lat: line = (rf, {NCELL}*cell)\n"
-            "use, lat\n"
-        )
+    path = bmad_ring_file(rf=True)
 
     class FakeBmad:
         read_optics_summary = bmadLattice.read_optics_summary
@@ -419,19 +338,14 @@ def test_bmad_agrees_on_the_tune_including_the_integer():
 
 
 def test_the_chromaticity_is_negative_and_substantial():
-    """A FODO ring of pure quadrupoles has large natural chromaticity, so a
-    near-zero answer would mean something is not being computed at all."""
+    """Near zero would mean it is not being computed at all."""
     _, tw = xsuite_ring()
     assert float(tw.dqx) < -0.5
     assert float(tw.dqy) < -0.3
 
 
-# --- momentum compaction ------------------------------------------------
-
-
 def test_the_momentum_compaction_agrees_across_codes():
-    """Longitudinal, so this one *does* need the convention conversion:
-    Ocelot's map is sign-flipped and beta0**2 scaled against Xsuite's."""
+    """Longitudinal, so Ocelot's map needs the convention conversion."""
     from simba.Codes.Ocelot.Ocelot import ocelotLattice
 
     beta0 = math.sqrt(1 - 1 / GAMMA0**2)

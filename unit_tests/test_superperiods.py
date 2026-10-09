@@ -1,26 +1,18 @@
-"""One sector of an N-fold-symmetric ring, tracked N times per turn.
-
-A real ring is usually built as N identical sectors, and writing the lattice
-out N times is both tedious and a lie about what the machine is. ``tracking:
-{nsuperperiods: N}`` says the line is one sector, and the backends traverse it
-N times before calling it a turn.
-"""
+"""``tracking: {nsuperperiods: N}``: one sector of an N-fold ring, tracked N
+times per turn."""
 
 import math
 import warnings
 
 import pytest
 
-from simba.Codes.ASTRA.ASTRA import astraLattice
-from simba.Codes.Bmad.Bmad import bmadLattice
-from simba.Codes.Elegant.Elegant import elegantLattice
+from helpers import BentLine, xtrack_sector
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 
 CAN = [ocelotLattice, madxLattice, xsuiteLattice]
-CANNOT = [elegantLattice, bmadLattice, astraLattice]
 
 
 class FakeLine:
@@ -38,9 +30,6 @@ class FakeLine:
     codes_that_can = frameworkLattice.codes_that_can
 
 
-# --- reading the count --------------------------------------------------
-
-
 def test_no_setting_means_one_pass_per_turn():
     assert FakeLine().nsuperperiods == 1
 
@@ -50,7 +39,7 @@ def test_an_empty_tracking_block_means_one():
 
 
 def test_a_null_tracking_block_means_one():
-    """A key present but empty is how YAML hands over ``tracking:``."""
+    """How YAML hands over a bare ``tracking:``."""
     assert FakeLine({"tracking": None}).nsuperperiods == 1
 
 
@@ -59,7 +48,6 @@ def test_the_count_is_read_from_the_files_block():
 
 
 def test_a_string_count_is_coerced():
-    """Every other numeric setting arrives coerced rather than type-checked."""
     assert FakeLine({"tracking": {"nsuperperiods": "6"}}).nsuperperiods == 6
 
 
@@ -70,7 +58,6 @@ def test_a_nonsense_count_warns_and_falls_back_to_one():
 
 
 def test_zero_superperiods_warns_and_falls_back_to_one():
-    """Zero passes per turn is not a smaller ring, it is no tracking."""
     line = FakeLine({"tracking": {"nsuperperiods": 0}})
     with pytest.warns(UserWarning, match="not a count"):
         assert line.nsuperperiods == 1
@@ -80,9 +67,6 @@ def test_a_negative_count_warns_and_falls_back_to_one():
     line = FakeLine({"tracking": {"nsuperperiods": -4}})
     with pytest.warns(UserWarning, match="not a count"):
         assert line.nsuperperiods == 1
-
-
-# --- asked for against actually happening -------------------------------
 
 
 def test_passes_per_turn_is_the_count_on_a_capable_code():
@@ -102,29 +86,11 @@ def test_passes_per_turn_is_one_by_default_everywhere():
         assert FakeLine(supports=supports).passes_per_turn == 1
 
 
-# --- which codes can honour it ------------------------------------------
-
-
-@pytest.mark.parametrize("cls", CAN, ids=lambda c: c.__name__)
-def test_the_ones_that_can(cls):
-    assert cls.supports_nsuperperiods is True
-
-
-@pytest.mark.parametrize("cls", CANNOT, ids=lambda c: c.__name__)
-def test_the_ones_that_cannot(cls):
-    assert cls.supports_nsuperperiods is False
-
-
-def test_the_base_class_assumes_it_cannot():
-    """So a backend gains superperiods by declaring it, never by omission."""
-    assert frameworkLattice.supports_nsuperperiods is False
-
-
-def test_the_warning_names_every_code_that_can():
-    """The named list and the declared flags have to agree, or the advice
-    sends the user to a backend that will warn at them again."""
+def test_asking_a_code_that_cannot_warns():
+    """It is a different machine, not a coarser one; and the warning names
+    every code that can."""
     line = FakeLine({"tracking": {"nsuperperiods": 4}}, code="elegant", supports=False)
-    with pytest.warns(UserWarning) as caught:
+    with pytest.warns(UserWarning, match="superperiods.*one 4th of the intended ring") as caught:
         line.check_nsuperperiods_supported()
     message = str(caught[0].message).lower()
     for cls in CAN:
@@ -133,170 +99,56 @@ def test_the_warning_names_every_code_that_can():
         assert name.lower() in message or name.lower() == "madx" and "mad-x" in message
 
 
-# --- the warning --------------------------------------------------------
-
-
-def test_asking_a_code_that_cannot_warns():
-    line = FakeLine({"tracking": {"nsuperperiods": 4}}, code="elegant", supports=False)
-    with pytest.warns(UserWarning, match="superperiods"):
-        line.check_nsuperperiods_supported()
-
-
-def test_the_warning_says_it_is_a_different_machine():
-    """Not a coarser one. Every other unsupported setting degrades the run;
-    this one changes what is being tracked."""
-    line = FakeLine({"tracking": {"nsuperperiods": 4}}, code="elegant", supports=False)
-    with pytest.warns(UserWarning, match="one 4th of the intended ring"):
-        line.check_nsuperperiods_supported()
-
-
+@pytest.mark.filterwarnings("error")
 def test_a_capable_code_is_silent():
     line = FakeLine({"tracking": {"nsuperperiods": 4}}, code="ocelot", supports=True)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        line.check_nsuperperiods_supported()
+    line.check_nsuperperiods_supported()
 
 
+@pytest.mark.filterwarnings("error")
 def test_one_superperiod_is_silent_everywhere():
-    """The default must never warn, on any code."""
     for code, supports in (("elegant", False), ("ocelot", True)):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            FakeLine({}, code=code, supports=supports).check_nsuperperiods_supported()
+        FakeLine({}, code=code, supports=supports).check_nsuperperiods_supported()
 
 
 def test_it_is_checked_during_preprocessing():
-    """One settings file driving several codes is ordinary, so the warning
-    has to reach the user on the run rather than on an explicit call."""
     import inspect
 
     source = inspect.getsource(frameworkLattice.preProcess)
     assert "check_nsuperperiods_supported()" in source
 
 
-# --- the declared count against the geometry ----------------------------
-from laura.models.element import Dipole, Drift
-from laura.models.element_list import MachineModel
-
-
-def sector(nbend, angle, nsuperperiods=1, turns=1000):
-    """A line of `nbend` bends of `angle`, each followed by a 1 m drift."""
-    elements, order = {}, []
-    for i in range(nbend):
-        bend, drift = f"B{i}", f"D{i}"
-        elements[bend] = Dipole(
-            name=bend,
-            hardware_class="Magnet",
-            machine_area="A",
-            magnetic={"magnetic_length": 1.0, "k0l": angle},
-            physical={"length": 1.0},
-        )
-        elements[drift] = Drift(
-            name=drift,
-            hardware_class="Drift",
-            hardware_type="Drift",
-            machine_area="A",
-            physical={"length": 1.0},
-        )
-        order += [bend, drift]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        model = MachineModel(
-            elements=elements,
-            section={"sections": {"RING": order}},
-            layout={"layouts": {"M": ["RING"]}, "default_layout": "M"},
-        )
-    return SectorLine(model, order, nsuperperiods, turns)
-
-
-class SectorLine:
-    """A stub exposing what the closure checks read off real geometry."""
-
-    def __init__(self, model, order, nsuperperiods, turns):
-        self.startObject = model[order[0]]
-        self.endObject = model[order[-1]]
-        self.elements = {name: model[name] for name in order}
-        self.file_block = {
-            "tracking": {"turns": turns, "nsuperperiods": nsuperperiods}
-        }
-        self.objectname = "RING"
-        self.code = "ocelot"
-
-    def _machine_geometry(self):
-        """No layout behind this stub; `periodic` is never set here."""
-
-    turns = frameworkLattice.turns
-    periodic = frameworkLattice.periodic
-    closed_geometry = frameworkLattice.closed_geometry
-    nsuperperiods = frameworkLattice.nsuperperiods
-    net_bend_angle = frameworkLattice.net_bend_angle
-    check_turns_closed = frameworkLattice.check_turns_closed
-    check_superperiods_close = frameworkLattice.check_superperiods_close
-
-
+@pytest.mark.filterwarnings("error")
 def test_a_correctly_counted_sector_is_silent():
-    """One quarter of a ring, declared as one of four."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        sector(1, math.pi / 2, nsuperperiods=4).check_turns_closed()
+    """A quarter ring declared as one of four: no closure complaint either."""
+    BentLine(1, math.pi / 2, nsuperperiods=4).check_turns_closed()
 
 
-def test_declaring_superperiods_suppresses_the_closure_complaint():
-    """A sector is *meant* to be open, so the plain closure test would only
-    ever fire spuriously here."""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        sector(1, math.pi / 2, nsuperperiods=4).check_turns_closed()
-    assert not [c for c in caught if "does not close" in str(c.message)]
+def test_an_open_sector_warns_and_suggests_the_setting():
+    with pytest.warns(UserWarning, match="does not close.*nsuperperiods: 4"):
+        BentLine(1, math.pi / 2, nsuperperiods=1).check_turns_closed()
 
 
-def test_an_open_sector_still_warns_without_the_declaration():
-    """Which is the behaviour this setting exists to give a way out of."""
-    with pytest.warns(UserWarning, match="does not close"):
-        sector(1, math.pi / 2, nsuperperiods=1).check_turns_closed()
-
-
-def test_the_closure_warning_suggests_the_setting():
-    """The message that used to say only 'track the whole ring instead'."""
-    with pytest.warns(UserWarning, match="nsuperperiods: 4"):
-        sector(1, math.pi / 2, nsuperperiods=1).check_turns_closed()
-
-
-def test_a_wrong_count_warns():
+def test_a_wrong_count_warns_and_suggests_the_right_one():
     """Six sectors of a four-fold ring bend through one and a half turns."""
-    with pytest.warns(UserWarning, match="do not make a closed ring"):
-        sector(1, math.pi / 2, nsuperperiods=6).check_turns_closed()
+    with pytest.warns(UserWarning, match="do not make a closed ring.*suggests 4 instead"):
+        BentLine(1, math.pi / 2, nsuperperiods=6).check_turns_closed()
 
 
-def test_the_wrong_count_warning_suggests_the_right_one():
-    with pytest.warns(UserWarning, match="suggests 4 instead"):
-        sector(1, math.pi / 2, nsuperperiods=6).check_turns_closed()
-
-
+@pytest.mark.filterwarnings("error")
 def test_a_count_that_overshoots_by_a_whole_turn_is_accepted():
-    """Eight quarter-sectors bend through two turns. That is a figure of
-    eight or a double pass, not an error, and the check only asks for a whole
-    number of turns."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        sector(1, math.pi / 2, nsuperperiods=8).check_turns_closed()
+    """Two turns of bend is a double pass, not an error."""
+    BentLine(1, math.pi / 2, nsuperperiods=8).check_turns_closed()
 
 
+@pytest.mark.filterwarnings("error")
 def test_a_straight_sector_is_not_judged():
-    """No net bend says nothing either way -- a chicane-like sector can be
-    perfectly periodic."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        sector(4, 0.0, nsuperperiods=4).check_turns_closed()
+    BentLine(4, 0.0, nsuperperiods=4).check_turns_closed()
 
 
+@pytest.mark.filterwarnings("error")
 def test_one_turn_never_checks_anything():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        sector(1, math.pi / 2, nsuperperiods=6, turns=1).check_turns_closed()
-
-
-# --- the revolution period is the ring's, not the sector's --------------
+    BentLine(1, math.pi / 2, nsuperperiods=6, turns=1).check_turns_closed()
 
 
 class PeriodLine:
@@ -347,26 +199,15 @@ def test_the_period_counts_every_pass():
 
 
 def test_a_code_that_cannot_repeat_gets_the_sector_period():
-    """It is going to track the sector once, so a program stated in turns has
-    to land on the sector crossings -- the warning is what says the machine is
-    wrong, not a silently mismatched clock on top of it."""
+    """It tracks the sector once, so programs land on the sector crossings."""
     asked = PeriodLine(nsuperperiods=4, supports=False).revolution_period
     one = PeriodLine(nsuperperiods=1).revolution_period
     assert asked == pytest.approx(one)
 
 
-# --- the backends -------------------------------------------------------
-
-
 def test_ocelot_hands_the_count_to_track_nturns():
-    """The single-particle paths take it natively, so there is no loop to
-    write: `track_nturns` has had the argument all along.
-
-    Every call goes through ``_track_nturns`` (which also supplies the aperture
-    limits Ocelot cannot solve with a cavity in the ring), so that one place is
-    driven and what reaches Ocelot recorded -- not the source text counted,
-    which this test used to do and which broke when the calls were gathered.
-    """
+    """Driven through ``_track_nturns`` and recorded; counting the source
+    text broke when the calls were gathered there."""
     import ocelot.cpbd.track as octrack
     from ocelot import Drift as OcelotDrift, MagneticLattice
 
@@ -392,8 +233,7 @@ def test_ocelot_hands_the_count_to_track_nturns():
 
 
 class TurnLine:
-    """Enough of a line for the shared turn loop, recording what it is asked
-    to do and in what order."""
+    """Enough of a line for the shared turn loop, recording its calls."""
 
     def __init__(self, turns, nsuperperiods, write_turns=False):
         self.turns = turns
@@ -426,9 +266,6 @@ def _passes(line):
 
 @pytest.mark.parametrize("cls", [ocelotLattice, madxLattice], ids=["ocelot", "madx"])
 def test_the_bunch_paths_loop_through_the_shared_turn_loop(cls):
-    """Ocelot's `track` does not take a superperiod count, and simba owns
-    MAD-X's turn loop, so both repeat the sector a pass at a time, in
-    `frameworkLattice.run_turns`."""
     import inspect
 
     source = inspect.getsource(cls.run if cls is ocelotLattice else cls.run_segments)
@@ -446,9 +283,6 @@ def test_the_turn_loop_tracks_every_pass_of_every_turn():
 
 @pytest.mark.parametrize("write_turns", [False, True])
 def test_only_the_last_pass_of_a_turn_records(write_turns):
-    """Output is counted per turn, so a screen gives one beam file per turn
-    rather than N; without this a four-fold ring quadruples every file it
-    writes."""
     passes = _passes(TurnLine(turns=3, nsuperperiods=4, write_turns=write_turns))
     recorded = [(turn, index, name) for turn, index, name, record in passes if record]
     if write_turns:
@@ -481,8 +315,7 @@ def test_the_line_is_put_back_even_if_a_pass_fails():
 
 
 def test_xsuite_multiplies_num_turns_rather_than_looping():
-    """Xtrack has no notion of a sector, so every tracking call asks for
-    `turns * passes_per_turn` and converts back."""
+    """Xtrack has no sector, so it tracks `turns * passes_per_turn`."""
     import inspect
 
     source = inspect.getsource(xsuiteLattice)
@@ -498,45 +331,18 @@ def test_xsuite_multiplies_num_turns_rather_than_looping():
 
 
 def test_xsuite_converts_at_turn_back_into_turns():
-    """`at_turn` counts passes, and a dynamic aperture is quoted in turns."""
     import inspect
 
     source = inspect.getsource(xsuiteLattice.run_dynamic_aperture)
     assert "// self.passes_per_turn" in source
 
 
-# --- measured against the codes themselves ------------------------------
-
-
-def _xtrack_sector(copies=1):
-    """A FODO cell with sextupoles, repeated `copies` times."""
-    import xtrack as xt
-
-    elements, names = [], []
-    for copy in range(copies):
-        for i in range(4):
-            elements += [
-                xt.Drift(length=0.5),
-                xt.Multipole(knl=[0.0, 0.3], length=0.0),
-                xt.Drift(length=0.5),
-                xt.Multipole(knl=[0.0, -0.3], length=0.0),
-                xt.Multipole(knl=[0.0, 0.0, 2.0], length=0.0),
-            ]
-            names += [f"d{i}a_{copy}", f"qf{i}_{copy}", f"d{i}b_{copy}",
-                      f"qd{i}_{copy}", f"sx{i}_{copy}"]
-    line = xt.Line(elements=elements, element_names=names)
-    line.particle_ref = xt.Particles(p0c=1e9, mass0=xt.PROTON_MASS_EV)
-    line.build_tracker()
-    return line
-
-
 def test_xsuite_a_sector_n_times_is_n_copies_once():
-    """The measurement the backend is built on. Sextupoles are present so
-    that agreement is not a linear coincidence."""
+    """The sextupoles keep the agreement from being a linear coincidence."""
     pytest.importorskip("xtrack")
 
     n, turns = 3, 20
-    one, many = _xtrack_sector(1), _xtrack_sector(n)
+    one, many = xtrack_sector(1), xtrack_sector(n)
     a = one.build_particles(x=[1e-3], y=[0.5e-3])
     b = many.build_particles(x=[1e-3], y=[0.5e-3])
     one.track(a, num_turns=turns * n)
@@ -546,11 +352,10 @@ def test_xsuite_a_sector_n_times_is_n_copies_once():
 
 
 def test_xsuite_at_turn_counts_passes():
-    """Which is why the dynamic-aperture scan floor-divides it."""
     pytest.importorskip("xtrack")
 
     n, turns = 3, 20
-    line = _xtrack_sector(1)
+    line = xtrack_sector(1)
     particles = line.build_particles(x=[1e-3], y=[0.5e-3])
     line.track(particles, num_turns=turns * n)
     assert int(particles.at_turn[0]) == turns * n
@@ -558,14 +363,13 @@ def test_xsuite_at_turn_counts_passes():
 
 
 def test_xsuite_a_monitor_samples_the_start_of_each_pass():
-    """So the sector boundaries are at 0, N, 2N and the stride starts from
-    zero. `[N-1::N]` is off by one sector, runs, and is wrong."""
+    """So the stride starts from zero; `[N-1::N]` runs and is wrong."""
     pytest.importorskip("xtrack")
     import numpy as np
     import xtrack as xt
 
     n, turns = 3, 20
-    one, many = _xtrack_sector(1), _xtrack_sector(n)
+    one, many = xtrack_sector(1), xtrack_sector(n)
     a = one.build_particles(x=[1e-3], y=[0.5e-3])
     b = many.build_particles(x=[1e-3], y=[0.5e-3])
     monitor_a = xt.ParticlesMonitor(
@@ -587,8 +391,6 @@ def test_xsuite_a_monitor_samples_the_start_of_each_pass():
 
 
 def test_ocelot_a_sector_n_times_is_n_copies_once():
-    """The same measurement against Ocelot, whose `track_nturns` takes the
-    count natively."""
     pytest.importorskip("ocelot")
     import numpy as np
     from ocelot.cpbd.elements import Drift, Quadrupole, Sextupole
@@ -629,8 +431,6 @@ def test_ocelot_a_sector_n_times_is_n_copies_once():
 
 
 def test_ocelot_records_one_point_per_turn_not_per_pass():
-    """`nsuperperiods` does not multiply the record, which is what lets the
-    turn suffixes and the beam files stay per turn."""
     pytest.importorskip("ocelot")
     from ocelot.cpbd.elements import Drift, Quadrupole
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
@@ -654,9 +454,6 @@ def test_ocelot_records_one_point_per_turn_not_per_pass():
     assert len(tracked[0].get_x()) == turns + 1
 
 
-# --- one sample per completed turn, in every code -----------------------
-
-
 class FakeXsuiteRing:
     """Enough of `xsuiteLattice` to call `track_reference_particle` for real."""
 
@@ -664,7 +461,7 @@ class FakeXsuiteRing:
     single_particle_line = xsuiteLattice.single_particle_line
 
     def __init__(self, copies=1, nsuperperiods=1, turns=20):
-        self.line = _xtrack_sector(copies)
+        self.line = xtrack_sector(copies)
         self.context = None
         self.objectname = "RING"
         self.code = "xsuite"
@@ -692,7 +489,7 @@ def test_the_xsuite_trajectory_is_one_sample_per_turn():
 
 
 def test_the_xsuite_trajectory_does_not_open_with_the_launch_point():
-    """Which is what a raw monitor gives, and is a turn out."""
+    """A raw monitor does, and is a turn out."""
     pytest.importorskip("xtrack")
 
     line = FakeXsuiteRing(turns=20)
@@ -701,8 +498,6 @@ def test_the_xsuite_trajectory_does_not_open_with_the_launch_point():
 
 
 def test_a_sector_trajectory_matches_the_whole_ring_turn_for_turn():
-    """The measurement R17 rests on, through the real method: three sectors
-    with `nsuperperiods: 3` against the same ring written out three times."""
     pytest.importorskip("xtrack")
     import numpy as np
 
@@ -716,10 +511,7 @@ def test_a_sector_trajectory_matches_the_whole_ring_turn_for_turn():
 
 
 def test_the_ocelot_trajectory_drops_its_launch_sample():
-    """Ocelot's is pinned on the source: the method needs a lattice object,
-    a beam and a closed orbit read back from a run, which is a whole
-    integration test for one slice. The behaviour it encodes --
-    ``p_list`` being ``turns + 1`` long -- is measured just above."""
+    """Pinned on the source; ``p_list`` being ``turns + 1`` long is measured above."""
     import inspect
 
     assert "p_list[1:]" in inspect.getsource(
@@ -728,14 +520,13 @@ def test_the_ocelot_trajectory_drops_its_launch_sample():
 
 
 def test_xsuite_reference_particle_is_as_long_as_the_turn_count():
-    """The monitor is one sample short of a turn-per-turn record, so the
-    final particle state has to be appended. Measured end to end."""
+    """The monitor is a sample short, so the final state is appended."""
     pytest.importorskip("xtrack")
     import numpy as np
     import xtrack as xt
 
     n, turns = 3, 20
-    line = _xtrack_sector(1)
+    line = xtrack_sector(1)
     particles = line.build_particles(x=[1e-3], y=[0.5e-3])
     monitor = xt.ParticlesMonitor(
         start_at_turn=0, stop_at_turn=turns * n, num_particles=1
@@ -745,7 +536,5 @@ def test_xsuite_reference_particle_is_as_long_as_the_turn_count():
         np.asarray(monitor.x)[0][n::n], float(np.atleast_1d(particles.x)[0])
     )
     assert trajectory.shape == (turns,)
-    # the last entry is where the particle actually ended up, not a monitor
-    # sample -- that is the whole point of appending it
     assert trajectory[-1] == float(np.atleast_1d(particles.x)[0])
     assert trajectory[0] != float(np.atleast_1d(monitor.x)[0][0])

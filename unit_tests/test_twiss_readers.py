@@ -27,6 +27,17 @@ def test_append_and_lookup_at_z():
     assert t.get_parameter_at_z("beta_x", 1.0) == 2.0
     assert t.get_parameter_at_z("beta_x", 1.0005) == 2.0
     assert t.get_parameter_at_z("beta_x", 1.5) == pytest.approx(2.5)
+    assert t.interpolate(z=3.0) == 10**6
+
+
+def test_lookup_at_element_takes_the_first_row():
+    t = twiss()
+    t.append("z", [0.0, 1.0, 2.0, 3.0])
+    t.append("element_name", ["D", "A", "B", "A"])
+    assert t.get_parameter_at_element("z", "A") == 1.0
+    assert t.get_twiss_at_element("A", before=True)["z"] == 0.0
+    assert t.get_parameter_at_element("z", "Q") is None
+    assert t.get_twiss_at_element("Q") is None
 
 
 @pytest.mark.parametrize("module", [astra, cheetah, ocelot, opal])

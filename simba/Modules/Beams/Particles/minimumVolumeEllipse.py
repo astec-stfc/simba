@@ -4,23 +4,24 @@ from numpy import linalg
 
 
 def getMinVolEllipse(P=None, tolerance=0.01):
-    """Find the minimum volume ellipsoid which holds all the points
+    """
+    Minimum volume ellipsoid enclosing all the points (Khachiyan algorithm).
 
-    Based on work by `Nima Moshtagh`_
-
-    Here, P is a numpy array of N dimensional points like this::
-
-        P = [[x,y,z,...], <-- one point per line
-         [x,y,z,...],
-         [x,y,z,...]]
+    Based on work by `Nima Moshtagh`_.
 
     .. _Nima Moshtagh: http://www.mathworks.com/matlabcentral/fileexchange/9542
+
+    Parameters
+    ----------
+    P: array_like
+        N-dimensional points, one per row
+    tolerance: float
+        Convergence tolerance
 
     Returns
     -------
     tuple
-        (center, radii, rotation)
-
+        (center, radii, rotation, hull points)
     """
 
     hull = scipy.spatial.ConvexHull(P).vertices
@@ -166,22 +167,18 @@ if __name__ == "__main__":
     part = partial(scipy.spatial.ConvexHull, P)
     print((timeit.timeit(part, number=10)))
 
-    Q = P  # np.array(remove_Hull(P, gaussian_fraction(1, len(P))))
+    Q = P
     (center, radii, rotation, hullP) = ET.getMinVolEllipse(Q, 0.001)
 
     cov = np.cov(np.transpose(P))
     rmsemit = np.sqrt(np.linalg.det(cov))
     w, v = np.linalg.eig(cov)
 
-    # print ('emittance = ', radii[0] * radii[1])
-    # print ('rms emittance = ', rmsemit)
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
     ax.add_artist(ellipse(center, radii, rotation, color="b"))
     ax.add_artist(ellipse([0, 0], np.sqrt(w), np.transpose(v), color="r"))
-
-    # e.set_clip_box(ax.bbox)
 
     # plot points
     P = np.array(P)

@@ -1,12 +1,8 @@
 """
-Simframe Twiss MAD-X Module
+Save and load the Twiss summary files of :class:`~simba.Codes.MADX.MADX.madxLattice` runs.
 
-Functions for saving and loading Twiss summary files produced by the
-:class:`~simba.Codes.MADX.MADX.madxLattice` tracking runs. The files are
-plain HDF5 files (``*_twiss.madx.hdf5``) with one dataset per Twiss
-parameter, using the same parameter names (and units) as the
-:class:`~simba.Modules.Twiss.twiss` object, so that they can be interpreted
-in the same way as the output of the other tracking codes.
+These are HDF5 files (``*_twiss.madx.hdf5``) with one dataset per
+:class:`~simba.Modules.Twiss.twiss` parameter, same names and units.
 """
 
 import os
@@ -16,14 +12,14 @@ import h5py
 
 def save_madx_twiss_hdf(self, filename: str, twiss: dict = {}) -> None:
     """
-    Save a dictionary of MAD-X Twiss/beam-statistics arrays to an HDF5 file.
+    Save MAD-X Twiss and beam-statistics arrays to an HDF5 file.
 
     Parameters
     ----------
     filename: str
-        Name of the file to write
+        Output filename
     twiss: dict
-        Dictionary of arrays keyed by Twiss parameter name
+        Twiss parameter name to array; entries h5py can't store are skipped
     """
     with h5py.File(filename, "w") as f:
         for grp_name in twiss:
@@ -35,15 +31,14 @@ def save_madx_twiss_hdf(self, filename: str, twiss: dict = {}) -> None:
 
 def read_madx_twiss_files(self, filename, reset=True):
     """
-    Read one or more MAD-X Twiss summary files (``*_twiss.madx.hdf5``) into a
-    :class:`~simba.Modules.Twiss.twiss` object.
+    Read MAD-X Twiss summary files into a :class:`~simba.Modules.Twiss.twiss` object.
 
     Parameters
     ----------
     filename: str or list
-        Name(s) of the file(s) to read
+        File(s) to read
     reset: bool
-        If True, reset the twiss object before reading
+        Reset the twiss object first
     """
     if reset:
         self.reset_dicts()
@@ -64,10 +59,9 @@ def read_madx_twiss_files(self, filename, reset=True):
 
 def interpret_madx_data(self, lattice_name, fdat):
     """
-    Append the data loaded from a MAD-X Twiss summary file to the arrays of a
-    :class:`~simba.Modules.Twiss.twiss` object. Every Twiss parameter is
-    appended (missing parameters are zero-filled) so that all arrays remain
-    the same length and can be sorted and interpolated consistently.
+    Append a MAD-X Twiss summary file's data to a :class:`~simba.Modules.Twiss.twiss` object.
+
+    Missing parameters are zero-filled so every array stays the same length.
     """
     if "s" not in fdat:
         return
@@ -96,7 +90,7 @@ def interpret_madx_data(self, lattice_name, fdat):
 
 
 def _decode(value):
-    """Decode HDF5 byte-strings"""
+    """Decode HDF5 byte-strings."""
     if isinstance(value, bytes):
         return value.decode("utf-8")
     return str(value)

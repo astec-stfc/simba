@@ -6,15 +6,14 @@ from .. import constants
 
 def save_bmad_twiss_hdf(filename: str, twiss: dict = {}):
     """
-    Write the twiss data extracted from Tao to an HDF5 file.
+    Write Twiss data extracted from Tao to an HDF5 file.
 
     Parameters
     ----------
     filename: str
-        Name of the file to write.
+        Output filename
     twiss: dict
-        Twiss data, as produced by
-        :func:`~simba.Codes.Bmad.Bmad.bmadLattice._twiss_data`.
+        Twiss data from :meth:`~simba.Codes.Bmad.Bmad.bmadLattice._twiss_data`
     """
     with h5py.File(filename, "w") as f:
         for grp_name, values in twiss.items():
@@ -49,9 +48,7 @@ def read_bmad_twiss_files(self, filename, reset=True):
 
 
 def interpret_bmad_data(self, lattice_name, fdat):
-    """
-    Populate the twiss object from the contents of a Bmad twiss file.
-    """
+    """Append the contents of a Bmad Twiss file to the twiss object."""
     cp = fdat["p0c"]
     ke = fdat["e_tot"] - self.E0_eV
     gamma = fdat["e_tot"] / self.E0_eV

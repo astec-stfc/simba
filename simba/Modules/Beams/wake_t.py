@@ -39,7 +39,7 @@ def beam_to_particle_bunch(self, zstart=0):
     yval = self._beam.y.val if isinstance(self._beam.y, UnitValue) else self._beam.y
     zval = self._beam.z.val if isinstance(self._beam.z, UnitValue) else self._beam.z
     qval = self._beam.charge.val if isinstance(self._beam.charge, UnitValue) else self._beam.charge
-    xi = (zval - np.mean(zval))# * constants.speed_of_light
+    xi = (zval - np.mean(zval))
     return ParticleBunch(
         np.array(qval / constants.elementary_charge),
         x=xval,

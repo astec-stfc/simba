@@ -1,26 +1,19 @@
 """
-SIMBA Warnings and Errors
+SIMBA warnings and errors, raised when a run will not be what its settings asked for.
 
-What simba says when a run will not be what its settings asked for. Each
-warning is its own class, and builds its own message from what it is given,
-so :class:`~simba.Framework_objects.frameworkLattice` only says *when* to warn.
-
-Every warning is a :class:`SimbaWarning`, and so a :class:`UserWarning`, under
-one of four groups that can be filtered as a whole::
+Each warning builds its own message, so callers only decide *when* to warn.
+Every warning is a :class:`SimbaWarning` (a :class:`UserWarning`) in one of four
+groups that can be filtered as a whole::
 
     import warnings
     from simba.exceptions import UnsupportedWarning
 
     warnings.simplefilter("ignore", UnsupportedWarning)
 
-* :class:`UnsupportedWarning`: something was asked for that this code cannot
-  do, and the run goes ahead without it;
-* :class:`SettingWarning`: a setting simba cannot read, or one that does not
-  fit the run it is in;
-* :class:`GeometryWarning`: a ring whose geometry does not close as tracked;
-* :class:`PhysicsWarning`: a run that tracks, but not the physics intended.
+The groups are :class:`UnsupportedWarning`, :class:`SettingWarning`,
+:class:`GeometryWarning` and :class:`PhysicsWarning`.
 
-Errors are :class:`SimbaError`, and also the built-in error they always were,
+Errors are :class:`SimbaError` and also the built-in error they always were,
 so ``except ValueError`` still catches :class:`WrongSpeciesError`.
 """
 
@@ -34,8 +27,7 @@ class SimbaWarning(UserWarning):
 
 
 class UnsupportedWarning(SimbaWarning):
-    """Something was asked for that this code cannot do; the run goes ahead
-    without it."""
+    """Something this code cannot do; the run goes ahead without it."""
 
 
 class SettingWarning(SimbaWarning):
@@ -176,7 +168,7 @@ class RFPhasesUnsupportedWarning(UnsupportedWarning):
     """Cavity phases that need moving pass by pass, in a code that cannot."""
 
     def __init__(self, line: str, mode: str, corrections: dict, code: str):
-        """`corrections` is radians per pass, by cavity name."""
+        """``corrections`` is radians per pass, by cavity name."""
         degrees = np.degrees(max(np.max(np.abs(c)) for c in corrections.values()))
         super().__init__(
             f"{_line(line)} runs its RF as rf: {mode}, which moves "

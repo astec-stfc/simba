@@ -1,30 +1,11 @@
 """
-SIMBA ASTRA Module
+SIMBA ASTRA module: writes ASTRA input files, runs ASTRA and converts its output.
+See `ASTRA manual`_.
 
-Various objects and functions to handle ASTRA lattices and commands. See `ASTRA manual`_ for more details.
+The namelist headers (``AstraNewRun``, ``AstraCharge``, ...) live in
+:mod:`laura.translator.converters.codes.astra`.
 
     .. _ASTRA manual: https://www.desy.de/~mpyflo/Astra_manual/Astra-Manual_V3.2.pdf
-
-Classes:
-    - :class:`~simba.Codes.ASTRA.ASTRA.astraLattice`: The ASTRA lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-      the lattice suitable for an ASTRA input file.
-
-    - :class:`~simba.Codes.ASTRA.ASTRA.astra_header`: Class for defining the &HEADER portion
-      of the ASTRA input file.
-
-    - :class:`~simba.Codes.ASTRA.ASTRA.astra_newrun`: Class for defining the &NEWRUN portion
-      of the ASTRA input file.
-
-    - :class:`~simba.Codes.ASTRA.ASTRA.astra_charge`: Class for defining the &CHARGE portion
-      of the ASTRA input file.
-
-    - :class:`~simba.Codes.ASTRA.ASTRA.astra_output`: Class for defining the &OUTPUT portion
-      of the ASTRA input file.
-
-    - :class:`~simba.Codes.ASTRA.ASTRA.astra_errors`: Class for defining the &ERRORS portion
-      of the ASTRA input file.
 """
 
 import os
@@ -66,20 +47,14 @@ section_header_text_ASTRA = {
 
 
 class astraLattice(frameworkLattice):
-    """
-    Class for defining the ASTRA lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a string representation of
-    the lattice suitable for an ASTRA input file.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` written as an ASTRA input file."""
 
     model_config = ConfigDict(validate_assignment=True)
 
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ASTRA into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
+    """Threaded conversion of ASTRA screen outputs to openPMD"""
 
     code: str = "astra"
     """String indicating the lattice object type"""
@@ -114,12 +89,7 @@ class astraLattice(frameworkLattice):
     """Headers for ASTRA input file"""
 
     local_frame: bool | None = None
-    """
-    Write the deck in the lattice's own frame rather than in world coordinates.
-    With this set, positions are mapped
-    through :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.to_local` first, so
-    the deck starts at the origin and runs along z.
-    """
+    """Write the deck in the lattice's own frame (see :meth:`to_local`) rather than world coordinates."""
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
@@ -129,7 +99,6 @@ class astraLattice(frameworkLattice):
             else [0, 0, 0]
         )
 
-        # This calculated the starting rotation based on the input file and the number of dipoles
         self.starting_rotation = (
             [0.0, 0.0, float(-1 * self.startObject.physical.global_rotation.theta)]
         )
@@ -200,7 +169,6 @@ class astraLattice(frameworkLattice):
             screens=screens,
             **output_settings,
         )
-        #
         # Create a "charge" block
         if "charge" not in self.file_block:
             self.file_block["charge"] = {}
@@ -212,7 +180,6 @@ class astraLattice(frameworkLattice):
             global_parameters=self.global_parameters,
             **charge_settings,
         )
-        #
         # Create an "error" block
         if "global_errors" not in self.file_block:
             self.file_block["global_errors"] = {}
@@ -235,48 +202,45 @@ class astraLattice(frameworkLattice):
     @property
     def space_charge_mode(self) -> str:
         """
-        The space charge type for ASTRA, i.e. "2D", "3D".
+        Space charge mode of the &CHARGE header, e.g. "2D", "3D".
 
         Returns
         -------
         str
-            The space charge type for ASTRA
         """
         return str(self.astra_headers["charge"].space_charge_mode)
 
     @space_charge_mode.setter
     def space_charge_mode(self, mode: str) -> None:
         """
-        Sets the space charge mode for the &HEADER object
+        Set the space charge mode of the &CHARGE header.
 
         Parameters
         ----------
         mode: str
-            Space charge mode
         """
         self.astra_headers["charge"].space_charge_mode = str(mode)
 
     @property
     def bunch_charge(self) -> float:
         """
-        Bunch charge in coulombs
+        Bunch charge [C].
 
         Returns
         -------
-        float:
-            Bunch charge
+        float
         """
         return self._bunch_charge
 
     @bunch_charge.setter
     def bunch_charge(self, charge: float) -> None:
         """
-        Sets the bunch charge for this object and also in :class:`~simba.Codes.ASTRA.ASTRA.astra_newrun`.
+        Set the bunch charge here and in the &NEWRUN header.
 
         Parameters
         ----------
         charge: float
-            Bunch charge in coulombs
+            Bunch charge [C]
         """
         self._bunch_charge = charge
         self.astra_headers["newrun"].bunch_charge = charge
@@ -284,44 +248,40 @@ class astraLattice(frameworkLattice):
     @property
     def toffset(self) -> float:
         """
-        Get the time offset for the reference particle.
+        Time offset of the reference particle [s].
 
         Returns
         -------
         float
-            The time offset in seconds
         """
         return self._toffset
 
     @toffset.setter
     def toffset(self, toffset: float) -> None:
         """
-        Set the time offset for this object and the :class:`~simba.Codes.ASTRA.ASTRA.astra_newrun` object.
+        Set the time offset here and in the &NEWRUN header (which takes ns).
 
         Parameters
         ----------
         toffset: float
-            The time offset in seconds
+            Time offset [s]
         """
         self._toffset = toffset
         self.astra_headers["newrun"].toffset = 1e9 * toffset
 
     def to_local(self, point) -> np.ndarray:
         """
-        Map a world position into the frame the deck is written in.
-
-        The frame is anchored on the entrance of the first element and turned
-        so that the lattice sets off along +z.
+        Map a world position into the deck's frame: origin at the first element's entrance, along +z.
 
         Parameters
         ----------
         point: Position | Sequence[float]
-            A world position, either a LAURA ``Position`` or an ``(x, y, z)``.
+            LAURA ``Position`` or ``(x, y, z)``
 
         Returns
         -------
         np.ndarray
-            The position as ``(x, y, z)`` in the deck's frame.
+            ``(x, y, z)`` in the deck's frame; unchanged if not :attr:`local_frame`
         """
         p = np.asarray(getattr(point, "array", point), dtype=float)
         if not self.local_frame:
@@ -334,15 +294,11 @@ class astraLattice(frameworkLattice):
     @property
     def deck_section(self):
         """
-        The section as it is written out, in the frame given by :attr:`local_frame`.
-
-        When the frame is non-trivial this is a deep copy with every element
-        moved into it.
+        The section as written out; with :attr:`local_frame`, a deep copy moved into that frame.
 
         Returns
         -------
         SectionLatticeTranslator
-            The section to write the deck from.
         """
         if not self.local_frame:
             return self.section
@@ -357,10 +313,7 @@ class astraLattice(frameworkLattice):
         return section
 
     def write(self) -> None:
-        """
-        Writes the ASTRA input file from :func:`~simba.Codes.ASTRA.ASTRA.astraLattice.writeElements`
-        to <master_subdir>/<self.objectname>.in.
-        """
+        """Write :attr:`deck_section` as ASTRA input to ``<master_subdir>/<objectname>.in``."""
         code_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
@@ -371,11 +324,7 @@ class astraLattice(frameworkLattice):
         self.files.append(code_file)
 
     def preProcess(self) -> None:
-        """
-        Convert the beam file from the previous lattice section into ASTRA format and set the number of
-        particles based on the input distribution, see
-        :func:`~simba.Codes.ASTRA.ASTRA.astra_newrun.hdf5_to_astra`.
-        """
+        """Convert the input beam via :meth:`hdf5_to_astra` and set the particle count."""
         super().preProcess()
         prefix = self.get_prefix()
         self.load_input_beam(
@@ -395,20 +344,20 @@ class astraLattice(frameworkLattice):
         sval: float = 0.0,
     ) -> None:
         """
-        Convert output from ASTRA screen to HDF5 format
+        Threaded :meth:`astra_to_hdf5` for one screen.
 
         Parameters
         ----------
         objectname: str
-            Name of screen object
+            Lattice name
         scr: :class:`~laura.models.diagnostic.DiagnosticElement`
-            Screen object
+            Screen
         cathode: bool
-            True if beam was emitted from a cathode
+            Unused by :meth:`astra_to_hdf5`
         mult: int
-            Multiplication factor for ASTRA-type filenames
+            Position multiplier in ASTRA output filenames
         sval: float
-            S-position of beam
+            s of the screen [m]
         """
         return self.astra_to_hdf5(
             lattice=objectname, scr=scr, cathode=cathode, mult=mult, sval=sval
@@ -416,12 +365,12 @@ class astraLattice(frameworkLattice):
 
     def get_screen_scaling(self) -> int:
         """
-        Determine the screen scaling factor for screens and BPMs
+        Find the position multiplier (100, 1000 or 10) ASTRA used in the screen filenames.
 
         Returns
         -------
         int
-            The scaling factor depending on the `master_run_no` parameter
+            100 if no multiplier matches every screen
         """
         master_run_no = self.global_parameters.get("run_no", 1)
         for mult in [100, 1000, 10]:
@@ -434,10 +383,7 @@ class astraLattice(frameworkLattice):
         return 100
 
     def postProcess(self) -> None:
-        """
-        Convert the beam file(s) from the ASTRA output into HDF5 format, see
-        :func:`~simba.Codes.ASTRA.ASTRA.astra_to_hdf5`.
-        """
+        """Convert the ASTRA screen and final beams to openPMD via :meth:`astra_to_hdf5`."""
         super().postProcess()
         cathode = self.input_particle_definition == "laser"
         mult = self.get_screen_scaling()
@@ -471,13 +417,11 @@ class astraLattice(frameworkLattice):
     @property
     def s_offset(self) -> float:
         """
-        Distance between this lattice's s and z origins, i.e. the extra path length
-        everything upstream has accumulated by bending.
+        s minus z at the start of this lattice: path length gained upstream by bending.
 
         Returns
         -------
         float
-            s minus z at the start of this lattice.
         """
         return float(
             self.entrance_s - self.to_local(self.startObject.physical.start)[2]
@@ -487,16 +431,13 @@ class astraLattice(frameworkLattice):
         """
         Write :attr:`s_offset` next to the ASTRA output files.
 
-        ASTRA's Xemit/Yemit/Zemit files record lab z only, and the Twiss reader that
-        parses them has no lattice context, so it cannot know how far along the machine
-        this section starts. Every other code applies :attr:`start_s` itself when it
-        writes its Twiss output; ASTRA cannot, so persist the offset for the reader.
-        See :func:`~simba.Modules.Twiss.astra.read_s_offset`.
+        ASTRA's emit files record z only, so :func:`~simba.Modules.Twiss.astra.read_s_offset`
+        needs this to place them in s.
 
         Returns
         -------
         str
-            Path of the offset file.
+            Path of the offset file
         """
         path = os.path.join(
             self.global_parameters["master_subdir"], self.objectname + ".s_offset"
@@ -515,20 +456,22 @@ class astraLattice(frameworkLattice):
             sval: float = 0.0,
     ) -> None:
         """
-        Convert the ASTRA beam file name to HDF5 format and write the beam file.
+        Read the ASTRA beam at a screen and write it as openPMD.
 
         Parameters
         ----------
         lattice: str
             Lattice name
-        scr: laura.models.diagnostic.DiagnosticElement
-            LAURA DiagnosticElement
+        scr: laura.models.diagnostic.DiagnosticElement | Screen
+            Screen
         cathode: bool
-            True if beam was emitted from a cathode
+            Unused
         mult: int
-            Multiplication factor for ASTRA-type filenames
+            Position multiplier in ASTRA output filenames
+        final: bool
+            Also make this the beam in ``global_parameters``
         sval: float
-            S-position of beam
+            s of the screen [m]
         """
         master_run_no = self.global_parameters.get("run_no", 1)
         astrabeamfilename = self.find_ASTRA_filename(lattice, scr, master_run_no, mult)
@@ -578,29 +521,26 @@ class astraLattice(frameworkLattice):
             mult: int
     ) -> str | None:
         """
-        Determine the ASTRA filename for the screen object.
+        Find the ASTRA output file for a screen.
 
         Parameters
         ----------
         lattice: str
-            The name of the lattice
-        scr: laura.models.diagnostic.DiagnosticElement
-            LAURA DiagnosticElement
+            Lattice name
+        scr: laura.models.diagnostic.DiagnosticElement | Screen
+            Screen
         master_run_no: int
-            The run number
+            Run number
         mult: int
-            Multiplication factor for ASTRA-type output
-        zstart: float
-            Start position of lattice
+            Position multiplier to try first
 
         Returns
         -------
         str or None
-            The ASTRA filename for the screen object, or None if the file does not exist.
+            None if no matching file exists
         """
-        # ASTRA names outputs in cm, but switches to mm for sections shorter than 1m.
-        # `mult` comes from the screens, which is useless for a lattice that has none
-        # so fall back to the other conventions before giving up.
+        # ASTRA names outputs in cm, but in mm for sections shorter than 1 m, and a
+        # lattice without screens gives no `mult`, so try the other conventions too.
         scr_z = self.to_local(scr.physical.middle)[2]
         start_z = self.to_local(self.startObject.physical.start)[2]
         for m in dict.fromkeys([mult, 1000, 100, 10]):
@@ -650,12 +590,12 @@ class astraLattice(frameworkLattice):
 
     def hdf5_to_astra(self) -> str:
         """
-        Convert beam input file to ASTRA format and write to `master_subdir`.
+        Write the input beam in ASTRA format to `master_subdir`.
 
         Returns
         -------
-        str:
-            Name of ASTRA beam file
+        str
+            ASTRA beam filename
         """
         astrabeamfilename = self.astra_headers["newrun"].output_particle_definition
         rbf.astra.write_astra_beam_file(

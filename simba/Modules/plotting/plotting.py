@@ -2,7 +2,7 @@ import math
 import matplotlib.pyplot as plt
 from copy import copy
 import numpy as np
-from ..units import nice_array, nice_scale_prefix
+from beamphysics.units import nice_array, nice_scale_prefix
 from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
 from laura.translator.converters.converter import translate_elements
@@ -46,14 +46,7 @@ def ASTRA_TW_FieldMap(fielddat, start, stop, cells, p):
 
 
 def fieldmap_data(element, master_lattice):
-    """
-    Loads the fieldmap in absolute coordinates.
-
-    If a fieldmaps dict is given, these will be used instead of loading the file.
-
-    """
-
-    # Position
+    """Load an element's fieldmap in absolute z, scaled to its field amplitude."""
     try:
         if element.field_reference_position == "start":
             offset = element.physical.start.z
@@ -64,7 +57,6 @@ def fieldmap_data(element, master_lattice):
     except AttributeError:
         offset = element.physical.start.z
 
-    # Scaling
     try:
         scale = element.field_amplitude
     except AttributeError:
@@ -75,7 +67,6 @@ def fieldmap_data(element, master_lattice):
         scale = scale / 1e6
         if element.structure_type == "StandingWave" and element.cavity.n_cells > 2:
             scale = scale / element.physical.length
-    # file
     element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
     element.update_field_definition()
     field = element.simulation.field_definition
@@ -138,23 +129,23 @@ class magnet_plotting_data:
         return self.half_rectangle(e, strength), "green"
 
     def dipole(self, e):
-        strength = np.sign(e.magnetic.KnL(0)) * 0.4  # e.angle
+        strength = np.sign(e.magnetic.KnL(0)) * 0.4
         return self.half_rectangle(e, strength), "blue"
 
     def beam_position_monitor(self, e):
-        strength = 0.1  # e.angle
+        strength = 0.1
         return self.full_rectangle(e, strength), "purple"
 
     def screen(self, e):
-        strength = 0.33  # e.angle
+        strength = 0.33
         return self.full_rectangle(e, strength), "green"
 
     def aperture(self, e):
-        strength = 0.15  # e.angle
+        strength = 0.15
         return self.full_rectangle(e, strength, width=0.01), "black"
 
     def wall_current_monitor(self, e):
-        strength = 0.33  # e.angle
+        strength = 0.33
         return self.full_rectangle(e, strength), "brown"
 
 
@@ -208,11 +199,7 @@ def add_fieldmaps_to_axes(
     include_labels=True,
     verbose=False,
 ):
-    """
-    Adds fieldmaps to an axes.
-
-    """
-
+    """Plot cavity/solenoid fieldmaps on ``axes`` and a twin right-hand axis."""
     max_scale = 0
 
     fmaps = load_elements(
@@ -231,7 +218,6 @@ def add_fieldmaps_to_axes(
         for name, data in fmaps[section].items():
             label = f"{section}_{name}"
             c = color[section]
-            # if section == 'cavity':# and not section == 'solenoid':
             if section == fields[0]:
                 max_scale = (
                     max(abs(data[:, 1]))
@@ -260,11 +246,7 @@ def add_magnets_to_axes(
     kinetic_energy=None,
     verbose=False,
 ):
-    """
-    Adds magnets to an axes.
-
-    """
-
+    """Draw magnets and diagnostics as filled blocks on ``axes``."""
     max_scale = 0
 
     fmaps = load_elements(
@@ -284,7 +266,7 @@ def add_magnets_to_axes(
     ylabel = {
         "dipole": r"$\theta$ (rad)",
         "quadrupole": "$K_n$ (T/m)",
-    }  # , "sextupole": "$K_2$ (T/$m^2$)"}
+    }
     axis = {"dipole": 0, "quadrupole": 1}
     color = {
         "dipole": "blue",
@@ -322,10 +304,7 @@ def plot_fieldmaps(
     magnets=["quadrupole", "dipole", "beam_position_monitor", "screen"],
     **kwargs,
 ):
-    """
-    Simple fieldmap plot
-    """
-
+    """Plot the lattice fieldmaps on a new figure."""
     fig, axes = plt.subplots(figsize=figsize, **kwargs)
 
     add_fieldmaps_to_axes(
@@ -443,11 +422,8 @@ def plot(
     Pnames = []
     X_particles = []
     if include_particles:
-        # Each beam file is named after the diagnostic element it was recorded at, so
-        # for a longitudinal x-axis anchor the marker to that element's physical
-        # position. This keeps the dots aligned with the lattice layout, which is drawn
-        # from physical.z -- a tracking code's arc length (e.g. MAD-X's) can drift from
-        # the SIMBA geometry. Falls back to the beam's own mean position when unmatched.
+        # Place each beam at its element's physical.z, as the layout is; a code's own
+        # arc length (e.g. MAD-X) can drift. Falls back to the beam's mean position.
         elements = getattr(
             getattr(framework_object, "framework", None), "elementObjects", None
         ) or {}

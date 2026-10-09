@@ -1,16 +1,7 @@
 """
-Simframe Wake-T Module
-
-Various objects and functions to handle Wake-T lattices and commands. See `Wake-T github`_ for more details.
+SIMBA Wake-T module: builds and tracks a Wake-T beamline. See `Wake-T github`_.
 
     .. _Wake-T github: https://github.com/AngelFP/Wake-T
-
-Classes:
-    - :class:`~simba.Codes.Wake_T.Wake_T.waketLattice`: The Wake-T lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into a Wake-T lattice object,
-      and for tracking through it.
-
 """
 
 from ...Framework_objects import frameworkLattice
@@ -31,12 +22,7 @@ def all_subclasses(cls):
 
 
 class waketLattice(frameworkLattice):
-    """
-        Class for defining the Wake-T lattice object, used for
-        converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-        :class:`~simba.Framework_objects.frameworkLattice` into an Wake-T lattice object,
-        and for tracking through it.
-        """
+    """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as a Wake-T beamline."""
 
     code: str = "waket"
     """String indicating the lattice object type"""
@@ -48,43 +34,35 @@ class waketLattice(frameworkLattice):
     """Allow drifts to be of negative length (could be necessary for plasma injection)"""
 
     beamline: Any = None
-    """Wake-T `Beamline`_ object
-    
+    """Wake-T `Beamline`_
+
     .. _Beamline: https://github.com/AngelFP/Wake-T/blob/dev/wake_t/beamline_elements/beamline.py"""
 
     pin: Any = None
-    """Wake-T `ParticleBunch`_ object
+    """Input Wake-T `ParticleBunch`_
 
-        .. _ParticleBunch: https://github.com/AngelFP/Wake-T/blob/dev/wake_t/particles/particle_bunch.py"""
+    .. _ParticleBunch: https://github.com/AngelFP/Wake-T/blob/dev/wake_t/particles/particle_bunch.py"""
 
     bunch_list: List[Any] | None = None
-    """List of Wake-T `ParticleBunch`_ object produced by tracking"""
+    """Wake-T `ParticleBunch`_ objects produced by tracking"""
 
     particle_definition: str = None
-    """Name of first object in lattice"""
+    """Name of the input particle distribution"""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
 
     def write(self) -> None:
-        """
-        Create the beamline object via :func:`~writeElements`;
-        not that Wake-T appears not to support the writing of a lattice to a file.
-        """
+        """Build the beamline via :meth:`writeElements`; Wake-T cannot write a lattice file."""
         self.writeElements()
 
     def writeElements(self) -> None:
-        """
-        Create Wake-T objects for all the elements in the lattice and set the
-        :attr:`~simba.Codes.Wake_T.Wake_T.waketLattice.beamline`.
-        """
+        """Build :attr:`beamline` from the section."""
         self.beamline = self.section.to_wake_t()
 
     def preProcess(self) -> None:
-        """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
-        """
+        """Load the input beam from ``file_block['input']['prefix']`` and set :attr:`pin`."""
         super().preProcess()
         prefix = (
             self.file_block["input"]["prefix"]
@@ -96,15 +74,14 @@ class waketLattice(frameworkLattice):
 
     def hdf5_to_particle_bunch(self, prefix="", write=True) -> None:
         """
-        Convert the initial HDF5 particle distribution to Wake-T format and set
-        :attr:`~pin` accordingly.
+        Load the input beam and convert it to a Wake-T bunch in :attr:`pin`.
 
         Parameters
         ----------
         prefix: str
-            Prefix for particle file
+            Prefix for the input beam file
         write: bool
-            Flag to indicate whether to save the file
+            Unused
         """
         self.load_input_beam(prefix, self.particle_definition)
         self.pin = beam_to_particle_bunch(
@@ -113,9 +90,7 @@ class waketLattice(frameworkLattice):
         )
 
     def run(self) -> None:
-        """
-        Run the code, and set :attr:`~bunch_list`
-        """
+        """Track :attr:`pin` and set :attr:`bunch_list`."""
         pin = deepcopy(self.pin)
         self.bunch_list = self.beamline.track(
             pin,
@@ -123,9 +98,7 @@ class waketLattice(frameworkLattice):
         )
 
     def postProcess(self) -> None:
-        """
-        Convert the outputs from Wake-T to a `beam` object and save them to `master_subdir`.
-        """
+        """Write the final bunch as openPMD to `master_subdir`."""
         super().postProcess()
         outbeamname = (
             f'{self.global_parameters["master_subdir"]}/'

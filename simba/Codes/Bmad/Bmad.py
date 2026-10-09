@@ -1,19 +1,10 @@
 """
-SIMBA Bmad Module
-
-Various objects and functions to handle Bmad lattices and commands. See `Bmad manual`_
-and `Tao manual`_ for more details.
+SIMBA Bmad module: writes Bmad lattices and tracks them with PyTao. See `Bmad manual`_
+and `Tao manual`_.
 
     .. _Bmad manual: https://www.classe.cornell.edu/bmad/manual.html
 
     .. _Tao manual: https://www.classe.cornell.edu/bmad/tao.html
-
-Classes:
-    - :class:`~simba.Codes.Bmad.Bmad.bmadLattice`: The Bmad lattice object, used for
-      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-      :class:`~simba.Framework_objects.frameworkLattice` into a Bmad lattice,
-      and for tracking through it using PyTao.
-
 """
 
 import contextlib
@@ -96,35 +87,25 @@ BEAM_TWISS = {
 
 
 class bmadLattice(frameworkLattice):
-    """
-    Class for defining the Bmad lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Bmad lattice,
-    and for tracking through it using PyTao.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` written as Bmad and tracked with PyTao."""
 
     code: str = "bmad"
     """String indicating the lattice type"""
 
     radiates_by_default: ClassVar[bool] = True
-    """Flag to state that Bmad radiates by default (based on LAURA)."""
+    """Bmad lattices from LAURA radiate by default."""
 
     supports_dynamic_aperture: ClassVar[bool] = True
-    """Tao's own scan, configured by a ``&tao_dynamic_aperture`` namelist in
-    the init file; see :meth:`_tao_dynamic_aperture_namelist`."""
+    """Tao's own scan; see :meth:`_tao_dynamic_aperture_namelist`."""
 
     supports_frequency_map: ClassVar[bool] = True
-    """By tracking the grid a turn at a time and feeding the bunch back
-    through ``beam_init%position_file``; see
-    :meth:`_track_grid_turn_by_turn`."""
+    """By tracking the grid a turn at a time; see :meth:`_track_grid_turn_by_turn`."""
 
     supports_radiation: ClassVar[bool] = True
-    """``bmad_com[radiation_damping_on]`` and ``[radiation_fluctuations_on]``,
-    which LAURA writes from the section's own ``sr_enable``/``isr_enable``."""
+    """``bmad_com[radiation_damping_on]``/``[radiation_fluctuations_on]``, written by LAURA."""
 
     supports_periodic: ClassVar[bool] = True
-    """``parameter[geometry] = closed``, which LAURA writes from the section's
-    own ``geometry``; Bmad then takes the Twiss from the one-turn map."""
+    """``parameter[geometry] = closed``, written by LAURA; Twiss from the one-turn map."""
 
     supports_programs: ClassVar[bool] = True
     """By ``set element`` inside the Tao turn loops; see :meth:`apply_programs`."""
@@ -157,28 +138,25 @@ class bmadLattice(frameworkLattice):
     """Number of space-charge bins"""
 
     _SAVED_AT_LIMIT: int = 200
-    """Used to avoid truncation of elements using beam_saved_at"""
+    """Tao's character limit on ``beam_saved_at``"""
 
     _ALIVE: int = 1
-    """Value of the Bmad/openPMD particle status flag for a live particle"""
+    """Bmad/openPMD status flag for a live particle"""
 
     _GRID_CHARGE: ClassVar[float] = 1e-15
     """Charge given to each frequency-map grid particle."""
 
     _POSITION_FILE_CMD: ClassVar[str] = "set beam_init position_file = {path}"
-    """How to point Tao at a particle file; 
-    see :meth:`_track_grid_turn_by_turn`."""
+    """Tao command pointing at a particle file"""
 
     _PHASE_SPACE: ClassVar[tuple] = ("x", "px", "y", "py", "z", "pz")
-    """Bmad's six phase-space coordinates; see
-    :meth:`_write_position_file`."""
+    """Bmad's six phase-space coordinates"""
 
     libtao: str | None = None
     """Location of libtao.so"""
 
     chromaticity_delta: float = 1e-4
-    """Momentum step for the Bmad chromaticity finite difference. Matches
-    Tao's own ``delta_e_chrom`` default."""
+    """Momentum step for the chromaticity finite difference; Tao's ``delta_e_chrom`` default."""
 
     program_attributes: ClassVar[dict] = {
         "hkicker": ("kick", "kick"),
@@ -196,9 +174,7 @@ class bmadLattice(frameworkLattice):
             self.libtao = self.executables["tao"][0]
 
     def preProcess(self) -> None:
-        """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
-        """
+        """Load the input beam and write it as a Bmad beam file."""
         space_charge_n_bin = self.csr_bins or self.lsc_bins
         super().preProcess()
         self.space_charge_n_bin = space_charge_n_bin
@@ -231,9 +207,7 @@ class bmadLattice(frameworkLattice):
         return self._reference_value(beam.cp.val, self.reference_p0c)
 
     def _write_bmad_beam_file(self) -> None:
-        """
-        Write the beam distribution to a text file.
-        """
+        """Write the beam to :attr:`input_beam_file` in Bmad's ASCII format."""
         beam = self.global_parameters["beam"]
         p0c = self._reference_p0c()
         z = beam.z.val - self._reference_value(beam.z.val, self.reference_z0)
@@ -264,12 +238,11 @@ class bmadLattice(frameworkLattice):
 
     def _reference_energy(self) -> float:
         """
-        Get energy of the reference particle.
+        Reference energy: :attr:`reference_energy` if :attr:`design_p0c` is set, else the reference particle's.
 
         Returns
         -------
         float
-            See :attr:`design_p0c`.
         """
         if self.design_p0c is not None:
             return self.reference_energy
@@ -279,12 +252,12 @@ class bmadLattice(frameworkLattice):
 
     def _bmad_initial_twiss(self) -> TwissMatchSimulationElement | None:
         """
-        Get the initial Twiss from the incoming beam.
+        Initial Twiss from the incoming beam.
 
         Returns
         -------
         TwissMatchSimulationElement | None
-            Section initial twiss object, or None for a periodic line.
+            None for a periodic line.
         """
         if self.periodic:
             return None
@@ -298,12 +271,9 @@ class bmadLattice(frameworkLattice):
 
     def _tao_dynamic_aperture_namelist(self) -> str:
         """
-        The ``&tao_dynamic_aperture`` block for the Tao init file.
-        Written on every run, not only when a scan is wanted.
+        The ``&tao_dynamic_aperture`` block for the Tao init file, written on every run.
 
-        ``n_angle`` points are searched between ``min_angle`` and
-        ``max_angle``, so the result is a boundary in ``(x, y)`` rather than
-        a survival grid.
+        Tao searches ``n_angle`` rays, so the result is a boundary, not a survival grid.
         """
         xs, ys = self.da_grid()
         return (
@@ -329,14 +299,12 @@ class bmadLattice(frameworkLattice):
         Parameters
         ----------
         path: str
-            File to write.
+            File to write
         rows: array
-            ``n_particles x 6`` of ``x px y py z pz``, in Bmad's own
-            coordinates -- not openPMD's. :meth:`Tao.bunch1` gives these
-            directly; ``bunch_data`` does not, it converts.
+            ``n_particles x 6`` of ``x px y py z pz`` in Bmad coordinates (as
+            ``Tao.bunch1`` gives, not ``bunch_data``)
         states: array | None
-            Tao's integer particle state, as :attr:`_ALIVE` compares
-            against. ``None`` writes every particle alive.
+            Tao's integer particle states; None writes every particle alive
         """
         rows = np.asarray(rows, dtype=float)
         alive = (
@@ -362,11 +330,12 @@ class bmadLattice(frameworkLattice):
 
     def _write_grid_beam_file(self, path: str) -> list:
         """
-        One particle per frequency-map grid point, offset from the closed orbit.
-        A frequency map needs particles at chosen amplitudes, where
-        ``beam_init`` generates a random distribution.
+        Write one particle per frequency-map grid point, offset from the closed orbit.
 
-        Offsets are taken about the closed orbit rather than the axis.
+        Parameters
+        ----------
+        path: str
+            File to write
 
         Returns
         -------
@@ -389,11 +358,7 @@ class bmadLattice(frameworkLattice):
 
     def run_frequency_map(self) -> list:
         """
-        Tune footprint by tracking the grid turn by turn through Tao.
-
-        Track one turn, read the bunch at ``END``, write it back into
-        ``beam_init%position_file`` and repeat; see
-        :meth:`_track_grid_turn_by_turn`.
+        Tune footprint from :meth:`_track_grid_turn_by_turn`.
 
         Returns
         -------
@@ -418,8 +383,7 @@ class bmadLattice(frameworkLattice):
 
     def _track_grid_turn_by_turn(self) -> dict:
         """
-        Track one turn, read the bunch at ``END``, write it back into the
-        position file, and go round again.
+        Track the grid one turn at a time, feeding the bunch at ``END`` back in as the position file.
 
         Returns
         -------
@@ -467,10 +431,7 @@ class bmadLattice(frameworkLattice):
 
     def apply_programs(self, turn: int) -> None:
         """
-        ``set element`` each programmed element's attribute for `turn`.
-
-        Called from inside the Tao turn loops, which are the only place
-        Bmad tracks a line more than once here.
+        ``set element`` each programmed element's attribute for `turn`, inside the Tao turn loop.
 
         Parameters
         ----------
@@ -505,7 +466,7 @@ class bmadLattice(frameworkLattice):
         Returns
         -------
         str
-            Name of Bmad element
+            ``""`` if unknown
         """
         element = self.elements.get(name)
         if element is None:
@@ -516,12 +477,7 @@ class bmadLattice(frameworkLattice):
         return translator._convert_type_bmad(translator.hardware_type).lower()
 
     def track_reference_particle(self) -> dict:
-        """
-        One particle, recorded every turn, through the same beam loop the
-        frequency map uses.
-
-        Reuses :meth:`run_frequency_map`'s machinery with a one-point grid.
-        """
+        """Track one particle turn by turn, as a one-point frequency-map grid."""
         settings = dict(self.da_settings or {})
         nudge = float(settings.get("x_max", 1e-3)) / 100.0
         original = self.file_block.get("tracking")
@@ -543,15 +499,13 @@ class bmadLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Tao's dynamic-aperture scan, read back through the raw pipe.
-        Needs lattice apertures to work.
+        Tao's dynamic-aperture scan; needs lattice apertures.
 
         Returns
         -------
         list
-            ``(x, y, turns_survived)`` along the aperture boundary. As with
-            elegant this is a boundary rather than a survival grid, so the
-            turn count is :meth:`turns` for every point on it.
+            ``(x, y, turns)`` along the aperture boundary; the turn count is
+            :attr:`turns` for every point.
         """
         if self.tao is None:
             warn(
@@ -586,10 +540,7 @@ class bmadLattice(frameworkLattice):
         return aperture
 
     def write(self) -> None:
-        """
-        Create the lattice file using the LAURA ``SectionLatticeTranslator``
-        and save it to `master_subdir`.
-        """
+        """Write the Bmad lattice and Tao init file to `master_subdir`."""
         section = self.section
         section.reference_energy = self._reference_energy()
         lattice = section.to_bmad(
@@ -624,13 +575,12 @@ class bmadLattice(frameworkLattice):
         Parameters
         ----------
         lattice: str
-            The Bmad lattice text, used to look up the class of each element.
+            Bmad lattice text, to look up each element's class
 
         Returns
         -------
         str
-            A comma-separated list of Bmad element classes, or ``*`` if even
-            that does not fit within Tao's 200 character limit.
+            Comma-separated element classes, or ``*`` if over :attr:`_SAVED_AT_LIMIT`.
         """
         classes = {}
         for line in lattice.splitlines():
@@ -651,9 +601,7 @@ class bmadLattice(frameworkLattice):
         return saved_at if len(saved_at) <= self._SAVED_AT_LIMIT else "*"
 
     def run(self) -> None:
-        """
-        Run the code via PyTao.
-        """
+        """Track the beam through PyTao."""
         if (
             self.lattice_file is None
             or self.input_beam_file is None
@@ -676,24 +624,19 @@ class bmadLattice(frameworkLattice):
 
     def _particles_at(self, element: str, zstart: float = 0) -> tuple:
         """
-        Get the particle distribution at a given element.
-
-        Bmad keeps particles lost upstream in the bunch, frozen at the
-        coordinates they had when they died, so they are dropped here; every
-        other code reports only the particles that survived to the element.
+        Live particles at an element; Bmad keeps lost ones, frozen where they died.
 
         Parameters
         ----------
         element: str
-            The name of the element to query.
+            Element name
         zstart: float
-            Position of the element along the machine.
+            Position of the element along the machine
 
         Returns
         -------
         tuple[ParticleGroup, int | None]
-            openPMD particle group object, and the index of the reference
-            particle within it, or None if the reference particle is not alive.
+            The particles, and the reference particle's index (None if it was lost).
         """
         data = self.tao.bunch_data(element)
         alive = np.asarray(data["status"]) == self._ALIVE
@@ -722,13 +665,12 @@ class bmadLattice(frameworkLattice):
 
     def _twiss_data(self) -> dict:
         """
-        Extract the twiss parameters along the lattice from Tao.
+        Twiss and bunch parameters along the lattice from Tao.
 
         Returns
         -------
         dict
-            Twiss data, ready to be written by
-            :func:`~simba.Modules.Twiss.bmad.save_bmad_twiss_hdf`.
+            For :func:`~simba.Modules.Twiss.bmad.save_bmad_twiss_hdf`.
         """
         indices = self.tao.lat_list("*", "ele.ix_ele", flags="-array_out -track_only")
         twiss = {
@@ -753,11 +695,7 @@ class bmadLattice(frameworkLattice):
 
     def _tao_tunes(self) -> dict:
         """
-        Tune in both planes from Tao's accumulated phase advance.
-
-        ``ele.a.phi`` is the phase in radians at the end of the lattice, so
-        the tune is that over ``2*pi`` -- and unlike a one-turn map it keeps
-        the integer part.
+        Tunes from the phase advance at the end of the lattice; unlike a one-turn map, keeps the integer part.
         """
         tunes = {}
         for name, attribute in (("x", "ele.a.phi"), ("y", "ele.b.phi")):
@@ -791,9 +729,7 @@ class bmadLattice(frameworkLattice):
         """
         Tune and chromaticity from Tao.
 
-        Chromaticity is ``dQ/ddelta``, so it is measured the way it is
-        defined: shift the closed orbit to ``+/- delta`` with
-        ``set particle_start pz`` and difference the tunes. RF is off while it does.
+        Chromaticity is the tune difference at ``pz`` = +/- :attr:`chromaticity_delta`, with RF off.
         """
         if self.tao is None:
             return {}
@@ -830,12 +766,7 @@ class bmadLattice(frameworkLattice):
         return summary
 
     def read_one_turn_map(self):
-        """Tao's ``matrix`` with the same element at both ends.
-
-        Tao documents that as the one-turn map, which only means anything on
-        a ``geometry = closed`` lattice -- the condition
-        :meth:`~simba.Framework_objects.frameworkLattice.periodic` already
-        gates on.
+        """Tao's ``matrix`` from ``BEGINNING`` to itself: the one-turn map on a closed lattice.
 
         Returns
         -------
@@ -850,10 +781,7 @@ class bmadLattice(frameworkLattice):
         return None if mat6 is None else np.asarray(mat6, dtype=float)
 
     def postProcess(self) -> None:
-        """
-        Retrieve the outputs from Bmad and save them to `master_subdir`,
-        and the twiss parameters along the lattice in HDF5 format.
-        """
+        """Write the beams at each output element and the twiss HDF5 to `master_subdir`."""
         super().postProcess()
         if self.tao is None:
             raise RuntimeError("Bmad tracking must finish before post-processing")
