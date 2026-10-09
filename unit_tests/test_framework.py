@@ -1,12 +1,10 @@
 import os
 import pytest
-from unittest.mock import MagicMock
 import shutil
-from pathlib import Path
+import types
 from pydantic import ValidationError
 import simba.Framework as fw
 from simba.Framework_objects import chicane
-from simba.Modules import Beams as rbf
 from simba.Codes.Generators import (
     frameworkGenerator,
     ASTRAGenerator,
@@ -20,7 +18,7 @@ from simba.Framework_lattices import (
 )
 from laura.models.element import Dipole, Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
-from laura.Exporters.YAML import export_machine
+from laura.exporters.yaml_exporter import export_machine
 
 @pytest.fixture
 def simple_machine(tmp_path):
@@ -58,9 +56,9 @@ def simple_machine(tmp_path):
     return machine, outdir
 
 @pytest.fixture
-def simple_generator():
+def simple_generator(tmp_path):
     gen = frameworkGenerator(
-        global_parameters={"master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"},
+        global_parameters={"master_subdir": str(tmp_path)},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
         sigma_x=1e-4,
@@ -77,7 +75,8 @@ def simple_generator():
         gaussian_cutoff_pz=3,
         charge=100e-12,
     )
-    return gen.write()
+    gen.write()
+    return tmp_path
 
 def test_framework_initialization(simple_machine):
     machine, outdir = simple_machine
@@ -92,7 +91,6 @@ def test_framework_initialization(simple_machine):
 
 def test_framework_settings_and_tracking(simple_machine, simple_generator):
     machine, outdir = simple_machine
-    gen = simple_generator
     settings = fw.FrameworkSettings()
     files = {}
     for sec, elems in machine.sections.items():
@@ -124,18 +122,14 @@ def test_framework_settings_and_tracking(simple_machine, simple_generator):
         clean=True,
         verbose=True
     )
-    test_dir = os.path.dirname(os.path.abspath(__file__))
     framework.loadSettings(settings=settings)
-    framework.save_settings("test.def", directory=test_dir)
-    framework.loadSettings(filename=os.path.join(test_dir, "test.def"))
-    framework.global_parameters["beam"] = MagicMock()
+    framework.save_settings("test.def", directory=str(simple_generator))
+    framework.loadSettings(filename=str(simple_generator / "test.def"))
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
-    framework.set_lattice_prefix("FODO", f"{test_dir}/")
-    framework.track = MagicMock()
+    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
     framework.track()
-    os.remove(f"{test_dir}/M1.openpmd.hdf5")
-    os.remove(f"{test_dir}/test.def")
+    assert os.path.isfile(os.path.join(outdir, "ocelot", "M3.openpmd.hdf5"))
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):
@@ -353,8 +347,33 @@ def test_change_generator(framework_with_machine):
     assert isinstance(framework_with_machine.latticeObjects["generator"], GPTGenerator)
     framework_with_machine.change_generator("simba")
     assert isinstance(framework_with_machine.latticeObjects["generator"], frameworkGenerator)
-    with pytest.raises(ValidationError):
-        with pytest.warns(UserWarning):
-            framework_with_machine.change_generator("none")
+    with pytest.raises(ValidationError), pytest.warns(UserWarning):
+        framework_with_machine.change_generator("none")
     framework_with_machine.change_generator("ASTRA")
     assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
+
+
+def test_modify_lattice_with_lists(framework_with_machine):
+    framework_with_machine.modifyLattice("FODO", ["lsc_enable", "csr_enable"], [False, False])
+    assert not framework_with_machine.latticeObjects["FODO"].lsc_enable
+    assert not framework_with_machine.latticeObjects["FODO"].csr_enable
+
+
+def test_detect_changes_generator_reports_only_changed_fields(sample_framework, tmp_path):
+    gen = frameworkGenerator(global_parameters={"master_subdir": str(tmp_path)}, charge=1e-12)
+    sample_framework.generator = gen
+    sample_framework.original_elementObjects["generator"] = gen.model_copy(deep=True)
+    gen.charge = 2e-12
+    assert sample_framework.detect_changes(elements=["generator"]) == {"generator": {"charge": 2e-12}}
+
+
+def test_framework_directory_element_prints_laura_element(sample_framework):
+    directory = types.SimpleNamespace(framework=sample_framework)
+    assert fw.frameworkDirectory.element(directory, "E1").name == "E1"
+
+
+def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
+    from simba import yaml_checker
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        yaml_checker.main([str(tmp_path / "missing.def")])

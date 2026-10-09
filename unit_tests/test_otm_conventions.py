@@ -1,7 +1,7 @@
 """The codes do not agree on what a one-turn map's coordinates mean."""
 
 import tempfile
-from functools import lru_cache
+from functools import cache
 
 import numpy as np
 import pytest
@@ -30,7 +30,7 @@ def drift_r56(pc):
     return L / (beta * gamma) ** 2
 
 
-@lru_cache(maxsize=None)
+@cache
 def ocelot_drift(pc):
     from ocelot.cpbd.elements import Drift
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
@@ -45,7 +45,7 @@ def ocelot_drift(pc):
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def xsuite_drift(pc):
     xt = pytest.importorskip("xtrack")
     line = xt.Line(elements=[xt.Drift(length=L)])
@@ -55,7 +55,7 @@ def xsuite_drift(pc):
     return np.asarray(result["R_matrix"], dtype=float)
 
 
-@lru_cache(maxsize=None)
+@cache
 def madx_drift(pc):
     madx_module = pytest.importorskip("cpymad.madx")
     madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
@@ -251,7 +251,7 @@ def test_a_rescale_of_elegant_would_have_been_silently_wrong():
 # identity. So the line's map is the ordered product.
 
 
-@lru_cache(maxsize=None)
+@cache
 def madx_drift_and_dipole(pc):
     """Per-element sector maps for a 1.5 m drift followed by a 1 m bend."""
     madx_module = pytest.importorskip("cpymad.madx")

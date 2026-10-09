@@ -2,7 +2,7 @@
 
 import math
 import tempfile
-from functools import lru_cache
+from functools import cache
 
 import numpy as np
 import pytest
@@ -17,7 +17,7 @@ CELL_L = 2 * QUAD_L + BEND_L + 3 * DRIFT_L
 CIRCUMFERENCE = NCELL * CELL_L
 
 
-@lru_cache(maxsize=None)
+@cache
 def xsuite_orbit(kick):
     xt = pytest.importorskip("xtrack")
     els, nms = [], []
@@ -44,7 +44,7 @@ def xsuite_orbit(kick):
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def madx_orbit(kick):
     madx_module = pytest.importorskip("cpymad.madx")
     body = []

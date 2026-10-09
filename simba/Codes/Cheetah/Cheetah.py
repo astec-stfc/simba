@@ -28,7 +28,6 @@ from laura.models.diagnostic import DiagnosticElement
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/cheetah_defaults.yaml",
-    "r",
 ) as infile:
     cheetahglobal = safe_load(infile)
 
@@ -125,7 +124,7 @@ class cheetahLattice(frameworkLattice):
         bool
             True if successful
         """
-        self.segment = self.section.to_cheetah(save=True)
+        self.segment = self.section.to_cheetah()
         return True
 
     def write(self) -> None:
@@ -161,7 +160,7 @@ class cheetahLattice(frameworkLattice):
         write: bool
             Flag to indicate whether to save the file
         """
-        cheetahbeamfilename = self.particle_definition + ".openpmd.hdf5"
+        cheetahbeamfilename = f'{self.global_parameters["master_subdir"]}/{self.particle_definition}.cheetah.hdf5'
         self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
 
@@ -177,12 +176,10 @@ class cheetahLattice(frameworkLattice):
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
-        # navi = self.navi_setup()
         pin = deepcopy(self.pin)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
-            # print("Twiss parameters:", self.tws)
 
     @lox.thread(40)
     def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:

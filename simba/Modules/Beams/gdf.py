@@ -4,7 +4,6 @@ import numpy as np
 from ..gdf_beam import gdf_beam
 from .. import constants
 from ..units import UnitValue
-from warnings import warn
 
 
 def write_gdf_beam_file(
@@ -19,7 +18,7 @@ def write_gdf_beam_file(
 ):
     if filename is None:
         fn = os.path.splitext(self.filename)
-        filename = fn[0].strip(".ocelot").strip(".openpmd") + ".gdf"
+        filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".gdf"
     q = self._beam.particle_charge
     m = self._beam.particle_mass
 
@@ -87,12 +86,6 @@ def read_gdf_beam_file_object(file):
         gdfbeam = file
     else:
         raise Exception("file is not str or gdf_beam object!")
-    return gdfbeam
-
-
-def read_gdf_beam_file_info(self, file):
-    self.reset_dicts()
-    gdfbeam = gdf_beam(self, file)
     return gdfbeam
 
 

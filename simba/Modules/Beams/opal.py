@@ -7,6 +7,7 @@ from ..units import UnitValue
 emass_eV = constants.m_e * (constants.speed_of_light ** 2) / constants.elementary_charge
 emass_MeV = emass_eV * 1e-6
 emass_GeV = emass_eV * 1e-9
+pmass_GeV = constants.m_p * (constants.speed_of_light ** 2) / constants.elementary_charge * 1e-9
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -39,75 +40,42 @@ def read_opal_beam_file(self, filename, step=0):
             mass = constants.m_e
         else:
             mass = constants.m_p
-    except:
-        mass = beamdata.attrs["TotalCharge"] / beamdata.attrs["TotalMass"] / 1e6 / constants.speed_of_light
-        if np.isclose(constants.m_e, mass, atol=1e-28):
+    except KeyError:
+        # rest energy per particle; OPAL labels TotalMass "MeV" but writes GeV
+        mass_GeV = beamdata.attrs["TotalMass"][0] / abs(beamdata.attrs["TotalCharge"][0]) * constants.elementary_charge
+        if np.isclose(mass_GeV, emass_GeV, rtol=1e-3):
             mass = constants.m_e
-        elif np.isclose(constants.m_p, mass, atol=1e-28):
+        elif np.isclose(mass_GeV, pmass_GeV, rtol=1e-3):
             mass = constants.m_p
         else:
             warn("Could not determine if particle is electron or proton; setting electron mass.")
             mass = constants.m_e
-    self._beam.particle_mass = UnitValue(
-        np.full(len(beamdata["x"][()]), mass), units="kg"
-    )
-    # print('SDDS', self._beam["particle_mass"])
-    self._beam.particle_rest_energy = UnitValue(
-        (self._beam.particle_mass * constants.speed_of_light ** 2),
-        units="J",
-    )
-    # print('SDDS', self._beam["particle_rest_energy"])
-    self._beam.particle_rest_energy_eV = UnitValue(
-        (self._beam.particle_rest_energy / constants.elementary_charge),
-        units="eV/c",
-    )
-    # print('SDDS', self._beam["particle_rest_energy_eV"])
-    self._beam.particle_charge = UnitValue(
-        np.full(len(beamdata["x"][()]), constants.elementary_charge),
-        units="C",
-    )
+    self.set_mass_and_charge(mass, constants.elementary_charge, len(beamdata["x"][()]))
     self._beam.x = UnitValue(beamdata["x"][()], units="m")
     self._beam.y = UnitValue(beamdata["y"][()], units="m")
     try:
         self._beam.t = UnitValue(beamdata["time"][()], units="s")
-    except:
+    except Exception:
         t0 = beamdata.attrs["TIME"]
         self._beam.t = UnitValue(t0 - beamdata["z"][()]/constants.speed_of_light, units="s")
-    # self._beam.z = UnitValue((np.mean(self._beam.t) - self._beam.t) * constants.speed_of_light, units="m")
 
     gammax = beamdata["px"][()]
     gammay = beamdata["py"][()]
     gammaz = beamdata["pz"][()]
-    pfac = 0 if "MONI" in filename else constants.m_e * constants.speed_of_light
-    # pfac = 0 if "generator" in filename else pfac
-    self._beam.px = UnitValue(gammax * 1e6 * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(gammay * 1e6 * self.q_over_c, "kg*m/s")
-    self._beam.pz = UnitValue(gammaz * 1e6 * self.q_over_c, "kg*m/s")
+    # OPAL stores momenta as beta*gamma
+    self._beam.px = UnitValue(gammax * mass * constants.speed_of_light, "kg*m/s")
+    self._beam.py = UnitValue(gammay * mass * constants.speed_of_light, "kg*m/s")
+    self._beam.pz = UnitValue(gammaz * mass * constants.speed_of_light, "kg*m/s")
     self._beam.z = UnitValue((-1 * self._beam.Bz * constants.speed_of_light)
          * (self._beam.t - np.mean(self._beam.t)),
          units="m",
      )  # np.full(len(self.t), 0)
-    # for b in ["px", "py", "pz"]:
-    #     self._beam[b] += constants.m_e * constants.speed_of_light
-
-    # if "time" in list(beamdata.keys()):
-    #     self._beam.t = UnitValue(beamdata["time"][()], units="s")
-    #     if "MONI" in filename:
-    #         self._beam.t += UnitValue(-np.mean(self._beam.t), units="s")
-    #
-    #     #self._beam["z"] += np.mean(self.beam["t"]) * constants.speed_of_light
-    # else:
-    #     self._beam["t"] = -self._beam["z"] / constants.speed_of_light
 
     if "TotalCharge" in list(beamdata.attrs.keys()):
         self._beam.total_charge = UnitValue(beamdata.attrs['TotalCharge'][0], units="C")
     else:
         self._beam.total_charge = UnitValue(np.sum(beamdata["q"][()]), units="C")
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x.val), 1), units="")
-    self._beam.particle_mass = UnitValue(
-        np.full(len(self._beam.x.val), constants.m_e),
-        units="kg",
-    )
     self._beam.set_total_charge(self._beam.total_charge)
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
     file.close()
@@ -119,10 +87,7 @@ def write_opal_beam_file(self, filename, subz=0, emitted=False):
     betax_gamma = self.cpx.val * self.gamma.val / self.energy.val
     y = self.y.val
     betay_gamma = self.cpy.val * self.gamma.val / self.energy.val
-    if emitted:
-        z = self.t.val
-    else:
-        z = self.z.val - subz
+    z = self.t.val if emitted else self.z.val - subz
     betaz_gamma = self.cpz.val * self.gamma.val / self.energy.val
     beamdata = np.transpose([x, betax_gamma, y, betay_gamma, z, betaz_gamma])
     data = np.concatenate(

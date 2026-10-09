@@ -94,7 +94,7 @@ class GPTGenerator(frameworkGenerator):
             fi = load(v)
             self.longitudinal_profile = v
             self.longitudinal_fields = [p["name"] for p in fi["blocks"]]
-            self.distribution_type_z = "F"
+            self.distribution_type_z = "f"
 
     def generate_particles(self):
         """
@@ -346,7 +346,7 @@ setGBphidist("beam","u", 0, 2*pi);
             if self.normalized_vertical_emittance is not None
             else 0
         )
-        if self.distribution_type_x == "image" or self.distribution_type_x == "image":
+        if self.distribution_type_x == "image" or self.distribution_type_y == "image":
             return "\n"
         elif self.sigma_x != self.sigma_y:
             thermal_emittance = (
@@ -401,9 +401,8 @@ setGBphidist("beam","u", 0, 2*pi);
             }
             variable = "tlen"
             if self.distribution_type_z.lower() in ["g", "gaussian"]:
-                if self.sigma_t is None:
-                    self.sigma_t = self.sigma_z / constants.speed_of_light
-                output += f"""tlen = {1e12 * self.sigma_t}e-12;\n"""
+                sigma_t = self.sigma_t or self.sigma_z / constants.speed_of_light
+                output += f"""tlen = {1e12 * sigma_t}e-12;\n"""
             else:
                 output += f"""tlen = {1e12 * self.plateau_bunch_length}e-12;\n"""
         output += (
@@ -451,10 +450,6 @@ setGBphidist("beam","u", 0, 2*pi);
 
         #TODO Filenames are hardcoded for simplicity and they shouldn't be.
         """
-        # try:
-        #     npart = eval(self.number_of_particles)
-        # except:
-        #     npart = self.number_of_particles
         if not self.cathode:
             raise NotImplementedError("Only cathode beams are currently supported in GPT generator")
         output = ""
@@ -463,7 +458,6 @@ setGBphidist("beam","u", 0, 2*pi);
         output += self.generate_phase_space_distribution()
         output += self.generate_thermal_emittance()
         output += self.generate_longitudinal_distribution()
-        # output += self.generate_correlated_divergences()
         output += self.generate_offset_transform()
         output += self.generate_output()
         saveFile(
@@ -490,10 +484,7 @@ setGBphidist("beam","u", 0, 2*pi);
         )
         # Set the Z component to be zero
         self.global_parameters["beam"].z = UnitValue(np.full(len(self.global_parameters["beam"].z), 0), units="m")
-        if self.cathode:
-            HDF5filename = "laser.openpmd.hdf5"
-        else:
-            HDF5filename = self.filename
+        HDF5filename = "laser.openpmd.hdf5" if self.cathode else self.filename
         self.global_parameters["beam"].set_species(self.species)
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],

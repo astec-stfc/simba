@@ -61,8 +61,10 @@ class MathParser:
     def eval_(self, node):
         if isinstance(node, ast.Expression):
             return self.eval_(node.body)
-        if isinstance(node, ast.Num):  # <number>
-            return node.n
+        if isinstance(node, ast.Constant) and isinstance(
+            node.value, (int, float, complex)
+        ):  # <number>
+            return node.value
         if isinstance(node, ast.Name):
             return self._Name(node.id)
         if isinstance(node, ast.BinOp):
@@ -72,15 +74,14 @@ class MathParser:
             method = self._operators2method[type(node.op)]
             return method(self.eval_(node.operand))
         if isinstance(node, ast.Attribute):
+            if node.attr.startswith("_"):
+                raise NameError(f"{node.attr!r}")
             return getattr(self.eval_(node.value), node.attr)
 
         if isinstance(node, ast.Call):
             return self.eval_(node.func)(
                 *(self.eval_(a) for a in node.args),
                 **{k.arg: self.eval_(k.value) for k in node.keywords},
-            )
-            return self.Call(
-                self.eval_(node.func), tuple(self.eval_(a) for a in node.args)
             )
         else:
             raise TypeError(node)

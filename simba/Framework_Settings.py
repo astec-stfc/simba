@@ -1,5 +1,4 @@
 import os
-import sys
 import yaml
 from munch import Munch, unmunchify
 
@@ -26,7 +25,7 @@ class FrameworkSettings(Munch):
         super().__init__()
         self.settingsFilename = filename
         for k in self.isthistheissue:
-            self[k] = dict()
+            self[k] = {}
         # resolve_functional is a boolean flag (present functional attributes as
         # resolved numbers), not a mapping; default it to False.
         self["resolve_functional"] = False
@@ -35,7 +34,7 @@ class FrameworkSettings(Munch):
 
     def loadSettings(self, filename):
         self.settingsFilename = filename
-        with open(filename, "r") as stream:
+        with open(filename) as stream:
             settings = yaml.safe_load(stream)
         for k, v in settings.items():
             if k in self.isthistheissue:

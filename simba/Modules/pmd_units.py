@@ -7,8 +7,6 @@ For more advanced units, use a package like Pint:
 
 """
 
-# import scipy.constants
-
 m_e = 510998.94999999995
 m_p = 938272088.16
 c_light = 299792458

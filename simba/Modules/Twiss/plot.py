@@ -1,9 +1,5 @@
-import os
-import sys
-from io import StringIO
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 from copy import copy
 from ..units import nice_array, nice_scale_prefix
 
@@ -56,7 +52,7 @@ def plot(
     if len(ykeys) == 1 and not ykeys2:
         include_legend = False
 
-    X = I.stat(xkey)
+    X = np.asarray(I.stat(xkey).val)
 
     # Only get the data we need
     if xlim:
@@ -69,7 +65,7 @@ def plot(
     # X axis scaling
     units_x = str(I.stat(xkey).unit)
     if nice:
-        X, factor_x, prefix_x = nice_array(X.val)
+        X, factor_x, prefix_x = nice_array(X)
         units_x = prefix_x + units_x
     else:
         factor_x = 1
@@ -99,7 +95,7 @@ def plot(
         unit = str(ulist[0])
 
         # Data
-        data = [I.stat(key).val[good] for key in keys]
+        data = [np.asarray(I.stat(key).val)[good] for key in keys]
 
         if nice:
             factor, prefix = nice_scale_prefix(np.ptp(data))
@@ -131,5 +127,3 @@ def plot(
             lines += a
             labels += b
         ax_plot[0].legend(lines, labels, loc="best")
-
-    # return fig

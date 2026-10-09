@@ -235,9 +235,6 @@ class field(BaseModel):
     def validate_fields(cls, values):
         return values
 
-    # def model_dump(self):
-    #     return self.filename
-
     def reset_dicts(self) -> None:
         """
         Reset the field parameters to their default values.
@@ -330,7 +327,6 @@ class field(BaseModel):
             hdf5.read_HDF5_field_file(self, filename)
         else:
             if fext.lower() in [".astra", ".dat"]:
-                # print('Field: read_field_file: astra', filename, fext.lower())
                 astra.read_astra_field_file(
                     self,
                     filename,
@@ -339,10 +335,8 @@ class field(BaseModel):
                     frequency=frequency,
                 )
             elif fext.lower() in [".sdds"]:
-                # print('Field: read_field_file: SDDS', filename, fext.lower())
                 sdds.read_SDDS_field_file(self, filename, field_type=field_type)
             elif fext.lower() in [".gdf"]:
-                # print('Field: read_field_file: GPT', filename, fext.lower())
                 gdf.read_gdf_field_file(
                     self,
                     filename,
@@ -352,7 +346,6 @@ class field(BaseModel):
                     normalize_b=normalize_b,
                 )
             elif fext.lower() in [".opal"]:
-                # print('Field: read_field_file: opal', filename, fext.lower())
                 opal.read_opal_field_file(
                     self,
                     filename,
@@ -418,22 +411,9 @@ class field(BaseModel):
                 "Field file not read in. Use read_field_file to load in an hdf5 field file."
             )
             return
-        # try:
         if code.lower() in ["astra", "ocelot"]:
             return astra.generate_astra_field_data(self)
         return None
-        # elif code.lower() in ["sdds", "elegant"]:
-        #     return sdds.write_SDDS_field_file(self)
-        # elif code.lower() in ["gdf", "gpt"]:
-        #     return gdf.write_gdf_field_file(self)
-        # elif code.lower() == "opal":
-        #     return opal.write_opal_field_file(
-        #         self,
-        #         frequency=self.frequency,
-        #         radius=self.radius,
-        #         fourier=self.fourier,
-        #         orientation=self.orientation,
-        #     )
 
     def write_field_file(self, code: str, location: str | None = None) -> str | None:
         """
@@ -461,7 +441,6 @@ class field(BaseModel):
                 "Field file not read in. Use read_field_file to load in an hdf5 field file."
             )
             return
-        # try:
         if location is not None:
             self._output_location = os.path.dirname(os.path.abspath(location))
         else:
@@ -482,5 +461,3 @@ class field(BaseModel):
             )
         elif code.lower() == "hdf5":
             return hdf5.write_HDF5_field_file(self)
-        # except NotImplementedError:
-        #     print("Supported formats are [astra, sdds, opal, gdf]")

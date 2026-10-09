@@ -19,13 +19,13 @@ def _build(theta0):
     """A four-dipole chicane on the axis `theta0`, straight and on-crest to start with."""
     rotation = euler_angles_to_rotation_matrix(theta0, 0.0, 0.0)
     elements = {}
-    for i, z in enumerate(DIPOLE_Z, start=1):
+    for i, _ in enumerate(DIPOLE_Z, start=1):
         d = Dipole(name=f"D{i}", hardware_class="Magnet", machine_area="TEST")
         d.physical.length = LZ
         d.magnetic.length = LZ
         d.magnetic.angle = 0.0
         elements[d.name] = d
-    for i, z in enumerate(MARKER_Z, start=1):
+    for i, _ in enumerate(MARKER_Z, start=1):
         m = Marker(name=f"M{i}", hardware_class="Marker", hardware_type="Marker",
                    machine_area="TEST")
         elements[m.name] = m
@@ -78,3 +78,11 @@ def test_zeroing_puts_everything_back_on_the_axis():
     for name in NAMES[:4]:
         assert elements[name].magnetic.angle == pytest.approx(0.0, abs=1e-15)
         assert elements[name].physical.length == pytest.approx(LZ, abs=1e-12)
+
+
+def test_r56_adds_the_drift_and_two_thirds_of_a_dipole():
+    group, elements, _ = _build(0.0)
+    group.set_angle(0.1)
+    dipole_length = elements["D1"].magnetic.length
+    assert group.r56 == pytest.approx(2 * group.angle**2 * (group.drift_d1_to_d2 + 2 * dipole_length / 3))
+    assert group.drift_d1_to_d2 > 0.9

@@ -1,12 +1,5 @@
-import warnings
 import numpy as np
 from .pmd_units import unit
-import re
-
-try:
-    np.warnings.filterwarnings("error", category=np.VisibleDeprecationWarning)
-except:
-    pass
 
 # Dicts for prefixes
 PREFIX_FACTOR = {
@@ -195,7 +188,7 @@ def unit_fraction(string):
                     substrings.append(substring)
                 substring = ""
                 if individe and inbracket:
-                    substrings = nom
+                    substrings = num
                 else:
                     substrings = denom
             else:
@@ -262,9 +255,6 @@ def expand_units(unit_list, power_factor=1):
     """Takes a list of units (normally numerator or denominator) and collects units and powers
     Returns units ('a^x') and unitnames (('a',x))"""
 
-    # if isinstance(unit_list[0], (list, tuple)):
-    #     return [expand_units(ul) for ul in unit_list]
-
     unitnames = [unit_power(u, power_factor=power_factor) for u in unit_list]
     unique_units = list(set([u[0] for u in unitnames]))
     units = []
@@ -298,7 +288,6 @@ def collect_units(unit_powers):
 
 def unit_powers(string, power_factor=1):
     num, denom = unit_fraction(string)
-    # print(expand_units(num), expand_units(denom))
     return expand_units(
         expand_units(num, power_factor=power_factor)
         + expand_units(denom, power_factor=(-1 * power_factor))
@@ -316,7 +305,6 @@ def unit_multiply(string1, string2=False, divide=False):
         up2 = expand_units(unit_powers(string2, power_factor=pf[1]))
     else:
         up2 = []
-    # print(expand_units(up1 + up2))
     return collect_units(expand_units(up1 + up2))
 
 
@@ -329,8 +317,6 @@ def unit_to_the_power(string1, power=1):
 def get_base_units(string):
     if isinstance(string, (UnitValue)):
         string = string.units
-    # if string is None:
-    #     return np.array((0,0,0,0,0,0,0))
     units_powers = unit_powers(string)
     return np.sum(
         [np.array(unit(u[0]).unitDimension) * u[1] for u in units_powers], axis=0
@@ -361,26 +347,12 @@ class UnitValue(np.ndarray):
         """
         self.units = getattr(obj, "units", "")
 
-    # def __array_wrap__(self, obj, context=None):
-    #     result = obj.view(type(self))
-    #     # try:
-    #     #     print(context[0].__name__)
-    #     # except:
-    #     #     print(context)
-    #     if context is not None:
-    #         if context[0].__name__ == 'sqrt':
-    #             result.units = unit_to_the_power(obj.units, 0.5)
-    #         if context[0].__name__ == 'square':
-    #             result.units = unit_to_the_power(obj.units, 2)
-    #     return result
-
     def __array_ufunc__(
         self, ufunc, method, *inputs, **kwargs
     ):  # this method is called whenever you use a ufunc
         """this implementation of __array_ufunc__ makes sure that all custom attributes are maintained when a ufunc operation is performed on our class."""
 
         # convert inputs and outputs of class ArraySubclass to np.ndarray to prevent infinite recursion
-        # print(ufunc)
         args = ((i.view(np.ndarray) if isinstance(i, UnitValue) else i) for i in inputs)
         outputs = kwargs.pop("out", None)
         if outputs:
@@ -393,7 +365,6 @@ class UnitValue(np.ndarray):
         results = super().__array_ufunc__(
             ufunc, method, *args, **kwargs
         )  # pylint: disable=no-member
-        # print(results)
         if results is NotImplemented:
             return NotImplemented
         if method == "at":
@@ -494,7 +465,6 @@ class UnitValue(np.ndarray):
             if are_units_equal(m.units, self.units):
                 return UnitValue(newval, self.units)
             else:
-                # print('Incompatible Units - ignoring units', m.units, self.units)
                 return UnitValue(newval, "")
         else:
             return UnitValue(newval, self.units)
@@ -550,10 +520,8 @@ class UnitValue(np.ndarray):
         return self.val / f, prefix
 
     def in_units_of(self, prefix):
-        prefix = prefix + "-" if prefix[-1] != "-" else prefix
-        f = 1
         if prefix in SHORT_PREFIX_FACTOR:
             f = SHORT_PREFIX_FACTOR[prefix]
-        elif prefix in PREFIX_FACTOR:
-            f = PREFIX_FACTOR[prefix]
+        else:
+            f = PREFIX_FACTOR.get(prefix.rstrip("-") + "-", 1)
         return self.val / f

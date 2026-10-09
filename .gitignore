@@ -39,3 +39,6 @@ S.json
 JFEL-S02-SIM-APER-01.openpmd.hdf5
 # seleniumbase's pytest plugin, if installed, drops this under xdist
 downloaded_files/
+.coverage
+checkpoint_restart.dat
+.benchmarks/

@@ -91,7 +91,7 @@ class csrtrackLattice(frameworkLattice):
             elif self.file_block["csr"]["csr_mode"] == "1D":
                 self.csrtrack_headers["forces"] = CsrTrackForces(type="projected")
         else:
-            self.CSRTrackelementObjects["forces"] = CsrTrackForces()
+            self.csrtrack_headers["forces"] = CsrTrackForces()
 
     def writeElements(self) -> str:
         """

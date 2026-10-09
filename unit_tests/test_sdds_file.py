@@ -20,3 +20,14 @@ def test_a_busy_index_falls_back_to_a_free_one(tmp_path):
     read = SDDSFile(index=1)
     read.read_file(path, page=0)
     assert list(read.columns()["x"].data) == [1.5, 2.5]
+
+
+def test_column_and_parameter_keep_metadata(tmp_path):
+    from simba.Modules.SDDSFile import SDDSColumn, SDDSParameter
+
+    for cls in (SDDSColumn, SDDSParameter):
+        obj = cls(name="x", data=1.0, formatstring="%g", fieldlength=8, description="d")
+        assert (obj.formatstring, obj.fieldlength, obj.description) == ("%g", 8, "d")
+    col = SDDSColumn(name="x", data=[1.0])
+    col.fieldlength = 4
+    assert col.fieldlength == 4

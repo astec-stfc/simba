@@ -5,14 +5,11 @@ from simba.Codes.Generators import (
 )
 import numpy as np
 import pytest
-import os
 
 @pytest.fixture
-def simple_generator():
-    gen = frameworkGenerator(
-        global_parameters={
-            "master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"
-        },
+def simple_generator(tmp_path):
+    return frameworkGenerator(
+        global_parameters={"master_subdir": str(tmp_path)},
         filename="generator.openpmd.hdf5",
         initial_momentum=5e6,
         sigma_x=1e-4,
@@ -29,12 +26,10 @@ def simple_generator():
         gaussian_cutoff_pz=3,
         charge=100e-12,
     )
-    return gen
 
-def test_generator_write(simple_generator):
+def test_generator_write(simple_generator, tmp_path):
     simple_generator.write()
-    assert os.path.isfile(f"{os.path.dirname(os.path.abspath(__file__))}/generator.openpmd.hdf5")
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.openpmd.hdf5")
+    assert (tmp_path / "generator.openpmd.hdf5").is_file()
 
 def test_particles_property(simple_generator):
     gen = simple_generator
@@ -83,11 +78,9 @@ def test_load_defaults_dict(simple_generator):
     assert gen.sigma_y == 2e-4
 
 @pytest.fixture
-def astra_generator():
+def astra_generator(tmp_path):
     return ASTRAGenerator(
-        global_parameters={
-            "master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"
-        },
+        global_parameters={"master_subdir": str(tmp_path)},
         filename="test_beam.txt",
         initial_momentum=5e6,
         sigma_x=1e-4,
@@ -117,23 +110,16 @@ def test_astra_generator_alias_application(astra_generator):
     assert hasattr(astra_generator, "sig_x")
     assert astra_generator.sig_x == pytest.approx(1e-4 * 1000)
 
-def test_astra_generator_write(monkeypatch, astra_generator):
-    def mock_save_file(path, content):
-        assert path.endswith("test_beam.in")
-        assert "&INPUT" in content
-        assert "FName = 'test_beam.txt'" in content or "FName = 'test_beam.txt'" in content
-    import builtins
-    import types
-    mock_module = types.SimpleNamespace(saveFile=mock_save_file)
-    builtins.simba = types.SimpleNamespace(FrameworkHelperFunctions=mock_module)
+def test_astra_generator_write(astra_generator, tmp_path):
     astra_generator.write()
+    content = (tmp_path / f"{astra_generator.objectname}.in").read_text()
+    assert content.startswith("&INPUT")
+    assert "FName = 'test_beam.txt'" in content
 
 @pytest.fixture
-def gpt_generator():
+def gpt_generator(tmp_path):
     return GPTGenerator(
-        global_parameters={
-            "master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"
-        },
+        global_parameters={"master_subdir": str(tmp_path)},
         filename="test_gpt.in",
         initial_momentum=0e6,
         sigma_x=1e-4,
@@ -159,15 +145,31 @@ def test_gpt_generator_initialization(gpt_generator):
     assert gpt_generator.filename == "test_gpt.in"
     assert gpt_generator.initial_momentum == 0e6
 
-def test_gpt_generator_write(monkeypatch, gpt_generator):
-    def mock_save_file(content):
-        assert "beam" in content or "E0" in content
-    import builtins
-    import types
-    mock_module = types.SimpleNamespace(saveFile=mock_save_file)
-    builtins.simba = types.SimpleNamespace(FrameworkHelperFunctions=mock_module)
+def test_gpt_generator_write(gpt_generator, tmp_path):
     gpt_generator.write()
+    content = (tmp_path / f"{gpt_generator.objectname}.in").read_text()
+    assert "E0" in content
+    gpt_generator.cathode = False
     with pytest.raises(NotImplementedError):
-        gpt_generator.cathode = False
         gpt_generator.write()
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.in")
+
+@pytest.mark.parametrize("species, sign", [("proton", 1), ("positrons", 1), ("electron", -1)])
+def test_species_sets_instance_mass_and_sign(species, sign):
+    from simba.Modules import constants
+    gen = frameworkGenerator(species=species)
+    assert gen.charge_sign == sign
+    assert gen.particle_mass == (constants.m_p if species == "proton" else constants.m_e)
+    assert frameworkGenerator().charge_sign == -1
+
+
+def test_sample_gaussian_cutoff_follows_offset():
+    from simba.Codes.Generators.Generators import sample_gaussian
+    z = sample_gaussian(10.0, 1.0, 3, 2000)
+    assert np.all(np.abs(z - 10.0) <= 3) and z.min() < 9
+
+
+def test_gpt_gaussian_tlen_from_sigma_z():
+    from simba.Modules.constants import speed_of_light
+    gen = GPTGenerator(distribution_type_z="g", sigma_z=3e-4, sigma_t=0.0)
+    assert f"tlen = {1e12 * 3e-4 / speed_of_light}e-12" in gen.generate_longitudinal_distribution()
+    gen.distribution_type_z = "f"

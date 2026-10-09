@@ -736,6 +736,9 @@ class xsuiteLattice(frameworkLattice):
         dict
             One row of :attr:`beam_data`
         """
+        # lost particles keep the coordinates where they were lost
+        if np.any(np.asarray(particles.state) <= 0):
+            particles = particles.filter(particles.state > 0)
         return {
             'mean_x': np.mean(particles.x),
             'mean_y': np.mean(particles.y),
@@ -807,11 +810,11 @@ class xsuiteLattice(frameworkLattice):
 
     def _twiss_now(self):
         """:meth:`_twiss`, on the line as it stands."""
-        kwargs = dict(
-            compute_R_element_by_element=False,
-            method="6d",
-            freeze_energy=False,
-        )
+        kwargs = {
+            "compute_R_element_by_element": False,
+            "method": "6d",
+            "freeze_energy": False,
+        }
         if self.periodic:
             if not self.rf_voltage:
                 kwargs.update(method="4d")
@@ -915,10 +918,6 @@ class xsuiteLattice(frameworkLattice):
         """
         import xtrack as xt
 
-        import math
-
-        from ...Modules.Matrices import tune_diffusion
-
         grid_x, grid_y, particles = self._da_particles()
         passes = self.turns * self.passes_per_turn
         monitor = xt.ParticlesMonitor(
@@ -931,38 +930,14 @@ class xsuiteLattice(frameworkLattice):
             particles, num_turns=passes, turn_by_turn_monitor=monitor
         )
         stride = self.passes_per_turn
-        twiss = self.normalisation_twiss()
-        footprint = []
+        coords = [np.asarray(getattr(monitor, k))[:, ::stride] for k in ("x", "px", "y", "py")]
         # tracking moves lost particles to the end; the monitor is by id
         state = np.asarray(particles.state)[np.argsort(particles.particle_id)]
-        for index in range(len(grid_x)):
-            if int(state[index]) <= 0:
-                continue
-            tune_x, tune_y, diffusion = tune_diffusion(
-                np.asarray(monitor.x)[index][::stride],
-                np.asarray(monitor.px)[index][::stride],
-                np.asarray(monitor.y)[index][::stride],
-                np.asarray(monitor.py)[index][::stride],
-                twiss=twiss,
-            )
-            if math.isnan(tune_x):
-                continue
-            footprint.append(
-                (
-                    float(grid_x[index]),
-                    float(grid_y[index]),
-                    tune_x,
-                    tune_y,
-                    diffusion,
-                )
-            )
-        if not footprint:
-            warn(
-                f"Line '{self.objectname}': no particle survived the "
-                "frequency-map scan, so there is no footprint."
-            )
-        self.frequency_map = footprint
-        return footprint
+        return self._footprint(
+            (grid_x[i], grid_y[i], *(c[i] for c in coords))
+            for i in range(len(grid_x))
+            if int(state[i]) > 0
+        )
 
     def find_closed_orbit(self):
         """``line.find_closed_orbit()``, once a run."""
@@ -1151,6 +1126,6 @@ class xsuiteLattice(frameworkLattice):
         zvals = [a[-1] for a in self.getZValues()]
         df["z"] = np.interp(df["s"], svals, zvals)
         if self.beam_data:
-            for k in next(iter(self.beam_data.values())).keys():
+            for k in next(iter(self.beam_data.values())):
                 df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')

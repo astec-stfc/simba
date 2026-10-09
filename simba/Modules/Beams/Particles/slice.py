@@ -62,20 +62,8 @@ class slice(BaseModel):
     """Indices of temporal bins"""
 
     def __init__(self, beam, *args, **kwargs):
-        super(slice, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.beam = beam
-        # self.bin_time()
-
-    # def model_dump(self, *args, **kwargs):
-    #     # Only include computed fields
-    #     computed_keys = {
-    #         f for f in self.__pydantic_decorators__.computed_fields.keys()
-    #     }
-    #     full_dump = super().model_dump(*args, **kwargs)
-    #     return {k: v for k, v in full_dump.items() if k in computed_keys}
-
-    # def __repr__(self):
-    #     return repr({p: self.emittance(p) for p in ('x', 'y')})
 
     def have_we_already_been_binned(self) -> bool:
         """
@@ -88,13 +76,11 @@ class slice(BaseModel):
             True if beam has already been binned
 
         """
-        if (
+        return bool(
             self.time_binned["beam"] == self.beam
             and self.time_binned["slices"] == self._slices
             and self.time_binned["slice_length"] == self._slicelength
-        ):
-            return True
-        return False
+        )
 
     def update_binned_parameters(self) -> None:
         """
@@ -168,7 +154,6 @@ class slice(BaseModel):
             Number of slices
         """
         twidth = np.ptp(self.beam.t, axis=0)
-        # print('twidth = ', twidth)
         if twidth == 0:
             t = self.beam.z / (-1 * self.beam.Bz * constants.speed_of_light)
             twidth = np.ptp(t, axis=0)
@@ -187,9 +172,7 @@ class slice(BaseModel):
         if not self.have_we_already_been_binned():
             if len(self.beam.t) > 0:
                 if not self.slice_length > 0:
-                    # print('no slicelength', self.slice_length)
                     self._slice_length = 0
-                    # print("Assuming slice length is 100 fs")
                 twidth = np.ptp(self.beam.t, axis=0)
                 if twidth == 0:
                     t = self.beam.z / (-1 * self.beam.Bz * constants.speed_of_light)
@@ -198,7 +181,6 @@ class slice(BaseModel):
                     t = self.beam.t
                 if not self.slice_length > 0.0:
                     self.slice_length = twidth / 20.0
-                # print('slicelength =', self.slice_length)
                 nbins = max([1, int(np.ceil(twidth / self.slice_length))]) + 2
                 self._hist, binst = np.histogram(
                     t,
@@ -234,10 +216,7 @@ class slice(BaseModel):
             Width of momentum distribution
         """
         pwidth = max(self.beam.cp) - min(self.beam.cp)
-        if width is None:
-            slice_length_cp = pwidth / self.slices
-        else:
-            slice_length_cp = width
+        slice_length_cp = pwidth / self.slices if width is None else width
         nbins = max([1, int(np.ceil(pwidth / slice_length_cp))]) + 2
         self._hist, binst = np.histogram(
             self.beam.cp,
@@ -252,7 +231,7 @@ class slice(BaseModel):
         self._tfbins = [np.array([self._cp_binned == i]) for i in range(1, len(binst))]
         self._cpbins = UnitValue(
                     [np.array(self.beam.cp)[tuple(cpbin)] for cpbin in self._tfbins],
-                    units="s",
+                    units="eV/c",
                     dtype=np.ndarray,
                 )
         self._tbins = UnitValue(
@@ -288,8 +267,11 @@ class slice(BaseModel):
         :class:`~simba.Modules.units.UnitValue`
             Slice momentum bins
         """
-        if not hasattr(self, "slice"):
+        if self._cp_Bins is None:
             self.bin_momentum()
+            # bin_momentum overwrites the time bins; restore them
+            self.time_binned = {"beam": None, "slices": None, "slice_length": None}
+            self.bin_time()
         bins = self._cp_Bins
         return (bins[:-1] + bins[1:]) / 2
 
@@ -442,18 +424,6 @@ class slice(BaseModel):
         """
         return self.slice_eny
 
-    # @property
-    # def ecx(self):
-    #     return self.horizontal_emittance_corrected
-    # @property
-    # def ecy(self):
-    #     return self.vertical_emittance_corrected
-    # @property
-    # def ecnx(self):
-    #     return self.normalised_horizontal_emittance_corrected
-    # @property
-    # def ecny(self):
-    #     return self.normalised_vertical_emittance_corrected
     @computed_field
     @property
     def slice_ex(self) -> UnitValue:
@@ -890,7 +860,7 @@ class slice(BaseModel):
         """
         self.bin_time()
         peakIPosition = self.slice_max_peak_current_slice
-        slice_density = self.mve.slice_density[peakIPosition] if density else 0
+        slice_density = self.beam.mve.slice_density[peakIPosition] if density else 0
         return (
             self.slice_current[peakIPosition],
             np.std(self.slice_current),
@@ -915,15 +885,13 @@ class slice(BaseModel):
         """
         self.bin_time()
         slice_current_centroid_indices = []
-        slice_momentum_centroid = []
         peakIPosition = self.slice_max_peak_current_slice
         peakI = self.slice_current[peakIPosition]
         slicemomentum = self.slice_momentum
         for index, slice_current in enumerate(self.slice_current):
             if abs(peakI - slice_current) < (peakI * 0.75):
                 slice_current_centroid_indices.append(index)
-        for index in slice_current_centroid_indices:
-            slice_momentum_centroid.append(slicemomentum[index])
+        slice_momentum_centroid = [slicemomentum[index] for index in slice_current_centroid_indices]
         chirp = (slice_momentum_centroid[-1] - slice_momentum_centroid[0]) / (
                 len(slice_momentum_centroid) * self.slice_length
         )
@@ -943,7 +911,6 @@ class slice(BaseModel):
         """
         self.bin_time()
         slice_current_centroid_indices = []
-        slice_momentum_centroid = []
         peakIPosition = self.slice_max_peak_current_slice
         peakI = self.slice_current[peakIPosition]
         centralmomentum = self.slice_momentum[peakIPosition]
@@ -951,8 +918,7 @@ class slice(BaseModel):
         for index, slice_current in enumerate(self.slice_current):
             if abs(peakI - slice_current) < (peakI * 0.75):
                 slice_current_centroid_indices.append(index)
-        for index in slice_current_centroid_indices:
-            slice_momentum_centroid.append(slicemomentum[index])
+        slice_momentum_centroid = [slicemomentum[index] for index in slice_current_centroid_indices]
         chirp = (slice_momentum_centroid[-1] - slice_momentum_centroid[0]) / (
                 len(slice_momentum_centroid) * self.slice_length
         )
@@ -987,5 +953,4 @@ class slice(BaseModel):
         coeffs = np.polyfit(z_masked, delta_masked, order)  # highest power first
 
         # return dict of coefficients (a1=first-order, a2=second-order, etc.)
-        result = {f"order_{order - i}": coeff for i, coeff in enumerate(coeffs)}
-        return result
+        return {f"order_{order - i}": coeff for i, coeff in enumerate(coeffs)}

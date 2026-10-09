@@ -320,6 +320,13 @@ class FrequencyMapUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class NoFootprintWarning(PhysicsWarning):
+    """A frequency-map scan in which no particle gave a tune."""
+
+    def __init__(self, line: str):
+        super().__init__(f"{_line(line)}: no particle gave a tune in the frequency-map scan.")
+
+
 class DynamicApertureUnsupportedWarning(UnsupportedWarning):
     """A dynamic-aperture scan, from a code that has none."""
 

@@ -82,7 +82,6 @@ def write_gdf_field_file(self) -> str:
         fielddata = np.array([zdata, ezdata]).transpose()
         if self.cavity_type == "TravellingWave":
             startpos = list(zdata).index(self.start_cell_z)
-            # stoppos = list(zdata).index(self.end_cell_z)
             halfcell1 = 1.0 * fielddata[:startpos]
             halfcell2 = 1.0 * halfcell1[::-1]
             halfcell1[:, 1] /= max(halfcell1[:, 1])
@@ -113,8 +112,6 @@ def write_gdf_field_file(self) -> str:
     else:
         warn(f"Field type {self.field_type} not supported for GPT")
     if blocks is not None:
-        # print(blocks)
-        # print(union(blocks))
         easygdf.save(gdf_file, blocks)
     return gdf_file
 

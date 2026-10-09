@@ -54,7 +54,7 @@ def read_madx_twiss_files(self, filename, reset=True):
         lattice_name = os.path.basename(filename).split(".")[0]
         fdat = {}
         with h5py.File(filename, "r") as data:
-            for key in data.keys():
+            for key in data:
                 try:
                     fdat[key] = np.array(data[key])
                 except ValueError as e:

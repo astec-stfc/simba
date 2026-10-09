@@ -27,17 +27,8 @@ class twiss(BaseModel):
     )
 
     def __init__(self, beam, *args, **kwargs):
-        super(twiss, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.beam = beam
-
-    # def __repr__(self):
-    #     return repr(self.normal)
-
-    def __setattr__(self, name, value):
-        if name == "my_field":
-            if not isinstance(value, str):
-                raise ValueError("my_field must be a string")
-        super().__setattr__(name, value)
 
     @property
     def normal(self) -> Dict:
@@ -105,9 +96,7 @@ class twiss(BaseModel):
 
     def model_dump(self, *args, **kwargs):
         # Only include computed fields
-        computed_keys = {
-            f for f in self.__pydantic_decorators__.computed_fields.keys()
-        }
+        computed_keys = set(self.__pydantic_decorators__.computed_fields)
         full_dump = super().model_dump(*args, **kwargs)
         return {k: v for k, v in full_dump.items() if k in computed_keys}
 

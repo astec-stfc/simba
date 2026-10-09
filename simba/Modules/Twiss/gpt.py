@@ -21,8 +21,9 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
             self.read_gdf_twiss_files(filename=f, reset=False)
     elif os.path.isfile(filename):
         lattice_name = os.path.basename(filename).split(".")[0]
-        if gdfbeam is None and filename is not None:
-            gdfbeamdata = read_gdf_emit_file_object(self, filename)
+        gdfbeamdata = read_gdf_emit_file_object(
+            self, filename if gdfbeam is None else gdfbeam
+        )
 
         if hasattr(gdfbeamdata, "avgz"):
             # mjohnson code added 2022-08-11
@@ -45,109 +46,58 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
                 gdfbeamdata.avgz[order[i]] = z_sort[i] + offset
 
             # original code begins
-            self.z.val = np.append(self.z.val, gdfbeamdata.avgz)
-            self.s.val = np.append(self.s.val, gdfbeamdata.avgz)
+            self.append_columns(nsteps, z=gdfbeamdata.avgz, s=gdfbeamdata.avgz)
 
         elif hasattr(gdfbeamdata, "position"):
             self.append("z", gdfbeamdata.position)
             self.append("s", gdfbeamdata.position)
         cp = self.E0 * np.sqrt(gdfbeamdata.avgG**2 - 1)
-        # self.cp.val = np.append(self.cp.val, cp / constants.elementary_charge)
         ke = np.array(
             (np.sqrt(self.E0**2 + cp**2) - self.E0) / constants.elementary_charge
         )
-        self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
         gamma = 1 + ke / self.E0_eV
         cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
-        self.cp.val = np.append(self.cp.val, cp)
-        self.mean_cp.val = np.append(self.mean_cp.val, cp)
-        self.gamma.val = np.append(self.gamma.val, gamma)
-        self.p.val = np.append(self.p.val, cp * self.q_over_c)
-        self.enx.val = np.append(self.enx.val, gdfbeamdata.nemixrms)
-        self.ex.val = np.append(self.ex.val, gdfbeamdata.nemixrms / gdfbeamdata.avgG)
-        self.eny.val = np.append(self.eny.val, gdfbeamdata.nemiyrms)
-        self.ey.val = np.append(self.ey.val, gdfbeamdata.nemiyrms / gdfbeamdata.avgG)
-        self.enz.val = np.append(self.enz.val, gdfbeamdata.nemizrms)
-        self.ez.val = np.append(self.ez.val, gdfbeamdata.nemizrms / gdfbeamdata.avgG)
-        self.beta_x.val = np.append(self.beta_x.val, gdfbeamdata.CSbetax)
-        self.alpha_x.val = np.append(self.alpha_x.val, gdfbeamdata.CSalphax)
-        self.gamma_x.val = np.append(
-            self.gamma_x.val, (1 + gdfbeamdata.CSalphax**2) / gdfbeamdata.CSbetax
-        )
-        self.beta_y.val = np.append(self.beta_y.val, gdfbeamdata.CSbetay)
-        self.alpha_y.val = np.append(self.alpha_y.val, gdfbeamdata.CSalphay)
-        self.gamma_y.val = np.append(
-            self.gamma_y.val, (1 + gdfbeamdata.CSalphay**2) / gdfbeamdata.CSbetay
-        )
-        self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.alpha_z.val = np.append(self.alpha_z.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.gamma_z.val = np.append(self.gamma_z.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.sigma_x.val = np.append(self.sigma_x.val, gdfbeamdata.stdx)
-        self.sigma_y.val = np.append(self.sigma_y.val, gdfbeamdata.stdy)
-        self.sigma_xp.val = np.append(
-            self.sigma_xp.val, gdfbeamdata.stdBx / gdfbeamdata.avgBz
-        )
-        self.sigma_yp.val = np.append(
-            self.sigma_yp.val, gdfbeamdata.stdx / gdfbeamdata.avgBz
-        )
-        self.mean_x.val = np.append(self.mean_x.val, gdfbeamdata.avgx)
-        self.mean_y.val = np.append(self.mean_y.val, gdfbeamdata.avgy)
         beta = np.sqrt(1 - (gamma**-2))
         if hasattr(gdfbeamdata, "stdt"):
-            self.sigma_t.val = np.append(self.sigma_t.val, gdfbeamdata.stdt)
+            sigma_t = gdfbeamdata.stdt
         else:
-            self.sigma_t.val = np.append(
-                self.sigma_t.val, gdfbeamdata.stdz / (beta * constants.speed_of_light)
-            )
-        if hasattr(gdfbeamdata, "avgt"):
-            self.t.val = np.append(self.t.val, gdfbeamdata.avgt)
-        else:
-            self.t.val = np.append(self.t.val, gdfbeamdata.time)
-        self.sigma_z.val = np.append(self.sigma_z.val, gdfbeamdata.stdz)
-        # self.append('sigma_cp', (gdfbeamdata.stdG / gdfbeamdata.avgG) * cp)
-        self.sigma_cp.val = np.append(
-            self.sigma_cp.val,
-            (gdfbeamdata.stdG / gdfbeamdata.avgG) * cp / constants.elementary_charge,
-        )
-        self.sigma_p.val = np.append(
-            self.sigma_p.val, (gdfbeamdata.stdG / gdfbeamdata.avgG)
-        )
-        self.mux.val = np.append(self.mux.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.muy.val = np.append(self.muy.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.eta_x.val = np.append(self.eta_x.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.eta_xp.val = np.append(self.eta_xp.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.eta_y.val = np.append(self.eta_y.val, np.zeros(len(gdfbeamdata.stdy)))
-        self.eta_yp.val = np.append(self.eta_yp.val, np.zeros(len(gdfbeamdata.stdy)))
-        self.element_name.val = np.append(
-            self.element_name.val, np.full(len(gdfbeamdata.stdx), "")
-        )
-        self.lattice_name.val = np.append(
-            self.lattice_name.val, np.full(len(gdfbeamdata.stdx), lattice_name)
-        )
-        # ## BEAM parameters
-        self.ecnx.val = np.append(self.ecnx.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.ecny.val = np.append(self.ecny.val, np.zeros(len(gdfbeamdata.stdx)))
-        self.eta_x_beam.val = np.append(
-            self.eta_x_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.eta_xp_beam.val = np.append(
-            self.eta_xp_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.eta_y_beam.val = np.append(
-            self.eta_y_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.eta_yp_beam.val = np.append(
-            self.eta_yp_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.beta_x_beam.val = np.append(
-            self.beta_x_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.beta_y_beam.val = np.append(
-            self.beta_y_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.alpha_x_beam.val = np.append(
-            self.alpha_x_beam.val, np.zeros(len(gdfbeamdata.stdx))
-        )
-        self.alpha_y_beam.val = np.append(
-            self.alpha_y_beam.val, np.zeros(len(gdfbeamdata.stdx))
+            sigma_t = gdfbeamdata.stdz / (beta * constants.speed_of_light)
+        self.append_columns(
+            len(gdfbeamdata.stdx),
+            kinetic_energy=ke,
+            cp=cp,
+            mean_cp=cp,
+            gamma=gamma,
+            p=cp * self.q_over_c,
+            enx=gdfbeamdata.nemixrms,
+            ex=gdfbeamdata.nemixrms / gdfbeamdata.avgG,
+            eny=gdfbeamdata.nemiyrms,
+            ey=gdfbeamdata.nemiyrms / gdfbeamdata.avgG,
+            enz=gdfbeamdata.nemizrms,
+            ez=gdfbeamdata.nemizrms / gdfbeamdata.avgG,
+            beta_x=gdfbeamdata.CSbetax,
+            alpha_x=gdfbeamdata.CSalphax,
+            gamma_x=(1 + gdfbeamdata.CSalphax**2) / gdfbeamdata.CSbetax,
+            beta_y=gdfbeamdata.CSbetay,
+            alpha_y=gdfbeamdata.CSalphay,
+            gamma_y=(1 + gdfbeamdata.CSalphay**2) / gdfbeamdata.CSbetay,
+            beta_z=0.0, alpha_z=0.0, gamma_z=0.0,
+            sigma_x=gdfbeamdata.stdx,
+            sigma_y=gdfbeamdata.stdy,
+            sigma_xp=gdfbeamdata.stdBx / gdfbeamdata.avgBz,
+            sigma_yp=gdfbeamdata.stdx / gdfbeamdata.avgBz,
+            mean_x=gdfbeamdata.avgx,
+            mean_y=gdfbeamdata.avgy,
+            sigma_t=sigma_t,
+            t=gdfbeamdata.avgt if hasattr(gdfbeamdata, "avgt") else gdfbeamdata.time,
+            sigma_z=gdfbeamdata.stdz,
+            sigma_cp=(gdfbeamdata.stdG / gdfbeamdata.avgG) * cp / constants.elementary_charge,
+            sigma_p=(gdfbeamdata.stdG / gdfbeamdata.avgG),
+            mux=0.0, muy=0.0, eta_x=0.0, eta_xp=0.0, eta_y=0.0, eta_yp=0.0,
+            element_name="",
+            lattice_name=lattice_name,
+            # ## BEAM parameters
+            ecnx=0.0, ecny=0.0,
+            eta_x_beam=0.0, eta_xp_beam=0.0, eta_y_beam=0.0, eta_yp_beam=0.0,
+            beta_x_beam=0.0, beta_y_beam=0.0, alpha_x_beam=0.0, alpha_y_beam=0.0,
         )

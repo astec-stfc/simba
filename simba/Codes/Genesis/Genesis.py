@@ -108,7 +108,6 @@ from scipy.constants import speed_of_light
 from random import randint
 
 from pydantic import (
-    computed_field,
     Field,
     field_validator,
 )
@@ -222,7 +221,7 @@ class genesisLattice(frameworkLattice):
     nbins: int = 16
     """Number of macro particles to be grouped into beamlets"""
 
-    seed: int = randint(1,10000000)
+    seed: int = Field(default_factory=lambda: randint(1, 10000000))
     """Random number seed"""
 
     match_location: float = None
@@ -316,10 +315,10 @@ class genesisLattice(frameworkLattice):
                                 "end": self.groupObjects[chicane].elementObjects[-1].name,
                                 "r56": self.groupObjects[chicane].r56,
                                 "dipole_length": self.groupObjects[chicane].elementObjects[0].magnetic.length,
-                                "drift_length": self.groupObjects[chicane].elementObjects[1].start.z -
-                                                self.groupObjects[chicane].elementObjects[0].end.z,
-                                "length": self.groupObjects[chicane].elementObjects[-1].end.z -
-                                          self.groupObjects[chicane].elementObjects[0].start.z,
+                                "drift_length": self.groupObjects[chicane].elementObjects[1].physical.start.z -
+                                                self.groupObjects[chicane].elementObjects[0].physical.end.z,
+                                "length": self.groupObjects[chicane].elementObjects[-1].physical.end.z -
+                                          self.groupObjects[chicane].elementObjects[0].physical.start.z,
                             },
                         },
                     )
@@ -336,7 +335,6 @@ class genesisLattice(frameworkLattice):
         )
         saveFile(lattice_file, self.writeElements())
         self.files.append(lattice_file)
-        # try:
         command_file = (
             self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
         )
@@ -363,7 +361,6 @@ class genesisLattice(frameworkLattice):
         self.load_input_beam(prefix, self.particle_definition)
         if not self.npart:
             beamlen = len(self.global_parameters["beam"].x.val)
-            # parts_per_lambda = int(np.std(self.global_parameters["beam"].z.val) / self.fundamental_wavelength)
             self.npart = beamlen
             warn(f"npart not provided; setting npart to {self.npart}")
         self.hdf5_to_genesis()
@@ -384,10 +381,11 @@ class genesisLattice(frameworkLattice):
         self.commandFiles["track"] = genesis_track_command()
         if isinstance(self.split_element, str):
             first_wiggler = None
+            after_split = False
             for elem in self.elementObjects.values():
                 if elem.name == self.split_element:
-                    continue
-                if elem.hardware_class.lower() == "wiggler":
+                    after_split = True
+                elif after_split and elem.hardware_class.lower() == "wiggler":
                     first_wiggler = elem
                     break
             if first_wiggler is None:
@@ -474,7 +472,7 @@ class genesisLattice(frameworkLattice):
         else:
             lambda0_from_und = first_wiggler.period / (2 * gamma0**2) * (1 + first_wiggler.normalized_strength**2)
             if not np.isclose([self.fundamental_wavelength], [lambda0_from_und]):
-                warn(f"First undulator strength is not close to fundamental_wavelength")
+                warn("First undulator strength is not close to fundamental_wavelength")
         delz = first_wiggler.period
         if isinstance(self.split_element, str):
             if self.split_element in self.elements:
@@ -486,7 +484,6 @@ class genesisLattice(frameworkLattice):
         self.commandFiles["setup"] = genesis_setup_command(
             rootname=self.objectname,
             lattice=self.objectname + ".lat",
-            #outputdir=self.global_parameters["master_subdir"],
             beamline=beamline,
             one4one=self.one4one,
             lambda0=self.fundamental_wavelength,
@@ -495,6 +492,7 @@ class genesisLattice(frameworkLattice):
             shotnoise=self.shot_noise,
             nbins=self.nbins,
             npart=self.npart,
+            seed=self.seed,
         )
 
     def beam_length(self) -> float:
@@ -579,7 +577,7 @@ class genesisLattice(frameworkLattice):
         slmom = beam.slice.slice_momentum_spread.val
         lenslmom = len(slmom)
         delgam = float(np.mean(slmom[int(lenslmom/2 - 3): int(lenslmom/2 + 3)])) / E0_eV
-        ddd =  {
+        return {
             "betax": float(beam.twiss.beta_x.val),
             "betay": float(beam.twiss.beta_y.val),
             "alphax": float(beam.twiss.alpha_x.val),
@@ -587,14 +585,9 @@ class genesisLattice(frameworkLattice):
             "gamma": float(beam.centroids.mean_gamma.val),
             "delgam": delgam,
             "current": float(beam.slice.peak_current.val),
-            # "xcenter": float(beam.centroids.mean_x.val),
-            # "ycenter": float(beam.centroids.mean_y.val),
-            # "pxcenter": float(beam.centroids.mean_cpx.val) / E0_eV,
-            # "pycenter": float(beam.centroids.mean_cpy.val) / E0_eV,
             "ex": float(beam.emittance.normalized_horizontal_emittance.val),
             "ey": float(beam.emittance.normalized_vertical_emittance.val),
         }
-        return ddd
 
     def get_field_power(self) -> float | str:
         """
@@ -630,8 +623,7 @@ class genesisLattice(frameworkLattice):
         """
         first_wiggler = self.wigglers[0]
         if first_wiggler.laser:
-            waist = first_wiggler.laser.waist
-            return waist
+            return first_wiggler.laser.waist
         else:
             return self.waist_size
 
@@ -706,7 +698,7 @@ class genesis_setup_command(genesisCommandFile):
     delz: float
     """Preferred integration stepsize in meter."""
 
-    seed: int = randint(1,10000000)
+    seed: int = Field(default_factory=lambda: randint(1, 10000000))
     """Seed to initialize the random number generator, 
     which is used for shot noise calculation and undulator lattice errors"""
 
@@ -1240,16 +1232,11 @@ class genesis_alter_beam_command(genesisCommandFile):
     phase: float | str = 0.0
     """Phase of the energy modulation in units of radians."""
 
-    _lambda: float
-    """Wavelength in m of the external energy modulation"""
+    # lambda (a Python keyword): wavelength in m of the external energy modulation;
+    # pass it as an extra field, e.g. ``**{"lambda": 1e-6}``, so write_Genesis finds it.
 
     r56: float = 0
     """R56 element of the magnetic chicane in m"""
-
-    @computed_field(alias="lambda")
-    @property
-    def lambda_(self) -> float:
-        return self._lambda
 
 
 class genesis_field_command(genesisCommandFile):
@@ -1263,10 +1250,8 @@ class genesis_field_command(genesisCommandFile):
     objecttype: str = "field"
     """Type of object for frameworkObject"""
 
-    _lambda: float
-    """Central frequency of the radiation mode. 
-    The default value is the reference wavelength from 
-    :attr:`~simba.Codes.Genesis.Genesis.genesis_setup_command.lambda0`."""
+    # lambda (a Python keyword): central frequency of the radiation mode, defaulting to
+    # genesis_setup_command.lambda0; pass it as an extra field, e.g. ``**{"lambda": 1e-9}``.
 
     power: float | str = 0.0
     """Radiation power in Watts"""
@@ -1663,7 +1648,7 @@ class genesis_track_command(genesisCommandFile):
     field_dump_at_undexit: bool = False
     """Field dumps at the exit of the undulator (one dump for each undulator in the expanded lattice)."""
 
-    bunchharm: int = Field(default=1, gt=1)
+    bunchharm: int = Field(default=1, ge=1)
     """Bunching harmonic output setting. Must be >= 1."""
 
     #exclusive_harmonics: bool = False

@@ -1,7 +1,6 @@
 import re
 from munch import Munch
 import easygdf
-import numpy as np
 
 
 class gdf_beam(Munch):
@@ -83,7 +82,7 @@ class gdf_beam(Munch):
         dict or None
             The screen data, or None if nothing lies within tolerance.
         """
-        if position in self._positions.keys():
+        if position in self._positions:
             return Munch(self._positions[position])
         if self._positions:
             nearest = min(self._positions.keys(), key=lambda p: abs(p - position))
@@ -92,6 +91,6 @@ class gdf_beam(Munch):
         return None
 
     def get_time(self, time: float) -> dict | None:
-        if time in self._times.keys():
+        if time in self._times:
             return Munch(self._times[time])
         return None

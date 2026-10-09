@@ -95,6 +95,7 @@ from pydantic import (
     field_validator,
     confloat,
     ConfigDict,
+    ValidationInfo,
 )
 from typing import Literal, Dict, Any, List
 from ...Modules import constants
@@ -106,38 +107,32 @@ import warnings
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/astra.yaml",
-        "r",
 ) as infile:
     astra_generator_keywords = yaml.safe_load(infile)
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/gpt.yaml",
-        "r",
 ) as infile:
     gpt_generator_keywords = yaml.safe_load(infile)
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/elegant.yaml",
-        "r",
 ) as infile:
     elegant_generator_keywords = {"defaults": {}}
     elegant_generator_keywords.update(yaml.safe_load(infile))
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/opal.yaml",
-        "r",
 ) as infile:
     opal_generator_keywords = yaml.safe_load(infile)
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/aliases.yaml",
-        "r",
 ) as infile:
     aliases = yaml.safe_load(infile)
 
 with open(
         os.path.dirname(os.path.abspath(__file__)) + "/species.yaml",
-        "r",
 ) as infile:
     code_species = yaml.safe_load(infile)
 
@@ -289,15 +284,13 @@ class frameworkGenerator(BaseModel):
     species: str = "electron"
     """Particle type"""
 
-    # emission_time: float = 1e-12 # TODO is this ever used?
-
     thermal_emittance: float = 0.9e-3
     """Thermal emittance of beam [um-rad/m]"""
 
     initial_momentum: float = 0.0
     """Mean initial momentum [eV/c]"""
 
-    distribution_type_z: Literal["p", "plateau", "flattop", "g", "gaussian", "i"] = "g"
+    distribution_type_z: Literal["p", "plateau", "flattop", "g", "gaussian", "i", "f", "file"] = "g"
     """Longitudinal distribution type -- flattop or Gaussian available"""
 
     distribution_type_x: Literal[
@@ -506,43 +499,31 @@ class frameworkGenerator(BaseModel):
             )
         return self
 
-    # @field_validator("charge", mode="before")
-    # @classmethod
-    # def validate_charge(cls, v: float) -> float:
-    #     if v == 0:
-    #         raise ValueError("Bunch charge must be set to a non-zero value")
-    #     return v
-
     @field_validator("species", mode="after")
     @classmethod
     def validate_particle_mass(cls, v: str) -> str:
         if v[-1] == "s":
             v = v[:-1]
-        if v == "electron":
-            cls.particle_mass = constants.m_e
-            cls.charge_sign = -1
-        elif v == "proton":
-            cls.particle_mass = constants.m_p
-            cls.charge_sign = 1
-        elif v == "positron":
-            cls.particle_mass = constants.m_e
-            cls.charge_sign = 1
-        elif v == "hydrogen":
-            cls.particle_mass = constants.m_p
-            cls.charge_sign = 1
-        else:
+        if v not in allowed_species:
             raise NotImplementedError(f"species must be in {allowed_species}")
         return v
 
     @field_validator("longitudinal_profile", mode="before")
     @classmethod
     def validate_longitudinal_profile(cls, v: str) -> str:
-        if len(v) > 0:
-            if ".gdf" not in v:
-                raise NotImplementedError("Longitudinal profiles only defined for GPT; fields must be GDF format")
-            fi = load(v)
-            cls.longitudinal_fields = [p["name"] for p in fi["blocks"]]
+        if len(v) > 0 and ".gdf" not in v:
+            raise NotImplementedError("Longitudinal profiles only defined for GPT; fields must be GDF format")
         return v
+
+    @model_validator(mode="after")
+    def apply_species_and_profile(self, info: ValidationInfo):
+        # write __dict__ directly: setattr would re-trigger validate_assignment
+        if info.field_name in (None, "species"):
+            self.__dict__["particle_mass"] = constants.m_p if self.species in ("proton", "hydrogen") else constants.m_e
+            self.__dict__["charge_sign"] = -1 if self.species == "electron" else 1
+        if info.field_name in (None, "longitudinal_profile") and len(self.longitudinal_profile) > 0:
+            self.__dict__["longitudinal_fields"] = [p["name"] for p in load(self.longitudinal_profile)["blocks"]]
+        return self
 
     def update_species(self, name: str) -> None:
         if self.cathode and "electron" not in name:
@@ -698,8 +679,7 @@ class frameworkGenerator(BaseModel):
         mu = np.array([offset_i, 0])
         cov = np.array([[sigma_i ** 2, cov_ipi * sigma_i * sigma_pi],
                         [cov_ipi * sigma_i * sigma_pi, sigma_pi ** 2]])
-        samples = sample_2d_gaussian_with_axis_cutoffs(self.particles, mu, cov, (cutoff_i, cutoff_pi))
-        return samples
+        return sample_2d_gaussian_with_axis_cutoffs(self.particles, mu, cov, (cutoff_i, cutoff_pi))
 
     def generate_longitudinal_distribution(self) -> np.ndarray:
         """
@@ -746,43 +726,12 @@ class frameworkGenerator(BaseModel):
 
         return np.transpose([z, pz_chirped])
 
-    # TODO is this necessary?
-    # @property
-    # def parameters(self):
-    #     """This returns a dictionary of parameter keys and values"""
-    #     return self.toDict()
-
-    # def __getattr__(self, a):
-    #     """If key does not exist return None"""
-    #     if a in self.keys():
-    #         return self[a]
-    #     return None
-
     def postProcess(self):
         self.global_parameters["beam"] = rbf.beam()
         rbf.openpmd.read_openpmd_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + self.filename
         )
-
-    # TODO is this ever used?
-    # @property
-    # def save_lattice(self):
-    #     disallowed = [
-    #         "allowedkeywords",
-    #         "keyword_conversion_rules_elegant",
-    #         "objectdefaults",
-    #         "global_parameters",
-    #         "objectname",
-    #         "subelement",
-    #     ]
-    #     new = unmunchify(self)
-    #     latticedict = {
-    #         k.replace("object", ""): convert_numpy_types(new[k])
-    #         for k in new
-    #         if k not in disallowed
-    #     }
-    #     return latticedict
 
 
 def poly_curve(x, coeffs):
@@ -823,7 +772,7 @@ def sample_2d_gaussian_with_axis_cutoffs(N, mean, cov, cutoffs):
 def sample_gaussian(offset, sigma, cutoff, size):
     while True:
         samples = np.random.normal(offset, sigma, size * 2)
-        accepted = samples[np.abs(samples) <= offset + (cutoff * sigma)]
+        accepted = samples[np.abs(samples - offset) <= cutoff * sigma]
         if len(accepted) >= size:
             return accepted[:size]
 

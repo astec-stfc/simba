@@ -26,14 +26,12 @@ class sigmas(BaseModel):
     )
 
     def __init__(self, beam, *args, **kwargs):
-        super(sigmas, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.beam = beam
 
     def model_dump(self, *args, **kwargs):
         # Only include computed fields
-        computed_keys = {
-            f for f in self.__pydantic_decorators__.computed_fields.keys()
-        }
+        computed_keys = set(self.__pydantic_decorators__.computed_fields)
         full_dump = super().model_dump(*args, **kwargs)
         return {k: v for k, v in full_dump.items() if k in computed_keys}
 
@@ -218,7 +216,6 @@ class sigmas(BaseModel):
             sigma-x
         """
         return np.std(self.beam.cp)
-        # return self.beam.cp.std()/np.mean(self.beam.cp)
 
     @computed_field
     @property

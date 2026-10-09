@@ -114,9 +114,8 @@ def test_the_length_is_fixed_and_the_lattice_shared_only_within_a_pass():
 
 def test_the_lattice_is_restored_when_a_pass_fails():
     lat = lattice()
-    with pytest.raises(RuntimeError):
-        with lattice_pass(lat):
-            raise RuntimeError
+    with pytest.raises(RuntimeError), lattice_pass(lat):
+        raise RuntimeError
     assert type(lat) is MagneticLattice
 
 

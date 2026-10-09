@@ -135,6 +135,8 @@ def test_a_code_that_fails_says_so(tmp_path):
         stdout.write("error: No charge defined for LSC.\n")
         return 1
 
-    with patch.object(Framework_objects.subprocess, "call", fake_call):
-        with pytest.raises(RuntimeError, match="No charge defined for LSC"):
-            Framework_objects.frameworkLattice.run_command(stub, ["elegant"], logfile)
+    with (
+        patch.object(Framework_objects.subprocess, "call", fake_call),
+        pytest.raises(RuntimeError, match="No charge defined for LSC"),
+    ):
+        Framework_objects.frameworkLattice.run_command(stub, ["elegant"], logfile)

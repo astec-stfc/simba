@@ -277,7 +277,7 @@ def test_elegant_maps_tunes_through_simbas_deck(tmp_path):
     assert len(fma) == 2
     # Tracked against the ring's own twiss (0.8352, 0.5445); the rest is
     # elegant's four-kick bend, tracked and as a matrix.
-    for x, y, qx, qy, _ in fma:
+    for _, y, qx, qy, _ in fma:
         assert y > 0
         assert qx == pytest.approx(0.8352, abs=3e-3)
         assert qy == pytest.approx(0.5445, abs=3e-3)
@@ -305,6 +305,7 @@ class FakeXsuiteRing:
     _da_particles = xsuiteLattice._da_particles
     run_dynamic_aperture = xsuiteLattice.run_dynamic_aperture
     run_frequency_map = xsuiteLattice.run_frequency_map
+    _footprint = frameworkLattice._footprint
     da_settings = frameworkLattice.da_settings
     da_grid = frameworkLattice.da_grid
     turns = frameworkLattice.turns

@@ -10,7 +10,7 @@ def read_hdf_summary(self, filename, reset=True):
     xemit = f.get("Xemit")
     yemit = f.get("Yemit")
     zemit = f.get("Zemit")
-    for item, params in sorted(xemit.items()):
+    for item, _ in sorted(xemit.items()):
         self.interpret_astra_data(
             np.array(xemit.get(item)),
             np.array(yemit.get(item)),
@@ -32,10 +32,10 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
                 [
                     (
                         self[k]
-                        if not k == "element_name" and not k == "lattice_name"
+                        if k != "element_name" and k != "lattice_name"
                         else np.array(self[k], dtype="S")
                     )
-                    for k in self.properties.keys()
+                    for k in self.properties
                     if len(self[k]) > 0
                 ]
             ).transpose()
@@ -46,7 +46,7 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
                 if len(getattr(self, name).val) > 0:
                     array = (
                         getattr(self, name).val
-                        if not name == "element_name" and not name == "lattice_name"
+                        if name != "element_name" and name != "lattice_name"
                         else np.array(getattr(self, name).val, dtype="S")
                     )
                     dataset = twissgrp.create_dataset(name, data=array)

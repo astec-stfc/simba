@@ -113,9 +113,9 @@ def write_HDF5_beam_file(
         inputgrp["particle_mass"] = mass
         inputgrp["toffset"] = toffset
         beamgrp = f.create_group("beam")
-        if "reference_particle" in self._beam:
+        if self.reference_particle is not None:
             beamgrp["reference_particle"] = self.reference_particle
-        if "status" in self._beam:
+        if self._beam.status is not None:
             beamgrp["status"] = self._beam.status
         beamgrp["longitudinal_reference"] = longitudinal_reference
         beamgrp["cathode"] = cathode
@@ -186,52 +186,40 @@ def read_HDF5_beam_file(self, filename, local=False):
             x, y, z, cpx, cpy, cpz, t, mass, charge, nmacro = hdf5beam
             if np.mean(mass) > 1e-10:
                 mass = [self.mass_index[m] for m in mass]
-            self._beam.particle_mass = UnitValue(mass, "kg")
         elif len(columns) == 9:
             x, y, z, cpx, cpy, cpz, t, charge, nmacro = hdf5beam
-            self._beam.particle_mass = UnitValue(np.full(len(x), constants.m_e), "kg")
+            mass = constants.m_e
         elif len(columns) == 8:
             x, y, z, cpx, cpy, cpz, t, charge = hdf5beam
             nmacro = charge / constants.elementary_charge
-            self._beam.particle_mass = UnitValue(np.full(len(x), constants.m_e), "kg")
+            mass = constants.m_e
         else:
             raise ValueError(f"HDF5 columns unknown: {columns}")
-        self._beam.particle_rest_energy = UnitValue(
-            self._beam.particle_mass * constants.speed_of_light**2,
-            "J",
-        )
-
-        self._beam.particle_rest_energy_eV = UnitValue(
-            self._beam.particle_rest_energy / constants.elementary_charge,
-            "eV/c",
-        )
 
         self._beam.charge = UnitValue(charge, "C")
-        self._beam.particle_charge = UnitValue(
+        self.set_mass_and_charge(
+            mass,
             constants.elementary_charge * np.full(len(x), self._beam.chargesign),
-            "C",
+            len(x),
         )
 
         self._beam.x = UnitValue(x, "m")
         self._beam.y = UnitValue(y, "m")
         self._beam.z = UnitValue(z, "m")
-        self._beam.px = UnitValue(cpx * self.q_over_c, "kg*m/s")
-        self._beam.py = UnitValue(cpy * self.q_over_c, "kg*m/s")
-        self._beam.pz = UnitValue(cpz * self.q_over_c, "kg*m/s")
+        self.set_momenta(cpx, cpy, cpz)
         self._beam.clock = UnitValue(np.full(len(x), 0), "s")
         self._beam.t = UnitValue(t, "s")
         self._beam.set_total_charge(np.sum(self._beam.charge))
         if h5file.get("beam/status") is not None:
             self._beam.status = UnitValue(np.array(h5file.get("beam/status")), "")
-        elif np.array(h5file.get("beam/cathode")) is True:
+        elif bool(np.array(h5file.get("beam/cathode"))):
             self._beam.status = UnitValue(np.full(len(self._beam.t), -1), "")
         self._beam.nmacro = UnitValue(nmacro, "")
-        # print('hdf5 read cathode', np.array(h5file.get('beam/cathode')))
-        startposition = np.array(h5file.get("/Parameters/Starting_Position"))
-        startposition = startposition if startposition is not None else [0, 0, 0]
+        startposition = h5file.get("/Parameters/Starting_Position")
+        startposition = np.array(startposition) if startposition is not None else [0, 0, 0]
         self.starting_position = startposition
-        theta = np.array(h5file.get("/Parameters/Rotation"))
-        theta = theta if theta is not None else 0
+        theta = h5file.get("/Parameters/Rotation")
+        theta = np.array(theta) if theta is not None else 0
         self.theta = float(theta)
         if local is True:
-            rotate_beamXZ(self.theta, preOffset=self.starting_position)
+            rotate_beamXZ(self, self.theta, preOffset=self.starting_position)

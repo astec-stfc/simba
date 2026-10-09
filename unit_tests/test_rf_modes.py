@@ -263,8 +263,7 @@ def _track(tmp_path, code, tracking, seed_beam, frequency=HARMONIC):
         framework.track()
     subdir = framework.subdirectory
     cp = [np.mean(_beam(os.path.dirname(seed_beam), "M1").cp.val)]
-    for turn in range(1, TURNS + 1):
-        cp.append(np.mean(_beam(subdir, "M3", turn).cp.val))
+    cp.extend(np.mean(_beam(subdir, "M3", turn).cp.val) for turn in range(1, TURNS + 1))
     return framework["FODO"], np.diff(cp)
 
 

@@ -118,7 +118,7 @@ def test_it_warns_rather_than_refusing():
 import math
 
 from laura.models.element import Dipole, Drift
-from laura.models.elementList import MachineModel
+from laura.models.element_list import MachineModel
 
 
 def ring(nbend, angle, turns=1000, periodic=False):
@@ -164,7 +164,6 @@ class ClosureLine:
 
     def _machine_geometry(self):
         """No layout behind this stub; `periodic` is set explicitly above."""
-        return None
 
     turns = frameworkLattice.turns
     periodic = frameworkLattice.periodic
@@ -305,7 +304,7 @@ def test_a_multi_turn_line_resizes_its_monitors():
     """Otherwise every turn after the first is silently dropped."""
     pytest.importorskip("xtrack")
     from laura.models.element import Screen, Drift
-    from laura.models.elementList import SectionLattice, ElementList
+    from laura.models.element_list import SectionLattice, ElementList
     from laura.translator.converters.section import SectionLatticeTranslator
 
     screen = Screen(name="SCR", machine_area="A", physical={"length": 0.0})
@@ -324,7 +323,7 @@ def test_a_multi_turn_line_resizes_its_monitors():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         line = SectionLatticeTranslator.from_section(section).to_xsuite(
-            beam_length=10, turns=250
+            beam_length=10, turns=250, save=False
         )
     assert line["SCR"].stop_at_turn == 250
 

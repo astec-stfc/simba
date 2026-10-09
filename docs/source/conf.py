@@ -124,15 +124,10 @@ autodoc_pydantic_model_show_validator_members = (
 # installed is not free: a mocked ``pydantic`` makes ``BaseModel`` a stub, so every
 # LAURA model fails to build and autodoc then drops the whole of ``simba.Framework``,
 # ``Framework_elements``, ``Framework_objects`` and most of ``simba.Codes``.
-#
-# ``PyQt4`` is deliberately absent: ``plotting.multiPlot`` probes for it with a
-# ``try``/``except`` and falls back to PyQt5, and a mock makes the probe succeed
-# while ``import *`` from it brings in nothing.
 _optional_imports = [
     "pydantic",
     "ocelot",
     "cheetah",
-    "PyQt5",
     "ctypes",
 ]
 

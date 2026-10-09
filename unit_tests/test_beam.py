@@ -562,3 +562,97 @@ def test_resample(simple_beam):
     newbeam = simple_beam.resample(newlen)
     for param in ["x", "y", "z", "px", "py", "pz"]:
         assert len(getattr(newbeam.Particles, param)) == newlen
+
+
+def test_hdf5_round_trip_keeps_status_and_reference_particle(simple_beam, tmp_path):
+    simple_beam.Particles.status = np.full(len(simple_beam.x), -1)
+    simple_beam.reference_particle = np.arange(10.0)
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    newbeam = rbf.beam()
+    newbeam.read_HDF5_beam_file(str(tmp_path / "b.hdf5"), local=True)
+    assert set(np.array(newbeam.Particles.status)) == {-1}
+    assert np.allclose(newbeam.reference_particle, np.arange(10.0))
+
+
+def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"), cathode=True)
+    newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
+    assert set(np.array(newbeam.Particles.status)) == {-1}
+
+
+def test_apply_mask(simple_beam):
+    mask = np.array(simple_beam.x) > 0
+    simple_beam.Particles.apply_mask(mask)
+    assert len(simple_beam.x) == len(simple_beam.Particles.charge) == mask.sum()
+    assert simple_beam.Particles.x.units == "m"
+
+
+def test_energies(simple_beam):
+    cp = np.array(simple_beam.Particles.cp)
+    E0 = np.mean(simple_beam.Particles.particle_rest_energy_eV)
+    energy = np.sqrt(cp**2 + E0**2)
+    assert np.isclose(np.mean(simple_beam.Particles.kinetic_energy) / e, np.mean(energy - E0))
+    assert np.isclose(simple_beam.centroids.CEn, np.mean(energy))
+
+
+def test_slice_cpbins_keeps_time_bins(simple_beam):
+    current = np.array(simple_beam.slice.slice_current)
+    assert len(simple_beam.slice.slice_cpbins) > 0
+    assert np.allclose(current, np.array(simple_beam.slice.slice_current))
+    assert simple_beam.slice.sliceAnalysis(density=True)[-1] > 0
+
+
+def test_unknown_attribute_raises(simple_beam):
+    assert not hasattr(simple_beam, "not_a_beam_attribute")
+    assert simple_beam.E0_eV is not None
+
+
+def test_resample_sets_t(simple_beam):
+    assert len(simple_beam.resample(100).Particles.t) == 100
+
+
+def test_plot_single_key(simple_beam):
+    import matplotlib
+    matplotlib.use("Agg")
+    from simba.Modules.Beams import plot
+    plot.plot(simple_beam, keys="x")
+
+
+def test_astra_write_with_index_array(simple_beam, tmp_path):
+    simple_beam.filename = str(tmp_path / "run.openpmd.hdf5")
+    simple_beam.write_astra_beam_file(index=np.full(len(simple_beam.x), 3))
+    assert (tmp_path / "run.astra").exists()
+
+
+def test_beam_group_add_directory(simple_beam, tmp_path):
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "a.hdf5"))
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    assert len(rbf.beamGroup(filenames=str(tmp_path))) == 2
+
+
+def test_setting_particle_data_on_the_beam_sticks(simple_beam):
+    simple_beam.z = UnitValue(np.zeros(len(simple_beam.x)), units="m")
+    assert not np.any(simple_beam.z) and not np.any(simple_beam._beam.z)
+    gamma = simple_beam.gamma
+    with pytest.warns(UserWarning, match="cannot be set"):
+        simple_beam.gamma = 0
+    assert np.array_equal(simple_beam.gamma, gamma)
+
+
+@pytest.mark.parametrize("mass", [m_e, m_p])
+def test_opal_reader_detects_the_species(tmp_path, mass):
+    import h5py
+
+    n, charge = 4, -1e-12
+    filename = str(tmp_path / "run_opal.h5")
+    with h5py.File(filename, "w") as f:
+        step = f.create_group("Step#0")
+        # OPAL's TotalMass is labelled MeV but written in GeV
+        step.attrs["TotalMass"] = [mass * c**2 / e * 1e-9 * abs(charge) / e]
+        step.attrs["TotalCharge"] = [charge]
+        for key in ["x", "y", "px", "py", "time"]:
+            step[key] = np.zeros(n)
+        step["pz"] = np.full(n, 10.0)
+    beam = rbf.beam()
+    rbf.opal.read_opal_beam_file(beam, filename)
+    assert beam._beam.particle_mass.val[0] == pytest.approx(mass, rel=1e-6)

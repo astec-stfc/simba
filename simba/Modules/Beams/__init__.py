@@ -66,6 +66,16 @@ try:
 except ImportError:
     imported_mve = False
 
+SPECIES = {
+    "electron": (constants.m_e, -1),
+    "positron": (constants.m_e, 1),
+    "proton": (constants.m_p, 1),
+    "antiproton": (constants.m_p, -1),
+}
+"""Mass [kg] and charge sign of each species :meth:`beam.set_species` accepts."""
+
+SPECIES_ALIASES = {f"{name}s": name for name in SPECIES} | {"hydrogen": "proton"}
+
 
 # I can't think of a clever way of doing this, so...
 def get_properties(obj):
@@ -96,19 +106,8 @@ class particlesGroup(BaseModel):
     """List of :class:`~simba.Modules.Beams.Particles.Particles` or its 
     sub-classes"""
 
-    # def __init__(self, particles=None, *args, **kwargs):
-    #     super(particlesGroup, self).__init__(*args, **kwargs)
-    #     self.particles = particles
-    #
-    # def __getitem__(self, key):
-    #     if key == "particles":
-    #         return getattr(self, key)
-    #     else:
-    #         data = [getattr(p, key) for p in self.particles]
-    #         return UnitValue(data, units=data[0].units)
 
-
-class statsGroup(object):
+class statsGroup:
     """
     Class for grouping together statistical properties of multiple particle distributions.
     """
@@ -120,7 +119,6 @@ class statsGroup(object):
     def __getattr__(self, key):
         var = self._beam.__getitem__(key)
         return UnitValue([self._func(v) for v in var], units="m")
-        # return np.sqrt(self._beam.covariance(var, var))
 
 
 class beamGroup(BaseModel):
@@ -162,9 +160,9 @@ class beamGroup(BaseModel):
             return getattr(self, key)
 
     def __init__(self, filenames=[], beams=[], *args, **kwargs):
-        super(beamGroup, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sddsindex = 0
-        self.beams = dict()
+        self.beams = {}
         self._parameters = parameters
         for k, v in beams:
             self.beams[k] = v
@@ -222,7 +220,7 @@ class beamGroup(BaseModel):
             filename = [filename]
         for file in filename:
             if os.path.isdir(file):
-                self.add_directory(file)
+                self.add(glob.glob(os.path.join(file, "*.hdf5")))
             elif os.path.isfile(file):
                 file = file.replace("\\", "/")
                 try:
@@ -241,19 +239,7 @@ class beamGroup(BaseModel):
         return None
 
     def getScreens(self):
-        return {os.path.splitext(os.path.basename(b))[0]: b for b in self.beams.keys()}
-
-
-class stats(object):
-
-    def __init__(self, beam, function):
-        self._beam = beam
-        self._func = function
-
-    def __getattr__(self, key):
-        var = self._beam.__getitem__(key)
-        return self._func(var)
-        # return np.sqrt(self._beam.covariance(var, var))
+        return {os.path.splitext(os.path.basename(b))[0]: b for b in self.beams}
 
 
 class beam(BaseModel):
@@ -287,9 +273,6 @@ class beam(BaseModel):
     Functions are also provided for translating the particle distribution from and to HDF5 format
     (in-house developed or OpenPMD), ASTRA, GPT, OCELOT, or SDDS.
     """
-    # particle_mass = UnitValue(constants.m_e, "kg")
-    # E0 = UnitValue(particle_mass * constants.speed_of_light**2, "J")
-    # E0_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
     q_over_c: UnitValue = UnitValue(constants.elementary_charge / constants.speed_of_light, "C/c")
     """Elementary charge divided by speed of light"""
 
@@ -350,13 +333,10 @@ class beam(BaseModel):
     ]
 
     def __init__(self, filename=None, step=0, *args, **kwargs):
-        super(beam, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
-        # self.sigma = stats(self, lambda var:  np.sqrt(self._beam.covariance(var, var)))
-        # self.mean = stats(self, np.mean)
         self.filename = filename
-        # self.sddsindex = sddsindex
         self.code = None
         if self.filename is not None:
             self.read_beam_file(self.filename, step=step)
@@ -369,39 +349,19 @@ class beam(BaseModel):
         return full_dump
 
     def set_species(self, value):
-        if value in ["electron", "electrons", "positron", "positrons", "proton", "protons", "antiproton", "antiprotons", "hydrogen"]:
-            if value == "electron" or value == "electrons":
-                self.species = "electron"
-                self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
-                self._beam.charge = -abs(self._beam.charge)
-                self._beam.total_charge = -abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
-            elif value == "positron" or value == "positrons":
-                self.species = "positron"
-                self.set_particle_mass(constants.m_e)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
-                self._beam.charge = abs(self._beam.charge)
-                self._beam.total_charge = abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_e * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
-            elif value == "proton" or value == "hydrogen" or value == "protons":
-                self.species = "proton"
-                self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), constants.elementary_charge), units="C")
-                self._beam.charge = abs(self._beam.charge)
-                self._beam.total_charge = abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
-            elif value == "antiproton" or value == "antiprotons":
-                self.species = "antiproton"
-                self.set_particle_mass(constants.m_p)
-                self._beam.particle_charge = UnitValue(np.full(len(self.x), -constants.elementary_charge), units="C")
-                self._beam.charge = -abs(self._beam.charge)
-                self._beam.total_charge = -abs(self._beam.total_charge)
-                self._beam.particle_rest_energy_eV = UnitValue(constants.m_p * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
-        else:
+        name = SPECIES_ALIASES.get(value, value)
+        if name not in SPECIES:
             raise ValueError(
                 "Species must be one of: electron(s), positron(s), proton(s), antiproton(s), hydrogen"
             )
+        mass, sign = SPECIES[name]
+        self.species = name
+        self.set_particle_mass(mass)
+        self._beam.particle_charge = UnitValue(np.full(len(self.x), sign * constants.elementary_charge), units="C")
+        # unary minus, not sign * ...: UnitValue.__rmul__ drops the units
+        self._beam.charge = abs(self._beam.charge) if sign > 0 else -abs(self._beam.charge)
+        self._beam.total_charge = abs(self._beam.total_charge) if sign > 0 else -abs(self._beam.total_charge)
+        self._beam.particle_rest_energy_eV = UnitValue(mass * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
 
     @property
     def E0_eV(self) -> float:
@@ -415,15 +375,14 @@ class beam(BaseModel):
             if not, calculate from the :attr:`~simba.Modules.Beams.Particles` object;
             if not possible, assume electrons and calculate its rest mass energy
         """
-        if hasattr(self, "particle_rest_energy_eV"):
-            return self.particle_rest_energy_eV
+        if self._beam.particle_rest_energy_eV is not None:
+            return self._beam.particle_rest_energy_eV
         elif self._beam.particle_rest_energy is not None:
             return np.mean(self._beam.particle_rest_energy) / constants.elementary_charge
         else:
             particle_mass = UnitValue(constants.m_e, "kg")
             E0 = UnitValue(particle_mass * constants.speed_of_light ** 2, "J")
-            E0_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
-            return E0_eV
+            return UnitValue(E0 / constants.elementary_charge, "eV/c")
 
     @property
     def beam(self) -> Particles:
@@ -578,27 +537,10 @@ class beam(BaseModel):
     def __len__(self):
         return len(self._beam.x)
 
-    # def __getitem__(self, key):
-    #     # print('beams key', key)
-    #     for p in parameters:
-    #         if key in parameters[p]:
-    #             return getattr(self, key)
-    #     if hasattr(np, key):
-    #         return stats(self, getattr(np, key))
-    #     if hasattr(self._beam, key):
-    #         return getattr(self._beam, key)
-    #     else:
-    #         try:
-    #             return getattr(self, key)
-    #         except KeyError:
-    #             raise AttributeError(key)
-
     def __setitem__(self, key, value):
         for p in parameters:
             if key in parameters[p]:
                 return setattr(getattr(self, p), key, value)
-        # if hasattr(np, key):
-        #     return stats(self, getattr(np, key))
         if hasattr(self, "_beam") and hasattr(self._beam, key):
             return setattr(self._beam, key, value)
         else:
@@ -611,10 +553,17 @@ class beam(BaseModel):
         for p in parameters:
             if key in parameters[p]:
                 return getattr(getattr(self, p), key)
-        # try:
-        #     return getattr(self, key)
-        # except AttributeError:
-        #     return getattr(self._beam, key)
+        return super().__getattr__(key)
+
+    def __setattr__(self, key, value):
+        # write particle data where __getattr__ reads it, not into the pydantic extras
+        own = key in type(self).model_fields or isinstance(getattr(type(self), key, None), property)
+        if not own and key in parameters["data"]:
+            try:
+                return setattr(self._beam, key, value)
+            except AttributeError:
+                return warn(f"beam.{key} is derived from the particle data and cannot be set; ignoring")
+        super().__setattr__(key, value)
 
     def __repr__(self):
         return repr(
@@ -636,6 +585,68 @@ class beam(BaseModel):
         """
         self.particle_mass = UnitValue(np.full(len(self.x), mass), units="kg")
         self._beam.particle_mass = UnitValue(np.full(len(self.x), mass), units="kg")
+
+    def set_mass_and_charge(self, mass, charge, n: int | None = None) -> None:
+        """
+        Set the per-particle mass and charge, and the rest energies that follow from the mass.
+
+        Parameters
+        ----------
+        mass: float | np.ndarray
+            Particle mass in kg; a scalar applies to every particle
+        charge: float | np.ndarray
+            Particle charge in C; a scalar applies to every particle
+        n: int, optional
+            Number of particles; defaults to ``len(self.x)``
+        """
+        n = len(self.x) if n is None else n
+        self._beam.particle_mass = UnitValue(np.full(n, mass), units="kg")
+        self._beam.particle_rest_energy = UnitValue(
+            self._beam.particle_mass * constants.speed_of_light**2, units="J"
+        )
+        self._beam.particle_rest_energy_eV = UnitValue(
+            self._beam.particle_rest_energy / constants.elementary_charge, units="eV/c"
+        )
+        self._beam.particle_charge = UnitValue(np.full(n, charge), units="C")
+
+    def set_momenta(self, cpx, cpy, cpz) -> None:
+        """
+        Set px, py and pz from momenta in eV/c.
+
+        Parameters
+        ----------
+        cpx, cpy, cpz: np.ndarray
+            Momentum components in eV/c
+        """
+        self._beam.px = UnitValue(cpx * self.q_over_c, units="kg*m/s")
+        self._beam.py = UnitValue(cpy * self.q_over_c, units="kg*m/s")
+        self._beam.pz = UnitValue(cpz * self.q_over_c, units="kg*m/s")
+
+    def set_z_from_t(self, z0: float, ref_index: int | None = None) -> None:
+        """
+        Set z from t, about the reference particle's t if there is one, else about mean(t),
+        and set :attr:`reference_particle` to match.
+
+        Parameters
+        ----------
+        z0: float
+            z at the reference time, in m
+        ref_index: int, optional
+            Index of the reference particle
+        """
+        if ref_index is None:
+            tref = np.mean(self._beam.t)
+        else:
+            self.reference_particle_index = int(ref_index)
+            tref = self._beam.t[self.reference_particle_index]
+        self._beam.z = UnitValue(
+            z0 + (-1 * self._beam.Bz * constants.speed_of_light) * (self._beam.t - tref),
+            units="m",
+        )
+        self.reference_particle = None if ref_index is None else [
+            getattr(self._beam, coord)[self.reference_particle_index]
+            for coord in self.reference_particle_coords
+        ]
 
     def normalise_to_ref_particle(self, array, index=0, subtractmean=False) -> np.ndarray:
         """
@@ -837,7 +848,7 @@ class beam(BaseModel):
             astra.read_astra_beam_file(self, filename)
         else:
             try:
-                with open(filename, "r") as f:
+                with open(filename) as f:
                     firstline = f.readline()
                     if "SDDS" in firstline:
                         sdds.read_SDDS_beam_file(self, filename)
@@ -888,7 +899,7 @@ class beam(BaseModel):
         single_charge = newbeam.Particles.total_charge / (len(newbeam.x))
         newbeam.Particles.charge = UnitValue(np.full(len(newbeam.Particles.x), single_charge), "C")
         newbeam.Particles.nmacro = UnitValue(np.full(len(newbeam.Particles.x), 1), "")
-        newbeam.t = UnitValue(newbeam.Particles.z / (-1 * newbeam.Particles.Bz * constants.speed_of_light), "s")
+        newbeam.Particles.t = UnitValue(newbeam.Particles.z / (-1 * newbeam.Particles.Bz * constants.speed_of_light), "s")
         newbeam.code = "KDE"
         newbeam.longitudinal_reference = "z"
 
@@ -957,13 +968,10 @@ def save_HDF5_summary_file(directory: str = ".", filename: str = "./Beam_Summary
         files = []
         for scr in screens:
             if os.path.isfile(bf := os.path.join(directory, scr + '.openpmd.hdf5')):
-                # print(f'[save_HDF5_summary_file] {scr} found as {bf}')
                 files.append(bf)
             else:
                 pass
-                # print(f'[save_HDF5_summary_file] {scr} NOT found as {bf}')
     if files is None:
-        # print('[save_HDF5_summary_file] No screens or files found - globbing!')
         beam_files = glob.glob(directory + "/*openpmd.hdf5")
         files = []
         for bf in beam_files:

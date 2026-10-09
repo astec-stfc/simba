@@ -73,8 +73,6 @@ class waketLattice(frameworkLattice):
         not that Wake-T appears not to support the writing of a lattice to a file.
         """
         self.writeElements()
-        # if self.verbose:
-        #     warn("Wake-T does not support writing of a lattice to a file.")
 
     def writeElements(self) -> None:
         """
@@ -121,8 +119,6 @@ class waketLattice(frameworkLattice):
         pin = deepcopy(self.pin)
         self.bunch_list = self.beamline.track(
             pin,
-            # opmd_diag=True,
-            # diag_dir=self.global_parameters["master_subdir"],
             show_progress_bar=False,
         )
 

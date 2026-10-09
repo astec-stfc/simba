@@ -108,14 +108,6 @@ simba.Modules.Beams.sdds module
    :show-inheritance:
    :undoc-members:
 
-simba.Modules.Beams.vsim module
--------------------------------
-
-.. automodule:: simba.Modules.Beams.vsim
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 simba.Modules.Beams.wake\_t module
 ----------------------------------
 

@@ -1,3 +1,4 @@
+import contextlib
 import os
 from warnings import warn
 import subprocess
@@ -13,8 +14,6 @@ from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from ...Modules.Beams.opal import find_opal_s_positions
 from ...Modules.SDDSFile import SDDSFile
-# import mpi4py
-# mpi4py.rc.initialize = False
 
 from laura.translator.converters.codes.opal import (
     OpalOption,
@@ -145,21 +144,19 @@ def dispersions(filename: str, min_spread: float = 1e-6) -> Dict[float, tuple]:
 def update_globals(global_settings, beamlen=None, sample_interval=1):
     grids = getGrids()
     with open(
-            os.path.join(os.path.dirname(__file__), "globals_Opal.yaml"), "r"
+            os.path.join(os.path.dirname(__file__), "globals_Opal.yaml")
     ) as file:
         opalglobal = yaml.load(file, Loader=yaml.Loader)
     for sc in ['x', 'y', 'z']:
-        if f"SC_3D_N{sc}f" in list(global_settings.keys()):
+        if f"SC_3D_N{sc}f" in global_settings:
             scconv = sc.upper().replace('Z', 'T')
             global_settings.update({f"M{scconv}": global_settings[f"SC_3D_N{sc}f"]})
     for typ, vals in opalglobal.items():
-        for k, v in vals.items():
-            if k in global_settings.keys():
-                opalglobal[typ].update({k: v})
+        for k in vals:
+            if k in global_settings:
+                opalglobal[typ][k] = global_settings[k]
     if beamlen:
-        gridsize = grids.getGridSizes(
-            (beamlen / sample_interval)
-        )
+        gridsize = grids.getGridSizes(beamlen / sample_interval)
         opalglobal["fieldsolver"].update({"MX": gridsize, "MY": gridsize, "MT": gridsize})
     return opalglobal
 
@@ -199,9 +196,6 @@ class opalLattice(frameworkLattice):
 
     maxsteps: int = 1000000
     """Maximum number of steps for tracking; will be set dynamically once the lattice is parsed"""
-
-    headers: Dict = {}
-    """Section headers for OPAL input file"""
 
     space_charge_grid: int | tuple[int, int, int] | list | None = None
     """Explicit space-charge mesh size. A single value is used for all three
@@ -427,7 +421,7 @@ class opalLattice(frameworkLattice):
     def preProcess(self):
         super().preProcess()
         prefix = self.get_prefix()
-        fpath = self.load_input_beam(prefix, self.particle_definition)
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_opal()
         beamlen = len(self.global_parameters["beam"].x)
         pc = np.mean(self.global_parameters["beam"].cpz.val) / 1e9
@@ -538,10 +532,8 @@ class opalLattice(frameworkLattice):
         import h5py
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
             for k, v in opalData.items():
-                try:
+                with contextlib.suppress(TypeError):
                     f.create_dataset(k, data=np.array(v))
-                except TypeError as e:
-                    pass
 
     def hdf5_to_opal(self):
         emitted = self.emitted

@@ -45,27 +45,10 @@ def read_SDDS_beam_file(
             except Exception:
                 pass
     for k in required_keys:
-        if k not in beamprops.keys():
+        if k not in beamprops:
             raise ValueError(f"Could not find column {k} in SDDS file")
     self.filename = fileName
-    self._beam.particle_mass = UnitValue(
-        np.full(len(beamprops["x"]), constants.m_e), units="kg"
-    )
-    # print('SDDS', self._beam["particle_mass"])
-    self._beam.particle_rest_energy = UnitValue(
-        (self._beam.particle_mass * constants.speed_of_light**2),
-        units="J",
-    )
-    # print('SDDS', self._beam["particle_rest_energy"])
-    self._beam.particle_rest_energy_eV = UnitValue(
-        (self._beam.particle_rest_energy / constants.elementary_charge),
-        units="eV/c",
-    )
-    self._beam.particle_charge = UnitValue(
-        np.full(len(beamprops["x"]), -constants.elementary_charge),
-        units="C",
-    )
-    # print('SDDS', self._beam["particle_charge"])
+    self.set_mass_and_charge(constants.m_e, -constants.elementary_charge, len(beamprops["x"]))
 
     self.code = "SDDS"
     self._beam.x = UnitValue(beamprops["x"] + xyzoffset[0], units="m")
@@ -75,9 +58,7 @@ def read_SDDS_beam_file(
     cpz = cp / np.sqrt(beamprops["xp"] ** 2 + beamprops["yp"] ** 2 + 1)
     cpx = beamprops["xp"] * cpz
     cpy = beamprops["yp"] * cpz
-    self._beam.px = UnitValue(cpx * self.q_over_c, units="kg*m/s")
-    self._beam.py = UnitValue(cpy * self.q_over_c, units="kg*m/s")
-    self._beam.pz = UnitValue(cpz * self.q_over_c, units="kg*m/s")
+    self.set_momenta(cpx, cpy, cpz)
     if "Charge" in elegantData and len(elegantData["Charge"]) > 0:
         self._beam.set_total_charge(elegantData["Charge"][0])
     elif charge is None:
@@ -88,28 +69,7 @@ def read_SDDS_beam_file(
         np.abs(self._beam.charge / self._beam.particle_charge)
     )
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
-    if ref_index is not None:
-        self.reference_particle_index = int(ref_index)
-        """ If we have a reference particle, t=0 is relative to it """
-        self._beam.z = UnitValue(
-            xyzoffset[2]
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - self._beam.t[self.reference_particle_index]),
-            units="m",
-        )
-        self.reference_particle = [
-            getattr(self._beam, coord)[self.reference_particle_index]
-            for coord in self.reference_particle_coords
-        ]
-    else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
-        self._beam.z = UnitValue(
-            xyzoffset[2]
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - np.mean(self._beam.t)),
-            units="m",
-        )
-        self.reference_particle = None
+    self.set_z_from_t(xyzoffset[2], ref_index)
     if "s" not in beamprops:
         beamprops["s"] = 0
     self._beam.s = UnitValue(beamprops["s"], units="m")
@@ -119,7 +79,7 @@ def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]
     """Save an SDDS file using the SDDS class."""
     if filename is None:
         fn = os.path.splitext(self.filename)
-        filename = fn[0].strip(".ocelot").strip(".openpmd") + ".sdds"
+        filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".sdds"
     xoffset = xyzoffset[0]
     yoffset = xyzoffset[1]
     self.sddsindex += 1
@@ -161,16 +121,4 @@ def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]
     ]
     x.add_parameters(Pnames, parameterData, Ptypes, Punits, Psymbols)
 
-    # Pnames = ["ref_"+coord for coord in self.reference_particle_coords]
-    # Ptypes = [SDDS_Types.SDDS_DOUBLE for _ in self.reference_particle_coords]
-    # Psymbols = ["" for _ in self.reference_particle_coords]
-    # Punits = ["" for _ in self.reference_particle_coords]
-    # parameterData = self.reference_particle
-    # x.add_parameters(Pnames, parameterData, Ptypes, Punits, Psymbols)
-    # x.add_parameter("ref_index", self.reference_particle_index, SDDS_Types.SDDS_DOUBLE, "", "")
-
     x.write_file(filename)
-
-
-def set_beam_charge(self, charge):
-    self._beam["total_charge"] = charge

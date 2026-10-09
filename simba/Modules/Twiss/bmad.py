@@ -52,65 +52,62 @@ def interpret_bmad_data(self, lattice_name, fdat):
     """
     Populate the twiss object from the contents of a Bmad twiss file.
     """
-    self.z.val = np.append(self.z.val, fdat["z"])
-    self.s.val = np.append(self.s.val, fdat["s"])
     cp = fdat["p0c"]
     ke = fdat["e_tot"] - self.E0_eV
     gamma = fdat["e_tot"] / self.E0_eV
     beta = np.sqrt(1 - (gamma**-2))
-    self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
-    self.gamma.val = np.append(self.gamma.val, gamma)
-    self.cp.val = np.append(self.cp.val, cp)
-    self.p.val = np.append(self.p.val, cp * self.q_over_c)
-    self.t.val = np.append(self.t.val, fdat["beam_t"])
-    self.enx.val = np.append(self.enx.val, fdat["beam_norm_emit_x"])
-    self.ex.val = np.append(self.ex.val, fdat["beam_emit_x"])
-    self.eny.val = np.append(self.eny.val, fdat["beam_norm_emit_y"])
-    self.ey.val = np.append(self.ey.val, fdat["beam_emit_y"])
     longitudinal = cp / (beta * constants.speed_of_light)
-    self.enz.val = np.append(self.enz.val, fdat["beam_norm_emit_z"] * longitudinal)
-    self.ez.val = np.append(self.ez.val, fdat["beam_emit_z"] * longitudinal)
-    self.beta_x.val = np.append(self.beta_x.val, fdat["beam_beta_x"])
-    self.alpha_x.val = np.append(self.alpha_x.val, fdat["beam_alpha_x"])
-    self.gamma_x.val = np.append(self.gamma_x.val, fdat["beam_gamma_x"])
-    self.beta_y.val = np.append(self.beta_y.val, fdat["beam_beta_y"])
-    self.alpha_y.val = np.append(self.alpha_y.val, fdat["beam_alpha_y"])
-    self.gamma_y.val = np.append(self.gamma_y.val, fdat["beam_gamma_y"])
-    self.beta_z.val = np.append(self.beta_z.val, fdat["beam_beta_z"])
-    self.alpha_z.val = np.append(self.alpha_z.val, fdat["beam_alpha_z"])
-    self.gamma_z.val = np.append(self.gamma_z.val, fdat["beam_gamma_z"])
-    self.sigma_x.val = np.append(self.sigma_x.val, fdat["beam_sigma_x"])
-    self.sigma_y.val = np.append(self.sigma_y.val, fdat["beam_sigma_y"])
-    self.sigma_xp.val = np.append(self.sigma_xp.val, fdat["beam_sigma_xp"])
-    self.sigma_yp.val = np.append(self.sigma_yp.val, fdat["beam_sigma_yp"])
-    self.sigma_t.val = np.append(self.sigma_t.val, fdat["beam_sigma_t"])
-    self.sigma_z.val = np.append(self.sigma_z.val, fdat["beam_sigma_z"])
-    self.mean_x.val = np.append(self.mean_x.val, fdat["beam_x"])
-    self.mean_y.val = np.append(self.mean_y.val, fdat["beam_y"])
-    self.sigma_p.val = np.append(self.sigma_p.val, fdat["beam_sigma_delta"])
-    self.sigma_cp.val = np.append(
-        self.sigma_cp.val, fdat["beam_sigma_delta"] * fdat["beam_p0c"]
+    self.append_columns(
+        len(fdat["s"]),
+        z=fdat["z"],
+        s=fdat["s"],
+        kinetic_energy=ke,
+        gamma=gamma,
+        cp=cp,
+        p=cp * self.q_over_c,
+        t=fdat["beam_t"],
+        enx=fdat["beam_norm_emit_x"],
+        ex=fdat["beam_emit_x"],
+        eny=fdat["beam_norm_emit_y"],
+        ey=fdat["beam_emit_y"],
+        enz=fdat["beam_norm_emit_z"] * longitudinal,
+        ez=fdat["beam_emit_z"] * longitudinal,
+        beta_x=fdat["beam_beta_x"],
+        alpha_x=fdat["beam_alpha_x"],
+        gamma_x=fdat["beam_gamma_x"],
+        beta_y=fdat["beam_beta_y"],
+        alpha_y=fdat["beam_alpha_y"],
+        gamma_y=fdat["beam_gamma_y"],
+        beta_z=fdat["beam_beta_z"],
+        alpha_z=fdat["beam_alpha_z"],
+        gamma_z=fdat["beam_gamma_z"],
+        sigma_x=fdat["beam_sigma_x"],
+        sigma_y=fdat["beam_sigma_y"],
+        sigma_xp=fdat["beam_sigma_xp"],
+        sigma_yp=fdat["beam_sigma_yp"],
+        sigma_t=fdat["beam_sigma_t"],
+        sigma_z=fdat["beam_sigma_z"],
+        mean_x=fdat["beam_x"],
+        mean_y=fdat["beam_y"],
+        sigma_p=fdat["beam_sigma_delta"],
+        sigma_cp=fdat["beam_sigma_delta"] * fdat["beam_p0c"],
+        mean_cp=fdat["beam_p0c"] * (1 + fdat["beam_delta"]),
+        mux=fdat["mu_x"] / (2 * constants.pi),
+        muy=fdat["mu_y"] / (2 * constants.pi),
+        eta_x=fdat["beam_eta_x"],
+        eta_xp=fdat["beam_etap_x"],
+        eta_y=fdat["beam_eta_y"],
+        eta_yp=fdat["beam_etap_y"],
+        element_name=fdat["element_name"],
+        lattice_name=lattice_name,
+        ecnx=fdat["beam_norm_emit_a"],
+        ecny=fdat["beam_norm_emit_b"],
+        eta_x_beam=fdat["beam_eta_x"],
+        eta_xp_beam=fdat["beam_etap_x"],
+        eta_y_beam=fdat["beam_eta_y"],
+        eta_yp_beam=fdat["beam_etap_y"],
+        beta_x_beam=fdat["beam_beta_a"],
+        beta_y_beam=fdat["beam_beta_b"],
+        alpha_x_beam=fdat["beam_alpha_a"],
+        alpha_y_beam=fdat["beam_alpha_b"],
     )
-    self.mean_cp.val = np.append(
-        self.mean_cp.val, fdat["beam_p0c"] * (1 + fdat["beam_delta"])
-    )
-    self.mux.val = np.append(self.mux.val, fdat["mu_x"] / (2 * constants.pi))
-    self.muy.val = np.append(self.muy.val, fdat["mu_y"] / (2 * constants.pi))
-    self.eta_x.val = np.append(self.eta_x.val, fdat["beam_eta_x"])
-    self.eta_xp.val = np.append(self.eta_xp.val, fdat["beam_etap_x"])
-    self.eta_y.val = np.append(self.eta_y.val, fdat["beam_eta_y"])
-    self.eta_yp.val = np.append(self.eta_yp.val, fdat["beam_etap_y"])
-    self.element_name.val = np.append(self.element_name.val, fdat["element_name"])
-    self.lattice_name.val = np.append(
-        self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
-    )
-    self.ecnx.val = np.append(self.ecnx.val, fdat["beam_norm_emit_a"])
-    self.ecny.val = np.append(self.ecny.val, fdat["beam_norm_emit_b"])
-    self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["beam_eta_x"])
-    self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["beam_etap_x"])
-    self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["beam_eta_y"])
-    self.eta_yp_beam.val = np.append(self.eta_yp_beam.val, fdat["beam_etap_y"])
-    self.beta_x_beam.val = np.append(self.beta_x_beam.val, fdat["beam_beta_a"])
-    self.beta_y_beam.val = np.append(self.beta_y_beam.val, fdat["beam_beta_b"])
-    self.alpha_x_beam.val = np.append(self.alpha_x_beam.val, fdat["beam_alpha_a"])
-    self.alpha_y_beam.val = np.append(self.alpha_y_beam.val, fdat["beam_alpha_b"])

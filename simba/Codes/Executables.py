@@ -1,7 +1,6 @@
 import socket
 import os
 import yaml
-import logging
 import subprocess
 from typing import Literal
 import platform
@@ -203,7 +202,7 @@ class executable:
             return param.replace("$image$", self.settings.get("docker", {}).get("image", ""))
 
 
-class Executables(object):
+class Executables:
     """
     Class for interpreting the accelerator code executables defined in
     :download:`Executables <../../simba/Executables.yaml>` for a given computer architecture and linking
@@ -212,16 +211,24 @@ class Executables(object):
 
     Executables for Windows and POSIX architectures are defined, as are executables for
     specific clusters based at Daresbury Laboratory. Others can be added by the user.
+
+    Each ``define_<code>_command`` sets the attribute named after the code and takes:
+
+    location: str, optional
+        Location of the executable; overrides the default under `SimCodes`.
+    ncpu: int
+        Number of CPUs to run
+    scaling: int, optional
+        Scaling parameter for number of CPUs.
+    override_location: str, optional
+        Name of remote server on which to run the executable;
+        must be defined in `Executables.yaml`
     """
 
     def __init__(self, global_parameters):
-        super(Executables, self).__init__()
+        super().__init__()
         self.global_parameters = global_parameters
-        sim_codes = (
-            self.global_parameters["simcodes_location"]
-            if "simcodes_location" in self.global_parameters
-            else None
-        )
+        sim_codes = self.global_parameters.get("simcodes_location")
         if sim_codes is None:
             self.sim_codes_location = (
                 os.path.relpath(
@@ -229,16 +236,12 @@ class Executables(object):
                 )
                 + "/"
             ).replace("\\", "/")
-            # print('Using SimCodes at ', os.path.abspath(self.sim_codes_location))
         else:
             self.sim_codes_location = sim_codes
-        # try:
         with open(
-            os.path.join(os.path.dirname(__file__), "../Executables.yaml"), "r"
+            os.path.join(os.path.dirname(__file__), "../Executables.yaml")
         ) as file:
             self.settings = yaml.load(file, Loader=yaml.Loader)
-        # except:
-        #     self.settings = {}
         self.runtime = global_parameters.get("container_runtime", None)  # 'docker', 'apptainer', or None
         if self.runtime == "docker":
             docker_cfg = self.settings.get("docker", {})
@@ -336,306 +339,84 @@ class Executables(object):
         else:
             return ncpu
 
-    def define_ASTRAgenerator_command(
+    def _define(
             self,
-            location: str | None = None,
-            override_location: str | None = None,
+            attr: str,
+            name: str,
+            default: list,
+            location: str | None,
+            ncpu: int,
+            override_location: str | None,
     ) -> None:
         """
-        Define the ASTRA generator :class:`~executable` object and sets :attr:`~ASTRAgenerator`
-
-        Parameters
-        ----------
-        location: str, optional
-            Location of ASTRA generator executable; overrides `default`.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
+        Build the :class:`~executable` `name`, keep it as ``<attr>Executable`` and its
+        command as `attr`; see the class docstring for the other parameters.
         """
-        ASTRAgeneratorExecutable = executable(
-            "astragenerator",
-            settings=self.settings,
-            location=location,
-            default=[self.sim_codes_location + "ASTRA/generator"],
-            override_location=override_location,
-        )
-        self.ASTRAgenerator = ASTRAgeneratorExecutable.executable
-
-    def define_astra_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the ASTRA :class:`~executable` object and sets :attr:`~astra`
-
-        Parameters
-        ----------
-        location: str
-            Location of ASTRA executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
-        ncpu = self.getNCPU(ncpu, scaling)
-        astraExecutable = executable(
-            "astra",
+        exe = executable(
+            name,
             settings=self.settings,
             location=location,
             ncpu=ncpu,
-            default=[self.sim_codes_location + "ASTRA/astra"],
+            default=default,
             override_location=override_location,
         )
-        self.astra = astraExecutable.executable
+        setattr(self, f"{attr}Executable", exe)
+        setattr(self, attr, exe.executable)
 
-    def define_elegant_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the ELEGANT :class:`~executable` object and sets :attr:`~elegant`
+    def define_ASTRAgenerator_command(self, location=None, override_location=None) -> None:
+        """Define the ASTRA generator executable and set :attr:`~ASTRAgenerator`."""
+        default = [self.sim_codes_location + "ASTRA/generator"]
+        self._define("ASTRAgenerator", "astragenerator", default, location, 1, override_location)
 
-        Parameters
-        ----------
-        location: str
-            Location of ELEGANT executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_astra_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the ASTRA executable and set :attr:`~astra`."""
+        ncpu = self.getNCPU(ncpu, scaling)
+        default = [self.sim_codes_location + "ASTRA/astra"]
+        self._define("astra", "astra", default, location, ncpu, override_location)
+
+    def define_elegant_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the ELEGANT executable, Pelegant if `ncpu` > 1, and set :attr:`~elegant`."""
         ncpu = self.getNCPU(ncpu, scaling)
         if ncpu > 1:
-            elegantExecutable = executable(
-                "Pelegant",
-                settings=self.settings,
-                location=location,
-                ncpu=ncpu,
-                default=[
-                    which("mpiexec.exe"),
-                    "-np",
-                    str(min([2, int(ncpu / 3)])),
-                    which("Pelegant.exe"),
-                ],
-                override_location=override_location,
-            )
+            np_ = str(min([2, int(ncpu / 3)]))
+            default = [which("mpiexec.exe"), "-np", np_, which("Pelegant.exe")]
+            self._define("elegant", "Pelegant", default, location, ncpu, override_location)
         else:
-            elegantExecutable = executable(
-                "elegant",
-                settings=self.settings,
-                location=location,
-                ncpu=ncpu,
-                default=[self.sim_codes_location + "Elegant/elegant"],
-                override_location=override_location,
-            )
-        self.elegant = elegantExecutable.executable
+            default = [self.sim_codes_location + "Elegant/elegant"]
+            self._define("elegant", "elegant", default, location, ncpu, override_location)
 
-    def define_csrtrack_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the CSRTrack :class:`~executable` object and sets :attr:`~csrtrack`
-
-        Parameters
-        ----------
-        location: str
-            Location of CSRTrack executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_csrtrack_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the CSRTrack executable and set :attr:`~csrtrack`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        csrtrackExecutable = executable(
-            "csrtrack",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "CSRTrack/csrtrack"],
-            override_location=override_location,
-        )
-        self.csrtrack = csrtrackExecutable.executable
+        default = [self.sim_codes_location + "CSRTrack/csrtrack"]
+        self._define("csrtrack", "csrtrack", default, location, ncpu, override_location)
 
-    def define_gpt_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the GPT :class:`~executable` object and sets :attr:`~gpt`
-
-        Parameters
-        ----------
-        location: str
-            Location of GPT executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_gpt_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the GPT executable and set :attr:`~gpt`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        gptExecutable = executable(
-            "gpt",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "GPT/gpt.exe", "-j", str(ncpu)],
-            override_location=override_location,
-        )
-        self.gpt = gptExecutable.executable
+        default = [self.sim_codes_location + "GPT/gpt.exe", "-j", str(ncpu)]
+        self._define("gpt", "gpt", default, location, ncpu, override_location)
 
-    def define_opal_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the OPAL :class:`~executable` object and sets :attr:`~opal`
-
-        Parameters
-        ----------
-        location: str
-            Location of OPAL executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_opal_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the OPAL executable and set :attr:`~opal`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        self.opalExecutable = executable(
-            "opal",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "OPAL/bin/opal"],
-            override_location=override_location,
-        )
-        self.opal = self.opalExecutable.executable
+        default = [self.sim_codes_location + "OPAL/bin/opal"]
+        self._define("opal", "opal", default, location, ncpu, override_location)
 
-    def define_genesis_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the Genesis :class:`~executable` object and sets :attr:`~genesis`
-
-        Parameters
-        ----------
-        location: str
-            Location of Genesis executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_genesis_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the Genesis executable and set :attr:`~genesis`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        self.genesisExecutable = executable(
-            "genesis",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "Genesis/genesis4"],
-            override_location=override_location,
-        )
-        self.genesis = self.genesisExecutable.executable
+        default = [self.sim_codes_location + "Genesis/genesis4"]
+        self._define("genesis", "genesis", default, location, ncpu, override_location)
 
-    def define_madx_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the MAD-X :class:`~executable` object and sets :attr:`~madx`
-
-        Parameters
-        ----------
-        location: str
-            Location of MAD-X executable; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_madx_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the MAD-X executable and set :attr:`~madx`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        self.madxExecutable = executable(
-            "madx",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "MADX/madx"],
-            override_location=override_location,
-        )
-        self.madx = self.madxExecutable.executable
+        default = [self.sim_codes_location + "MADX/madx"]
+        self._define("madx", "madx", default, location, ncpu, override_location)
 
-    def define_tao_command(
-            self,
-            location: str | None = None,
-            ncpu: int = 1,
-            scaling: int | None = None,
-            override_location: str | None = None,
-    ) -> None:
-        """
-        Define the Tao :class:`~executable` object and sets :attr:`~tao`
-
-        Parameters
-        ----------
-        location: str
-            Location of Tao library; overrides `default`.
-        ncpu: int
-            Number of CPUs to run
-        scaling: int, optional
-            Scaling parameter for number of CPUs.
-        override_location: str, optional
-            Name of remote server on which to run the executable;
-            must be defined in `Executables.yaml`
-        """
+    def define_tao_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the Tao library and set :attr:`~tao`."""
         ncpu = self.getNCPU(ncpu, scaling)
-        self.taoExecutable = executable(
-            "tao",
-            settings=self.settings,
-            location=location,
-            ncpu=ncpu,
-            default=[self.sim_codes_location + "Bmad/lib/libtao.so"],
-            override_location=override_location,
-        )
-        self.tao = self.taoExecutable.executable
+        default = [self.sim_codes_location + "Bmad/lib/libtao.so"]
+        self._define("tao", "tao", default, location, ncpu, override_location)

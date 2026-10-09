@@ -56,7 +56,7 @@ def read_genesis_beam_file(
     pg.write(opmdfn)
     read_openpmd_beam_file(self, opmdfn)
     if isinstance(resample, int):
-        postbeam = self.Particles.kde(resample)
+        postbeam = self.Particles.kde.resample(resample)
         self.Particles.x = UnitValue(postbeam[0], "m")
         self.Particles.y = UnitValue(postbeam[1], "m")
         self.Particles.z = UnitValue(postbeam[2], "m")

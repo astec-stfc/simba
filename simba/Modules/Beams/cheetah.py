@@ -19,59 +19,21 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
 
 
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
-    self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
-    self._beam.particle_rest_energy = UnitValue(
-        (
-                self._beam.particle_mass * constants.speed_of_light ** 2
-        ),
-        units="J",
-    )
-    self._beam.particle_rest_energy_eV = UnitValue(
-        (
-                self._beam.particle_rest_energy / constants.elementary_charge
-        ),
-        units="eV/c",
-    )
-    self._beam.particle_charge = UnitValue(parray.particle_charges.numpy(), "C")
-    # self._beam.gamma = UnitValue(parray.relativistic_gamma.numpy(), "")
+    self.set_mass_and_charge(constants.m_e, parray.particle_charges.numpy(), len(parray.x.numpy()))
     self._beam.x = UnitValue(parray.x.numpy(), "m")
     self._beam.y = UnitValue(parray.y.numpy(), "m")
     self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
-    # self._beam["p"] = parray.energies.numpy()
     cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
     p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
     cpx = parray.px.numpy() * p0c
     cpy = parray.py.numpy() * p0c
-    self._beam.px = UnitValue(cpx * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(cpy * self.q_over_c, "kg*m/s")
-    self._beam.pz = UnitValue(
-        self.q_over_c * np.sqrt(cp**2 - cpx**2 - cpy**2), "kg*m/s"
-    )
+    cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
+    self.set_momenta(cpx, cpy, cpz)
     self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 
-    if ref_index is not None:
-        self.reference_particle_index = int(ref_index)
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - self._beam.t[self.reference_particle_index]),
-            units="m",
-        )
-        self.reference_particle = [
-            getattr(self._beam, coord)[self.reference_particle_index]
-            for coord in self.reference_particle_coords
-        ]
-    else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - np.mean(self._beam.t)),
-            units="m",
-        )
-        self.reference_particle = None
+    self.set_z_from_t(zstart, ref_index)
     self._beam.s = UnitValue(s, units="m")
 
 

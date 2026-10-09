@@ -145,12 +145,12 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL distribution input parameters.
         """
         output = "//DISTRIBUTION\n"
-        output += f"DIST: DISTRIBUTION"
+        output += "DIST: DISTRIBUTION"
         dist_dict = {}
         if self.distribution_type_z in ["p", "flattop"]:
             dist_dict.update({"TYPE": "FLATTOP"})
-            if not getattr(self, "plateau_bunch_length") > 0:
-                raise ValueError(f"plateau_bunch_length must be defined for flattop longitudinal distribution")
+            if not self.plateau_bunch_length > 0:
+                raise ValueError("plateau_bunch_length must be defined for flattop longitudinal distribution")
             rise_time = self.plateau_rise_time
             fall_time = self.plateau_fall_time or rise_time
             dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: rise_time})
@@ -162,8 +162,8 @@ class OPALGenerator(frameworkGenerator):
             )
             dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: tpulsefwhm})
         else:
-            if not getattr(self, "sigma_t") > 0:
-                raise ValueError(f"sigma_t must be defined for flattop longitudinal distribution")
+            if not self.sigma_t > 0:
+                raise ValueError("sigma_t must be defined for flattop longitudinal distribution")
             dist_dict.update({"TYPE": "GAUSS"})
             dist_dict.update({aliases["aliases"]["opal"]["sigma_t"]["alias"]: self.sigma_t})
         for k, v in self.__dict__.items():
@@ -171,11 +171,7 @@ class OPALGenerator(frameworkGenerator):
             if k not in disallowed:
                 dist = True
                 if k in list(aliases["aliases"]["opal"].keys()):
-                    dist = (
-                        True
-                        if aliases["aliases"]["opal"][k]["type"] == "distribution"
-                        else False
-                    )
+                    dist = aliases["aliases"]["opal"][k]["type"] == "distribution"
                     k = aliases["aliases"]["opal"][k]["alias"]
                 if (getattr(self, k) is not None) and dist and (k.lower() != "type"):
                     dist_dict.update({k: v})
@@ -249,7 +245,7 @@ class OPALGenerator(frameworkGenerator):
         """
         output = "//EMISSION MONITOR\n"
         output += f"MONI: MONITOR, OUTFN=\"MONI\", TYPE=TEMPORAL, ELEMEDGE={str(self._get_elemedge())};\n"
-        output += f"EMISSION: LINE = (MONI);\n"
+        output += "EMISSION: LINE = (MONI);\n"
         output += f"{self.breakstr}\n"
         return output
 
@@ -263,7 +259,7 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL field solver input.
         """
         output = "//FIELD SOLVER\n"
-        output += f"FS: FIELDSOLVER "
+        output += "FS: FIELDSOLVER "
         self.opalglobal["fieldsolver"].update({"FSTYPE": "NONE"})
         self.opalglobal["fieldsolver"].update({"MX": 1, "MY": 1, "MT": 1})
         for name, val in self.opalglobal["fieldsolver"].items():
@@ -283,12 +279,12 @@ class OPALGenerator(frameworkGenerator):
         if self.species not in list(aliases["aliases"]["opal"].keys()):
             raise NotImplementedError(f"{self.species} is not currently implemented for OPAL")
         output = "//BEAM\n"
-        output += f"BEAM1: BEAM,\n"
+        output += "BEAM1: BEAM,\n"
         output += f"\tPARTICLE = {aliases['aliases']['opal'][self.species]['alias']},\n"
-        output += f"\tGAMMA = GAMMA,\n"
-        output += f"\tNPART = n_particles,\n"
-        output += f"\tBFREQ = 1,\n"
-        output += f"\tBCURRENT = beam_bunch_charge,\n"
+        output += "\tGAMMA = GAMMA,\n"
+        output += "\tNPART = n_particles,\n"
+        output += "\tBFREQ = 1,\n"
+        output += "\tBCURRENT = beam_bunch_charge,\n"
         output += f"\tCHARGE = {int(self.charge_sign)};\n"
         output += f"{self.breakstr}\n"
         return output
@@ -301,10 +297,10 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL track command.
         """
         output = "//TRACK\n"
-        output += f"TRACK, \n"
-        output += f"\tLINE = EMISSION,\n"
-        output += f"\tBEAM = BEAM1,\n"
-        output += f"\tMAXSTEPS = 100000,\n"
+        output += "TRACK, \n"
+        output += "\tLINE = EMISSION,\n"
+        output += "\tBEAM = BEAM1,\n"
+        output += "\tMAXSTEPS = 100000,\n"
         output += "\tDT = {" + str(self.tstep) + "},\n"
         output += "\tZSTOP = {" + str(self._get_bunch_length()*constants.speed_of_light*0.1) + "};\n"
         output += f"{self.breakstr}\n"
@@ -318,13 +314,13 @@ class OPALGenerator(frameworkGenerator):
         :return: A string representation of the OPAL track command.
         """
         output = "//RUN\n"
-        output += f"RUN, \n"
-        output += f'\tMETHOD = "PARALLEL-T",\n'
-        output += f"\tBEAM = BEAM1,\n"
-        output += f"\tFIELDSOLVER = FS,\n"
-        output += f"\tDISTRIBUTION = DIST;\n"
-        output += f"ENDTRACK;\n"
-        output += f"QUIT;\n"
+        output += "RUN, \n"
+        output += '\tMETHOD = "PARALLEL-T",\n'
+        output += "\tBEAM = BEAM1,\n"
+        output += "\tFIELDSOLVER = FS,\n"
+        output += "\tDISTRIBUTION = DIST;\n"
+        output += "ENDTRACK;\n"
+        output += "QUIT;\n"
         return output
 
     def write(self):

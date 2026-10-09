@@ -7,8 +7,6 @@ from mpl_axes_aligner import align
 from ..Twiss import twissParameter, twiss_defaults
 from laura.translator.converters.converter import translate_elements
 
-# from units import nice_array, nice_scale_prefix
-
 CMAP0 = copy(plt.get_cmap("viridis"))
 CMAP0.set_under("white")
 CMAP1 = copy(plt.get_cmap("plasma"))
@@ -39,13 +37,12 @@ def ASTRA_TW_FieldMap(fielddat, start, stop, cells, p):
     n_cells = int(cells / p)
     cell_length = rfcell[-1, 0] - rfcell[0, 0]
     dat = list(halfcell1)
-    for i in range(0, n_cells + 1, 1):
+    for _ in range(0, n_cells + 1, 1):
         dat += list(1.0 * rfcell)
         rfcell[:, 0] += cell_length
     halfcell2[:, 0] += n_cells * cell_length
     dat += list(halfcell2)
-    dat = np.array(dat)
-    return dat
+    return np.array(dat)
 
 
 def fieldmap_data(element, master_lattice):
@@ -65,7 +62,7 @@ def fieldmap_data(element, master_lattice):
         else:
             offset = element.physical.middle.z
     except AttributeError:
-        offset = element.phyiscal.start.z
+        offset = element.physical.start.z
 
     # Scaling
     try:
@@ -133,21 +130,11 @@ class magnet_plotting_data:
         )
 
     def quadrupole(self, e):
-        # if e.gradient is None:
         strength = np.sign(e.magnetic.KnL(1)) * 0.5
-        # else:
-        #     idx = find_nearest(self.z, e.middle[2])
-        #     ke = self.kinetic_energy[idx]
-        #     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
         return self.half_rectangle(e, strength), "red"
 
     def sextupole(self, e):
-        # if e.gradient is None:
         strength = np.sign(e.magnetic.KnL(2)) * 0.5
-        # else:
-        #     idx = find_nearest(self.z, e.middle[2])
-        #     ke = self.kinetic_energy[idx]
-        #     strength = 1.0 / (3.3356 * ke / 1e6) * e.gradient
         return self.half_rectangle(e, strength), "green"
 
     def dipole(self, e):
@@ -190,7 +177,7 @@ def load_elements(
         else:
             elements = []
             for s in sections:
-                elements += [lattice[e["name"]] for e in lattice[s].getElementType(t)]
+                elements += [lattice[e.name] for e in lattice[s].getElementType(t)]
         if bounds is not None:
             elements = [
                 e
@@ -312,9 +299,9 @@ def add_magnets_to_axes(
         a.set_ylabel(ylabel[section])
         a.yaxis.label.set_color(c)
 
-    for section in color.keys():
+    for section in color:
         if section in fmaps:
-            for name, (data, c) in fmaps[section].items():
+            for data, c in fmaps[section].values():
                 a.fill(*data.T, color=c)
 
     data = np.array([[0, 0], [max(lattice.getSValues()), 0]])
@@ -348,7 +335,6 @@ def plot_fieldmaps(
         include_labels=include_labels,
         sections=sections,
         fields=fields,
-        # magnets=magnets,
     )
 
 
@@ -398,7 +384,7 @@ def plot(
             fig, all_axis = plt.subplots(
                 3,
                 gridspec_kw={"height_ratios": [4, 1, 1]},
-                subplot_kw=dict(frameon=False),
+                subplot_kw={"frameon": False},
                 **kwargs,
             )
             ax_top = all_axis[0]
@@ -436,14 +422,15 @@ def plot(
 
     # Apply limits
     if limits:
-        good = np.logical_and(X.val >= limits[0], X.val <= limits[1])
+        xval = np.asarray(X.val)
+        good = np.logical_and(xval >= limits[0], xval <= limits[1])
         idx = np.where(good)[0]
         if len(idx) > 0:
             if idx[0] > 0:
                 good[idx[0] - 1] = True
             if idx[-1] + 1 < len(good):
                 good[idx[-1] + 1] = True
-            X = X[good]
+            X.val = xval[good]
         if min(X.val) > limits[0]:
             limits = (min(X.val), limits[1])
         if max(X.val) < limits[1]:
@@ -469,7 +456,7 @@ def plot(
             xp = None
             if xkey in ("z", "s") and pname < len(keys):
                 name = keys[pname].replace("\\", "/").split("/")[-1].split(".")[0]
-                elem = elements[name] if name in elements else None
+                elem = elements.get(name)
                 if elem is not None:
                     try:
                         xp = float(elem.physical.middle.z)
@@ -669,7 +656,7 @@ def general_plot(
         ax_plot = [all_axis]
 
     if grid:
-        ax_plot[0].grid(b=True, which="major", color="#666666", linestyle="-")
+        ax_plot[0].grid(visible=True, which="major", color="#666666", linestyle="-")
 
     # collect axes
     if isinstance(ykeys, str):
@@ -698,14 +685,16 @@ def general_plot(
 
     # Only get the data we need
     if limits:
-        good = np.logical_and(X >= limits[0], X <= limits[1])
-        idx = list(np.where(good is True)[0])
+        xval = np.asarray(X.val)
+        good = np.logical_and(xval >= limits[0], xval <= limits[1])
+        idx = list(np.where(good)[0])
         if len(idx) > 0:
             if idx[0] > 0:
                 good[idx[0] - 1] = True
             if (idx[-1] + 1) < len(good):
                 good[idx[-1] + 1] = True
-            X = X[good]
+            X = X.model_copy(update={"val": xval[good]})
+        limits = list(limits)
         if X.min() > limits[0]:
             limits[0] = X.min()
         if X.max() < limits[1]:
@@ -784,21 +773,13 @@ def general_plot(
     # Layout
     if include_layout is not False:
 
-        # Gives some space to the top plot
-        # ax_layout.set_ylim(-1, 1.5)
-
         if xkey == "z":
-            # ax_layout.set_axis_off()
             ax_layout.set_xlim(limits[0], limits[1])
-        # else:
-        #     ax_layout.set_xlabel('mean_z')
-        #     limits = (0, I.stop)
         add_fieldmaps_to_axes(
             framework_object.framework,
             ax_layout,
             bounds=limits,
             include_labels=include_labels,
             fields=fields,
-            # magnets=magnets,
         )
     return plt, fig, all_axis

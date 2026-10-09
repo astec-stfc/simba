@@ -50,6 +50,7 @@ Classes:
       and for tracking through them using `cpymad`.
 """
 
+import contextlib
 import os
 import re
 from copy import deepcopy
@@ -63,8 +64,6 @@ from yaml import safe_load
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
-from ...Modules.EnergyRamp import beta_from_p0c
-from ...Modules.units import UnitValue
 from ...Modules.Twiss.madx import save_madx_twiss_hdf
 
 from laura.translator.converters.converter import translate_elements
@@ -77,7 +76,6 @@ from typing import Dict, List, Any, ClassVar
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/madx_defaults.yaml",
-    "r",
 ) as infile:
     madxglobal = safe_load(infile)
 
@@ -688,10 +686,8 @@ class madxLattice(frameworkLattice):
 
     def stop_madx(self, madx: Any) -> None:
         """Exit a session from :meth:`start_madx` and close its log."""
-        try:
+        with contextlib.suppress(Exception):
             madx.exit()
-        except Exception:
-            pass
         if self.logfile is not None:
             self.logfile.close()
             self.logfile = None
@@ -764,10 +760,11 @@ class madxLattice(frameworkLattice):
             return self._observation_points[key]
         diag_names = {e.name for e in self.screens_and_markers_and_bpms}
         seg_s0 = self._sval_in[segnames[0]]
-        obs = []
-        for name in segnames:
-            if name in diag_names and self._elem_dict[name].physical.length == 0:
-                obs.append((name, self._sval_in[name] - seg_s0))
+        obs = [
+            (name, self._sval_in[name] - seg_s0)
+            for name in segnames
+            if name in diag_names and self._elem_dict[name].physical.length == 0
+        ]
         self._observation_points[key] = obs
         return obs
 
@@ -808,23 +805,22 @@ class madxLattice(frameworkLattice):
         """
         npart = len(coords["x"])
         madx.input("track, onepass, onetable;")
-        startlines = []
-        for i in range(npart):
-            startlines.append(
-                "start, x={:.15g}, px={:.15g}, y={:.15g}, py={:.15g}, "
-                "t={:.15g}, pt={:.15g};".format(
-                    coords["x"][i],
-                    coords["px"][i],
-                    coords["y"][i],
-                    coords["py"][i],
-                    coords["t"][i],
-                    coords["pt"][i],
-                )
+        startlines = [
+            "start, x={:.15g}, px={:.15g}, y={:.15g}, py={:.15g}, "
+            "t={:.15g}, pt={:.15g};".format(
+                coords["x"][i],
+                coords["px"][i],
+                coords["y"][i],
+                coords["py"][i],
+                coords["t"][i],
+                coords["pt"][i],
             )
+            for i in range(npart)
+        ]
         # chunk the input to avoid very large single commands
         for i in range(0, len(startlines), 4096):
             madx.input("\n".join(startlines[i: i + 4096]))
-        for name, sobs in observe:
+        for name, _ in observe:
             madx.input(f"observe, place={sanitize_string(name)};")
         maxaper = "{" + ",".join([str(v) for v in self.maxaper]) + "}"
         madx.input(f"run, turns={turns}, ffile={ffile}, maxaper={maxaper};")

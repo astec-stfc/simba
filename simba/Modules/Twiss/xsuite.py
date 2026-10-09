@@ -14,84 +14,63 @@ def read_xsuite_twiss_files(self, filename, reset=True):
         if "csv" not in filename:
             raise ValueError("Only csv files are supported for xsuite twiss files.")
         lattice_name = os.path.basename(filename).split(".")[0]
-        fdat = {}
-        # print("loading ocelot twiss file", filename)
         df = pd.read_csv(filename)
         interpret_xsuite_data(self, lattice_name, df)
 
 
 def interpret_xsuite_data(self, lattice_name, fdat):
-    self.z.val = np.append(
-        self.z.val, np.array(fdat["z"] if "z" in fdat else fdat["s"])
-    )
-    self.s.val = np.append(self.s.val, np.array(fdat["s"]))
     ke = np.array(fdat["momentum"])
-    self.kinetic_energy.val = np.append(self.kinetic_energy.val, ke)
     gamma = 1 + ke / self.E0_eV
     cp = ke / np.sqrt((gamma - 1) / (gamma + 1))
-    self.cp.val = np.append(self.cp.val, cp)
-    self.gamma.val = np.append(self.gamma.val, gamma)
-    self.p.val = np.append(self.p.val, cp * self.q_over_c)
     bg = cp / self.E0_eV
-    self.enx.val = np.append(self.enx.val, fdat["emit_xn"])
-    self.ex.val = np.append(self.ex.val, fdat["emit_xn"] / bg)
-    self.eny.val = np.append(self.eny.val, fdat["emit_yn"])
-    self.ey.val = np.append(self.ey.val, fdat["emit_yn"] / bg)
-    self.enz.val = np.append(self.enz.val, np.zeros(len(fdat["s"])))
-    self.ez.val = np.append(self.ez.val, np.zeros(len(fdat["s"])))
-    self.beta_x.val = np.append(self.beta_x.val, fdat["betx"])
-    self.alpha_x.val = np.append(self.alpha_x.val, fdat["alfx"])
-    self.gamma_x.val = np.append(self.gamma_x.val, fdat["gamx"])
-    self.beta_y.val = np.append(self.beta_y.val, fdat["bety"])
-    self.alpha_y.val = np.append(self.alpha_y.val, fdat["alfy"])
-    self.gamma_y.val = np.append(self.gamma_y.val, fdat["gamy"])
-    self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(fdat["s"])))
-    self.gamma_z.val = np.append(self.gamma_z.val, np.zeros(len(fdat["s"])))
-    self.alpha_z.val = np.append(self.alpha_z.val, np.zeros(len(fdat["s"])))
-    self.sigma_x.val = np.append(self.sigma_x.val, fdat["sigma_x"])
-    self.sigma_y.val = np.append(self.sigma_y.val, fdat["sigma_y"])
-    self.sigma_xp.val = np.append(self.sigma_xp.val, fdat["sigma_px"])
-    self.sigma_yp.val = np.append(self.sigma_yp.val, fdat["sigma_py"])
-    self.sigma_t.val = np.append(self.sigma_t.val, fdat["sigma_zeta"] / constants.speed_of_light)
-    self.mean_x.val = np.append(self.mean_x.val, fdat["mean_x"])
-    self.mean_y.val = np.append(self.mean_y.val, fdat["mean_y"])
     beta = np.sqrt(1 - (gamma**-2))
-    self.t.val = np.append(self.t.val, fdat["s"] / (beta * constants.speed_of_light))
-    self.sigma_z.val = np.append(self.sigma_z.val, fdat["sigma_zeta"])
-    self.sigma_cp.val = np.append(self.sigma_cp.val, fdat["sigma_delta"] * cp)
-    self.mean_cp.val = np.append(self.mean_cp.val, cp)
-    self.sigma_p.val = np.append(self.sigma_p.val, fdat["sigma_delta"])
-    self.mux.val = np.append(self.mux.val, fdat["mux"])
-    self.muy.val = np.append(self.muy.val, fdat["muy"])
-    self.eta_x.val = np.append(self.eta_x.val, fdat["dx"])
-    self.eta_xp.val = np.append(self.eta_xp.val, fdat["dpx"])
-    self.eta_y.val = np.append(self.eta_y.val, fdat["dy"])
-    self.eta_yp.val = np.append(self.eta_yp.val, fdat["dpy"])
-    self.element_name.val = np.append(self.element_name.val, fdat["name"])
-    self.lattice_name.val = np.append(
-        self.lattice_name.val, np.full(len(fdat["s"]), lattice_name)
+    self.append_columns(
+        len(fdat["s"]),
+        z=np.array(fdat["z"] if "z" in fdat else fdat["s"]),
+        s=np.array(fdat["s"]),
+        kinetic_energy=ke,
+        cp=cp,
+        gamma=gamma,
+        p=cp * self.q_over_c,
+        enx=fdat["emit_xn"],
+        ex=fdat["emit_xn"] / bg,
+        eny=fdat["emit_yn"],
+        ey=fdat["emit_yn"] / bg,
+        enz=0.0, ez=0.0, beta_z=0.0, gamma_z=0.0, alpha_z=0.0,
+        beta_x=fdat["betx"],
+        alpha_x=fdat["alfx"],
+        gamma_x=fdat["gamx"],
+        beta_y=fdat["bety"],
+        alpha_y=fdat["alfy"],
+        gamma_y=fdat["gamy"],
+        sigma_x=fdat["sigma_x"],
+        sigma_y=fdat["sigma_y"],
+        sigma_xp=fdat["sigma_px"],
+        sigma_yp=fdat["sigma_py"],
+        sigma_t=fdat["sigma_zeta"] / constants.speed_of_light,
+        mean_x=fdat["mean_x"],
+        mean_y=fdat["mean_y"],
+        t=fdat["s"] / (beta * constants.speed_of_light),
+        sigma_z=fdat["sigma_zeta"],
+        sigma_cp=fdat["sigma_delta"] * cp,
+        mean_cp=cp,
+        sigma_p=fdat["sigma_delta"],
+        mux=fdat["mux"],
+        muy=fdat["muy"],
+        eta_x=fdat["dx"],
+        eta_xp=fdat["dpx"],
+        eta_y=fdat["dy"],
+        eta_yp=fdat["dpy"],
+        element_name=fdat["name"],
+        lattice_name=lattice_name,
+        ecnx=fdat["emit_xn_corrected"] if "emit_xn_corrected" in fdat else fdat["emit_xn"],
+        ecny=fdat["emit_yn_corrected"] if "emit_yn_corrected" in fdat else fdat["emit_yn"],
+        eta_x_beam=fdat["dx"],
+        eta_xp_beam=fdat["dpx"],
+        eta_y_beam=fdat["dy"],
+        eta_yp_beam=fdat["dpy"],
+        beta_x_beam=fdat["betx"],
+        beta_y_beam=fdat["bety"],
+        alpha_x_beam=fdat["alfx"],
+        alpha_y_beam=fdat["alfy"],
     )
-    self.ecnx.val = np.append(
-        self.ecnx.val,
-        fdat["emit_xn_corrected"] if "emit_xn_corrected" in fdat else fdat["emit_xn"],
-    )
-    self.ecny.val = np.append(
-        self.ecny.val,
-        fdat["emit_yn_corrected"] if "emit_yn_corrected" in fdat else fdat["emit_yn"],
-    )
-    self.eta_x_beam.val = np.append(self.eta_x_beam.val, fdat["dx"])
-    self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, fdat["dpx"])
-    self.eta_y_beam.val = np.append(self.eta_y_beam.val, fdat["dy"])
-    self.eta_yp_beam.val = np.append(self.eta_yp_beam.val, fdat["dpy"])
-    self.beta_x_beam.val = np.append(self.beta_x_beam.val, fdat["betx"])
-    self.beta_y_beam.val = np.append(self.beta_y_beam.val, fdat["bety"])
-    self.alpha_x_beam.val = np.append(self.alpha_x_beam.val, fdat["alfx"])
-    self.alpha_y_beam.val = np.append(self.alpha_y_beam.val, fdat["alfy"])
-    # self.cp_eV = self.cp
-    # self.cp_eV = self.cp
-    # for k in self.__dict__.keys():
-    #     try:
-    #         if len(getattr(self, k)) < len(getattr(self, "z")):
-    #             self.append(k, np.zeros(len(fdat["s"])))
-    #     except Exception:
-    #         pass

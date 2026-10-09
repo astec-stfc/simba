@@ -96,24 +96,6 @@ class Particles(BaseModel):
         arbitrary_types_allowed=True,
     )
 
-    # properties = {
-    #     "x": "m",
-    #     "y": "m",
-    #     "z": "m",
-    #     "t": "s",
-    #     "px": "kg*m/s",
-    #     "py": "kg*m/s",
-    #     "pz": "kg*m/s",
-    #     "p": "kg*m/s",
-    #     "particle_mass": "kg",
-    #     "particle_rest_energy": "J",
-    #     "particle_rest_energy_eV": "eV/c",
-    #     "particle_charge": "C",
-    # }
-
-    # particle_mass = UnitValue(constants.m_e, "kg")
-    # E0 = UnitValue(particle_mass * constants.speed_of_light**2, "J")
-    # E0_eV = UnitValue(E0 / constants.elementary_charge, "eV/c")
     q_over_c: UnitValue = UnitValue(
         constants.elementary_charge / constants.speed_of_light, "C/c"
     )
@@ -221,15 +203,11 @@ class Particles(BaseModel):
         """
         if m == constants.m_e or (0.9 * constants.m_e) < m < (1.1 * constants.m_e):
             if self.sign(q) > 0:
-                # print('found positron')
                 return 2
-            # print('found electron')
             return 1
         elif m == constants.m_p or (0.9 * constants.m_p) < m < (1.1 * constants.m_p):
             if self.sign(q) > 0:
-                # print('found proton')
                 return 3
-            # print('found h-')
             return 4
         else:
             raise ValueError(f"Particle with mass {m} and charge {q} not supported")
@@ -237,21 +215,11 @@ class Particles(BaseModel):
     """ ********************  Statistical Parameters  ************************* """
 
     def __init__(self, *args, **kwargs):
-        super(Particles, self).__init__(*args, **kwargs)
-
-    #
-    # def __getitem__(self, key):
-    #     if isinstance(super(Particles, self).__getitem__(key), (list, tuple)):
-    #         return np.array(super(Particles, self).__getitem__(key))
-    #     else:
-    #         try:
-    #             return super(Particles, self).__getitem__(key)
-    #         except KeyError:
-    #             raise AttributeError(key)
+        super().__init__(*args, **kwargs)
 
     def model_dump(self, *args, **kwargs) -> Dict:
         # Only include computed fields
-        computed_keys = {f for f in self.__pydantic_decorators__.computed_fields.keys()}
+        computed_keys = set(self.__pydantic_decorators__.computed_fields)
         full_dump = super().model_dump(*args, **kwargs)
         mod_dump = {k: v for k, v in full_dump.items() if k in computed_keys}
         for col in ["x", "y", "z", "cpx", "cpy", "cpz"]:
@@ -431,9 +399,10 @@ class Particles(BaseModel):
         mask: int | np.ndarray | list
             Mask to apply
         """
-        prebeam = self.fullbeam
-        cutbeam = prebeam[mask, :]
-        self.fullbeam = cutbeam.T
+        n = len(self.x)
+        for key, value in self:
+            if isinstance(value, np.ndarray) and value.shape[:1] == (n,):
+                setattr(self, key, value[mask])
 
     @property
     def fullbeam(self) -> np.ndarray:
@@ -449,7 +418,7 @@ class Particles(BaseModel):
 
     @fullbeam.setter
     def fullbeam(self, beam):
-        self.x, self.y, self.z, self.px, self.py, self.pz, self.t, self.nmacro, self.charge = np.array(beam).T
+        self.x, self.y, self.z, self.px, self.py, self.pz = np.array(beam).T
 
     @property
     def particle_index(self) -> list:
@@ -787,10 +756,6 @@ class Particles(BaseModel):
         particle_q = q / (len(self.x))
         self.charge = UnitValue(np.full(len(self.x), particle_q), units="C")
 
-    # @property
-    # def sigma_z(self):
-    #     return self.rms(self.Bz*constants.speed_of_light*(self['t'] - np.mean(self['t'])))
-
     @property
     def kinetic_energy(self) -> UnitValue:
         """
@@ -802,16 +767,10 @@ class Particles(BaseModel):
             Kinetic energy of particles
         """
         if self.particle_rest_energy is None:
-            self.particle_rest_energy = self.particle_rest_energy_eV / constants.elementary_charge
-        return UnitValue(
-            np.array(
-                (
-                    np.sqrt(self.particle_rest_energy**2 + self.cp**2)
-                    - self.particle_rest_energy**2
-                )
-            ),
-            "J",
-        )
+            self.particle_rest_energy = self.particle_rest_energy_eV * constants.elementary_charge
+        E0 = np.array(self.particle_rest_energy)
+        cp = np.array(self.cp) * constants.elementary_charge
+        return UnitValue(np.sqrt(E0**2 + cp**2) - E0, "J")
 
     @property
     def mean_energy(self) -> UnitValue:
@@ -1056,7 +1015,6 @@ class Particles(BaseModel):
             xslice, xpslice, self.x, self.xp, beta, alpha, nEmit
         )
         self.x = UnitValue(x, "m")
-        # self.xp = xp
 
         cpz = self.cp / np.sqrt(xp**2 + self.yp**2 + 1)
         cpx = xp * cpz
@@ -1091,7 +1049,6 @@ class Particles(BaseModel):
             yslice, ypslice, self.y, self.yp, beta, alpha, nEmit
         )
         self.y = UnitValue(y, "m")
-        # self.yp = yp
 
         cpz = self.cp / np.sqrt(self.xp**2 + yp**2 + 1)
         cpx = self.xp * cpz

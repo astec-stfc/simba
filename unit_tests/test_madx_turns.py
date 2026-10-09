@@ -1,6 +1,6 @@
 """MAD-X multi-turn tracking: is a simba-side turn loop the same tracking?"""
 
-import os
+import contextlib
 
 import numpy as np
 import pytest
@@ -16,7 +16,7 @@ BEAM, PARTICLE=ELECTRON, PC=1.0;
 USE, SEQUENCE=RING;
 """
 
-START = dict(x=1e-4, px=0.0, y=5e-5, py=0.0, t=0.0, pt=0.0)
+START = {"x": 1e-4, "px": 0.0, "y": 5e-5, "py": 0.0, "t": 0.0, "pt": 0.0}
 TURNS = 12
 KEYS = ("x", "px", "y", "py", "pt")
 
@@ -29,10 +29,8 @@ def _run_somewhere_disposable(tmp_path_factory):
     Module-scoped to match ``both``: a function-scoped fixture is not applied
     when a module-scoped one does the work, which is how the stray file got
     into the repository in the first place."""
-    previous = os.getcwd()
-    os.chdir(tmp_path_factory.mktemp("madx"))
-    yield
-    os.chdir(previous)
+    with contextlib.chdir(tmp_path_factory.mktemp("madx")):
+        yield
 
 
 def thin_ring():

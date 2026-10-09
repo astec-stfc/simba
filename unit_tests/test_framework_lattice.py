@@ -12,7 +12,7 @@ from simba.Codes.ASTRA.ASTRA import astraLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Twiss.astra import read_s_offset
 from simba.Modules.units import UnitValue
-from laura.models.element import Quadrupole, Marker, Element, PhysicalBaseElement
+from laura.models.element import Quadrupole, Element, PhysicalBaseElement
 from laura.models.physical import PhysicalElement
 
 @pytest.fixture

@@ -5,23 +5,7 @@ from ocelot.cpbd.beam import ParticleArray
 
 
 def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None):
-    self._beam.particle_mass = UnitValue(
-        np.full(len(parray.x()), constants.m_e),
-        units="kg",
-    )
-    self._beam.particle_charge = UnitValue(parray.q_array, units="C")
-    self._beam.particle_mass = UnitValue(
-        np.full(len(parray.x()), constants.m_e), units="kg"
-    )
-    self._beam.particle_rest_energy = UnitValue(
-        (self._beam.particle_mass * constants.speed_of_light**2),
-        units="J",
-    )
-    self._beam.particle_rest_energy_eV = UnitValue(
-        (self._beam.particle_rest_energy / constants.elementary_charge),
-        units="eV/c",
-    )
-    # self._beam.gamma = UnitValue(parray.gamma)
+    self.set_mass_and_charge(constants.m_e, parray.q_array, len(parray.x()))
     self._beam.x = UnitValue(parray.x(), units="m")
     self._beam.y = UnitValue(parray.y(), units="m")
     if t_reference is None:
@@ -29,40 +13,17 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_refere
     self._beam.t = UnitValue(
         t_reference + parray.tau() / constants.speed_of_light, units="s"
     )
-    # self._beam.p = UnitValue(parray.energies, units="eV/c")
     cp = np.sqrt((parray.energies * 1e9) ** 2 - self.E0_eV**2)
     p0c = np.sqrt((parray.E * 1e9) ** 2 - self.E0_eV**2)
     cpx = parray.px() * p0c
     cpy = parray.py() * p0c
-    self._beam.px = UnitValue(cpx * self.q_over_c, units="kg*m/s")
-    self._beam.py = UnitValue(cpy * self.q_over_c, units="kg*m/s")
-    self._beam.pz = UnitValue(
-        self.q_over_c * np.sqrt(cp**2 - cpx**2 - cpy**2), units="kg*m/s"
-    )
+    cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
+    self.set_momenta(cpx, cpy, cpz)
     self._beam.set_total_charge(-1 * abs(np.sum(parray.q_array)))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 
-    if ref_index is not None:
-        self.reference_particle_index = int(ref_index)
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - self._beam.t[self.reference_particle_index]),
-            units="m",
-        )
-        self.reference_particle = [
-            getattr(self._beam, coord)[self.reference_particle_index]
-            for coord in self.reference_particle_coords
-        ]
-    else:
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - np.mean(self._beam.t)),
-            units="m",
-        )
-        self.reference_particle = None
+    self.set_z_from_t(zstart, ref_index)
     self._beam.s = UnitValue(s, units="m")
 
 

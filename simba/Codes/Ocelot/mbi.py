@@ -3,9 +3,9 @@
 Created on 09.12.2024
 """
 
-from ocelot.common.globals import *
-from ocelot.cpbd.elements import *
-from ocelot.cpbd.coord_transform import *
+import numpy as np
+from ocelot.common.globals import I_Alfven, Z0, m_e_MeV, q_e, speed_of_light
+from ocelot.cpbd.elements import Bend, RBend, SBend
 from ocelot.cpbd.beam import ParticleArray
 from scipy.special import kv, iv
 from ocelot.cpbd.physics_proc import PhysProc
@@ -42,7 +42,6 @@ def lattice_transfer_map_z(lattice, energy, zfin):
     while zfin > L:
         for Rb, Bb, Tb, tm in zip(elem.R(E), elem.B(E), elem.T(E), elem.tms):
             Ba, Ra, Ta = transfer_maps_mult(Ba, Ra, Ta, Bb, Rb, Tb)
-            # Ba = np.dot(Rb, Ba) + Bb
             E += tm.get_delta_e()
         i += 1
         elem = lattice.sequence[i]
@@ -143,7 +142,6 @@ class MBI(PhysProc):
         self.first = True
         self.lamb_range = lamb_range
         self.slice = int(slices)
-        # self.lattice = None
         self.dist = []
         self.bf = [[] for i in range(len(self.lamb_range))]
         self.pf = [[] for i in range(len(self.lamb_range))]
@@ -321,17 +319,11 @@ class MBI(PhysProc):
                         else (slice_params[j]["s"] - slice_params[j - 1]["s"])
                     )
                     k0, k1, k2 = self.kernels(l, slice_params, optics_map, j, elem)
-                    k0r = (
-                        distance * fac * k0
-                    )  # self.kernel_K0(l, slice_params, optics_map, j, elem)
+                    k0r = distance * fac * k0
                     k0tot.append(abs((k0r.real * b) + (k0r.imag * b)))
-                    k1r = (
-                        distance * fac * k1
-                    )  # self.kernel_K1(l, slice_params, optics_map, j, elem)
+                    k1r = distance * fac * k1
                     k1tot.append(abs((k1r.real * b) + (k1r.imag * b)))
-                    k2r = (
-                        distance * fac * k2
-                    )  # self.kernel_K2(l, slice_params, optics_map, j, elem)
+                    k2r = distance * fac * k2
                     k2tot.append(abs((k2r.real * b) + (k2r.imag * b)))
                     k2tot[-1] *= slice_params[j]["sdelta"] ** 2
                     k0tot[-1] *= self.bf[i][j]
@@ -360,7 +352,7 @@ class MBI(PhysProc):
         """
         for h in range(slices):
             cur_init = slice_params[h][0]["I"]
-            sli = [x for x in slice_params[h]]
+            sli = list(slice_params[h])
             for i, l in enumerate(lamb_range):
                 ld_0s = self.ld0s(l, sli, optics_map)
                 cur_now = sli[-1]["I"]
@@ -380,17 +372,11 @@ class MBI(PhysProc):
                             sli[-1]["s"] if j == 0 else (sli[j]["s"] - sli[j - 1]["s"])
                         )
                         k0, k1, k2 = self.kernels(l, sli, optics_map, j, elem)
-                        k0r = (
-                            distance * fac * k0
-                        )  # self.kernel_K0(l, sli, optics_map, j, elem)
+                        k0r = distance * fac * k0
                         k0tot.append(abs((k0r.real * b) + (k0r.imag * b)))
-                        k1r = (
-                            distance * fac * k1
-                        )  # self.kernel_K1(l, sli, optics_map, j, elem)
+                        k1r = distance * fac * k1
                         k1tot.append(abs((k1r.real * b) + (k1r.imag * b)))
-                        k2r = (
-                            distance * fac * k2
-                        )  # self.kernel_K2(l, sli, optics_map, j, elem)
+                        k2r = distance * fac * k2
                         k2tot.append(abs((k2r.real * b) + (k2r.imag * b)))
                     self.bf[h][i][-1] += np.nansum(k1tot)
         return [self.bf, self.pf]
@@ -489,8 +475,7 @@ class MBI(PhysProc):
             + (eyobeta * r54)
             + ((sigd**2) * r56)
         )
-        result = np.exp(kfac * exponent)
-        return result
+        return np.exp(kfac * exponent)
 
     def r56taus(self, optics_map: list, i1: int) -> float:
         """
@@ -521,13 +506,12 @@ class MBI(PhysProc):
             + (r53tau * r54s)
             - (r53s * r54tau)
         )
-        # return [r56s, r56tau, r51tau, r52s, r51s, r52tau, r53tau, r54s, r53s, r54tau]
 
     def kernels(
         self, lamb: float, slice_params: list, optics_map: list, i1: int, elem: Element
     ) -> list:
         """
-        Kernels (Eq. (A17a + b))
+        Kernels K0, K1, K2 (Eqs. (A17a-c))
 
         :param lamb: initial modulation wavelength [m]
         :param slice_params: list of dicts containing beam slice properties
@@ -553,85 +537,6 @@ class MBI(PhysProc):
         k2 = k0 * (kfac * r56fac) ** 2
         return [k0, k1, k2]
 
-    def kernel_K0(
-        self, lamb: float, slice_params: list, optics_map: list, i1: int, elem: Element
-    ) -> float:
-        """
-        Kernel K0 (Eq. (A17a))
-
-        :param lamb: initial modulation wavelength [m]
-        :param slice_params: list of dicts containing beam slice properties
-        :param optics_map: list of first-order transfer matrices
-        :param i1: index from which to calculate
-        :param elem: `Ocelot element`_ at the current position
-
-        :return: K0
-        """
-        currentfac = slice_params[i1]["I"] / ((slice_params[i1]["gamma"]) * I_Alfven)
-        compfac = slice_params[i1]["I"] / slice_params[0]["I"]
-        lamb_compressed = lamb / compfac
-        impedancefac = (
-            self.lscimpedance(lamb_compressed, slice_params, i1) if self.lsc else 0
-        )
-        if self.csr and (elem.__class__ in [RBend, SBend, Bend]):
-            impedancefac += self.csrimpedance(lamb_compressed, elem)
-        ldfac = self.ldtaus(lamb_compressed, slice_params, optics_map, i1)
-        return currentfac * impedancefac * ldfac
-
-    def kernel_K1(
-        self, lamb: float, slice_params: list, optics_map: list, i1: int, elem: Element
-    ) -> float:
-        """
-        Kernel K1 (Eq. (A17b))
-
-        :param lamb: initial modulation wavelength [m]
-        :param slice_params: list of dicts containing beam slice properties
-        :param optics_map: list of first-order transfer matrices
-        :param i1: index from which to calculate
-        :param elem: `Ocelot element`_ at the current position
-
-        :return: K1
-        """
-        currentfac = slice_params[i1]["I"] / ((slice_params[i1]["gamma"]) * I_Alfven)
-        compfac = slice_params[i1]["I"] / slice_params[0]["I"]
-        lamb_compressed = lamb / compfac
-        kfac = k_wn(lamb_compressed)
-        impedancefac = (
-            self.lscimpedance(lamb_compressed, slice_params, i1) if self.lsc else 0
-        )
-        if self.csr and (elem.__class__ in [RBend, SBend, Bend]):
-            impedancefac += self.csrimpedance(lamb_compressed, elem)
-        ldfac = self.ldtaus(lamb_compressed, slice_params, optics_map, i1)
-        r56fac = self.r56taus(optics_map, i1)
-        return currentfac * kfac * r56fac * impedancefac * ldfac
-
-    def kernel_K2(
-        self, lamb: float, slice_params: list, optics_map: list, i1: int, elem: Element
-    ) -> float:
-        """
-        Kernel K2 (Eq. (A17c))
-
-        :param lamb: initial modulation wavelength [m]
-        :param slice_params: list of dicts containing beam slice properties
-        :param optics_map: list of first-order transfer matrices
-        :param i1: index from which to calculate
-        :param elem: `Ocelot element`_ at the current position
-
-        :return: K2
-        """
-        currentfac = slice_params[i1]["I"] / ((slice_params[i1]["gamma"]) * I_Alfven)
-        compfac = slice_params[i1]["I"] / slice_params[0]["I"]
-        lamb_compressed = lamb / compfac
-        kfac = k_wn(lamb_compressed) ** 2
-        impedancefac = (
-            self.lscimpedance(lamb_compressed, slice_params, i1) if self.lsc else 0
-        )
-        if self.csr and (elem.__class__ in [RBend, SBend, Bend]):
-            impedancefac += self.csrimpedance(lamb_compressed, elem)
-        ldfac = self.ldtaus(lamb_compressed, slice_params, optics_map, i1)
-        r56fac = self.r56taus(optics_map, i1) ** 2
-        return currentfac * kfac * r56fac * impedancefac * ldfac
-
     def lscimpedance(self, lamb: float, slice_params: list, i1: int) -> float:
         """
         LSC impedance (Eq. (52), although here we use a function from PRAB. 23, 014403 (Eq. 26))
@@ -646,12 +551,6 @@ class MBI(PhysProc):
         rb = 0.8375 * (slice_params[i1]["sig_x"] + slice_params[i1]["sig_y"])
         gamma = slice_params[i1]["gamma"]
         xib = kz * rb / gamma
-        besselfac = kv(1, xib)
-        # initfac = (1j * constant.Z0) / (np.pi * gamma * rb)
-        # initfac = (4j) / (gamma * rb)
-        # lscfac = (1 - (xib * besselfac)) / xib
-        # return 1j * (Z0 / (np.pi * kz * (rb ** 2))) * (1 - (xib * scipy.special.kv(1, xib)))
-        # return initfac * lscfac
         return (
             1j
             * (Z0 / (np.pi * gamma * rb))
@@ -671,9 +570,9 @@ class MBI(PhysProc):
         if not hasattr(elem, "angle"):
             return 0
         else:
-            if elem.angle < 1e-10:
+            if abs(elem.angle) < 1e-10:
                 return 0
             else:
                 kz = k_wn(lamb)
-                bendradius = elem.l / elem.angle
+                bendradius = elem.l / abs(elem.angle)
                 return -1j * A_csr * (kz ** (1 / 3)) / (bendradius ** (2 / 3))

@@ -33,8 +33,8 @@ from warnings import warn
 import numpy as np
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
-from typing import ClassVar, Dict, List, Any, Tuple
-from pydantic import Field, field_validator, ConfigDict
+from typing import ClassVar, Dict, Any
+from pydantic import Field, ConfigDict
 
 from ...Framework_objects import frameworkLattice, global_error
 from ...FrameworkHelperFunctions import expand_substitution, saveFile
@@ -231,7 +231,6 @@ class astraLattice(frameworkLattice):
                 **error_settings,
             )
         self.astra_headers = self.section.astra_headers
-        # print 'errors = ', self.file_block, self.headers['global_errors']
 
     @property
     def space_charge_mode(self) -> str:
@@ -279,7 +278,6 @@ class astraLattice(frameworkLattice):
         charge: float
             Bunch charge in coulombs
         """
-        # print('Setting new ASTRA sample_interval = ', interval)
         self._bunch_charge = charge
         self.astra_headers["newrun"].bunch_charge = charge
 
@@ -305,7 +303,6 @@ class astraLattice(frameworkLattice):
         toffset: float
             The time offset in seconds
         """
-        # print('Setting new ASTRA sample_interval = ', interval)
         self._toffset = toffset
         self.astra_headers["newrun"].toffset = 1e9 * toffset
 
@@ -426,11 +423,7 @@ class astraLattice(frameworkLattice):
         int
             The scaling factor depending on the `master_run_no` parameter
         """
-        master_run_no = (
-            self.global_parameters["run_no"]
-            if "run_no" in self.global_parameters
-            else 1
-        )
+        master_run_no = self.global_parameters.get("run_no", 1)
         for mult in [100, 1000, 10]:
             foundscreens = [
                 self.find_ASTRA_filename(self.objectname, e, master_run_no, mult)
@@ -537,11 +530,7 @@ class astraLattice(frameworkLattice):
         sval: float
             S-position of beam
         """
-        master_run_no = (
-            self.global_parameters["run_no"]
-            if "run_no" in self.global_parameters
-            else 1
-        )
+        master_run_no = self.global_parameters.get("run_no", 1)
         astrabeamfilename = self.find_ASTRA_filename(lattice, scr, master_run_no, mult)
         if astrabeamfilename is None:
             warn(f"Screen Error: {lattice}, {scr.physical.middle.z}, {astrabeamfilename}")

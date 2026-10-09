@@ -33,9 +33,7 @@ def read_particle_group(self, particles, s=None, reference_particle_index=None):
     self._beam.y = UnitValue(particles.y, units="m")
     self._beam.t = UnitValue(particles.t, units="s")
     self._beam.z = UnitValue(particles.z, units="m")
-    self._beam.px = UnitValue(particles.px * self.q_over_c, units="kg*m/s")
-    self._beam.py = UnitValue(particles.py * self.q_over_c, units="kg*m/s")
-    self._beam.pz = UnitValue(particles.pz * self.q_over_c, units="kg*m/s")
+    self.set_momenta(particles.px, particles.py, particles.pz)
     self._beam.charge = UnitValue(particles.weight, units="C")
     self._beam.total_charge = UnitValue(particles.charge, units="C")
     self._beam.nmacro = UnitValue(particles.weight / constants.elementary_charge)
@@ -171,4 +169,3 @@ def write_openpmd_reference_particle(self, h5: File):
     for i, coord in enumerate(openpmd_coords):
         h5file_reference_particle[coord] = UnitValue(ref_particle[i])
     h5file_reference_particle['index'] = int(self.reference_particle_index)
-    # print(f"OpenPMD Saving reference particle idx = {self.reference_particle_index} z = {self.reference_particle[2]}")

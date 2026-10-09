@@ -1,4 +1,3 @@
-import os
 import math
 import warnings
 import numpy as np
@@ -16,10 +15,7 @@ try:
     use_naff = True
 except ImportError:  # optional: `tune_from_trajectory` falls back to an FFT
     use_naff = False
-from .. import constants
 import munch
-import glob
-from . import hdf5
 from . import elegant
 
 from ..units import UnitValue
@@ -224,14 +220,13 @@ def tune_diffusion(x, px, y, py, twiss=None) -> tuple:
     if half < 8:
         return (float("nan"), float("nan"), float("nan"))
     first, second = slice(0, half), slice(half, 2 * half)
-    tunes = []
-    for window in (first, second):
-        tunes.append(
-            (
-                tune_from_trajectory(arrays[0][window], arrays[1][window]),
-                tune_from_trajectory(arrays[2][window], arrays[3][window]),
-            )
+    tunes = [
+        (
+            tune_from_trajectory(arrays[0][window], arrays[1][window]),
+            tune_from_trajectory(arrays[2][window], arrays[3][window]),
         )
+        for window in (first, second)
+    ]
     (qx1, qy1), (qx2, qy2) = tunes
     if any(math.isnan(q) for q in (qx1, qy1, qx2, qy2)):
         return (float("nan"), float("nan"), float("nan"))
@@ -417,7 +412,6 @@ class matrices(munch.Munch):
 
     def __init__(self):
         super().__init__()
-        # self.reset_dicts()
         self.sddsindex = 0
         self._cumulative = {}
         self.codes = {
@@ -430,13 +424,8 @@ class matrices(munch.Munch):
             warnings.simplefilter("ignore")
             return elegant.read_elegant_matrix_files(self, *args, **kwargs)
 
-    # def save_HDF5_twiss_file(self, *args, **kwargs):
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         return hdf5.write_HDF5_twiss_file(self, *args, **kwargs)
-
     def __repr__(self):
-        return repr([k for k in self.keys()])
+        return repr(list(self.keys()))
 
     def units(self, key):
         if key in self:
@@ -449,7 +438,7 @@ class matrices(munch.Munch):
         self[array] = [UnitValue(data, units=units)]
 
     def _which_code(self, name):
-        if name.lower() in self.codes.keys():
+        if name.lower() in self.codes:
             return self.codes[name.lower()]
         return None
 
@@ -479,11 +468,7 @@ class matrices(munch.Munch):
         return [self.generate_R_matrix(i) for i in range(len(self.R11))]
 
     def flatten1(self, arr):
-        newarr = []
-        for ar in arr:
-            for a in ar:
-                newarr.append(a)
-        return newarr
+        return [a for ar in arr for a in ar]
 
     def cumulativeR(self, combined=False):
         cR = []
@@ -512,36 +497,14 @@ class matrices(munch.Munch):
     def individualR(self):
         iR = []
         for i in range(len(self.R11)):
-            if self._cumulative:
+            if self._cumulative[i]:
                 element_matrices = []
                 reduce(
                     lambda A, b: self.matrixsolve(A, b, element_matrices),
                     self.R[i],
                     np.identity(6),
                 )
-                element_dict = dict()
                 iR.append(element_matrices)
             else:
                 iR.append(self.R[i])
         return iR
-
-
-# def load_directory(directory='.', types={'elegant':'.twi', 'GPT': 'emit.gdf','ASTRA': 'Xemit.001'}, preglob='*', verbose=False, sortkey='z'):
-#     t = twiss()
-#     if verbose:
-#         print('Directory:',directory)
-#     for code, string in types.items():
-#         twiss_files = glob.glob(directory+'/'+preglob+string)
-#         if verbose:
-#             print(code, [os.path.basename(t) for t in twiss_files])
-#         if t._which_code(code) is not None and len(twiss_files) > 0:
-#             t._which_code(code)(t, twiss_files, reset=False)
-#     t.sort(key=sortkey)
-#     return t
-#
-# def load_file(filename, *args, **kwargs):
-#     twissobject = twiss()
-#     code = twissobject._determine_code(filename)
-#     if code is not None:
-#         code(twissobject, filename, reset=False)
-#     return twissobject

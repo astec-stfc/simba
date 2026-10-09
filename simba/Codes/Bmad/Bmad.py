@@ -16,7 +16,7 @@ Classes:
 
 """
 
-import os
+import contextlib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar
@@ -400,34 +400,16 @@ class bmadLattice(frameworkLattice):
         list
             ``(x, y, tune_x, tune_y, diffusion)`` per surviving grid point.
         """
-        from ...Modules.Matrices import tune_diffusion
-
         points = self._grid_points()
         tracks = self._track_grid_turn_by_turn()
         if not tracks:
             return []
-        twiss = self.normalisation_twiss()
-        footprint = []
-        for index, (x, y) in enumerate(points):
-            if index >= len(tracks["x"]):
-                continue
-            tune_x, tune_y, diffusion = tune_diffusion(
-                tracks["x"][index],
-                tracks["px"][index],
-                tracks["y"][index],
-                tracks["py"][index],
-                twiss=twiss,
-            )
-            if np.isnan(tune_x):
-                continue
-            footprint.append((x, y, tune_x, tune_y, diffusion))
-        if not footprint:
-            warn(
-                f"Line '{self.objectname}': no particle gave a tune in the "
-                "frequency-map scan."
-            )
-        self.frequency_map = footprint
-        return footprint
+        return self._footprint(
+            (x, y, tracks["x"][i], tracks["px"][i], tracks["y"][i], tracks["py"][i])
+            for i, (x, y) in enumerate(points)
+            # a lost particle keeps its coordinates where it was lost
+            if i < len(tracks["x"]) and np.all(tracks["state"][i] == self._ALIVE)
+        )
 
     def _grid_points(self) -> list:
         """``(x, y)`` of the scan grid, in the order the beam file holds."""
@@ -442,7 +424,7 @@ class bmadLattice(frameworkLattice):
         Returns
         -------
         dict
-            ``x``/``px``/``y``/``py``, each ``n_particles x turns``. Empty
+            ``x``/``px``/``y``/``py``/``state``, each ``n_particles x turns``. Empty
             if Tao could not be driven.
         """
         if self.tao is None:
@@ -451,40 +433,36 @@ class bmadLattice(frameworkLattice):
                 "can be tracked."
             )
             return {}
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
-        history = {name: [] for name in ("x", "px", "y", "py")}
+        history = {name: [] for name in ("x", "px", "y", "py", "state")}
         try:
-            os.chdir(working_directory)
-            grid_file = str(Path(self.lattice_file).with_suffix(".fma.beam"))
-            self._write_grid_beam_file(grid_file)
-            self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
-            self.tao.cmd("set beam add_saved_at = END")
-            self.tao.cmd("set global track_type = beam", raises=False)
-            for turn in range(1, self.turns + 1):
-                self.apply_programs(turn)
-                self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-                bunch = {
-                    name: np.asarray(
-                        self.tao.bunch1(
-                            "END", coordinate=name, which="model", ix_bunch=1
-                        )
-                    )
-                    for name in self._PHASE_SPACE + ("state",)
-                }
-                for name in history:
-                    history[name].append(bunch[name])
-                self._write_position_file(
-                    grid_file,
-                    np.column_stack([bunch[name] for name in self._PHASE_SPACE]),
-                    states=bunch["state"],
-                )
+            with contextlib.chdir(Path(self.lattice_file).parent):
+                grid_file = str(Path(self.lattice_file).with_suffix(".fma.beam"))
+                self._write_grid_beam_file(grid_file)
                 self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
+                self.tao.cmd("set beam add_saved_at = END")
+                self.tao.cmd("set global track_type = beam", raises=False)
+                for turn in range(1, self.turns + 1):
+                    self.apply_programs(turn)
+                    self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+                    bunch = {
+                        name: np.asarray(
+                            self.tao.bunch1(
+                                "END", coordinate=name, which="model", ix_bunch=1
+                            )
+                        )
+                        for name in self._PHASE_SPACE + ("state",)
+                    }
+                    for name in history:
+                        history[name].append(bunch[name])
+                    self._write_position_file(
+                        grid_file,
+                        np.column_stack([bunch[name] for name in self._PHASE_SPACE]),
+                        states=bunch["state"],
+                    )
+                    self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
         except Exception as error:
             warn(f"Tao turn-by-turn tracking failed for {self.objectname}: {error}")
             return {}
-        finally:
-            os.chdir(previous_directory)
         return {name: np.asarray(values).T for name, values in history.items()}
 
     def apply_programs(self, turn: int) -> None:
@@ -581,17 +559,13 @@ class bmadLattice(frameworkLattice):
                 "dynamic-aperture scan can be read."
             )
             return []
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
         try:
-            os.chdir(working_directory)
-            self.tao.cmd("set universe 1 dynamic_aperture_calc on")
-            rows = self.tao.cmd("pipe da_aperture")
+            with contextlib.chdir(Path(self.lattice_file).parent):
+                self.tao.cmd("set universe 1 dynamic_aperture_calc on")
+                rows = self.tao.cmd("pipe da_aperture")
         except Exception as error:
             warn(f"Tao dynamic aperture failed for {self.objectname}: {error}")
             return []
-        finally:
-            os.chdir(previous_directory)
         aperture = []
         for row in rows:
             fields = str(row).split(";")
@@ -690,10 +664,7 @@ class bmadLattice(frameworkLattice):
             )
         from pytao import Tao
 
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
-        try:
-            os.chdir(working_directory)
+        with contextlib.chdir(Path(self.lattice_file).parent):
             self.tao = Tao(
                 init_file=Path(self.tao_init_file).name,
                 lattice_file=Path(self.lattice_file).name,
@@ -702,8 +673,6 @@ class bmadLattice(frameworkLattice):
                 noplot=True,
             )
             self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-        finally:
-            os.chdir(previous_directory)
 
     def _particles_at(self, element: str, zstart: float = 0) -> tuple:
         """
@@ -801,25 +770,21 @@ class bmadLattice(frameworkLattice):
         """Tao's ``orbit.vec.N`` at the start of the lattice."""
         if self.tao is None:
             return None
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
         try:
-            os.chdir(working_directory)
-            values = [
-                float(
-                    str(
-                        self.tao.cmd(
-                            f"pipe lat_list 1@0>>BEGINNING|model orbit.vec.{i}"
-                        )[0]
-                    ).strip()
-                )
-                for i in range(1, 7)
-            ]
+            with contextlib.chdir(Path(self.lattice_file).parent):
+                values = [
+                    float(
+                        str(
+                            self.tao.cmd(
+                                f"pipe lat_list 1@0>>BEGINNING|model orbit.vec.{i}"
+                            )[0]
+                        ).strip()
+                    )
+                    for i in range(1, 7)
+                ]
         except Exception as error:
             warn(f"Tao closed orbit unavailable for {self.objectname}: {error}")
             return None
-        finally:
-            os.chdir(previous_directory)
         return np.array(values)
 
     def read_optics_summary(self) -> dict:
@@ -832,40 +797,36 @@ class bmadLattice(frameworkLattice):
         """
         if self.tao is None:
             return {}
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
         summary = {}
         try:
-            os.chdir(working_directory)
-            for plane, tune in self._tao_tunes().items():
-                summary[f"tune_{plane}_total"] = tune
-            delta = self.chromaticity_delta
-            rf_on = next(
-                (
-                    line.split(";")[2]
-                    for line in self.tao.cmd("pipe global")
-                    if line.startswith("rf_on;")
-                ),
-                "T",
-            )
-            try:
-                self.tao.cmd("set global rf_on = F")
-                self.tao.cmd(f"set particle_start pz = {delta}")
-                plus = self._tao_tunes()
-                self.tao.cmd(f"set particle_start pz = {-delta}")
-                minus = self._tao_tunes()
-            finally:
-                self.tao.cmd("set particle_start pz = 0")
-                self.tao.cmd(f"set global rf_on = {rf_on}")
-            for plane in ("x", "y"):
-                if plane in plus and plane in minus:
-                    summary[f"chromaticity_{plane}"] = (
-                        plus[plane] - minus[plane]
-                    ) / (2 * delta)
+            with contextlib.chdir(Path(self.lattice_file).parent):
+                for plane, tune in self._tao_tunes().items():
+                    summary[f"tune_{plane}_total"] = tune
+                delta = self.chromaticity_delta
+                rf_on = next(
+                    (
+                        line.split(";")[2]
+                        for line in self.tao.cmd("pipe global")
+                        if line.startswith("rf_on;")
+                    ),
+                    "T",
+                )
+                try:
+                    self.tao.cmd("set global rf_on = F")
+                    self.tao.cmd(f"set particle_start pz = {delta}")
+                    plus = self._tao_tunes()
+                    self.tao.cmd(f"set particle_start pz = {-delta}")
+                    minus = self._tao_tunes()
+                finally:
+                    self.tao.cmd("set particle_start pz = 0")
+                    self.tao.cmd(f"set global rf_on = {rf_on}")
+                for plane in ("x", "y"):
+                    if plane in plus and plane in minus:
+                        summary[f"chromaticity_{plane}"] = (
+                            plus[plane] - minus[plane]
+                        ) / (2 * delta)
         except Exception as error:
             warn(f"Tao optics summary unavailable for {self.objectname}: {error}")
-        finally:
-            os.chdir(previous_directory)
         return summary
 
     def read_one_turn_map(self):
@@ -883,13 +844,8 @@ class bmadLattice(frameworkLattice):
         """
         if self.tao is None:
             return None
-        working_directory = Path(self.lattice_file).parent
-        previous_directory = Path.cwd()
-        try:
-            os.chdir(working_directory)
+        with contextlib.chdir(Path(self.lattice_file).parent):
             result = self.tao.matrix("BEGINNING", "BEGINNING")
-        finally:
-            os.chdir(previous_directory)
         mat6 = (result or {}).get("mat6")
         return None if mat6 is None else np.asarray(mat6, dtype=float)
 

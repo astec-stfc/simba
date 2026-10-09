@@ -3,7 +3,7 @@
 import math
 import os
 import tempfile
-from functools import lru_cache
+from functools import cache
 
 import numpy as np
 import pytest
@@ -27,7 +27,7 @@ CIRCUMFERENCE = NCELL * (2 * QUAD_L + BEND_L + 3 * DRIFT_L)
 GAMMA0 = math.sqrt(1 + (PC / MC2) ** 2)
 
 
-@lru_cache(maxsize=None)
+@cache
 def xsuite_ring():
     xt = pytest.importorskip("xtrack")
     els, nms = [], []
@@ -52,7 +52,7 @@ def xsuite_ring():
     return matrix, tw
 
 
-@lru_cache(maxsize=None)
+@cache
 def ocelot_ring():
     oc = pytest.importorskip("ocelot.cpbd.elements")
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
@@ -75,7 +75,7 @@ def ocelot_ring():
     return matrix, ocelot_twiss(lattice, tws0=None), lattice
 
 
-@lru_cache(maxsize=None)
+@cache
 def madx_ring():
     madx_module = pytest.importorskip("cpymad.madx")
     madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
@@ -114,7 +114,7 @@ def madx_ring():
 BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
 
 
-@lru_cache(maxsize=None)
+@cache
 def bmad_ring():
     """The same ring through Tao, with chromaticity by finite difference --
     the definition, rather than an analytic integral."""

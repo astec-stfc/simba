@@ -15,19 +15,19 @@ Classes:
 
 from ...Framework_objects import frameworkLattice, getGrids
 from ...Modules.Fields import field
+from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from .cavitymaps import stable_cavity_maps
 from .latticefile import fast_lattice_files
 from copy import deepcopy
 from inspect import signature
-from numpy import array, linspace, save, interp, searchsorted, clip, mean, pi, sqrt
+from numpy import array, linspace, save, interp, searchsorted, clip, pi, sqrt
 import os
 from yaml import safe_load
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/ocelot_defaults.yaml",
-    "r",
 ) as infile:
     oceglobal = safe_load(infile)
 from lox.worker.thread import ScatterGatherDescriptor
@@ -216,6 +216,8 @@ class ocelotLattice(frameworkLattice):
                 setattr(self, f, self.oceglobal[f])
             elif f in self.file_block:
                 setattr(self, f, self.file_block[f])
+            elif f in oceglobal:
+                setattr(self, f, oceglobal[f])
         self.particle_definition = self.input_particle_definition
         self.grids = getGrids()
 
@@ -555,9 +557,8 @@ class ocelotLattice(frameworkLattice):
         """
         Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
         """
-        from ocelot.cpbd.io import save_particle_array
         super().postProcess()
-        twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
+        twsdat = {e: [] for e in self.tws[0].__dict__}
         for t in self.tws:
             for k, v in t.__dict__.items():
                 # Offset the s values to the start of the lattice
@@ -603,38 +604,15 @@ class ocelotLattice(frameworkLattice):
         """
         from ocelot.cpbd.track import create_track_list
 
-        import math
-
-        from ...Modules.Matrices import tune_diffusion
-
         xs, ys = self.da_grid()
         energy_gev = self.reference_energy / 1e9
         track_list = create_track_list(xs, ys, [0.0], energy=energy_gev)
         track_list = self._track_nturns(track_list, save_track=True)
-        twiss = self.normalisation_twiss()
-        footprint = []
-        for particle in track_list:
-            if particle.turn < self.turns - 1:
-                continue
-            tune_x, tune_y, diffusion = tune_diffusion(
-                [p[0] for p in particle.p_list],
-                [p[1] for p in particle.p_list],
-                [p[2] for p in particle.p_list],
-                [p[3] for p in particle.p_list],
-                twiss=twiss,
-            )
-            if math.isnan(tune_x):
-                continue
-            footprint.append(
-                (float(particle.x), float(particle.y), tune_x, tune_y, diffusion)
-            )
-        if not footprint:
-            warn(
-                f"Line '{self.objectname}': no particle survived the "
-                "frequency-map scan, so there is no footprint."
-            )
-        self.frequency_map = footprint
-        return footprint
+        return self._footprint(
+            (particle.x, particle.y, *([p[k] for p in particle.p_list] for k in range(4)))
+            for particle in track_list
+            if particle.turn >= self.turns - 1
+        )
 
     def run_dynamic_aperture(self) -> list:
         """
@@ -777,7 +755,6 @@ class ocelotLattice(frameworkLattice):
         navi_processes = []
         navi_locations_start = []
         navi_locations_end = []
-        # settings = self.settings
         navi = PassNavigator(self.lat_obj, unit_step=self.unit_step)
         if reference_energy is not None:
             # first, so anything else at a cavity's exit sees the line's reference
@@ -792,19 +769,19 @@ class ocelotLattice(frameworkLattice):
             navi_locations_end += [self.lat_obj.sequence[-1]]
         space_charge_set = False
         csr_set = False
-        if "charge" in list(self.file_block.keys()):
-            if (
-                "space_charge_mode" in list(self.file_block["charge"].keys())
-                and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
-            ):
-                gridsize = self.grids.getGridSizes(len(self.global_parameters["beam"].x))
-                g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
-                grids = [g1 for _ in range(3)]
-                sc = self.physproc_sc(grids)
-                navi_processes += [sc]
-                navi_locations_start += [self.lat_obj.sequence[0]]
-                navi_locations_end += [self.lat_obj.sequence[-1]]
-                space_charge_set = True
+        if (
+            "charge" in self.file_block
+            and "space_charge_mode" in self.file_block["charge"]
+            and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
+        ):
+            gridsize = self.grids.getGridSizes(len(self.global_parameters["beam"].x))
+            g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
+            grids = [g1 for _ in range(3)]
+            sc = self.physproc_sc(grids)
+            navi_processes += [sc]
+            navi_locations_start += [self.lat_obj.sequence[0]]
+            navi_locations_end += [self.lat_obj.sequence[-1]]
+            space_charge_set = True
         if "csr" in list(self.file_block.keys()) and self.csr_enable:
             csr, start, end = self.physproc_csr()
             for i in range(len(csr)):
@@ -826,7 +803,6 @@ class ocelotLattice(frameworkLattice):
                 csr=csr_set,
                 slices=self.mbi["slices"],
             )
-            # mbi1.step = self.unit_step
             self.mbi_navi.navi = deepcopy(navi)
             self.mbi_navi.lattice = deepcopy(self.lat_obj)
             self.mbi_navi.lsc = True
@@ -839,14 +815,17 @@ class ocelotLattice(frameworkLattice):
                 fieldstr = "wakefield_definition"
             elif "wake" in obj.hardware_type.lower():
                 fieldstr = "field_definition"
-            if fieldstr is not None and self.wakefield_enable:
-                if getattr(obj.simulation, fieldstr) is not None:
-                    wake, w_ind = self.physproc_wake(
-                        name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
-                    )
-                    navi_processes += [wake]
-                    navi_locations_start += [self.lat_obj.sequence[w_ind]]
-                    navi_locations_end += [self.lat_obj.sequence[w_ind + 1]]
+            if (
+                fieldstr is not None
+                and self.wakefield_enable
+                and getattr(obj.simulation, fieldstr) is not None
+            ):
+                wake, w_ind = self.physproc_wake(
+                    name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
+                )
+                navi_processes += [wake]
+                navi_locations_start += [self.lat_obj.sequence[w_ind]]
+                navi_locations_end += [self.lat_obj.sequence[w_ind + 1]]
             if obj.hardware_type.lower() == "twissmatch":
                 twsobj = Twiss(
                     beta_x=obj.simulation.beta_x,
@@ -863,7 +842,7 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
         sval_in = self.section_s_values(at_entrance=True)
         sval_out = self.section_s_values(at_entrance=False)
-        for bend, loc, radius in self.physproc_radiation():
+        for bend, loc, _ in self.physproc_radiation():
             navi_processes += [bend]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
@@ -1007,7 +986,7 @@ class ocelotLattice(frameworkLattice):
         stlist = []
         enlist = []
         from ocelot.cpbd.csr import CSR
-        block = self.file_block["csr"] if "csr" in self.file_block else {}
+        block = self.file_block.get("csr", {})
         if ("start" in list(block.keys())) and ("end" in list(block.keys())):
             start = block["start"]
             st = [start] if isinstance(start, str) else start
@@ -1036,7 +1015,7 @@ class ocelotLattice(frameworkLattice):
     def physproc_wake(
             self,
             name: str,
-            loc: field | str,
+            loc: field | FieldMap | str,
             ncell: int,
     ) -> tuple:
         """
@@ -1059,7 +1038,7 @@ class ocelotLattice(frameworkLattice):
             A Wake PhysProc, and its index in the lattice
         """
         from ocelot.cpbd.wake3D import Wake, WakeTable
-        if isinstance(loc, field):
+        if isinstance(loc, (field, FieldMap)):
             loc = loc.write_field_file(code="astra")
         subdir = self.global_parameters["master_subdir"]
         fname = subdir + '/' + os.path.basename(loc).replace('.hdf5', '.astra')

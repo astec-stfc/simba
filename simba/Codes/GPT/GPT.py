@@ -64,17 +64,11 @@ from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
-    GptCharge,
-    GptSetReduce,
     GptAccuracy,
     GptSpaceCharge,
     GptTout,
     GptCsr1D,
     GptWriteFloorPlan,
-    GptZMinMax,
-    GptForwardScatter,
-    GptScatterPlate,
-    GptDtMaxT,
 )
 
 gpt_defaults = {}
@@ -208,27 +202,21 @@ class gptLattice(frameworkLattice):
         self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
         if self.particle_definition == "laser" and self.space_charge_mode is not None:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
-            # self.headers["spacecharge"].space_charge_mode = "cathode"
         if (
             self.csr_enable
             and len(self.dipoles) > 0
             and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
-        ):  # and not os.name == 'nt':
+        ):
             self.headers["csr1d"] = GptCsr1D()
-            # print('CSR Enabled!', self.objectname, len(self.dipoles))
-        # self.headers['forwardscatter'] = GptForwardScatter(ECS='"wcs", "I"', name='cathode', probability=0)
-        # self.headers['scatterplate'] = GptScatterPlate(ECS='"wcs", "z", -1e-6', model='cathode', a=1, b=1)
         self.headers["setfile"].particle_definition = self.particle_definition
         self.section.gpt_headers = self.headers
         self.check_pass_rigidity(self.global_parameters["beam"].Brho)
-        fulltext = self.section.to_gpt(
+        return self.section.to_gpt(
             startz=self.startObject.physical.start.z,
             endz=self.endObject.physical.end.z,
             Brho=self.global_parameters["beam"].Brho,
             dtmin=self.dtmin
-            # screen_step_size=self.screen_step_size,
         )
-        return fulltext
 
     def write(self) -> None:
         """
@@ -316,7 +304,8 @@ class gptLattice(frameworkLattice):
         self.write()
         subdir = self.global_parameters["master_subdir"]
         base = os.path.join(subdir, self.objectname)
-        text = open(base + ".in").read()
+        with open(base + ".in") as f:
+            text = f.read()
         var = self._cavity_phase_variable(name, text)
 
         # The scanned symbol has to be *undefined* in the input file: mr supplies
@@ -614,7 +603,6 @@ class gptLattice(frameworkLattice):
             ),
             "w",
         ) as f:
-            # print('gpt command = ', command)
             subprocess.call(
                 main_command,
                 stdout=f,
@@ -644,7 +632,7 @@ class gptLattice(frameworkLattice):
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
-            if not e.name == self.start:
+            if e.name != self.start:
                 sval = np.interp(e.physical.middle.z, zvals, svals)
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
@@ -654,8 +642,6 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-            # else:
-            # print('Ignoring', self.ignore_start_screen.objectname)
         sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
@@ -665,6 +651,11 @@ class gptLattice(frameworkLattice):
             t0=self.headers["setfile"].time,
             sval=sval,
         )
+        # every screen reads the one shared _out.gdf, so delete it once at the end
+        if self.global_parameters["delete_tracking_files"]:
+            os.remove(
+                os.path.join(self.global_parameters["master_subdir"], self.objectname + "_out.gdf")
+            )
 
     def hdf5_to_gdf(self, prefix: str="") -> None:
         """
@@ -754,9 +745,6 @@ class gptLattice(frameworkLattice):
         sval: float
             S-position of screen
         """
-        # gptbeamfilename = self.objectname + '.' + str(int(round((self.allElementObjects[self.end].position_end[2])*100))).zfill(4) + '.' + str(master_run_no).zfill(3)
-        # try:
-        # print('Converting screen', self.objectname,'at', self.gpt_screen_position)
         beam = rbf.beam()
         rbf.gdf.read_gdf_beam_file(
             beam,
@@ -771,13 +759,3 @@ class gptLattice(frameworkLattice):
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
         )
-        # except:
-        #     print('Error with screen', self.objectname,'at', self.gpt_screen_position)
-        if self.global_parameters["delete_tracking_files"]:
-            os.remove(
-                (
-                    os.path.join(
-                        self.global_parameters["master_subdir"], gptbeamfilename
-                    )
-                ).strip('"')
-            )

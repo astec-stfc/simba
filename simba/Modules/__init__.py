@@ -1,7 +1,7 @@
 """
 Simframe Modules
 
-Modules to handle particle beams, electromagnetic fields, matrices, plotting, optimisation and Twiss parameters,
+Modules to handle particle beams, electromagnetic fields, matrices, plotting and Twiss parameters,
 along with various utility functions.
 
 Classes:
@@ -16,8 +16,6 @@ Classes:
 
     - :class:`~simba.Modules.Twiss.twiss`: Handles beam twiss parameters produced by
       simulations and joins them together.
-
-    - :class:`~simba.Modules.optimisation.optimiser.optimiser`: Generic optimiser class.
 
     - :class:`~simba.Modules.units.UnitValue`: Class for storing arrays, floats and integers
       with units attached; used in many of these modules.

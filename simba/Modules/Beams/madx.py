@@ -107,39 +107,15 @@ def madx_coords_to_beam(
     mass = self.particle_mass
     mass = np.mean(mass.val) if hasattr(mass, "val") else constants.m_e
     chargesign = np.sign(np.mean(self.Q.val)) or -1
-    nb.particle_mass = UnitValue(np.full(npart, mass), units="kg")
-    nb.particle_rest_energy = UnitValue(
-        nb.particle_mass * speed_of_light**2, units="J"
-    )
-    nb.particle_rest_energy_eV = UnitValue(
-        nb.particle_rest_energy / elementary_charge, units="eV/c"
-    )
-    nb.particle_charge = UnitValue(
-        np.full(npart, chargesign * elementary_charge), units="C"
-    )
+    newbeam.set_mass_and_charge(mass, chargesign * elementary_charge, npart)
     nb.x = UnitValue(np.array(coords["x"]), units="m")
     nb.y = UnitValue(np.array(coords["y"]), units="m")
     nb.t = UnitValue(t, units="s")
-    q_over_c = elementary_charge / speed_of_light
-    nb.px = UnitValue(cpx * q_over_c, units="kg*m/s")
-    nb.py = UnitValue(cpy * q_over_c, units="kg*m/s")
-    nb.pz = UnitValue(cpz * q_over_c, units="kg*m/s")
+    newbeam.set_momenta(cpx, cpy, cpz)
     nb.set_total_charge(chargesign * abs(charge_total))
     nb.nmacro = UnitValue(np.full(npart, 1))
     nb.status = UnitValue(np.full(npart, 5))
-    if ref_index is not None:
-        newbeam.reference_particle_index = int(ref_index)
-        tref = nb.t[int(ref_index)]
-    else:
-        tref = np.mean(nb.t)
-    nb.z = UnitValue(
-        zpos + (-1 * nb.Bz * speed_of_light) * (nb.t - tref), units="m"
-    )
+    newbeam.set_z_from_t(zpos, ref_index)
     nb.s = UnitValue(spos, units="m")
-    if ref_index is not None:
-        newbeam.reference_particle = [
-            getattr(nb, coord)[int(ref_index)]
-            for coord in newbeam.reference_particle_coords
-        ]
     newbeam.species = self.species
     return newbeam

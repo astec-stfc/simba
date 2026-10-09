@@ -35,4 +35,3 @@ class SaveBeamOpenPMD(SaveBeam):
             self.filename,
             turn=self.file_turn,
         )
-        # save_particle_array(filename=self.filename, p_array=p_array)

@@ -28,11 +28,10 @@ from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement, Dipole
+from laura.models.element import PhysicalBaseElement
 from laura.models.element_list import flatten_occurrence, split_occurrence
 from laura.exporters.yaml_exporter import export_machine, export_elements
 
-from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
 from .Modules import Wavefronts as rwf
@@ -41,7 +40,6 @@ from .Codes import Executables as exes
 from .Codes.Generators import (
     ASTRAGenerator,
     GPTGenerator,
-    OPALGenerator,
     frameworkGenerator,
 )
 from .Framework_objects import runSetup
@@ -130,10 +128,7 @@ latticeClasses = [
     obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml",
-    "r",
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml") as infile:
     hosts = yaml.safe_load(infile)
 
 disallowed = [
@@ -288,8 +283,8 @@ class Framework(BaseModel):
     """Flag to indicate whether the executables have been prepared and are ready for execution"""
 
     def model_post_init(self, __context):
-        gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
-        astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
+        gptlicense = os.environ.get("GPTLICENSE", "")
+        astra_use_wsl = os.environ.get("WSL_ASTRA", 1)
         self.global_parameters = {
             "beam": rbf.beam(sddsindex=self.sddsindex),
             "GPTLICENSE": gptlicense,
@@ -373,10 +368,10 @@ class Framework(BaseModel):
         """
         Clear out :attr:`~elementObjects`, :attr:`~latticeObjects`, :attr:`~commandObjects`, :attr:`~groupObjects`
         """
-        self.elementObjects = dict()
-        self.latticeObjects = dict()
-        self.commandObjects = dict()
-        self.groupObjects = dict()
+        self.elementObjects = {}
+        self.latticeObjects = {}
+        self.commandObjects = {}
+        self.groupObjects = {}
 
     def change_subdirectory(self, *args, **kwargs) -> None:
         """
@@ -512,10 +507,7 @@ class Framework(BaseModel):
         self.updateGlobalParameters()
 
     def setupGeneratorDefaults(self, generator_defaults: str | None):
-        with open(
-                os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml",
-                "r",
-        ) as infile:
+        with open(os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml") as infile:
             self.generator_keywords = {"keywords": yaml.safe_load(infile)}
 
         if not generator_defaults:
@@ -526,43 +518,13 @@ class Framework(BaseModel):
             defaults = generator_defaults
         else:
             raise FileNotFoundError(f"Could not find generator file {generator_defaults}")
-        with open(defaults, "r",) as infile:
+        with open(defaults) as infile:
             fi = yaml.safe_load(infile)
             defaults = fi["defaults"]
             self.generator_keywords.update({"defaults": defaults})
             for k, v in fi.items():
                 if k != "defaults":
-                    self.generator_keywords.update({k: merge_two_dicts(v, defaults)})
-
-    def load_Elements_File(self, inp: str | list | tuple | dict) -> None:
-        """
-        Load a YAML file or list of YAML files with element definitions.
-        The `elements` entry in this file(s) are then parsed and read into :attr:`~elementObjects`
-        in order to build up the :class:`~simba.Framework_objects.frameworkLattice` object.
-
-        Parameters
-        ----------
-        inp: str or list or tuple or dict
-            Input file or dict containing the lattice `elements`
-        """
-        if isinstance(inp, (list, tuple)):
-            filename = inp
-        else:
-            filename = [inp]
-        for f in filename:
-            if os.path.isfile(f):
-                with open(f, "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            elif os.path.isfile(os.path.join(self.subdirectory, f)):
-                with open(os.path.join(self.subdirectory, f), "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            else:
-                with open(
-                    self.global_parameters["master_lattice"] + f, "r"
-                ) as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            for name, elem in list(elements.items()):
-                self.read_Element(name, elem)
+                    self.generator_keywords.update({k: defaults | (v or {})})
 
     def loadSettings(
         self,
@@ -603,8 +565,7 @@ class Framework(BaseModel):
         if "generator" in self.settings and len(self.settings["generator"]) > 0:
             self.generatorSettings = self.settings["generator"]
             self.add_Generator(**self.generatorSettings)
-        self.fileSettings = self.settings["files"] if "files" in self.settings else {}
-        elements = self.settings["elements"]
+        self.fileSettings = self.settings.get("files", {})
         groups = (
             self.settings["groups"]
             if "groups" in self.settings and self.settings["groups"] is not None
@@ -643,9 +604,6 @@ class Framework(BaseModel):
 
             self.elementObjects = dict(self.machine.elements)
 
-            # for name, elem in list(elements.items()):
-            #     self.read_Element(name, elem)
-            #
             for name, group in list(groups.items()):
                 if "type" in group:
                     group_object = getattr(frameworkElements, group["type"])(
@@ -696,10 +654,6 @@ class Framework(BaseModel):
         elements: dict or None
             Dictionary of :class:`~laura.models.element.Element` objects to save
         """
-        # if filename is None:
-        #     pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
-        # else:
-        #     pre, ext = os.path.splitext(os.path.basename(filename))
         if filename is None:
             filename = "settings.def"
         settings = self.settings.copy()
@@ -818,9 +772,7 @@ class Framework(BaseModel):
                     cond = False
                     new = element
                     orig = self.original_elementObjects[e]
-                    kval = [
-                        k for k in new.model_dump().keys() if k not in disallowed_changes
-                    ]
+                    kval = [k for k in new.model_dump() if k not in disallowed_changes]
                     new_model_fields = {
                         k: v
                         for k, v in new.model_dump().items()
@@ -832,32 +784,17 @@ class Framework(BaseModel):
                         if k not in disallowed_changes
                     }
                     for k in kval:
-                        if k not in list(orig_model_fields.keys()):
-                            cond = True
-                        elif new_model_fields[k] != orig_model_fields[k]:
+                        if k not in orig_model_fields or new_model_fields[k] != orig_model_fields[k]:
                             cond = True
                     if cond:
                         orig = self.original_elementObjects[e]
                         new = element
-                        # try:
                         changedict[e] = {
-                            k[0]: convert_numpy_types(getattr(new, k[0]))
-                            for k in new
-                            if k[0] in orig
-                               and not getattr(new, k[0]) == getattr(orig, k[0])
-                               and k[0] not in disallowed_changes
+                            k: convert_numpy_types(getattr(new, k))
+                            for k in kval
+                            if k not in orig_model_fields
+                               or new_model_fields[k] != orig_model_fields[k]
                         }
-                        changedict[e].update(
-                            {
-                                k[0]: convert_numpy_types(getattr(new, k[0]))
-                                for k in new
-                                if k[0] not in orig and k[0] not in disallowed_changes
-                            }
-                        )
-
-                # except Exception:
-                    #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
-                    #     pass
         return changedict
 
     def save_changes_file(
@@ -965,16 +902,16 @@ class Framework(BaseModel):
             If `filename` is `None` or a `str`, return the dictionary of changes.
         """
         if isinstance(filename, (tuple, list)):
-            return [self.load_changes_file(c) for c in filename]
+            return [self.load_changes_file(c, apply, verbose) for c in filename]
         else:
             if filename is None:
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
-            with open(filename, "r") as infile:
+            with open(filename) as infile:
                 changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
-                return
+                return None
             return changes
 
     def apply_changes(self, changes: dict, verbose: bool = False) -> None:
@@ -1000,7 +937,6 @@ class Framework(BaseModel):
                     except AttributeError as ex:
                         print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
             if e in self.groupObjects:
-                # print ('change group exists!')
                 for k, v in list(d.items()):
                     self.groupObjects[e].change_Parameter(k, v)
                     if verbose:
@@ -1074,17 +1010,16 @@ class Framework(BaseModel):
             If True, disable warning about resetting the execution location
         """
         if latticename == "All":
-            [self.change_Lattice_Code(lo, code, exclude) for lo in self.latticeObjects]
+            [self.change_Lattice_Code(lo, code, exclude, nowarn) for lo in self.latticeObjects]
         elif isinstance(latticename, (tuple, list)):
-            [self.change_Lattice_Code(ln, code, exclude) for ln in latticename]
+            [self.change_Lattice_Code(ln, code, exclude, nowarn) for ln in latticename]
         else:
-            if not latticename == "generator" and not (
+            if latticename != "generator" and not (
                 latticename == exclude
                 or (isinstance(exclude, (list, tuple)) and latticename in exclude)
             ):
                 if code.lower() not in supported_codes:
                     raise NotImplementedError(f"code {code} is not supported")
-                # print('Changing lattice ', name, ' to ', code.lower())
                 currentLattice = self.latticeObjects[latticename]
                 if currentLattice.remote_setup and not nowarn:
                     warn(f"Resetting lattice {latticename} to local tracking;"
@@ -1164,7 +1099,6 @@ class Framework(BaseModel):
             return [self.getElementType(t, param=param) for t in typ]
         if isinstance(param, (list, tuple)):
             return zip(*[self.getElementType(typ, param=p) for p in param])
-            # return [item for sublist in all_elements for item in sublist]
         return [
             (
                 {"name": element, **self.elementObjects[element].model_dump()}
@@ -1347,7 +1281,7 @@ class Framework(BaseModel):
             for p, v in parameter.items():
                 self.modifyLattice(latticeName, p, v)
         elif isinstance(parameter, list) and isinstance(value, list):
-            for p, v in parameter:
+            for p, v in zip(parameter, value):
                 self.modifyLattice(latticeName, p, v)
         elif latticeName in self.latticeObjects:
             setattr(self.latticeObjects[latticeName], parameter, value)
@@ -1397,8 +1331,6 @@ class Framework(BaseModel):
         if "code" in kwargs:
             if kwargs["code"].lower() == "gpt":
                 code = GPTGenerator
-            # elif kwargs["code"].lower() == "opal":
-            #     code = OPALGenerator
             elif kwargs["code"].lower() == "astra":
                 code = ASTRAGenerator
             elif kwargs["code"].lower() in ["generic", "framework", "simba"]:
@@ -1455,8 +1387,6 @@ class Framework(BaseModel):
         old_kwargs["code"] = generator
         if generator.lower() == "gpt":
             generator = GPTGenerator(**old_kwargs)
-        # elif generator.lower() == "opal":
-        #     generator = OPALGenerator(**old_kwargs)
         elif generator.lower() in ["generic", "framework", "simba"]:
             generator = frameworkGenerator(**old_kwargs)
         else:
@@ -1465,42 +1395,6 @@ class Framework(BaseModel):
             generator = ASTRAGenerator(**old_kwargs)
         self.latticeObjects["generator"] = generator
         self.generator = generator
-
-    def loadParametersFile(self, file):
-        pass
-
-    def saveParametersFile(self, file: str, parameters: dict | list | tuple) -> None:
-        """Saves a list of parameters to a file"""
-        output = {}
-        if isinstance(parameters, dict):
-            try:
-                output.update(
-                    {
-                        parameters["name"]: {
-                            k1: v1
-                            for k1, v1 in parameters.items()
-                            if v1 not in disallowed
-                        }
-                    }
-                )
-            except KeyError:
-                warn("parameters dictionary must contain 'name' key")
-        elif isinstance(parameters, (list, tuple)):
-            try:
-                for k in parameters:
-                    output.update({k["name"]: {}})
-                    output[k["name"]].update(
-                        {subk: k[subk] for subk in k if subk not in disallowed}
-                    )
-            except TypeError:
-                warn(
-                    "parameters must be a dictionary or a list of dictionaries containing a 'name' key"
-                )
-        else:
-            warn("could not parse parameters; they should be a dict, list or tuple")
-        with open(file, "w") as yaml_file:
-            yaml.default_flow_style = True
-            yaml.dump(output, yaml_file, Dumper=NumpySafeDumper)
 
     def set_lattice_prefix(
         self,
@@ -1610,11 +1504,11 @@ class Framework(BaseModel):
             else:
                 raise ValueError("Password must be provided for remote execution.")
         if lattice == "All":
-            [self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude) for lo in self.latticeObjects]
+            [self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude, username, password) for lo in self.latticeObjects]
         elif isinstance(lattice, (tuple, list)):
-            [self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude) for ln in lattice]
+            [self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude, username, password) for ln in lattice]
         else:
-            if not lattice == "generator" and not (
+            if lattice != "generator" and not (
                 lattice == exclude
                 or (isinstance(exclude, (list, tuple)) and lattice in exclude)
             ):
@@ -1628,8 +1522,8 @@ class Framework(BaseModel):
                     "password": password,
                 }
                 executables = self.prepare_executables(location=server, ncpu=ncpu)
-                setattr(self.latticeObjects[lattice], "remote_setup", remote_setup)
-                setattr(self.latticeObjects[lattice], "executables", executables)
+                self.latticeObjects[lattice].remote_setup = remote_setup
+                self.latticeObjects[lattice].executables = executables
                 if self.verbose:
                     print(f"Setting up remote execution for {lattice} on {server} with {code}.")
 
@@ -1765,7 +1659,7 @@ class Framework(BaseModel):
         s0 = 0
         allS = []
         for lo in self.latticeObjects:
-            if not lo == "generator":
+            if lo != "generator":
                 latt = self.latticeObjects[lo]
                 names, elems, svals = latt.getSNamesElems()
                 start = offsets.get(flatten_occurrence(latt.start), s0)
@@ -1787,11 +1681,11 @@ class Framework(BaseModel):
         """
         allZ = []
         for lo in self.latticeObjects:
-            if not lo == "generator":
+            if lo != "generator":
                 names, elems, zvals = self.latticeObjects[lo].getZNamesElems()
                 zelems = list(zip(names, elems, zvals))
                 allZ = allZ + zelems
-        return list(sorted(allZ, key=lambda x: x[2][0]))
+        return sorted(allZ, key=lambda x: x[2][0])
 
     def _line_output_names(self, lattice_name: str) -> set:
         """Element names ``lattice_name`` will write an output beam file for:
@@ -1889,9 +1783,8 @@ class Framework(BaseModel):
         :class:`~simba.Framework.frameworkDirectory` or None
             Framework directory object if `frameworkDirec` is True
         """
-        if check_lattice:
-            if not self.check_lattice():
-                raise Exception("Lattice Error - check definitions")
+        if check_lattice and not self.check_lattice():
+            raise Exception("Lattice Error - check definitions")
         if not self.executables_ready:
             raise Exception("Executables not ready - check setup and paths")
         # Lattice objects are rebuilt by change_Lattice_Code after the generator
@@ -2085,7 +1978,7 @@ class Framework(BaseModel):
         """
         Updates the 'Run Settings' in each of the lattices
         """
-        for ln, latticeObject in self.latticeObjects.items():
+        for latticeObject in self.latticeObjects.values():
             if isinstance(latticeObject, tuple(latticeClasses)):
                 latticeObject.updateRunSettings(self.runSetup)
 
@@ -2155,42 +2048,6 @@ class Framework(BaseModel):
         )
         self.pushRunSettings()
 
-    def _addLists(self, list1: list, list2: list) -> list:
-        """Adds elements piecewise in two lists"""
-        return [a + b for a, b in zip(list1, list2)]
-
-    def offsetElements(
-        self, x: int | float = 0, y: int | float = 0, z: int | float = 0
-    ) -> None:
-        """
-        Moves all elements by the set amount in (x, y, z) space.
-        Updates :attr:`~elementObjects`.
-
-        Parameters
-        ----------
-        x: int | float
-            x offset
-        y: int | float
-            y offset
-        z: int | float
-            z offset
-        """
-        offset = [x, y, z]
-        for latt in self.lines:
-            if (
-                self.latticeObjects[latt].file_block is not None
-                and "output" in self.latticeObjects[latt].file_block
-                and "zstart" in self.latticeObjects[latt].file_block["output"]
-            ):
-                self.latticeObjects[latt].file_block["output"]["zstart"] += z
-        for elem in self.elements:
-            self.elementObjects[elem].centre = self._addLists(
-                self.elementObjects[elem].centre, offset
-            )
-            # self.elementObjects[elem].centre = self._addLists(
-            #     self.elementObjects[elem].centre, offset
-            # )
-
 
 class frameworkDirectory(BaseModel):
     """
@@ -2229,7 +2086,7 @@ class frameworkDirectory(BaseModel):
         *args,
         **kwargs,
     ) -> None:
-        super(frameworkDirectory, self).__init__(
+        super().__init__(
             *args,
             **kwargs,
         )
@@ -2375,7 +2232,7 @@ class frameworkDirectory(BaseModel):
             pprint(
                 {
                     k.replace("object", ""): v
-                    for k, v in elem.items()
+                    for k, v in dict(elem).items()
                     if k not in disallowed
                 }
             )
@@ -2386,5 +2243,4 @@ def load_directory(
     directory: str = ".", twiss: bool = True, beams: bool = False, wavefronts: bool = False, **kwargs
 ) -> frameworkDirectory:
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
-    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)
-    return fw
+    return frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)

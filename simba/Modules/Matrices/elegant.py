@@ -1,8 +1,5 @@
 import os
 from ..SDDSFile import SDDSFile
-import numpy as np
-from .. import constants
-from ..units import UnitValue
 
 
 def read_elegant_matrix_files(self, filename, reset=True):
@@ -23,7 +20,7 @@ def read_elegant_matrix_files(self, filename, reset=True):
 
 def update_arrays(self, elegantData, reset=True):
     if reset:
-        [delattr(self, k) for k in elegantData.keys() if hasattr(self, k)]
+        [delattr(self, k) for k in elegantData if hasattr(self, k)]
     [
         (
             self.append(k, v.data)

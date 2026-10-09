@@ -135,7 +135,7 @@ class SDDSObject(munch.Munch):
     @fieldlength.setter
     def fieldlength(self, length):
         if isinstance(length, (int, float)):
-            self._fieldlength = int(fieldlength)
+            self._fieldlength = int(length)
         return self._fieldlength
 
     @property
@@ -181,7 +181,16 @@ class SDDSColumn(SDDSObject):
         fieldlength=0,
         description="",
     ):
-        super().__init__(name=name, data=None, unit=unit, type=type, symbol=symbol)
+        super().__init__(
+            name=name,
+            data=None,
+            unit=unit,
+            type=type,
+            symbol=symbol,
+            formatstring=formatstring,
+            fieldlength=fieldlength,
+            description=description,
+        )
         self.objectType = "Column"
         self.data = data
 
@@ -218,7 +227,16 @@ class SDDSParameter(SDDSObject):
         fieldlength=0,
         description="",
     ):
-        super().__init__(name=name, data=None, unit=unit, type=type, symbol=symbol)
+        super().__init__(
+            name=name,
+            data=None,
+            unit=unit,
+            type=type,
+            symbol=symbol,
+            formatstring=formatstring,
+            fieldlength=fieldlength,
+            description=description,
+        )
         self.objectType = "Parameter"
         self.data = data
 
@@ -447,7 +465,6 @@ class SDDSFile(object):
             )
             self._sddsObject.setParameterValueList(param.name, param.data)
         for name, column in self._columns.items():
-            # print(len([list(column.data)][0]))
             self._sddsObject.defineColumn(
                 column.name,
                 column.symbol,
@@ -493,7 +510,6 @@ class SDDSFile(object):
                 fieldlength=fieldLength,
                 description=description,
             )
-        # sddsobject.SDDSparameterNames = list()
         for param in range(len(sddsref.parameterName)):
             name = sddsref.parameterName[param]
             symbol, unit, description, formatString, type, fieldLength = (

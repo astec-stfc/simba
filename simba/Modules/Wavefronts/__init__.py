@@ -18,7 +18,6 @@ Classes:
 
     - :class:`~simba.Modules.Beams.wavefrontGroup`: Container for a group of wavefronts.
 """
-import numpy as np
 import os
 import glob
 from pydantic import BaseModel
@@ -64,9 +63,9 @@ class wavefrontGroup(BaseModel):
             return getattr(self, key)
 
     def __init__(self, filenames=[], wavefronts=[], *args, **kwargs):
-        super(wavefrontGroup, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sddsindex = 0
-        self.wavefronts = dict()
+        self.wavefronts = {}
         for k, v in wavefronts:
             self.wavefronts[k] = v
         if isinstance(filenames, str):
@@ -79,7 +78,7 @@ class wavefrontGroup(BaseModel):
             filename = [filename]
         for file in filename:
             if os.path.isdir(file):
-                self.add_directory(file)
+                self.add(glob.glob(os.path.join(file, "*.fld.h5")))
             elif os.path.isfile(file):
                 file = file.replace("\\", "/")
                 try:
@@ -95,7 +94,7 @@ class wavefrontGroup(BaseModel):
         return None
 
     def getWavefronts(self):
-        return {".".join(os.path.splitext(os.path.basename(b))[0].split('.')[:-1]): b for b in self.wavefronts.keys()}
+        return {".".join(os.path.splitext(os.path.basename(b))[0].split('.')[:-1]): b for b in self.wavefronts}
 
 
 def load_directory(directory=".", types={"Genesis": ".fld.h5"}, verbose=False) -> wavefrontGroup:

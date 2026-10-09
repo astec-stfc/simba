@@ -10,8 +10,6 @@ Classes:
 
     - :class:`~simba.Framework_objects.frameworkLattice`: Base class for simulation lattices, consisting of a line of `LAURA` elements.
 
-    - :class:`~simba.Framework_objects.frameworkCounter`: Used for counting elements of the same type in ASTRA and CSRTrack
-
     - :class:`~simba.Framework_objects.frameworkGroup`: Used for grouping elements together and controlling them all simultaneously.
 
     - :class:`~simba.Framework_objects.element_group`: Subclass of :class:`~simba.Framework_objects.frameworkGroup` for grouping elements.
@@ -57,7 +55,6 @@ from .Modules.EnergyRamp import (
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution
-from .Modules.Fields import field
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
 from .Modules import constants
@@ -90,67 +87,29 @@ multi-turn only."""
 OUTPUT_LINE_SEPARATOR = "-"
 """Separates a line name from an element name in an output beam filename."""
 
-if os.name == "nt":
-    # from .Modules.symmlinks import has_symlink_privilege
-    def has_symlink_privilege():
-        return False
-
-else:
-
-    def has_symlink_privilege():
-        return True
-
-
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/type_conversion_rules.yaml",
-    "r",
-) as infile:
-    type_conversion_rules = yaml.safe_load(infile)
-    type_conversion_rules_Elegant = type_conversion_rules["elegant"]
-    type_conversion_rules_Names = type_conversion_rules["name"]
-    type_conversion_rules_Opal = type_conversion_rules["opal"]
-
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/commands_Elegant.yaml",
-    "r",
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/commands_Elegant.yaml") as infile:
     commandkeywords_elegant = yaml.safe_load(infile)
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/OPAL/commands_Opal.yaml",
-    "r",
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/Codes/OPAL/commands_Opal.yaml") as infile:
     commandkeywords_opal = yaml.safe_load(infile)
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Genesis/commands_Genesis.yaml",
-    "r",
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/Codes/Genesis/commands_Genesis.yaml") as infile:
     commandkeywords_genesis = yaml.safe_load(infile)
 
 commandkeywords = commandkeywords_elegant | commandkeywords_opal
 commandkeywords = commandkeywords | commandkeywords_genesis
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/elementkeywords.yaml", "r"
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/elementkeywords.yaml") as infile:
     elementkeywords = yaml.safe_load(infile)
 
 with open(
     os.path.dirname(os.path.abspath(__file__))
-    + "/Codes/Elegant/keyword_conversion_rules_elegant.yaml",
-    "r",
+    + "/Codes/Elegant/keyword_conversion_rules_elegant.yaml"
 ) as infile:
     keyword_conversion_rules_elegant = yaml.safe_load(infile)
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/Codes/Elegant/elements_Elegant.yaml",
-    "r",
-) as infile:
-    elements_Elegant = yaml.safe_load(infile)
 
-
-class runSetup(object):
+class runSetup:
     """
     Class defining settings for simulations that include multiple runs
     such as error studies or parameter scans.
@@ -221,7 +180,7 @@ class runSetup(object):
         # load error definitions from markup file
         error_setup = None
         if isinstance(file, str) and (".yaml" in file):
-            with open(file, "r") as inputfile:
+            with open(file) as inputfile:
                 error_setup = dict(yaml.safe_load(inputfile))
         # define errors from dictionary
         elif isinstance(file, dict):
@@ -269,7 +228,7 @@ class runSetup(object):
         if (
             isinstance(scanrange, (list, tuple, np.ndarray))
             and (len(scanrange) == 2)
-            and all([isinstance(x, (float, int)) for x in scanrange])
+            and all(isinstance(x, (float, int)) for x in scanrange)
         ):
             minval, maxval = scanrange
         else:
@@ -336,8 +295,6 @@ class frameworkObject(BaseModel):
         else:
             raise NameError(f"Unknown type = {self.objecttype}")
         self.allowedkeywords = [x.lower() for x in self.allowedkeywords]
-        # for key, value in list(kwargs.items()):
-        #     self.add_property(key, value)
 
     @field_validator("objectname", mode="before")
     @classmethod
@@ -354,12 +311,6 @@ class frameworkObject(BaseModel):
         if not isinstance(value, str):
             raise ValueError("objecttype must be a string.")
         return value
-
-    # def __setattr__(self, name, value):
-    #     # Let Pydantic set known fields normally
-    #     if name in frameworkObject.model_fields:
-    #         return super().__setattr__(name, value)
-    #     object.__setattr__(self, name, value)
 
     def change_Parameter(self, key: str, value: Any) -> None:
         """
@@ -409,61 +360,6 @@ class frameworkObject(BaseModel):
                     setattr(self, key, value)
                 except Exception as e:
                     warn(f"add_properties error: ({self.objecttype} [{key}]: {e}")
-
-    def add_default(self, key: str, value: Any) -> None:
-        """
-        Add a default value for a property of the object, updating `objectdefaults`.
-
-        Parameters
-        ----------
-        key: str
-            The name of the property to set a default value for.
-        value: Any
-            The name of the property to set a default value for and the value to set.
-        """
-        self.objectdefaults[key] = value
-
-    @property
-    def parameters(self) -> list:
-        """
-        Returns a list of all parameters (keys) of the object.
-
-        Returns
-        -------
-        list
-            A list of keys representing the parameters of the object.
-        """
-        return list(self.keys())
-
-    @property
-    def objectproperties(self):
-        """
-        Returns a dictionary of the object's properties, excluding disallowed keywords.
-
-        Returns
-        -------
-        frameworkObject
-            The object itself, allowing for method chaining.
-        """
-        cls = self.__class__
-        return {key: getattr(self, key) for key in cls.model_fields} | {key: getattr(self, key) for key in cls.model_computed_fields}
-
-    # def __getitem__(self, key):
-    #     lkey = key.lower()
-    #     defaults = self.objectdefaults
-    #     if lkey in defaults:
-    #         try:
-    #             return getattr(self, lkey)
-    #         except Exception:
-    #             return defaults[lkey]
-    #     else:
-    #         try:
-    #             return getattr(self, lkey)
-    #         except Exception:
-    #             try:
-    #                 return getattr(self, key)
-    #             except Exception:
-    #                 return None
 
     def __repr__(self):
         string = ""
@@ -529,8 +425,8 @@ class frameworkLattice(BaseModel):
     global_parameters: Dict
     """Global parameters for the lattice, including master subdirectory and other configuration settings."""
 
-    globalSettings: Dict
-    """Global settings for the lattice."""
+    globalSettings: Dict = {"charge": None}
+    """Global settings for the lattice, including charge and other parameters."""
 
     allow_negative_drifts: bool = False
     """If True, allows negative drifts in the lattice."""
@@ -571,9 +467,6 @@ class frameworkLattice(BaseModel):
     """Downsampling of the incoming beam: every code tracks every
     ``sample_interval``-th particle, with the total charge kept. The beam is
     sampled once, as it is read (:meth:`load_input_beam`)."""
-
-    globalSettings: Dict = {"charge": None}
-    """Global settings for the lattice, including charge and other parameters."""
 
     groupSettings: Dict = {}
     """Group settings for the lattice, including group-specific parameters."""
@@ -726,7 +619,6 @@ class frameworkLattice(BaseModel):
     element type as this code names it; see :meth:`program_attribute`."""
 
     def model_post_init(self, __context):
-        # super().model_post_init(__context)
         for key, value in list(self.elementObjects.items()):
             setattr(self, key, value)
         self.allElements = list(self.elementObjects.keys())
@@ -738,9 +630,8 @@ class frameworkLattice(BaseModel):
         self.updateRunSettings(self.runSettings)
         if not isinstance(self.file_block, dict):
             raise ValueError("file_block must be a dictionary.")
-        if "groups" in self.file_block:
-            if self.file_block["groups"] is not None:
-                self.groupSettings = self.file_block["groups"]
+        if "groups" in self.file_block and self.file_block["groups"] is not None:
+            self.groupSettings = self.file_block["groups"]
         if "input" in self.file_block:
             if "sample_interval" in self.file_block["input"]:
                 self.sample_interval = self.file_block["input"]["sample_interval"]
@@ -754,22 +645,6 @@ class frameworkLattice(BaseModel):
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
-
-    def insert_element(self, index: int, element: "PhysicalBaseElement") -> None:
-        """
-        Insert an element at a specific index in the elements dictionary.
-
-        Parameters
-        ----------
-        index: int
-            The index at which to insert the element.
-        element: Element
-            The element to insert into the elements dictionary.
-
-        """
-        for i, _ in enumerate(range(len(self.elements))):
-            k, v = self.elements.popitem(False)
-            self.elements[element.name if i == index else k] = element
 
     def _apply_collective_settings(self) -> None:
         """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block.
@@ -2040,7 +1915,6 @@ class frameworkLattice(BaseModel):
         turn: int
             Turn number, 1-based
         """
-        return None
 
     def output_turns(self) -> list:
         """
@@ -2372,6 +2246,34 @@ class frameworkLattice(BaseModel):
             self.objectname, self.code, self.codes_that_can("supports_frequency_map")
         ))
         return []
+
+    def _footprint(self, tracks) -> list:
+        """
+        Tunes of tracked survivors, stored as :attr:`frequency_map`.
+
+        Parameters
+        ----------
+        tracks: iterable
+            ``(x, y, xs, pxs, ys, pys)`` per surviving start: its grid point and
+            turn-by-turn coordinates.
+
+        Returns
+        -------
+        list
+            ``(x, y, tune_x, tune_y, diffusion)`` for each start that gave a tune.
+        """
+        from .Modules.Matrices import tune_diffusion
+
+        twiss = self.normalisation_twiss()
+        footprint = []
+        for x, y, xs, pxs, ys, pys in tracks:
+            tune_x, tune_y, diffusion = tune_diffusion(xs, pxs, ys, pys, twiss=twiss)
+            if not math.isnan(tune_x):
+                footprint.append((float(x), float(y), tune_x, tune_y, diffusion))
+        if not footprint:
+            warn(exceptions.NoFootprintWarning(self.objectname))
+        self.frequency_map = footprint
+        return footprint
 
     def run_dynamic_aperture(self) -> list:
         """
@@ -2800,7 +2702,9 @@ class frameworkLattice(BaseModel):
         elems = self.getElementType(typ)
         if len(elems) == len(values):
             for e, v in zip(elems, values):
-                e[setting] = v
+                setattr(e, setting, v)
+                if e.hardware_type.lower() == "dipole" and setting == "angle":
+                    e.magnetic.multipoles.K0L.normal = v
         else:
             raise ValueError
 
@@ -2826,7 +2730,7 @@ class frameworkLattice(BaseModel):
         list
             A list of cavity elements in the lattice.
         """
-        return self.getElementType("cavity")
+        return self.getElementType("RFCavity")
 
     @property
     def solenoids(self) -> list:
@@ -2862,7 +2766,10 @@ class frameworkLattice(BaseModel):
         list
             A list of kicker elements in the lattice.
         """
-        return self.getElementType("kicker")
+        return sum(
+            (self.getElementType(t) for t in ("Horizontal_Corrector", "Vertical_Corrector", "Combined_Corrector")),
+            [],
+        )
 
     @property
     def dipoles_and_kickers(self) -> list:
@@ -2875,7 +2782,7 @@ class frameworkLattice(BaseModel):
             A list of dipole and kicker elements in the lattice.
         """
         return sorted(
-            self.getElementType("dipole") + self.getElementType("kicker"),
+            self.dipoles + self.kickers,
             key=lambda x: x.physical.end.z,
         )
 
@@ -2903,11 +2810,8 @@ class frameworkLattice(BaseModel):
         """
         cavities = [
             cav
-            for cav in self.getElementType("cavity")
-            if (
-                isinstance(cav.simulation.wakefield_definition, field)
-                or cav.simulation.wakefield_definition != ""
-            )
+            for cav in self.cavities
+            if cav.simulation.wakefield_definition
         ]
         wakes = self.getElementType("wakefield")
         return cavities + wakes
@@ -2997,18 +2901,6 @@ class frameworkLattice(BaseModel):
         return self.getElementType("photon_monitor")
 
     @property
-    def lines(self) -> list:
-        """
-        Property to get all lines in the lattice.
-
-        Returns
-        -------
-        list
-            A list of lines in the lattice.
-        """
-        return list(self.lineObjects.keys())
-
-    @property
     def start(self) -> str:
         """
         Property to get the name of the starting element of the lattice.
@@ -3075,7 +2967,7 @@ class frameworkLattice(BaseModel):
             return self.file_block["output"]["end_element"]
         elif "zstop" in self.file_block["output"]:
             endelems = []
-            for name, elem in self.elementObjects.keys():
+            for name, elem in self.elementObjects.items():
                 if isinstance(elem, PhysicalBaseElement):
                     if (
                         np.isclose(elem.physical.end.z,
@@ -3278,7 +3170,7 @@ class frameworkLattice(BaseModel):
         if status == 0:
             return
         try:
-            with open(logfile, "r") as f:
+            with open(logfile) as f:
                 tail = "".join(f.readlines()[-20:]).strip()
         except OSError:
             tail = ""
@@ -3448,36 +3340,13 @@ class frameworkLattice(BaseModel):
             and "twiss" in self.file_block["input"]
             and self.file_block["input"]["twiss"]
         ):
-            alpha_x = (
-                self.file_block["input"]["twiss"]["alpha_x"]
-                if "alpha_x" in self.file_block["input"]["twiss"]
-                else False
-            )
-            alpha_y = (
-                self.file_block["input"]["twiss"]["alpha_y"]
-                if "alpha_y" in self.file_block["input"]["twiss"]
-                else False
-            )
-            beta_x = (
-                self.file_block["input"]["twiss"]["beta_x"]
-                if "beta_x" in self.file_block["input"]["twiss"]
-                else False
-            )
-            beta_y = (
-                self.file_block["input"]["twiss"]["beta_y"]
-                if "beta_y" in self.file_block["input"]["twiss"]
-                else False
-            )
-            nemit_x = (
-                self.file_block["input"]["twiss"]["nemit_x"]
-                if "nemit_x" in self.file_block["input"]["twiss"]
-                else False
-            )
-            nemit_y = (
-                self.file_block["input"]["twiss"]["nemit_y"]
-                if "nemit_y" in self.file_block["input"]["twiss"]
-                else False
-            )
+            twiss = self.file_block["input"]["twiss"]
+            alpha_x = twiss.get("alpha_x", False)
+            alpha_y = twiss.get("alpha_y", False)
+            beta_x = twiss.get("beta_x", False)
+            beta_y = twiss.get("beta_y", False)
+            nemit_x = twiss.get("nemit_x", False)
+            nemit_y = twiss.get("nemit_y", False)
             return {
                 "horizontal": {
                     "alpha": alpha_x,
@@ -3509,7 +3378,7 @@ class frameworkLattice(BaseModel):
         harm_number = 0
         if "cavities" in settings:
             cavs = [c for c in self.cavities if c.name in settings["cavities"]]
-            freq = list(set([c.cavity.frequency for c in cavs]))
+            freq = list({c.cavity.frequency for c in cavs})
             if len(freq) > 1:
                 raise ValueError("All accelerating cavities must have the same frequency")
             freq = freq[0]
@@ -3517,7 +3386,7 @@ class frameworkLattice(BaseModel):
             raise KeyError("settings must contain `cavities` key containing names of cavities")
         if "harmonics" in settings:
             harmonics = [c for c in self.cavities if c.name in settings["harmonics"]]
-            harm_freq = list(set([c.cavity.frequency for c in harmonics]))
+            harm_freq = list({c.cavity.frequency for c in harmonics})
             if len(harm_freq) > 1:
                 raise ValueError("All harmonic cavities must have the same frequency")
             harm_freq = harm_freq[0]
@@ -3528,8 +3397,8 @@ class frameworkLattice(BaseModel):
             chirp = settings["chirp"]
         else:
             raise ValueError("Chirp must be defined")
-        curvature = settings["curvature"] if "curvature" in settings else 0
-        skewness = settings["skewness"] if "skewness" in settings else 0
+        curvature = settings.get("curvature", 0)
+        skewness = settings.get("skewness", 0)
 
         k = 2 * np.pi * freq / speed_of_light
         M = np.array(
@@ -3588,7 +3457,7 @@ class frameworkLattice(BaseModel):
             for harm in harmonics:
                 harm.simulation.field_amplitude = vh
                 harm.cavity.phase = ((-phih + 180) % 360)# - 180
-                print(f"Longitudinal matching gave harmonic phase of {phi1} and field amplitude of {v1}")
+                print(f"Longitudinal matching gave harmonic phase of {phih} and field amplitude of {vh}")
 
     def preProcess(self) -> None:
         """
@@ -3615,13 +3484,10 @@ class frameworkLattice(BaseModel):
         self.initial_twiss = self.getInitialTwiss()
         if "match" in self.file_block:
             domatch = True
-            if "enable" in self.file_block["match"]:
-                if not self.file_block["match"]["enable"]:
-                    domatch = False
+            if "enable" in self.file_block["match"] and not self.file_block["match"]["enable"]:
+                domatch = False
             if domatch:
                 self.match(self.file_block["match"])
-            # if matchtwiss:
-            #     self.elementObjects = matchtwiss
         if "longitudinal_match" in self.file_block:
             self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
@@ -3640,7 +3506,6 @@ class frameworkLattice(BaseModel):
             6 components in this code's :attr:`otm_convention` order, or None
             if the code did not give one.
         """
-        return None
 
     def read_optics_summary(self) -> dict:
         """
@@ -3668,7 +3533,6 @@ class frameworkLattice(BaseModel):
         numpy.ndarray | None
             A 6x6 matrix in :attr:`otm_convention` coordinates.
         """
-        return None
 
     def one_turn_map_canonical(
         self, beta0: float | None = None, magnitude: bool = True
@@ -3821,7 +3685,7 @@ class frameworkLattice(BaseModel):
             self.closed_orbit = self.read_closed_orbit()
 
     def __repr__(self):
-        return self.elements
+        return self.__str__()
 
     def __str__(self):
         str = self.name + " = ("
@@ -3907,10 +3771,7 @@ class frameworkLattice(BaseModel):
             If `as_dict` is True, returns a dictionary with element names as keys and their Z values as values.
             If `as_dict` is False, returns a list of Z values.
         """
-        if drifts:
-            elems = self.createDrifts()
-        else:
-            elems = self.elements
+        elems = self.createDrifts() if drifts else self.elements
         if as_dict:
             return {e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()}
         return [[e.physical.start.z, e.physical.end.z] for e in elems.values()]
@@ -3930,10 +3791,7 @@ class frameworkLattice(BaseModel):
             A list of names of the elements in the lattice.
             If `drifts` is True, includes drift elements; otherwise, only includes main elements.
         """
-        if drifts:
-            elems = self.createDrifts()
-        else:
-            elems = self.elements
+        elems = self.createDrifts() if drifts else self.elements
         return [e.name for e in list(elems.values())]
 
     def getElems(self, drifts: bool = True, as_dict: bool = False) -> list | dict:
@@ -3952,13 +3810,10 @@ class frameworkLattice(BaseModel):
         list | dict
             A list or dictionary of elements in the lattice.
         """
-        if drifts:
-            elems = self.createDrifts()
-        else:
-            elems = self.elements
+        elems = self.createDrifts() if drifts else self.elements
         if as_dict:
             return {e.name: e for e in list(elems.values())}
-        return [e for e in list(elems.values())]
+        return list(elems.values())
 
     def getSNames(self) -> list:
         """
@@ -4196,21 +4051,17 @@ class frameworkLattice(BaseModel):
             beta_y=beam.twiss.beta_y.val,
             alpha_x=beam.twiss.alpha_x.val,
             alpha_y=beam.twiss.alpha_y.val,
-            # Dx=beam.twiss.eta_x.val,
-            # Dy=beam.twiss.eta_y.val,
-            # Dxp=beam.twiss.eta_xp.val,
-            # Dyp=beam.twiss.eta_yp.val,
             E=beam.centroids.mean_cp.val * 1e-9
         )
-        matchelems = [e for e in lat.lat_obj.sequence if e.id in params["targets"].keys()]
+        matchelems = [e for e in lat.lat_obj.sequence if e.id in params["targets"]]
         constr = {e: params["targets"][e.id] for e in matchelems}
         if "global" in params["targets"]:
             constr.update({"global": params["targets"]["global"]})
-        varelems = []
-        for p in params["variables"]:
-            if p in self.elements.keys():
-                if type(self.elements[p]) in [Quadrupole, Sextupole, Octupole]:
-                    varelems.append([e for e in lat.lat_obj.sequence if e.id == p][0])
+        varelems = [
+            [e for e in lat.lat_obj.sequence if e.id == p][0]
+            for p in params["variables"]
+            if p in self.elements and type(self.elements[p]) in [Quadrupole, Sextupole, Octupole]
+        ]
         try:
             max_iter = params["max_iterations"]
         except KeyError:
@@ -4219,52 +4070,17 @@ class frameworkLattice(BaseModel):
             raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
         res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
         print("Matching results:")
-        for i, r in enumerate(res):
-            magnetic_order = self.elementObjects[params["variables"][i]].magnetic.order
-            magnetic_length = self.elementObjects[params["variables"][i]].magnetic.length
-            setattr(self.elementObjects[params["variables"][i]], f"k{magnetic_order}l", r * magnetic_length)
-            print("\t", self.elementObjects[params["variables"][i]].name, f"k{magnetic_order}l =", r * magnetic_length)
+        for v, r in zip(varelems, res):
+            elem = self.elementObjects[v.id]
+            magnetic_order = elem.magnetic.order
+            magnetic_length = elem.magnetic.length
+            setattr(elem, f"k{magnetic_order}l", r * magnetic_length)
+            print("\t", elem.name, f"k{magnetic_order}l =", r * magnetic_length)
 
 class global_error(frameworkObject):
     """
     Class defining a global error element.
     """
-
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super(global_error, self).__init__(
-            *args,
-            **kwargs,
-        )
-
-    def add_Error(self, type, sigma):
-        if type in global_Error_Types:
-            self.add_property(type, sigma)
-
-    def _write_ASTRA(self):
-        return self._write_ASTRA_dictionary(
-            dict([[key, {"value": value}] for key, value in self._errordict])
-        )
-
-    def _write_GPT(self, Brho, ccs="wcs", *args, **kwargs):
-        relpos, relrot = ccs.relative_position(self.middle, [0, 0, 0])
-        coord = self.gpt_coordinates(relpos, relrot)
-        output = (
-            str(self.objecttype)
-            + "( "
-            + ccs.name
-            + ", "
-            + coord
-            + ", "
-            + str(self.length)
-            + ", "
-            + str(Brho * self.k1)
-            + ");\n"
-        )
-        return output
 
 class frameworkCommand(frameworkObject):
     """
@@ -4274,7 +4090,7 @@ class frameworkCommand(frameworkObject):
 
     def model_post_init(self, __context):
         if self.objecttype not in commandkeywords:
-            raise NameError("Command '%s' does not exist" % self.objecttype)
+            raise NameError(f"Command '{self.objecttype}' does not exist")
         super().model_post_init(__context)
 
     def write_Elegant(self) -> str:
@@ -4290,39 +4106,13 @@ class frameworkCommand(frameworkObject):
         for key in commandkeywords[self.objecttype]:
             if (
                 key.lower() in self.allowedkeywords
-                and not key == "objectname"
-                and not key == "objecttype"
+                and key != "objectname"
+                and key != "objecttype"
                 and hasattr(self, key)
+                and getattr(self, key.lower()) is not None
             ):
-                if getattr(self, key.lower()) is not None:
-                    string += "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
+                string += "\t" + key + " = " + str(getattr(self, key.lower())) + "\n"
         string += "&end\n"
-        return string
-
-    def write_MAD8(self) -> str:
-        """
-        Writes the command string for MAD8.
-        # TODO deprecated?
-
-        Returns
-        -------
-        str
-            String representation of the command for MAD8
-        """
-        string = self.objecttype
-        # print(self.objecttype, self.objectproperties)
-        for key in commandkeywords[self.objecttype]:
-            if (
-                    key.lower() in self.objectproperties
-                    and not key == "name"
-                    and not key == "type"
-                    and not self.objectproperties[key.lower()] is None
-            ):
-                e = "," + key + "=" + str(self.objectproperties[key.lower()])
-                if len((string + e).splitlines()[-1]) > 79:
-                    string += ",&\n"
-                string += e
-        string += ";\n"
         return string
 
     def write_Genesis(self) -> str:
@@ -4339,8 +4129,8 @@ class frameworkCommand(frameworkObject):
         for key in commandkeywords_genesis[self.objecttype]:
             if (
                 key.lower() in self.allowedkeywords
-                and not key == "objectname"
-                and not key == "objecttype"
+                and key != "objectname"
+                and key != "objecttype"
                 and hasattr(self, key)
             ):
                 val = getattr(self, key.lower())
@@ -4351,14 +4141,14 @@ class frameworkCommand(frameworkObject):
         return string
 
 
-class frameworkGroup(object):
+class frameworkGroup:
     """
     Class defining a framework group, which is used to group together elements to perform coordinated
     actions on them.
     """
 
     def __init__(self, name, framework, type, elements, **kwargs):
-        super(frameworkGroup, self).__init__()
+        super().__init__()
         self.objectname = name
         self.type = type
         self.framework = framework
@@ -4390,7 +4180,6 @@ class frameworkGroup(object):
             The parameter, if defined.
         """
         try:
-            isinstance(type(getattr(self, p)), p)
             return getattr(self, p)
         except Exception:
             if self.elements[0] in self.allGroupObjects:
@@ -4413,14 +4202,9 @@ class frameworkGroup(object):
             setattr(self, p, v)
             if p == "angle":
                 self.set_angle(v)
-            # print ('Changing group ', self.objectname, ' ', p, ' = ', v, '  result = ', self.get_Parameter(p))
         except Exception:
             for e in self.elements:
                 setattr(self.allElementObjects[e], p, v)
-                # print ('Changing group elements ', self.objectname, ' ', p, ' = ', v, '  result = ', self.allElementObjects[self.elements[0]].objectname, self.get_Parameter(p))
-
-    # def __getattr__(self, p):
-    #     return self.get_Parameter(p)
 
     def __repr__(self):
         return str([self.allElementObjects[e].name for e in self.elements])
@@ -4460,7 +4244,7 @@ class r56_group(frameworkGroup):
         self._r56 = None
 
     def __str__(self):
-        return str({e: k for e, k in zip(self.elements, self.keys)})
+        return str(dict(zip(self.elements, self.keys)))
 
     def get_Parameter(self, p: str) -> Any:
         """
@@ -4503,12 +4287,10 @@ class r56_group(frameworkGroup):
         r56: float
             The R56 to be set
         """
-        # print('Changing r56!', self._r56)
         self._r56 = r56
         data = {"r56": self._r56}
         parser = MathParser(data)
         values = [parser.parse(e) for e in self.ratios]
-        # print('\t', list(zip(self.elements, self.keys, values)))
         for e, k, v in zip(self.elements, self.keys, values):
             self.updateElements(e, k, v)
 
@@ -4525,15 +4307,12 @@ class r56_group(frameworkGroup):
         value: Any
             The value to which the parameter should be set
         """
-        # print('R56 : updateElements', element, key, value)
         if isinstance(element, (list, tuple)):
-            [self.updateElements(e, key, value) for e in self.elements]
+            [self.updateElements(e, key, value) for e in element]
         else:
             if element in self.allElementObjects:
-                # print('R56 : updateElements : element', element, key, value)
-                self.allElementObjects[element].change_Parameter(key, value)
+                setattr(self.allElementObjects[element], key, value)
             if element in self.allGroupObjects:
-                # print('R56 : updateElements : group', element, key, value)
                 self.allGroupObjects[element].change_Parameter(key, value)
 
 
@@ -4543,7 +4322,7 @@ class chicane(frameworkGroup):
     """
 
     def __init__(self, name, elementObjects, type, elements, **kwargs):
-        super(chicane, self).__init__(name, elementObjects, type, elements, **kwargs)
+        super().__init__(name, elementObjects, type, elements, **kwargs)
         self.ratios = (1, -1, -1, 1)
         self.elementObjects = [self.allElementObjects[e] for e in self.elements]
 
@@ -4562,7 +4341,6 @@ class chicane(frameworkGroup):
             self.change_Parameter("width", kwargs["width"])
         if "gap" in kwargs:
             self.change_Parameter("gap", kwargs["gap"])
-        return None
 
     @property
     def drift_d1_to_d2(self) -> float:
@@ -4590,7 +4368,7 @@ class chicane(frameworkGroup):
         """
         e1 = self.elementObjects[0]
         ld = self.drift_d1_to_d2
-        return 2 * self.angle ** 2 * (ld * (2 * e1.magnetic.length) / 3)
+        return 2 * self.angle ** 2 * (ld + 2 * e1.magnetic.length / 3)
 
     @property
     def delay(self) -> float:
@@ -4756,103 +4534,11 @@ class s_chicane(chicane):
     """
 
     def __init__(self, name, elementObjects, type, elements, **kwargs):
-        super(s_chicane, self).__init__(name, elementObjects, type, elements, **kwargs)
+        super().__init__(name, elementObjects, type, elements, **kwargs)
         self.ratios = (-1, 2, -2, 1)
 
 
-class frameworkCounter(dict):
-    """
-    Class defining a counter object, used for numbering elements of the same type in ASTRA and CSRTrack
-    """
-
-    def __init__(self, sub={}):
-        super(frameworkCounter, self).__init__()
-        self.sub = sub
-
-    def counter(self, typ: str) -> int:
-        """
-        Increment count of elements of a given type in the lattice.
-
-        Parameters
-        ----------
-        typ: str
-            Element type
-
-        Returns
-        -------
-        int
-            The updated number of elements of a given type defined so far
-        """
-        typ = self.sub[typ] if typ in self.sub else typ
-        if typ not in self:
-            return 1
-        return self[typ] + 1
-
-    def value(self, typ: str) -> int:
-        """
-        Number of elements of a given type in the lattice.
-
-        Parameters
-        ----------
-        typ: str
-            Element type
-
-        Returns
-        -------
-        int
-            The number of elements of a given type defined so far
-        """
-        typ = self.sub[typ] if typ in self.sub else typ
-        if typ not in self:
-            return 1
-        return self[typ]
-
-    def add(self, typ: str, n: PositiveInt = 1) -> int:
-        """
-        Add to count of elements of a given type in the lattice.
-
-        Parameters
-        ----------
-        typ: str
-            Element type
-        n: PositiveInt, optional
-            Add more than one element at a time
-
-        Returns
-        -------
-        int
-            The number of elements of a given type defined so far
-        """
-        typ = self.sub[typ] if typ in self.sub else typ
-        if typ not in self:
-            self[typ] = n
-        else:
-            self[typ] += n
-        return self[typ]
-
-    def subtract(self, typ: str) -> int:
-        """
-        Reduce count of elements of a given type in the lattice.
-
-        Parameters
-        ----------
-        typ: str
-            Element type
-
-        Returns
-        -------
-        int
-            The updated number of elements of a given type defined so far
-        """
-        typ = self.sub[typ] if typ in self.sub else typ
-        if typ not in self:
-            self[typ] = 0
-        else:
-            self[typ] = self[typ] - 1 if self[typ] > 0 else 0
-        return self[typ]
-
-
-class getGrids(object):
+class getGrids:
     """
     Class defining the appropriate number of space charge bins given the number of particles,
     defined as the closest power of 8 to the cube root of the number of particles.

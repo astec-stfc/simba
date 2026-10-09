@@ -51,7 +51,6 @@ codes = {
     "gpt": gpt.read_gdf_twiss_files,
     "astra": astra.read_astra_twiss_files,
     "ocelot": ocelot.read_ocelot_twiss_files_hdf,
-    # "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
     "opal": opal.read_opal_twiss_files,
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
@@ -64,11 +63,11 @@ code_signatures = [
     ["elegant", ".twi"],
     ["elegant", ".flr"],
     ["elegant", ".sig"],
-    ["GPT", "emit.gdf"],
+    ["gpt", "emit.gdf"],
     ["astra", "Xemit.001"],
     ["ocelot", "_twiss.npz"],
     ["opal", "opal_twiss.h5"],
-    ["ocelot_h5", "_twiss.oh5"],
+    ["ocelot", "_twiss.oh5"],
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
@@ -83,7 +82,6 @@ twiss_defaults = {
     "kinetic_energy": {"name": "kinetic_energy", "unit": "eV"},
     "gamma": {"name": "gamma", "unit": ""},
     "cp": {"name": "cp", "unit": "eV/c"},
-    # "cp_eV": {"name": "cp_eV", "unit": "eV/c"},
     "p": {"name": "p", "unit": "kg*m/s"},
     "ex": {"name": "ex", "unit": "m-rad"},
     "enx": {"name": "enx", "unit": "m-rad"},
@@ -91,8 +89,8 @@ twiss_defaults = {
     "ey": {"name": "ey", "unit": "m-rad"},
     "eny": {"name": "eny", "unit": "m-rad"},
     "ecny": {"name": "ecny", "unit": "m-rad"},
-    "ez": {"name": "ey", "unit": "eV*s"},
-    "enz": {"name": "eny", "unit": "eV*s"},
+    "ez": {"name": "ez", "unit": "eV*s"},
+    "enz": {"name": "enz", "unit": "eV*s"},
     "ecnz": {"name": "ecnz", "unit": "eV*s"},
     "beta_x": {"name": "beta_x", "unit": "m"},
     "gamma_x": {"name": "gamma_x", "unit": ""},
@@ -249,9 +247,6 @@ class twiss(BaseModel):
 
     cp: "twissParameter" = None
     """The momentum of the beam in eV/c."""
-
-    # cp_eV: "twissParameter" = None
-    # """The momentum of the beam in eV/c, specifically for energy calculations."""
 
     p: "twissParameter" = None
     """The momentum of the beam in kg*m/s, calculated as cp * q_over_c."""
@@ -426,27 +421,10 @@ class twiss(BaseModel):
         rest_mass=None,
     ):
         twiss.rest_mass = rest_mass
-        super(
-            twiss,
-            self,
-        ).__init__(
-            rest_mass=rest_mass,
-        )
+        super().__init__(rest_mass=rest_mass)
         self.reset_dicts()
         self.sddsindex = 0
-        self.codes = {
-            "elegant": elegant.read_elegant_twiss_files,
-            "gpt": gpt.read_gdf_twiss_files,
-            "astra": astra.read_astra_twiss_files,
-            "ocelot": ocelot.read_ocelot_twiss_files_hdf,
-            # "ocelot_h5": ocelot.read_ocelot_twiss_files_hdf,
-            "opal": opal.read_opal_twiss_files,
-            "cheetah": cheetah.read_cheetah_twiss_files,
-            "xsuite": xsuite.read_xsuite_twiss_files,
-            "genesis": genesis.read_genesis_twiss_files,
-            "madx": madx.read_madx_twiss_files,
-            "bmad": bmad.read_bmad_twiss_files,
-        }
+        self.codes = dict(codes)
         self.code_signatures = code_signatures
 
     @model_validator(mode="before")
@@ -476,12 +454,6 @@ class twiss(BaseModel):
         """
         self.E0 = value * constants.speed_of_light**2
         self.E0_eV = self.E0 / constants.elementary_charge
-
-    # def __getitem__(self, key):
-    #     if key in super(twiss, self).__getitem__('data') and super(twiss, self).__getitem__('data') is not None:
-    #         return self.get(key)
-    #     else:
-    #         return super(twiss, self).__getitem__(key)
 
     def read_astra_twiss_files(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -665,10 +637,7 @@ class twiss(BaseModel):
                     if reverse:
                         getattr(self, k).val = flat[index[::-1]]
                     else:
-                        # try:
                         getattr(self, k).val = flat[index[::1]]
-                        # except Exception:
-                        #     print(f"Error in sort k={getattr(self, k).val}, index={index}")
 
     def append(self, array: str, data: List | np.ndarray) -> None:
         """
@@ -681,11 +650,22 @@ class twiss(BaseModel):
         data: List | np.ndarray
             Data to append
         """
-        newval = UnitValue(
-            np.concatenate([getattr(self, array), data]),
-            units=getattr(self, array).units,
-        )
-        setattr(self, array, newval)
+        getattr(self, array).val = np.append(getattr(self, array).val, data)
+
+    def append_columns(self, n: int, **columns) -> None:
+        """
+        Append `n` rows to several twiss parameter arrays at once.
+
+        Parameters
+        ----------
+        n: int
+            Number of rows being appended
+        **columns:
+            Parameter name and its `n` values; a scalar is repeated, so
+            ``ez=0.0`` zero-fills a quantity the code doesn't output
+        """
+        for name, data in columns.items():
+            self.append(name, np.full(n, data) if np.ndim(data) == 0 else data)
 
     def _which_code(self, name: str) -> Callable | None:
         """
@@ -701,7 +681,7 @@ class twiss(BaseModel):
         callable | None:
             The function associated with the specified simulation code name, or None if not found.
         """
-        if name.lower() in self.codes.keys():
+        if name.lower() in self.codes:
             return self.codes[name.lower()]
         return None
 
@@ -771,7 +751,7 @@ class twiss(BaseModel):
         """
         startidx = self.find_nearest_idx(self.z.val, start)
         endidx = self.find_nearest_idx(self.z.val, end) + 1
-        return getattr(self, name)[startidx:endidx]
+        return getattr(self, name).val[startidx:endidx]
 
     def get_parameter_at_z(self, param: str, z: UnitValue, tol: float = 1e-3) -> float:
         """
@@ -796,15 +776,14 @@ class twiss(BaseModel):
         """
         if z in self.z.val:
             idx = list(self.z.val).index(z)
-            return getattr(self, param)[idx]
+            return getattr(self, param).val[idx]
         else:
-            nearest_z = self.find_nearest(self.z, z)
+            nearest_z = self.find_nearest(self.z.val, z)
             if abs(nearest_z - z) < tol:
                 idx = list(self.z.val).index(nearest_z)
                 return getattr(self, param).val[idx]
             else:
-                # print('interpolate!', z, self['z'])
-                return self.interpolate(z=z.val, value=param, index="z")
+                return self.interpolate(z=float(z), value=param, index="z")
 
     def get_parameter_at_element(self, param: str, element_name: str) -> float | None:
         """
@@ -1025,13 +1004,6 @@ class twiss(BaseModel):
         t.load_directory(*args, **kwargs)
         return t
 
-    # @property
-    # def cp_eV(self):
-    #     return self['cp']
-    # @property
-    # def cp_MeV(self):
-    #     return self['cp'] / 1e6
-
 
 def load_directory(
     directory=".",
@@ -1039,7 +1011,6 @@ def load_directory(
         "elegant": ".twi",
         "GPT": "emit.gdf",
         "ASTRA": "Xemit.001",
-        # "ocelot": "_twiss.npz",
         "opal": "opal_twiss.h5",
         "ocelot": "_twiss.oh5",
         "cheetah": "_twiss.cheetah.hdf5",

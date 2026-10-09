@@ -224,7 +224,6 @@ class SectorLine:
 
     def _machine_geometry(self):
         """No layout behind this stub; `periodic` is never set here."""
-        return None
 
     turns = frameworkLattice.turns
     periodic = frameworkLattice.periodic
@@ -535,7 +534,6 @@ def test_xsuite_a_sector_n_times_is_n_copies_once():
     """The measurement the backend is built on. Sextupoles are present so
     that agreement is not a linear coincidence."""
     pytest.importorskip("xtrack")
-    import numpy as np
 
     n, turns = 3, 20
     one, many = _xtrack_sector(1), _xtrack_sector(n)
@@ -677,7 +675,6 @@ class FakeXsuiteRing:
 
     def read_closed_orbit(self):
         """A straight FODO sector's closed orbit is the axis."""
-        return None
 
     turns = frameworkLattice.turns
     nsuperperiods = frameworkLattice.nsuperperiods

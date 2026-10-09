@@ -1,5 +1,6 @@
 """Bmad's turn-by-turn hand-back."""
 
+import contextlib
 import math
 import os
 import tempfile
@@ -76,12 +77,8 @@ def _tao(path, **kwargs):
     init = f"{os.path.splitext(path)[0]}.init"
     with open(init, "w") as handle:
         handle.write(INIT.format(lattice=os.path.basename(path), npart=NPART))
-    previous = os.getcwd()
-    try:
-        os.chdir(os.path.dirname(path))
+    with contextlib.chdir(os.path.dirname(path)):
         return Tao(init_file=init, so_lib=BMAD_SO, noplot=True, **kwargs)
-    finally:
-        os.chdir(previous)
 
 
 def _write_lattice(directory, name, repeats, geometry, twiss=""):
@@ -195,7 +192,8 @@ def unrolled(directory, looped):
     twiss = closed_tao.ele_twiss("BEGINNING")
     FakeBmad(closed_tao, closed)._write_grid_beam_file(seed)
     FakeBmad(_tao(ring), ring)._write_grid_beam_file(again)
-    assert open(seed).read() == open(again).read()
+    with open(seed) as a, open(again) as b:
+        assert a.read() == b.read()
 
     written = "".join(
         f"beginning[{key}] = {twiss[key]!r}\n"
@@ -293,7 +291,8 @@ def test_a_lost_particle_stays_lost(directory):
     beam = os.path.join(directory, "lost.beam")
     lattice._write_position_file(beam, rows, states=[1, 2, 1])
 
-    text = open(beam).read()
+    with open(beam) as handle:
+        text = handle.read()
     assert "state" in text.splitlines()[4], "the #! line must name the column"
     states = [line.split()[-1] for line in text.splitlines()[5:] if line.strip()]
     assert states == ["Alive", "Lost", "Alive"]
