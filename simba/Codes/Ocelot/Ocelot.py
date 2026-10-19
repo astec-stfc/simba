@@ -200,7 +200,8 @@ class ocelotLattice(frameworkLattice):
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
         """
         self.lat_obj = self.section.to_ocelot(save=True)
-        self.add_tw1_focusing()
+        if self.tw_focusing:
+            self.add_tw1_focusing()
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
 
     @property
@@ -216,27 +217,14 @@ class ocelotLattice(frameworkLattice):
     def add_tw1_focusing(self) -> None:
         """
         Ocelot's own ``Cavity``/``CavityAtom`` only implements the
-        Rosenzweig-Serafini *standing-wave* matrix (``eta = 1``, hardcoded --
-        it is not exposed as a constructor parameter), and it is used for
-        every RFCavity element regardless of ``cavity.structure_type`` -- so
-        a travelling-wave cavity silently gets standing-wave focusing, which
+        Rosenzweig-Serafini standing-wave matrix, which
         over-predicts the real (much weaker) travelling-wave RF focusing;
         see :func:`~simba.Modules.rf_focusing.tw1_focusing_matrix`.
 
-        Since the matrix ``CavityAtom`` applies can't be swapped out from
-        inside Ocelot's own ``Cavity`` element, this walks the lattice just
-        built by :meth:`~writeElements` and, for every TravellingWave
-        cavity, inserts a thin corrective ``Matrix`` element immediately
-        after it that cancels the standing-wave matrix Ocelot will apply at
-        that cavity and replaces it with the travelling-wave model
-        (matching ELEGANT's ``BODY_FOCUS_MODEL=TW1`` plus its
-        ``END1_FOCUS``/``END2_FOCUS`` entrance/exit kicks, read from the
-        cavity's own ``simulation.end1_focus``/``end2_focus``). Both
-        matrices are
-        evaluated at the same running estimate of the design energy (built
-        up from :attr:`~pin`'s mean energy plus each preceding cavity's own
-        energy gain) -- the same approximation
-        :meth:`~simba.Codes.MADX.MADX.madxLattice.rs_matrix_cavity` makes.
+        For every TravellingWave cavity, insert a thin corrective
+        ``Matrix`` element immediately after it that cancels the
+        standing-wave matrix Ocelot will apply at
+        that cavity and replace it with the travelling-wave model.
         """
         from ocelot.cpbd.elements import Cavity, Matrix
         from ocelot.cpbd.magnetic_lattice import MagneticLattice

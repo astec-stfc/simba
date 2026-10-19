@@ -1,0 +1,36 @@
+name: LWFA-PLA-01
+hardware_model: Plasma
+machine_area: LWFA
+simulation:
+  min_longitudinal_position: -1.0e-05
+  max_longitudinal_position: 3.0e-05
+  n_longitudinal: 800
+  n_radial: 50
+  r_max: 2.0e-05
+  r_max_plasma: 1.8e-05
+  plasma_min_longitudinal_position: 3.0e-05
+  plasma_max_longitudinal_position: 0.0005
+electrical: {}
+manufacturer: {}
+physical:
+  middle:
+    z: 2.5e-05
+  error: {}
+  survey: {}
+  length: 5.0e-05
+  s: 2.5e-05
+plasma:
+  density: 4.0e+24
+  ramp_up: 3.0e-05
+  plateau: 0.00044
+  ramp_down: 3.0e-05
+  ramp_decay_length: 4.0e-05
+  density_profile: true
+laser:
+  initial_position: 1.5e-05
+  waist: 5.0e-06
+  wavelength: 8.0e-07
+  pulse_energy: 0.2149112092636529
+  pulse_duration_fwhm: 1.6e-14
+hardware_type: Plasma
+hardware_class: Plasma

@@ -1,0 +1,12 @@
+name: LWFA-SIM-START-01
+hardware_class: Simulation
+machine_area: LWFA
+simulation: {}
+electrical: {}
+manufacturer: {}
+physical:
+  error: {}
+  survey: {}
+  s: 0.0
+  middle: {}
+hardware_type: Marker

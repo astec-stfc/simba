@@ -1,0 +1,30 @@
+settingsFilename: /home/xkc85723/Documents/simba/examples/fbpic_lwfa/master_lattice/./Lattices/lwfa.def
+files:
+  LWFA:
+    code: fbpic
+    input:
+      particle_definition: initial_distribution
+    output:
+      start_element: LWFA-SIM-START-01
+      end_element: LWFA-SIM-END-01
+groups: {}
+element_list: YAML/
+global:
+  FBPICsettings:
+    use_cuda: true
+    n_order: -1
+    number_of_modes: 2
+    diag_period: 50
+    boundaries:
+      z: open
+      r: reflective
+    particle_shape: linear
+    boost: false
+    track_bunch: true
+elements:
+  filename: lattice.yaml
+generator:
+  code: simba
+  default: lwfa_witness
+layout: layouts.yaml
+section: sections.yaml

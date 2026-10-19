@@ -346,7 +346,7 @@ class madxLattice(frameworkLattice):
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
                 estr = d.to_madx(at=at).strip()
                 if d.hardware_type.lower() == "rfcavity":
-                    if d.cavity.structure_type == "StandingWave":
+                    if d.cavity.structure_type == "StandingWave" or not self.tw_focusing:
                         if self.cavity_model.lower() == "rsmatrix":
                             estr, self._design_energy = self.rs_matrix_cavity(
                                 estr, d.physical.length, at, self._design_energy
