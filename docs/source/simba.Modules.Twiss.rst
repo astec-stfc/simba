@@ -12,6 +12,14 @@ simba.Modules.Twiss.astra module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Twiss.bmad module
+-------------------------------
+
+.. automodule:: simba.Modules.Twiss.bmad
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.Twiss.cheetah module
 ----------------------------------
 
@@ -28,6 +36,14 @@ simba.Modules.Twiss.elegant module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Twiss.genesis module
+----------------------------------
+
+.. automodule:: simba.Modules.Twiss.genesis
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.Twiss.gpt module
 ------------------------------
 
@@ -40,6 +56,14 @@ simba.Modules.Twiss.hdf5 module
 -------------------------------
 
 .. automodule:: simba.Modules.Twiss.hdf5
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+simba.Modules.Twiss.madx module
+-------------------------------
+
+.. automodule:: simba.Modules.Twiss.madx
    :members:
    :show-inheritance:
    :undoc-members:

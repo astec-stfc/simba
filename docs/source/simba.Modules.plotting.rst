@@ -4,26 +4,10 @@ simba.Modules.plotting package
 Submodules
 ----------
 
-simba.Modules.plotting.latticeDraw module
------------------------------------------
+simba.Modules.plotting.ring module
+----------------------------------
 
-.. automodule:: simba.Modules.plotting.latticeDraw
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.plotting.multiAxisPlot module
--------------------------------------------
-
-.. automodule:: simba.Modules.plotting.multiAxisPlot
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.plotting.multiPlot module
----------------------------------------
-
-.. automodule:: simba.Modules.plotting.multiPlot
+.. automodule:: simba.Modules.plotting.ring
    :members:
    :show-inheritance:
    :undoc-members:

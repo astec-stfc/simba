@@ -4,13 +4,18 @@ import operator as op
 
 
 class MathParser:
-    """Basic parser with local variable and math functions
+    """Safe expression evaluator over named variables and :mod:`math` functions.
 
-    Args:
-       vars (mapping): mapping object where obj[name] -> numerical value
-       math (bool, optional): if True (default) all math function are added in the same name space
+    Parameters
+    ----------
+    vars : mapping
+        Variable name to numerical value.
+    math : bool, optional
+        If True (default), :mod:`math` functions are available by name.
 
-    Example:
+    Examples
+    --------
+    ::
 
        data = {'r': 3.4, 'theta': 3.141592653589793}
        parser = MathParser(data)
@@ -61,8 +66,10 @@ class MathParser:
     def eval_(self, node):
         if isinstance(node, ast.Expression):
             return self.eval_(node.body)
-        if isinstance(node, ast.Num):  # <number>
-            return node.n
+        if isinstance(node, ast.Constant) and isinstance(
+            node.value, (int, float, complex)
+        ):  # <number>
+            return node.value
         if isinstance(node, ast.Name):
             return self._Name(node.id)
         if isinstance(node, ast.BinOp):
@@ -72,15 +79,14 @@ class MathParser:
             method = self._operators2method[type(node.op)]
             return method(self.eval_(node.operand))
         if isinstance(node, ast.Attribute):
+            if node.attr.startswith("_"):
+                raise NameError(f"{node.attr!r}")
             return getattr(self.eval_(node.value), node.attr)
 
         if isinstance(node, ast.Call):
             return self.eval_(node.func)(
                 *(self.eval_(a) for a in node.args),
                 **{k.arg: self.eval_(k.value) for k in node.keywords},
-            )
-            return self.Call(
-                self.eval_(node.func), tuple(self.eval_(a) for a in node.args)
             )
         else:
             raise TypeError(node)
