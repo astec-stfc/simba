@@ -1,0 +1,40 @@
+&run_setup
+	lattice = ../RING.lte
+	use_beamline = RING
+	centroid = %s.cen
+	sigma = %s.sig
+	default_order = 3
+	p_central = 1956.9509280743816
+	always_change_p0 = 0
+	s_start = 0.0
+&end
+&twiss_output
+	filename = %s.twi
+	matched = 1
+	output_at_each_step = 0
+	statistics = 1
+	radiation_integrals = 1
+&end
+&alter_elements
+	name = *
+	item = DISABLE
+	type = WATCH
+	value = 1
+	allow_missing_elements = 1
+&end
+&run_control
+	n_steps = 1
+	n_passes = 512
+&end
+&find_aperture
+	output = RING_aperture.aper
+	mode = n-line
+	xmin = -0.03
+	xmax = 0.03
+	ymin = 0.0
+	ymax = 0.015
+	nx = 30
+	ny = 15
+	verbosity = 0
+	n_lines = 11
+&end

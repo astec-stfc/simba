@@ -1,0 +1,16 @@
+name: QD7
+machine_area: RING
+physical:
+  middle:
+    z: 30.15
+  length: 0.3
+  s: 30.149999999999995
+magnetic:
+  length: 0.3
+  multipoles:
+    K1L:
+      order: 1
+      normal: -0.6
+  order: 1
+hardware_type: Quadrupole
+hardware_class: Magnet

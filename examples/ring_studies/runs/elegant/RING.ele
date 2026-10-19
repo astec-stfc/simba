@@ -1,0 +1,49 @@
+&global_settings
+	inhibit_fsync = 0
+	mpi_io_read_buffer_size = 16777216
+	mpi_io_write_buffer_size = 16777216
+	usleep_mpi_io_kludge = 0
+	mpi_io_force_file_sync = 0
+&end
+&run_setup
+	lattice = RING.lte
+	use_beamline = RING
+	centroid = %s.cen
+	sigma = %s.sig
+	default_order = 3
+	p_central = 1956.9509280743816
+	always_change_p0 = 0
+	s_start = 0.0
+&end
+&run_control
+	n_steps = 1
+	n_passes = 512
+&end
+&twiss_output
+	filename = %s.twi
+	matched = 1
+	output_at_each_step = 0
+	statistics = 1
+	radiation_integrals = 1
+&end
+&floor_coordinates
+	filename = %s.flr
+	X0 = 0.0
+	Y0 = 0.0
+	Z0 = 0.0
+	theta0 = 0.0
+	magnet_centers = 0
+&end
+&matrix_output
+	full_matrix_only = 0
+	SDDS_output = %s.mat
+	SDDS_output_order = 2
+&end
+&sdds_beam
+	input = RING_input.sdds
+	reuse_bunch = 1
+	sample_interval = 1
+	center_arrival_time = 0
+&end
+&track
+&end

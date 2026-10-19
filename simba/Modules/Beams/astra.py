@@ -79,6 +79,7 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         [constants.elementary_charge * self.charge_sign_index[i] for i in index],
         units="C",
     )
+
     # print self.Bz
     self._beam.t = UnitValue(
         [
@@ -100,6 +101,7 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
     self._beam.nmacro = UnitValue(
         np.array(np.array(self._beam.charge) / self._beam.particle_charge)
     )
+    self.set_species(self._beam.species_name[index[0]])
 
 
 def read_csrtrack_beam_file(self, filename):

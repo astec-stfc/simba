@@ -1,0 +1,16 @@
+name: QD9
+machine_area: RING
+physical:
+  middle:
+    z: 38.15
+  length: 0.3
+  s: 38.15
+magnetic:
+  length: 0.3
+  multipoles:
+    K1L:
+      order: 1
+      normal: -0.6
+  order: 1
+hardware_type: Quadrupole
+hardware_class: Magnet

@@ -1,0 +1,174 @@
+RING_Q: CHARGE, TOTAL = 1e-15;
+START: watch, filename = "./START.SDDS";
+QF0: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_1: drift, l = 0.05;
+SF0: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_2: drift, l = 1.45;
+QD0: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_3: drift, l = 0.0500000000000003;
+SD0: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_4: drift, l = 1.4499999999999997;
+QF1: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_5: drift, l = 0.0499999999999998;
+SF1: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_6: drift, l = 1.4500000000000002;
+QD1: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_7: drift, l = 0.0499999999999998;
+SD1: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_8: drift, l = 1.4500000000000002;
+QF2: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_9: drift, l = 0.0499999999999989;
+SF2: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_10: drift, l = 1.450000000000001;
+QD2: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_11: drift, l = 0.0499999999999989;
+SD2: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_12: drift, l = 1.450000000000001;
+QF3: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_13: drift, l = 0.0499999999999989;
+SF3: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_14: drift, l = 1.450000000000001;
+QD3: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_15: drift, l = 0.0499999999999989;
+SD3: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_16: drift, l = 1.4499999999999993;
+QF4: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_17: drift, l = 0.0500000000000007;
+SF4: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_18: drift, l = 1.4499999999999993;
+QD4: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_19: drift, l = 0.0500000000000007;
+SD4: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_20: drift, l = 1.4499999999999993;
+QF5: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_21: drift, l = 0.0500000000000007;
+SF5: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_22: drift, l = 1.4499999999999993;
+QD5: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_23: drift, l = 0.0500000000000007;
+SD5: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_24: drift, l = 1.4499999999999993;
+QF6: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_25: drift, l = 0.0500000000000007;
+SF6: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_26: drift, l = 1.4499999999999993;
+QD6: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_27: drift, l = 0.0500000000000007;
+SD6: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_28: drift, l = 1.4499999999999993;
+QF7: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_29: drift, l = 0.0500000000000007;
+SF7: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_30: drift, l = 1.4499999999999993;
+QD7: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_31: drift, l = 0.0500000000000007;
+SD7: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_32: drift, l = 1.4499999999999993;
+QF8: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_33: drift, l = 0.0500000000000043;
+SF8: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_34: drift, l = 1.4499999999999957;
+QD8: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_35: drift, l = 0.0500000000000043;
+SD8: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_36: drift, l = 1.4499999999999957;
+QF9: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0,&
+k1 = 2.3333333333333335;
+RING_drift_37: drift, l = 0.0500000000000043;
+SF9: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = 40.0;
+RING_drift_38: drift, l = 1.4499999999999957;
+QD9: quad, l = 0.3, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k1 = -2.0;
+RING_drift_39: drift, l = 0.0500000000000043;
+SD9: ksext, n_slices = 4, integration_order = 4, &
+synch_rad = 1, isr = 1,&
+l = 0.2, tilt = 0.0, dx = 0.0, dy = 0.0, dz = 0.0, &
+k2 = -40.0;
+RING_drift_40: drift, l = 1.4499999999999957;
+END: watch, filename = "./END.SDDS";
+RING: LINE = (RING_Q, START, QF0, RING_drift_1, SF0, RING_drift_2, QD0,&
+RING_drift_3, SD0, RING_drift_4, QF1, RING_drift_5, SF1, RING_drift_6, QD1,&
+RING_drift_7, SD1, RING_drift_8, QF2, RING_drift_9, SF2, RING_drift_10, QD2,&
+RING_drift_11, SD2, RING_drift_12, QF3, RING_drift_13, SF3, RING_drift_14, QD3,&
+RING_drift_15, SD3, RING_drift_16, QF4, RING_drift_17, SF4, RING_drift_18, QD4,&
+RING_drift_19, SD4, RING_drift_20, QF5, RING_drift_21, SF5, RING_drift_22, QD5,&
+RING_drift_23, SD5, RING_drift_24, QF6, RING_drift_25, SF6, RING_drift_26, QD6,&
+RING_drift_27, SD6, RING_drift_28, QF7, RING_drift_29, SF7, RING_drift_30, QD7,&
+RING_drift_31, SD7, RING_drift_32, QF8, RING_drift_33, SF8, RING_drift_34, QD8,&
+RING_drift_35, SD8, RING_drift_36, QF9, RING_drift_37, SF9, RING_drift_38, QD9,&
+RING_drift_39, SD9, RING_drift_40, END)

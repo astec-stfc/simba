@@ -1,0 +1,1051 @@
+{
+ "__class__": "Line",
+ "_extra_config": {
+  "_beamstrahlung_model": null,
+  "_bhabha_model": null,
+  "_needs_rng": false,
+  "_radiation_model": null,
+  "_spin_model": null,
+  "_t_last_update_time_dependent_vars": null,
+  "corrector_limits_x": null,
+  "corrector_limits_y": null,
+  "dt_update_time_dependent_vars": 0.0,
+  "enable_time_dependent_vars": false,
+  "end_compose_on_reload": true,
+  "matrix_responsiveness_tol": 1e-15,
+  "matrix_stability_tol": 0.002,
+  "reset_s_at_end_turn": true,
+  "skip_end_turn_actions": false,
+  "steering_correctors_x": null,
+  "steering_correctors_y": null,
+  "steering_monitors_x": null,
+  "steering_monitors_y": null,
+  "twiss_default": {}
+ },
+ "_var_management_data": {
+  "functions": {
+   "_funcs": {}
+  },
+  "var_values": {
+   "__vary_default": {},
+   "t_turn_s": 0.0
+  }
+ },
+ "_var_manager": [],
+ "composer": {
+  "__class__": "Composer",
+  "components": [],
+  "refer": "center",
+  "s_tol": 1e-06
+ },
+ "config": {
+  "XFIELDS_BB3D_NO_BEAMSTR": true,
+  "XFIELDS_BB3D_NO_BHABHA": true,
+  "XTRACK_GLOBAL_XY_LIMIT": 1.0,
+  "XTRACK_MULTIPOLE_NO_SYNRAD": true
+ },
+ "element_names": [
+  "START",
+  "QF0",
+  "RING_drift_1",
+  "SF0",
+  "RING_drift_2",
+  "QD0",
+  "RING_drift_3",
+  "SD0",
+  "RING_drift_4",
+  "QF1",
+  "RING_drift_5",
+  "SF1",
+  "RING_drift_6",
+  "QD1",
+  "RING_drift_7",
+  "SD1",
+  "RING_drift_8",
+  "QF2",
+  "RING_drift_9",
+  "SF2",
+  "RING_drift_10",
+  "QD2",
+  "RING_drift_11",
+  "SD2",
+  "RING_drift_12",
+  "QF3",
+  "RING_drift_13",
+  "SF3",
+  "RING_drift_14",
+  "QD3",
+  "RING_drift_15",
+  "SD3",
+  "RING_drift_16",
+  "QF4",
+  "RING_drift_17",
+  "SF4",
+  "RING_drift_18",
+  "QD4",
+  "RING_drift_19",
+  "SD4",
+  "RING_drift_20",
+  "QF5",
+  "RING_drift_21",
+  "SF5",
+  "RING_drift_22",
+  "QD5",
+  "RING_drift_23",
+  "SD5",
+  "RING_drift_24",
+  "QF6",
+  "RING_drift_25",
+  "SF6",
+  "RING_drift_26",
+  "QD6",
+  "RING_drift_27",
+  "SD6",
+  "RING_drift_28",
+  "QF7",
+  "RING_drift_29",
+  "SF7",
+  "RING_drift_30",
+  "QD7",
+  "RING_drift_31",
+  "SD7",
+  "RING_drift_32",
+  "QF8",
+  "RING_drift_33",
+  "SF8",
+  "RING_drift_34",
+  "QD8",
+  "RING_drift_35",
+  "SD8",
+  "RING_drift_36",
+  "QF9",
+  "RING_drift_37",
+  "SF9",
+  "RING_drift_38",
+  "QD9",
+  "RING_drift_39",
+  "SD9",
+  "RING_drift_40",
+  "END"
+ ],
+ "elements": {
+  "END": {
+   "__class__": "Marker"
+  },
+  "QD0": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD1": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD2": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD3": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD4": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD5": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD6": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD7": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD8": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QD9": {
+   "__class__": "Quadrupole",
+   "k1": -2.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF0": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF1": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF2": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF3": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF4": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF5": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF6": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF7": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF8": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "QF9": {
+   "__class__": "Quadrupole",
+   "k1": 2.3333333333333335,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.3,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "RING_drift_1": {
+   "__class__": "Drift",
+   "length": 0.05
+  },
+  "RING_drift_10": {
+   "__class__": "Drift",
+   "length": 1.450000000000001
+  },
+  "RING_drift_11": {
+   "__class__": "Drift",
+   "length": 0.0499999999999989
+  },
+  "RING_drift_12": {
+   "__class__": "Drift",
+   "length": 1.450000000000001
+  },
+  "RING_drift_13": {
+   "__class__": "Drift",
+   "length": 0.0499999999999989
+  },
+  "RING_drift_14": {
+   "__class__": "Drift",
+   "length": 1.450000000000001
+  },
+  "RING_drift_15": {
+   "__class__": "Drift",
+   "length": 0.0499999999999989
+  },
+  "RING_drift_16": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_17": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_18": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_19": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_2": {
+   "__class__": "Drift",
+   "length": 1.45
+  },
+  "RING_drift_20": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_21": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_22": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_23": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_24": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_25": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_26": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_27": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_28": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_29": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_3": {
+   "__class__": "Drift",
+   "length": 0.0500000000000003
+  },
+  "RING_drift_30": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_31": {
+   "__class__": "Drift",
+   "length": 0.0500000000000007
+  },
+  "RING_drift_32": {
+   "__class__": "Drift",
+   "length": 1.4499999999999993
+  },
+  "RING_drift_33": {
+   "__class__": "Drift",
+   "length": 0.0500000000000043
+  },
+  "RING_drift_34": {
+   "__class__": "Drift",
+   "length": 1.4499999999999957
+  },
+  "RING_drift_35": {
+   "__class__": "Drift",
+   "length": 0.0500000000000043
+  },
+  "RING_drift_36": {
+   "__class__": "Drift",
+   "length": 1.4499999999999957
+  },
+  "RING_drift_37": {
+   "__class__": "Drift",
+   "length": 0.0500000000000043
+  },
+  "RING_drift_38": {
+   "__class__": "Drift",
+   "length": 1.4499999999999957
+  },
+  "RING_drift_39": {
+   "__class__": "Drift",
+   "length": 0.0500000000000043
+  },
+  "RING_drift_4": {
+   "__class__": "Drift",
+   "length": 1.4499999999999997
+  },
+  "RING_drift_40": {
+   "__class__": "Drift",
+   "length": 1.4499999999999957
+  },
+  "RING_drift_5": {
+   "__class__": "Drift",
+   "length": 0.0499999999999998
+  },
+  "RING_drift_6": {
+   "__class__": "Drift",
+   "length": 1.4500000000000002
+  },
+  "RING_drift_7": {
+   "__class__": "Drift",
+   "length": 0.0499999999999998
+  },
+  "RING_drift_8": {
+   "__class__": "Drift",
+   "length": 1.4500000000000002
+  },
+  "RING_drift_9": {
+   "__class__": "Drift",
+   "length": 0.0499999999999989
+  },
+  "SD0": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD1": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD2": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD3": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD4": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD5": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD6": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD7": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD8": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SD9": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": -40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF0": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF1": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF2": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF3": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF4": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF5": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF6": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF7": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF8": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "SF9": {
+   "__class__": "Sextupole",
+   "integrator": "yoshida4",
+   "k2": 40.0,
+   "knl_rel": [
+    0.0
+   ],
+   "ksl_rel": [
+    0.0
+   ],
+   "length": 0.2,
+   "num_multipole_kicks": 4,
+   "order": 5,
+   "radiation_flag": 1
+  },
+  "START": {
+   "__class__": "Marker"
+  }
+ },
+ "env_particles": {},
+ "metadata": {
+  "laura_element_types": {
+   "END": "Marker",
+   "QD0": "Quadrupole",
+   "QD1": "Quadrupole",
+   "QD2": "Quadrupole",
+   "QD3": "Quadrupole",
+   "QD4": "Quadrupole",
+   "QD5": "Quadrupole",
+   "QD6": "Quadrupole",
+   "QD7": "Quadrupole",
+   "QD8": "Quadrupole",
+   "QD9": "Quadrupole",
+   "QF0": "Quadrupole",
+   "QF1": "Quadrupole",
+   "QF2": "Quadrupole",
+   "QF3": "Quadrupole",
+   "QF4": "Quadrupole",
+   "QF5": "Quadrupole",
+   "QF6": "Quadrupole",
+   "QF7": "Quadrupole",
+   "QF8": "Quadrupole",
+   "QF9": "Quadrupole",
+   "RING_drift_1": "Drift",
+   "RING_drift_10": "Drift",
+   "RING_drift_11": "Drift",
+   "RING_drift_12": "Drift",
+   "RING_drift_13": "Drift",
+   "RING_drift_14": "Drift",
+   "RING_drift_15": "Drift",
+   "RING_drift_16": "Drift",
+   "RING_drift_17": "Drift",
+   "RING_drift_18": "Drift",
+   "RING_drift_19": "Drift",
+   "RING_drift_2": "Drift",
+   "RING_drift_20": "Drift",
+   "RING_drift_21": "Drift",
+   "RING_drift_22": "Drift",
+   "RING_drift_23": "Drift",
+   "RING_drift_24": "Drift",
+   "RING_drift_25": "Drift",
+   "RING_drift_26": "Drift",
+   "RING_drift_27": "Drift",
+   "RING_drift_28": "Drift",
+   "RING_drift_29": "Drift",
+   "RING_drift_3": "Drift",
+   "RING_drift_30": "Drift",
+   "RING_drift_31": "Drift",
+   "RING_drift_32": "Drift",
+   "RING_drift_33": "Drift",
+   "RING_drift_34": "Drift",
+   "RING_drift_35": "Drift",
+   "RING_drift_36": "Drift",
+   "RING_drift_37": "Drift",
+   "RING_drift_38": "Drift",
+   "RING_drift_39": "Drift",
+   "RING_drift_4": "Drift",
+   "RING_drift_40": "Drift",
+   "RING_drift_5": "Drift",
+   "RING_drift_6": "Drift",
+   "RING_drift_7": "Drift",
+   "RING_drift_8": "Drift",
+   "RING_drift_9": "Drift",
+   "SD0": "Sextupole",
+   "SD1": "Sextupole",
+   "SD2": "Sextupole",
+   "SD3": "Sextupole",
+   "SD4": "Sextupole",
+   "SD5": "Sextupole",
+   "SD6": "Sextupole",
+   "SD7": "Sextupole",
+   "SD8": "Sextupole",
+   "SD9": "Sextupole",
+   "SF0": "Sextupole",
+   "SF1": "Sextupole",
+   "SF2": "Sextupole",
+   "SF3": "Sextupole",
+   "SF4": "Sextupole",
+   "SF5": "Sextupole",
+   "SF6": "Sextupole",
+   "SF7": "Sextupole",
+   "SF8": "Sextupole",
+   "SF9": "Sextupole",
+   "START": "Marker"
+  },
+  "laura_functional_definitions": {}
+ },
+ "mode": "normal",
+ "particle_ref": {
+  "_rng_s1": [
+   0
+  ],
+  "_rng_s2": [
+   0
+  ],
+  "_rng_s3": [
+   0
+  ],
+  "_rng_s4": [
+   0
+  ],
+  "anomalous_magnetic_moment": [
+   0.0
+  ],
+  "at_element": [
+   0
+  ],
+  "at_turn": [
+   0
+  ],
+  "ax": [
+   0.0
+  ],
+  "ay": [
+   0.0
+  ],
+  "beta0": [
+   0.9999998694400279
+  ],
+  "charge_ratio": [
+   1.0
+  ],
+  "chi": [
+   1.0
+  ],
+  "delta": [
+   0.0
+  ],
+  "gamma0": [
+   1956.9511835738735
+  ],
+  "mass0": 510998.9499961642,
+  "p0c": [
+   999999869.4400281
+  ],
+  "parent_particle_id": [
+   0
+  ],
+  "particle_id": [
+   0
+  ],
+  "pdg_id": [
+   0
+  ],
+  "ptau": [
+   0.0
+  ],
+  "px": [
+   0.0
+  ],
+  "py": [
+   0.0
+  ],
+  "q0": -1.0,
+  "rpp": [
+   1.0
+  ],
+  "rvv": [
+   1.0
+  ],
+  "s": [
+   0.0
+  ],
+  "spin_x": [
+   0.0
+  ],
+  "spin_y": [
+   0.0
+  ],
+  "spin_z": [
+   0.0
+  ],
+  "start_tracking_at_element": -1,
+  "state": [
+   1
+  ],
+  "t_sim": 1.334256554993107e-07,
+  "weight": [
+   1.0
+  ],
+  "x": [
+   0.0
+  ],
+  "y": [
+   0.0
+  ],
+  "zeta": [
+   0.0
+  ]
+ },
+ "xtrack_version": "0.108.1"
+}

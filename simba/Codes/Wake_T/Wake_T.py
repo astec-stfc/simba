@@ -13,10 +13,7 @@ Classes:
 
 """
 
-from ...Framework_objects import (
-    frameworkLattice,
-    elementkeywords,
-)
+from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules.Beams.wake_t import (
     particle_bunch_to_beam,

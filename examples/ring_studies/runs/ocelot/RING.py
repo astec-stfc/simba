@@ -1,0 +1,102 @@
+from ocelot import * 
+
+# Drifts
+ring_drift_1 = Drift(l=0.05, eid='RING_drift_1')
+ring_drift_2 = Drift(l=1.45, eid='RING_drift_2')
+ring_drift_3 = Drift(l=0.0500000000000003, eid='RING_drift_3')
+ring_drift_4 = Drift(l=1.4499999999999997, eid='RING_drift_4')
+ring_drift_5 = Drift(l=0.0499999999999998, eid='RING_drift_5')
+ring_drift_6 = Drift(l=1.4500000000000002, eid='RING_drift_6')
+ring_drift_7 = Drift(l=0.0499999999999998, eid='RING_drift_7')
+ring_drift_8 = Drift(l=1.4500000000000002, eid='RING_drift_8')
+ring_drift_9 = Drift(l=0.0499999999999989, eid='RING_drift_9')
+ring_drift_10 = Drift(l=1.450000000000001, eid='RING_drift_10')
+ring_drift_11 = Drift(l=0.0499999999999989, eid='RING_drift_11')
+ring_drift_12 = Drift(l=1.450000000000001, eid='RING_drift_12')
+ring_drift_13 = Drift(l=0.0499999999999989, eid='RING_drift_13')
+ring_drift_14 = Drift(l=1.450000000000001, eid='RING_drift_14')
+ring_drift_15 = Drift(l=0.0499999999999989, eid='RING_drift_15')
+ring_drift_16 = Drift(l=1.4499999999999993, eid='RING_drift_16')
+ring_drift_17 = Drift(l=0.0500000000000007, eid='RING_drift_17')
+ring_drift_18 = Drift(l=1.4499999999999993, eid='RING_drift_18')
+ring_drift_19 = Drift(l=0.0500000000000007, eid='RING_drift_19')
+ring_drift_20 = Drift(l=1.4499999999999993, eid='RING_drift_20')
+ring_drift_21 = Drift(l=0.0500000000000007, eid='RING_drift_21')
+ring_drift_22 = Drift(l=1.4499999999999993, eid='RING_drift_22')
+ring_drift_23 = Drift(l=0.0500000000000007, eid='RING_drift_23')
+ring_drift_24 = Drift(l=1.4499999999999993, eid='RING_drift_24')
+ring_drift_25 = Drift(l=0.0500000000000007, eid='RING_drift_25')
+ring_drift_26 = Drift(l=1.4499999999999993, eid='RING_drift_26')
+ring_drift_27 = Drift(l=0.0500000000000007, eid='RING_drift_27')
+ring_drift_28 = Drift(l=1.4499999999999993, eid='RING_drift_28')
+ring_drift_29 = Drift(l=0.0500000000000007, eid='RING_drift_29')
+ring_drift_30 = Drift(l=1.4499999999999993, eid='RING_drift_30')
+ring_drift_31 = Drift(l=0.0500000000000007, eid='RING_drift_31')
+ring_drift_32 = Drift(l=1.4499999999999993, eid='RING_drift_32')
+ring_drift_33 = Drift(l=0.0500000000000043, eid='RING_drift_33')
+ring_drift_34 = Drift(l=1.4499999999999957, eid='RING_drift_34')
+ring_drift_35 = Drift(l=0.0500000000000043, eid='RING_drift_35')
+ring_drift_36 = Drift(l=1.4499999999999957, eid='RING_drift_36')
+ring_drift_37 = Drift(l=0.0500000000000043, eid='RING_drift_37')
+ring_drift_38 = Drift(l=1.4499999999999957, eid='RING_drift_38')
+ring_drift_39 = Drift(l=0.0500000000000043, eid='RING_drift_39')
+ring_drift_40 = Drift(l=1.4499999999999957, eid='RING_drift_40')
+
+# Quadrupoles
+qf0 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF0')
+qd0 = Quadrupole(l=0.3, k1=-2.0, eid='QD0')
+qf1 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF1')
+qd1 = Quadrupole(l=0.3, k1=-2.0, eid='QD1')
+qf2 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF2')
+qd2 = Quadrupole(l=0.3, k1=-2.0, eid='QD2')
+qf3 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF3')
+qd3 = Quadrupole(l=0.3, k1=-2.0, eid='QD3')
+qf4 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF4')
+qd4 = Quadrupole(l=0.3, k1=-2.0, eid='QD4')
+qf5 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF5')
+qd5 = Quadrupole(l=0.3, k1=-2.0, eid='QD5')
+qf6 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF6')
+qd6 = Quadrupole(l=0.3, k1=-2.0, eid='QD6')
+qf7 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF7')
+qd7 = Quadrupole(l=0.3, k1=-2.0, eid='QD7')
+qf8 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF8')
+qd8 = Quadrupole(l=0.3, k1=-2.0, eid='QD8')
+qf9 = Quadrupole(l=0.3, k1=2.3333333333333335, eid='QF9')
+qd9 = Quadrupole(l=0.3, k1=-2.0, eid='QD9')
+
+# Sextupoles
+sf0 = Sextupole(l=0.2, k2=40.0, eid='SF0')
+sd0 = Sextupole(l=0.2, k2=-40.0, eid='SD0')
+sf1 = Sextupole(l=0.2, k2=40.0, eid='SF1')
+sd1 = Sextupole(l=0.2, k2=-40.0, eid='SD1')
+sf2 = Sextupole(l=0.2, k2=40.0, eid='SF2')
+sd2 = Sextupole(l=0.2, k2=-40.0, eid='SD2')
+sf3 = Sextupole(l=0.2, k2=40.0, eid='SF3')
+sd3 = Sextupole(l=0.2, k2=-40.0, eid='SD3')
+sf4 = Sextupole(l=0.2, k2=40.0, eid='SF4')
+sd4 = Sextupole(l=0.2, k2=-40.0, eid='SD4')
+sf5 = Sextupole(l=0.2, k2=40.0, eid='SF5')
+sd5 = Sextupole(l=0.2, k2=-40.0, eid='SD5')
+sf6 = Sextupole(l=0.2, k2=40.0, eid='SF6')
+sd6 = Sextupole(l=0.2, k2=-40.0, eid='SD6')
+sf7 = Sextupole(l=0.2, k2=40.0, eid='SF7')
+sd7 = Sextupole(l=0.2, k2=-40.0, eid='SD7')
+sf8 = Sextupole(l=0.2, k2=40.0, eid='SF8')
+sd8 = Sextupole(l=0.2, k2=-40.0, eid='SD8')
+sf9 = Sextupole(l=0.2, k2=40.0, eid='SF9')
+sd9 = Sextupole(l=0.2, k2=-40.0, eid='SD9')
+
+# Markers
+start = Marker(eid='START')
+end = Marker(eid='END')
+
+# Lattice 
+cell = (start, qf0, ring_drift_1, sf0, ring_drift_2, qd0, ring_drift_3, sd0, ring_drift_4, 
+qf1, ring_drift_5, sf1, ring_drift_6, qd1, ring_drift_7, sd1, ring_drift_8, qf2, ring_drift_9, 
+sf2, ring_drift_10, qd2, ring_drift_11, sd2, ring_drift_12, qf3, ring_drift_13, sf3, ring_drift_14, 
+qd3, ring_drift_15, sd3, ring_drift_16, qf4, ring_drift_17, sf4, ring_drift_18, qd4, ring_drift_19, 
+sd4, ring_drift_20, qf5, ring_drift_21, sf5, ring_drift_22, qd5, ring_drift_23, sd5, ring_drift_24, 
+qf6, ring_drift_25, sf6, ring_drift_26, qd6, ring_drift_27, sd6, ring_drift_28, qf7, ring_drift_29, 
+sf7, ring_drift_30, qd7, ring_drift_31, sd7, ring_drift_32, qf8, ring_drift_33, sf8, ring_drift_34, 
+qd8, ring_drift_35, sd8, ring_drift_36, qf9, ring_drift_37, sf9, ring_drift_38, qd9, ring_drift_39, 
+sd9, ring_drift_40, end)

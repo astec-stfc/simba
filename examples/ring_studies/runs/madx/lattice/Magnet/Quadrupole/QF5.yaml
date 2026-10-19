@@ -1,0 +1,16 @@
+name: QF5
+machine_area: RING
+physical:
+  middle:
+    z: 20.15
+  length: 0.3
+  s: 20.149999999999995
+magnetic:
+  length: 0.3
+  multipoles:
+    K1L:
+      order: 1
+      normal: 0.7
+  order: 1
+hardware_type: Quadrupole
+hardware_class: Magnet

@@ -60,9 +60,35 @@ class gdf_beam(Munch):
             self.screens_touts["touts"], dict_key="time"
         )
 
-    def get_position(self, position: float) -> dict | None:
+    def get_position(self, position: float, tolerance: float = 2e-3) -> dict | None:
+        """
+        Return the screen data at a longitudinal position.
+
+        An exact key match is tried first, then the nearest screen within
+        ``tolerance``. The fallback matters because GPT screens are not written
+        at exactly the nominal element position -- the translator offsets them
+        slightly so they do not sit on an element boundary -- and because float
+        keys rarely compare equal anyway.
+
+        Parameters
+        ----------
+        position: float
+            Requested longitudinal position [m].
+        tolerance: float
+            Largest accepted mismatch [m]. Well below typical screen spacing, so
+            this cannot silently return a different screen.
+
+        Returns
+        -------
+        dict or None
+            The screen data, or None if nothing lies within tolerance.
+        """
         if position in self._positions.keys():
             return Munch(self._positions[position])
+        if self._positions:
+            nearest = min(self._positions.keys(), key=lambda p: abs(p - position))
+            if abs(nearest - position) <= tolerance:
+                return Munch(self._positions[nearest])
         return None
 
     def get_time(self, time: float) -> dict | None:

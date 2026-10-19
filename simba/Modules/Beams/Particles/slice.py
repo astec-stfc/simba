@@ -630,9 +630,11 @@ class slice(BaseModel):
         if self._hist is None:
             self.bin_time()
         absQ = np.abs(self.beam.Q) / len(self.beam.t)
-        f = lambda bin: absQ * (len(bin) / np.ptp(bin, axis=0)) if len(bin) > 1 else 0
-        # f = lambda bin: len(bin) if len(bin) > 1 else 0
-        return UnitValue([f(bin) for bin in self._tbins], units="A")
+        bin_width = np.diff(self._t_Bins)
+        f = lambda bin, width: absQ * (len(bin) / width) if len(bin) > 1 else 0
+        return UnitValue(
+            [f(bin, width) for bin, width in zip(self._tbins, bin_width)], units="A"
+        )
 
     @computed_field
     @property

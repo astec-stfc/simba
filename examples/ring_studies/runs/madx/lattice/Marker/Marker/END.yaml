@@ -1,0 +1,8 @@
+name: END
+machine_area: RING
+physical:
+  middle:
+    z: 40.0
+  s: 40.0
+hardware_type: Marker
+hardware_class: Marker

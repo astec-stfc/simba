@@ -1,0 +1,16 @@
+name: SD5
+machine_area: RING
+physical:
+  middle:
+    z: 22.45
+  length: 0.2
+  s: 22.45
+magnetic:
+  length: 0.2
+  multipoles:
+    K2L:
+      order: 2
+      normal: -8.0
+  order: 2
+hardware_type: Sextupole
+hardware_class: Magnet

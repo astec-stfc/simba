@@ -47,3 +47,82 @@ NONEQUIL:
   - fermi_energy_ev
   - cathode_temperature
   - laser_energy
+
+# Attributes OPAL's DISTRIBUTION command actually accepts, taken from the
+# attribute enum in the installed OPAL's Distribution/Distribution.h. The
+# `disallowed` blacklist above cannot keep up with every generic generator
+# attribute, so the writer filters against this whitelist instead: anything not
+# listed here is silently dropped rather than emitted and rejected by OPAL.
+allowed:
+  - TYPE
+  - FNAME
+  - WRITETOFILE
+  - WEIGHT
+  - INPUTMOUNITS
+  - EMITTED
+  - EMISSIONSTEPS
+  - EMISSIONMODEL
+  - EKIN
+  - ELASER
+  - FE
+  - CATHTEMP
+  - NBIN
+  - XMULT
+  - YMULT
+  - ZMULT
+  - TMULT
+  - PXMULT
+  - PYMULT
+  - PZMULT
+  - OFFSETX
+  - OFFSETY
+  - OFFSETZ
+  - OFFSETT
+  - OFFSETPX
+  - OFFSETPY
+  - OFFSETPZ
+  - OFFSETP
+  - SIGMAX
+  - SIGMAY
+  - SIGMAR
+  - SIGMAZ
+  - SIGMAT
+  - TPULSEFWHM
+  - TRISE
+  - TFALL
+  - SIGMAPX
+  - SIGMAPY
+  - SIGMAPZ
+  - MX
+  - MY
+  - MZ
+  - MT
+  - CUTOFFX
+  - CUTOFFY
+  - CUTOFFR
+  - CUTOFFLONG
+  - CUTOFFPX
+  - CUTOFFPY
+  - CUTOFFPZ
+  - FTOSCAMPLITUDE
+  - FTOSCPERIODS
+  - SEPPEAKS
+  - NPEAKS
+  - CORRX
+  - CORRY
+  - CORRZ
+  - CORRT
+  - R51
+  - R52
+  - R61
+  - R62
+  - LASERPROFFN
+  - IMAGENAME
+  - INTENSITYCUT
+  - FLIPX
+  - FLIPY
+  - ROTATE90
+  - ROTATE180
+  - ROTATE270
+  - EX
+  - EY

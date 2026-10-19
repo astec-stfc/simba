@@ -126,9 +126,9 @@ def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: 
     p0c = self._beam.centroids.mean_cp.val
     x = self.x.val
     y = self.y.val
-    zeta = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
-    px = self.cpx.val / self.cp.val
-    py = self.cpy.val / self.cp.val
+    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    px = self.cpx.val / p0c
+    py = self.cpy.val / p0c
     delta = self.deltap.val
     s = self.t.val * constants.speed_of_light
 

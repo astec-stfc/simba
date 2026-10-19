@@ -3,11 +3,14 @@ import numpy as np
 from .. import constants
 import h5py
 
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
+
+
 def cumtrapz(
         x: list | np.ndarray = [],
         y: list | np.ndarray = []
 ):
-    return [np.trapz(x=x[:n], y=y[:n]) for n in range(len(x))]
+    return [_trapezoid(x=x[:n], y=y[:n]) for n in range(len(x))]
 
 def read_cheetah_twiss_files(self, filename, reset=True):
     if reset:
@@ -21,7 +24,9 @@ def read_cheetah_twiss_files(self, filename, reset=True):
         lattice_name = os.path.basename(pre)
         with h5py.File(filename, 'r') as f:
             file = f["Twiss"]
-            self.z.val = np.append(self.z.val, file["s"][()])
+            self.z.val = np.append(
+                self.z.val, file["z"][()] if "z" in file else file["s"][()]
+            )
             self.s.val = np.append(self.s.val, file["s"][()])
             cp = file["energy"][()] - self.E0_eV
             self.cp.val = np.append(self.cp.val, cp)
@@ -34,10 +39,21 @@ def read_cheetah_twiss_files(self, filename, reset=True):
             self.gamma.val = np.append(self.gamma.val, gamma)
             # self.mean_gamma.val = np.append(self.mean_gamma.val, gamma)
             self.p.val = np.append(self.p.val, cp * self.q_over_c)
-            self.enx.val = np.append(self.enx.val, file["emittance_x"][()] * gamma)
-            self.ex.val = np.append(self.ex.val, file["emittance_x"][()])
-            self.eny.val = np.append(self.eny.val, file["emittance_y"][()] * gamma)
-            self.ey.val = np.append(self.ey.val, file["emittance_y"][()])
+            betagamma = np.sqrt(gamma**2 - 1)
+            ex = (
+                file["projected_emittance_x"][()]
+                if "projected_emittance_x" in file
+                else file["emittance_x"][()]
+            )
+            ey = (
+                file["projected_emittance_y"][()]
+                if "projected_emittance_y" in file
+                else file["emittance_y"][()]
+            )
+            self.enx.val = np.append(self.enx.val, ex * betagamma)
+            self.ex.val = np.append(self.ex.val, ex)
+            self.eny.val = np.append(self.eny.val, ey * betagamma)
+            self.ey.val = np.append(self.ey.val, ey)
             self.enz.val = np.append(self.enz.val, np.zeros(len(file["s"][()])))
             self.ez.val = np.append(self.ez.val, np.zeros(len(file["s"][()])))
             self.beta_z.val = np.append(self.beta_z.val, np.zeros(len(file["s"][()])))
@@ -71,8 +87,12 @@ def read_cheetah_twiss_files(self, filename, reset=True):
             self.eta_yp.val = np.append(self.eta_yp.val, np.zeros(len(file["s"][()])))
             self.element_name.val = np.append(self.element_name.val, np.full(len(file["s"][()]), ""))
             self.lattice_name.val = np.append(self.lattice_name.val, np.full(len(file["s"][()]), lattice_name))
-            self.ecnx.val = np.append(self.ecnx.val, file["emittance_x"][()] / gamma)
-            self.ecny.val = np.append(self.ecny.val, file["emittance_y"][()] / gamma)
+            self.ecnx.val = np.append(
+                self.ecnx.val, file["emittance_x"][()] * betagamma
+            )
+            self.ecny.val = np.append(
+                self.ecny.val, file["emittance_y"][()] * betagamma
+            )
             self.eta_x_beam.val = np.append(self.eta_x_beam.val, np.zeros(len(file["s"][()])))
             self.eta_xp_beam.val = np.append(self.eta_xp_beam.val, np.zeros(len(file["s"][()])))
             self.eta_y_beam.val = np.append(self.eta_y_beam.val, np.zeros(len(file["s"][()])))
