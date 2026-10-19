@@ -39,7 +39,7 @@ with a ``simcodes`` argument:
 
 .. code-block:: python
 
-    import simba.Framework as fw
+    import simba.framework as fw
     directory = "/path/to/working_directory"
     simcodes_location = "/path/to/simcodes/folder"
 
@@ -52,13 +52,13 @@ Alternatively, one can set up :mod:`SIMBA` without this argument and set up the 
 
 .. code-block:: python
 
-    import simba.Framework as fw
+    import simba.framework as fw
     directory = "/path/to/working_directory"
     simcodes_location = "/path/to/simcodes/folder"
 
     fw = Framework(directory=directory)
 
-    fw.setSimCodesLocation(simcodes_location)
+    fw.set_sim_codes_location(simcodes_location)
 
 These executables are then accessible to the ``run()`` function of the ``frameworkLattice`` object.
 
@@ -166,7 +166,7 @@ For example, in order to point to a local install of the ``ELEGANT`` code, the u
 
 .. code-block:: python
 
-    import simba.Framework as fw
+    import simba.framework as fw
     directory = "/path/to/working_directory"
     elegant_location = "/path/to/elegant/binary"
 

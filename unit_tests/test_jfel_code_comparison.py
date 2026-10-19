@@ -18,8 +18,8 @@ import shutil
 import numpy as np
 import pytest
 
-import simba.Framework as fw
-import simba.Modules.Beams as rbf
+import simba.framework as fw
+import simba.modules.beams as rbf
 
 pytestmark = pytest.mark.needs_container
 
@@ -40,13 +40,13 @@ CONTAINER_RUNTIME = None if _runtime.lower() in ("none", "") else _runtime
 SIMCODES = os.environ.get("SIMCODES_LOCATION")
 
 QUANTITIES = {
-    "E": (lambda b: 1e-6 * np.mean(b.Particles.cp), True),
-    "dE": (lambda b: 100 * np.std(b.Particles.cp) / np.mean(b.Particles.cp), False),
+    "E": (lambda b: 1e-6 * np.mean(b.particles.cp), True),
+    "dE": (lambda b: 100 * np.std(b.particles.cp) / np.mean(b.particles.cp), False),
     "enx": (lambda b: 1e6 * b.normalized_horizontal_emittance, True),
     "eny": (lambda b: 1e6 * b.normalized_vertical_emittance, True),
-    "sx": (lambda b: 1e6 * b.Sx, True),
-    "sy": (lambda b: 1e6 * b.Sy, True),
-    "sz": (lambda b: 1e6 * b.Sz, True),
+    "sx": (lambda b: 1e6 * b.sx, True),
+    "sy": (lambda b: 1e6 * b.sy, True),
+    "sz": (lambda b: 1e6 * b.sz, True),
 }
 
 #                                   E      dE    enx    eny     sx    sy     sz
@@ -88,10 +88,10 @@ def _make_framework(directory):
         eager_mode=False,
         container_runtime=CONTAINER_RUNTIME,
     )
-    framework.loadSettings("Lattices/jfel_combined.def")
+    framework.load_settings("Lattices/jfel_combined.def")
     framework["generator"].number_of_particles = N_PARTICLES
     framework["bunch_compressor"].set_angle(BUNCH_COMPRESSOR_ANGLE)
-    framework.setSeedValue(SEED)
+    framework.set_seed_value(SEED)
     return framework
 
 
@@ -124,7 +124,7 @@ def tracked(tmp_path_factory):
         direc = str(base / code)
         shutil.copytree(injector, direc)
         framework = _make_framework(direc)
-        framework.change_Lattice_Code("Linac", code)
+        framework.change_lattice_code("Linac", code)
         framework.track(files=["Linac"], check_lattice=False)
         per_code[code] = {
             f[: -len(SUFFIX)]: os.path.join(direc, f)

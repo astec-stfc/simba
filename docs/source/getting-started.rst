@@ -109,14 +109,14 @@ Generating an input beam
 ------------------------
 
 The simulation requires a macroparticle distribution to run. This can be generated using the 
-:ref:`frameworkGenerator <generator-class>` as follows:
+:ref:`FrameworkGenerator <generator-class>` as follows:
 
 .. code-block:: python
 
-    from simba.Codes.Generators imoutdirport frameworkGenerator
-    import simba.Modules.Beams as rbf
+    from simba.codes.generators import FrameworkGenerator
+    import simba.modules.beams as rbf
 
-    gen = frameworkGenerator(
+    gen = FrameworkGenerator(
         global_parameters={"master_subdir": outdir},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
@@ -135,7 +135,7 @@ The simulation requires a macroparticle distribution to run. This can be generat
         charge=100e-12,
     )
     gen.write()
-    beam = rbf.beam(filename=f"{outdir}/M1.openpmd.hdf5")
+    beam = rbf.Beam(filename=f"{outdir}/M1.openpmd.hdf5")
     
 Defining the Lattice Simulation
 -------------------------------
@@ -154,7 +154,7 @@ alternatively, one can create a settings file in YAML and pass that in; see :ref
 
 .. code-block:: python
 
-    from simba.Framework_Settings import FrameworkSettings
+    from simba.framework_settings import FrameworkSettings
 
     settings = FrameworkSettings()
     files = {}
@@ -204,8 +204,8 @@ python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must b
 
 .. code-block:: python
 
-    import simba.Framework as fw
-    from simba.Framework import load_directory
+    import simba.framework as fw
+    from simba.framework import load_directory
 
     framework = fw.Framework(
         machine=machine,
@@ -214,7 +214,7 @@ python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must b
         clean=True, 
         verbose=True
     )
-    framework.loadSettings(settings=settings)
+    framework.load_settings(settings=settings)
     framework.global_parameters["beam"] = beam
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
@@ -238,8 +238,8 @@ The same lattice can also be tracked using a different code as follows:
 .. code-block: python
 
     framework.global_parameters["beam"] = beam
-    framework.change_Lattice_Code("FODO", "elegant")
-    framework.setSubDirectory(f"{outdir}/elegant")
+    framework.change_lattice_code("FODO", "elegant")
+    framework.set_sub_directory(f"{outdir}/elegant")
     framework.track()
     fwdir = load_directory(f"{outdir}/elegant")
     fwdir.plot(xkey="z", ykeys=['sigma_x', 'sigma_y'], ykeys2=["ecnx", "ecny"])

@@ -7,52 +7,68 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   simba.Codes
-   simba.Modules
+   simba.codes
+   simba.modules
+   simba.support_files
 
 Submodules
 ----------
 
-simba.Framework module
+simba.framework module
 ----------------------
 
-.. automodule:: simba.Framework
+.. automodule:: simba.framework
    :members:
    :show-inheritance:
    :undoc-members:
 
-simba.FrameworkHelperFunctions module
--------------------------------------
-
-.. automodule:: simba.FrameworkHelperFunctions
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Framework\_Settings module
+simba.framework\_elements module
 --------------------------------
 
-.. automodule:: simba.Framework_Settings
+.. automodule:: simba.framework_elements
    :members:
    :show-inheritance:
    :undoc-members:
 
-simba.Framework\_lattices module
+simba.framework\_helper\_functions module
+-----------------------------------------
+
+.. automodule:: simba.framework_helper_functions
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+simba.framework\_lattices module
 --------------------------------
 
-.. automodule:: simba.Framework_lattices
+.. automodule:: simba.framework_lattices
    :members:
    :show-inheritance:
    :undoc-members:
 
-simba.Framework\_objects module
+simba.framework\_objects module
 -------------------------------
 
-.. automodule:: simba.Framework_objects
+.. automodule:: simba.framework_objects
    :members:
    :show-inheritance:
    :undoc-members:
 
+simba.framework\_settings module
+--------------------------------
+
+.. automodule:: simba.framework_settings
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+simba.yaml\_checker module
+--------------------------
+
+.. automodule:: simba.yaml_checker
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------

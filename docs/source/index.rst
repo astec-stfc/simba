@@ -64,9 +64,10 @@ We are also happy to help with installation and setting up your accelerator latt
    Framework
    Framework_objects
    Framework_elements
-   simba.Codes
-   simba.Modules
-   
+   simba.codes
+   simba.modules
+   simba.support_files
+
 Indices and tables
 ==================
 

@@ -8,7 +8,7 @@ Plain asserts, no framework: run directly with `python tests/test_tw1_cavity.py`
 
 import numpy as np
 
-from simba.Modules.rf_focusing import tw1_focusing_matrix, TW1_N_SLICES
+from simba.modules.rf_focusing import tw1_focusing_matrix, TW1_N_SLICES
 
 M0 = 0.51099895e6  # electron rest energy [eV]
 VOLT = 20e6  # eV

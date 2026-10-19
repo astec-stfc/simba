@@ -1,7 +1,7 @@
 import os
 import pytest
-import simba.Framework as fw
-from simba.Codes.Generators import frameworkGenerator
+import simba.framework as fw
+from simba.codes.generators import FrameworkGenerator
 from laura.models.element import Quadrupole, Marker, Plasma, Wiggler
 from laura import LAURA
 from laura.Exporters.YAML import export_machine
@@ -53,9 +53,9 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
         verbose=False,
         container_runtime=container_runtime,
     )
-    framework.loadSettings(settings=settings)
+    framework.load_settings(settings=settings)
 
-    gen = frameworkGenerator(
+    gen = FrameworkGenerator(
         global_parameters={"master_subdir": framework.subdirectory},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,

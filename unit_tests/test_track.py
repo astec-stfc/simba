@@ -10,7 +10,7 @@
 #     marginal_plot,
 #     slice_plot,
 # )
-# import SimulationFramework.Modules.Twiss as rtf
+# import SimulationFramework.Modules.twiss as rtf
 # import SimulationFramework.Codes.Executables as exes
 # from SimulationFramework.Framework_lattices import (
 #     elegantLattice,

@@ -1,0 +1,682 @@
+"""
+SIMBA Ocelot Module
+
+Various objects and functions to handle OCELOT lattices and commands. See `Ocelot github`_ for more details.
+
+    .. _Ocelot github: https://github.com/ocelot-collab/ocelot
+
+Classes:
+    - :class:`~simba.Codes.Ocelot.Ocelot.OcelotLattice`: The Ocelot lattice object, used for
+    converting the :class:`~simba.Framework_objects.FrameworkObject` s defined in the
+    :class:`~simba.Framework_objects.FrameworkLattice` into an Ocelot lattice object,
+    and for tracking through it.
+
+"""
+
+from ...framework_objects import FrameworkLattice, GetGrids
+from ...modules import beams as rbf
+from ...modules import constants
+from ...modules.fields import FieldMap
+from ...modules.twiss.ocelot import save_ocelot_twiss_hdf
+from ...modules.rf_focusing import tw1_focusing_matrix
+from copy import deepcopy
+import numpy as np
+from numpy import array, savez_compressed, linspace, save, interp, searchsorted, clip
+import os
+from yaml import safe_load
+
+with open(
+    os.path.dirname(os.path.abspath(__file__)) + "/ocelot_defaults.yaml",
+    "r",
+) as infile:
+    oceglobal = safe_load(infile)
+from lox.worker.thread import ScatterGatherDescriptor
+from typing import Dict, List, Any, ClassVar
+
+
+def _sw_focusing_matrix(
+    volt: float, phi: float, length: float, energy: float, m0: float
+) -> np.ndarray:
+    """
+    Reproduce Ocelot's own ``CavityAtom`` standing-wave (``eta = 1``)
+    Rosenzweig-Serafini transverse matrix exactly (see ``cavity_R_z`` in
+    ocelot's ``cpbd/elements/cavity_atom.py``), so that
+    :meth:`~ocelotLattice.add_tw1_focusing` can compute a corrective matrix
+    that cancels it out. ``phi`` uses the same convention as
+    :func:`~simba.Modules.rf_focusing.tw1_focusing_matrix`
+    (``de = volt * sin(phi)``).
+    """
+    cos_phi = np.sin(phi)  # RS-native phase = pi/2 - phi (see rs_matrix_cavity)
+    de = volt * np.sin(phi)
+    Ei = energy / m0
+    Ef = (energy + de) / m0
+    Ep = (Ef - Ei) / length if length else 0.0
+    alpha = np.sqrt(1.0 / 8.0) / cos_phi * np.log(Ef / Ei)
+    sin_a, cos_a = np.sin(alpha), np.cos(alpha)
+    r11 = cos_a - np.sqrt(2.0) * cos_phi * sin_a
+    r12 = np.sqrt(8.0) * Ei / Ep * cos_phi * sin_a if abs(Ep) > 1e-10 else length
+    r21 = -Ep / Ef * (cos_phi / np.sqrt(2.0) + np.sqrt(1.0 / 8.0) / cos_phi) * sin_a
+    r22 = Ei / Ef * (cos_a + np.sqrt(2.0) * cos_phi * sin_a)
+    return np.array([[r11, r12], [r21, r22]])
+
+
+class OcelotLattice(FrameworkLattice):
+    """
+    Class for defining the OCELOT lattice object, used for
+    converting the :class:`~simba.Framework_objects.FrameworkObject`s defined in the
+    :class:`~simba.Framework_objects.FrameworkLattice` into an Ocelot lattice object,
+    and for tracking through it.
+    """
+
+    _DEPRECATED_METHOD_ALIASES = {
+        "postProcess": "post_process",
+        "preProcess": "pre_process",
+        "trackBeam": "track_beam",
+        "writeElements": "write_elements",
+    }
+
+    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
+        ScatterGatherDescriptor
+    )
+    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
+    :class:`~simba.Modules.Beams.Beam` object and writing files"""
+
+    code: str = "ocelot"
+    """String indicating the lattice object type"""
+
+    track_beam: bool = True
+    """Flag to indicate whether to track the beam"""
+
+    lat_obj: Any = None
+    """Lattice object as an Ocelot `MagneticLattice`_
+    
+    .. _MagneticLattice: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/magnetic_lattice.py
+    """
+
+    pin: Any = None
+    """Initial particle distribution as an Ocelot `ParticleArray`_
+    
+    .. _ParticleArray: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/beam.py"""
+
+    pout: Any = None
+    """Final particle distribution as an Ocelot `ParticleArray`_"""
+
+    tws: List = None
+    """List containing Ocelot `Twiss`_ objects
+    
+    .. _Twiss: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/beam.py
+    """
+
+    names: List = None
+    """Names of elements in the lattice"""
+
+    grids: GetGrids = None
+    """Class for calculating the required number of space charge grids"""
+
+    oceglobal: Dict = {}
+    """Global settings for Ocelot, read in from `ocelotLattice.settings["global"]["OCELOTsettings"]` and
+    `ocelot_defaults.yaml`"""
+
+    unit_step: float = 0.01
+    """Step for Ocelot `PhysProc`_ objects
+    
+    .. _PhysProc: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/physics_proc.py
+    """
+
+    smooth_param: float = 0.01
+    """Smoothing parameter"""
+
+    lsc: bool = True
+    """Flag to enable LSC calculations"""
+
+    random_mesh: bool = True
+    """Random meshing for space charge calculations"""
+
+    nbin_csr: int = 10
+    """Number of longitudinal bins for CSR calculations"""
+
+    mbin_csr: int = 5
+    """Number of macroparticle bins for CSR calculations"""
+
+    wake_factor: float = 1.0
+    """Multiplication factor for wakefields"""
+
+    sigmamin_csr: float = 1e-5
+    """Minimum size for CSR calculations"""
+
+    wake_sampling: int = 1000
+    """Number of samples for wake calculations"""
+
+    wake_filter: int = 10
+    """Filter parameter for wake calculations"""
+
+    particle_definition: str = None
+    """Initial particle distribution as a string"""
+
+    final_screen: Any = None
+    """Final screen object"""
+
+    mbi_navi: Any | None = None
+    """Physics process for calculating microbunching gain"""
+
+    mbi: Dict = {}
+    """Dictionary containing settings for microbunching gain calculation"""
+
+    ref_s: float = None
+    """Reference s position"""
+
+    ref_idx: int = None
+    """Reference particle index"""
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        self.oceglobal = (
+            self.settings["global"]["OCELOTsettings"]
+            if "OCELOTsettings" in list(self.settings["global"].keys())
+            else oceglobal
+        )
+        cls = self.__class__
+        for f in cls.model_fields:
+            if f in list(self.oceglobal.keys()):
+                setattr(self, f, self.oceglobal[f])
+            elif f in self.file_block:
+                setattr(self, f, self.file_block[f])
+        if (
+            "input" in self.file_block
+            and "particle_definition" in self.file_block["input"]
+        ):
+            if (
+                self.file_block["input"]["particle_definition"]
+                == "initial_distribution"
+            ):
+                self.particle_definition = "laser"
+            else:
+                self.particle_definition = self.file_block["input"][
+                    "particle_definition"
+                ]
+        else:
+            self.particle_definition = self.start
+        self.grids = GetGrids()
+
+    def write_elements(self) -> None:
+        """
+        Create Ocelot objects for all the elements in the lattice and set the
+        :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.lat_obj` and
+        :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
+        """
+        self.lat_obj = self.section.to_ocelot(save=True)
+        if self.tw_focusing:
+            self.add_tw1_focusing()
+        self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
+
+    @property
+    def particle_rest_energy_eV(self) -> float:
+        """Rest energy of the tracked particles in eV"""
+        try:
+            return float(
+                np.mean(self.global_parameters["beam"].particle_rest_energy_eV.val)
+            )
+        except Exception:
+            return constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
+
+    def add_tw1_focusing(self) -> None:
+        """
+        Ocelot's own ``Cavity``/``CavityAtom`` only implements the
+        Rosenzweig-Serafini standing-wave matrix, which
+        over-predicts the real (much weaker) travelling-wave RF focusing;
+        see :func:`~simba.Modules.rf_focusing.tw1_focusing_matrix`.
+
+        For every TravellingWave cavity, insert a thin corrective
+        ``Matrix`` element immediately after it that cancels the
+        standing-wave matrix Ocelot will apply at
+        that cavity and replace it with the travelling-wave model.
+        """
+        from ocelot.cpbd.elements import Cavity, Matrix
+        from ocelot.cpbd.magnetic_lattice import MagneticLattice
+
+        m0 = self.particle_rest_energy_eV
+        design_energy = float(self.pin.E) * 1e9  # GeV -> eV
+        elements = self.elements
+
+        new_sequence = []
+        for elem in self.lat_obj.sequence:
+            new_sequence.append(elem)
+            if not isinstance(elem, Cavity) or elem.v == 0:
+                continue
+            volt = elem.v * 1e9  # GV -> eV
+            phi_ocelot = elem.phi * np.pi / 180.0  # Ocelot's own phi, in rad
+            de = volt * np.cos(phi_ocelot)
+            source = elements.get(elem.id)
+            is_tw = (
+                source is not None
+                and getattr(source, "hardware_type", "").lower() == "rfcavity"
+                and getattr(getattr(source, "cavity", None), "structure_type", None)
+                == "TravellingWave"
+            )
+            if is_tw and elem.l > 0:
+                # Ocelot's own phi convention (de = volt*cos(phi_ocelot)) maps
+                # onto tw1_focusing_matrix's (de = volt*sin(phi)) convention
+                # via phi = pi/2 - phi_ocelot.
+                phi = np.pi / 2.0 - phi_ocelot
+                sw = _sw_focusing_matrix(volt, phi, elem.l, design_energy, m0)
+                sim = getattr(source, "simulation", None)
+                m11, m12, m21, m22, _ = tw1_focusing_matrix(
+                    volt, elem.freq, phi, elem.l, design_energy, m0,
+                    canonical_rescale=False,
+                    end1_focus=bool(getattr(sim, "end1_focus", True)),
+                    end2_focus=bool(getattr(sim, "end2_focus", True)),
+                )
+                tw = np.array([[m11, m12], [m21, m22]])
+                correction = tw @ np.linalg.inv(sw)
+                new_sequence.append(
+                    Matrix(
+                        l=0.0,
+                        eid=f"{elem.id}_TW1",
+                        r11=correction[0, 0], r12=correction[0, 1],
+                        r21=correction[1, 0], r22=correction[1, 1],
+                        r33=correction[0, 0], r34=correction[0, 1],
+                        r43=correction[1, 0], r44=correction[1, 1],
+                        r55=1.0, r66=1.0,
+                    )
+                )
+            design_energy += de
+
+        self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
+
+    def write(self) -> None:
+        """
+        Create the lattice object via :func:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.write_elements`
+        and save it as a python file to `master_subdir`.
+        """
+        self.write_elements()
+
+    def pre_process(self) -> None:
+        """
+        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
+        """
+        super().pre_process()
+        prefix = self.get_prefix()
+        prefix = prefix if self.track_beam else prefix + self.particle_definition
+        self.read_input_file(prefix, self.particle_definition)
+        # rematch the input beam to the requested Twiss, as the other tracking
+        # codes (Elegant, Cheetah, GPT, Wake-T) do; without this the Ocelot
+        # line tracks the raw upstream beam, mismatched to the lattice.
+        if self.initial_twiss["horizontal"]["beta"]:
+            self.global_parameters["beam"].beam.rematch_x_plane(
+                **self.initial_twiss["horizontal"]
+            )
+        if self.initial_twiss["vertical"]["beta"]:
+            self.global_parameters["beam"].beam.rematch_y_plane(
+                **self.initial_twiss["vertical"]
+            )
+        self.ref_s = self.global_parameters["beam"].s
+        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.hdf5_to_npz(prefix)
+
+    def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
+        """
+        Convert the initial HDF5 particle distribution to Ocelot format and set
+        :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.pin` accordingly.
+
+        Parameters
+        ----------
+        prefix: str
+            Prefix for particle file
+        write: bool
+            Flag to indicate whether to save the file
+        """
+        from ...modules.beams import ocelot as rbf_ocelot
+        self.pin = rbf_ocelot.particle_group_to_parray(
+            self.global_parameters["beam"],
+            s_start=self.ref_s
+        )
+
+    def run(self) -> None:
+        """
+        Run the code, and set :attr:`~tws` and :attr:`~pout`
+        """
+        from ocelot.cpbd.track import track
+        navi = self.navi_setup()
+        pin = deepcopy(self.pin)
+        if self.sample_interval > 1:
+            pin = pin.thin_out(nth=self.sample_interval)
+        self.tws, self.pout = track(
+            self.lat_obj,
+            pin,
+            navi=navi,
+            calc_tws=True,
+            twiss_disp_correction=False,
+        )
+
+    def post_process(self) -> None:
+        """
+        Convert the outputs from Ocelot to HDF5 format and save them to `master_subdir`.
+        """
+        from ocelot.cpbd.io import save_particle_array
+        super().post_process()
+        twsdat = {e: [] for e in self.tws[0].__dict__.keys()}
+        for t in self.tws:
+            for k, v in t.__dict__.items():
+                # Offset the s values to the start of the lattice
+                if k == "s":
+                    v += self.entrance_s
+                twsdat[k].append(v)
+        svals = array(self.get_s_values(at_entrance=False)) + twsdat["s"][0]
+        zvals = [a[-1] for a in self.get_z_values()]
+        twsdat['z'] = interp(twsdat["s"], svals, zvals)
+        # Ocelot's tracked Twiss points carry no element identity (`id` is
+        # empty), so tag each point with the name of the (drift-expanded)
+        # element whose exit position first reaches it. This is what makes
+        # Twiss.get_parameter_at_element usable for Ocelot output.
+        elem_names = array(
+            [e.name for e in self.create_drifts().values()], dtype="U"
+        )
+        if len(elem_names):
+            idx = clip(
+                searchsorted(svals, twsdat["s"], side="left"),
+                0,
+                len(elem_names) - 1,
+            )
+            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
+            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
+            # would silently drop the names.
+            twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
+        save_ocelot_twiss_hdf(
+            self,
+            filename=f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.oh5',
+            twiss=twsdat,
+        )
+        if self.mbi_navi is not None:
+            save(
+                f'{self.global_parameters["master_subdir"]}/{self.objectname}_mbi.dat',
+                self.mbi_navi.bf,
+            )
+
+    def navi_setup(self) -> "Navigator":
+        """
+        Set up the physics processes for Ocelot (i.e. space charge, CSR, wakes etc).
+
+        .. _Navigator: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/navi.py
+
+        Returns
+        -------
+        Navigator
+            An Ocelot `Navigator`_ object
+        """
+        from ocelot.cpbd.navi import Navigator
+        from ocelot import Twiss
+        from .savebeamopenpmd import SaveBeamOpenPMD
+        from .mbi import MBI
+        navi_processes = []
+        navi_locations_start = []
+        navi_locations_end = []
+        # settings = self.settings
+        navi = Navigator(self.lat_obj, unit_step=self.unit_step)
+        if self.lsc and self.lsc_enable:
+            lsc = self.physproc_lsc()
+            navi_processes += [lsc]
+            navi_locations_start += [self.lat_obj.sequence[0]]
+            navi_locations_end += [self.lat_obj.sequence[-1]]
+        space_charge_set = False
+        csr_set = False
+        if "charge" in list(self.file_block.keys()):
+            if (
+                "space_charge_mode" in list(self.file_block["charge"].keys())
+                and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
+            ):
+                gridsize = self.grids.get_grid_sizes(
+                    (len(self.global_parameters["beam"].x) / self.sample_interval)
+                )
+                g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
+                grids = [g1 for _ in range(3)]
+                sc = self.physproc_sc(grids)
+                navi_processes += [sc]
+                navi_locations_start += [self.lat_obj.sequence[0]]
+                navi_locations_end += [self.lat_obj.sequence[-1]]
+                space_charge_set = True
+        if "csr" in list(self.file_block.keys()) and self.csr_enable:
+            csr, start, end = self.physproc_csr()
+            for i in range(len(csr)):
+                navi_processes += [csr[i]]
+                navi_locations_start += [start[i]]
+                navi_locations_end += [end[i]]
+            csr_set = True
+        if self.mbi["set_mbi"]:
+            self.mbi_navi = MBI(
+                lattice=self.lat_obj,
+                lamb_range=list(
+                    linspace(
+                        float(self.mbi["min"]),
+                        float(self.mbi["max"]),
+                        int(self.mbi["nstep"]),
+                    )
+                ),
+                lsc=space_charge_set,
+                csr=csr_set,
+                slices=self.mbi["slices"],
+            )
+            # mbi1.step = self.unit_step
+            self.mbi_navi.navi = deepcopy(navi)
+            self.mbi_navi.lattice = deepcopy(self.lat_obj)
+            self.mbi_navi.lsc = True
+            navi.add_physics_proc(
+                self.mbi_navi, self.lat_obj.sequence[0], self.lat_obj.sequence[-1]
+            )
+        for name, obj in self.elements.items():
+            fieldstr = None
+            if "cavity" in obj.hardware_type.lower():
+                fieldstr = "wakefield_definition"
+            elif "wake" in obj.hardware_type.lower():
+                fieldstr = "field_definition"
+            if fieldstr is not None and self.wakefield_enable:
+                if getattr(obj.simulation, fieldstr) is not None:
+                    wake, w_ind = self.physproc_wake(
+                        name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
+                    )
+                    navi_processes += [wake]
+                    navi_locations_start += [self.lat_obj.sequence[w_ind]]
+                    navi_locations_end += [self.lat_obj.sequence[w_ind + 1]]
+            if obj.hardware_type.lower() == "twissmatch":
+                twsobj = Twiss(
+                    beta_x=obj.simulation.beta_x,
+                    beta_y=obj.simulation.beta_y,
+                    alpha_x=obj.simulation.alpha_x,
+                    alpha_y=obj.simulation.alpha_y,
+                    Dx=obj.simulation.eta_x,
+                    Dy=obj.simulation.eta_y,
+                    Dxp=obj.simulation.eta_xp,
+                    Dyp=obj.simulation.eta_yp,
+                    )
+                navi_processes += [self.physproc_beamtransform(tws=twsobj)]
+                navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
+                navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
+        # s along the reference trajectory, measured from the lattice entrance. Not the
+        # same as the lab z the beams are positioned by, once anything upstream bends.
+        sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
+        sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
+        for w in self.screens_and_bpms + self.apertures:
+            if w.name == self.start:
+                continue
+            loc = self.lat_obj.sequence[self.names.index(w.name)]
+            subdir = self.global_parameters["master_subdir"]
+            navi_processes += [
+                SaveBeamOpenPMD(
+                    filename=f"{subdir}/{w.name}.openpmd.hdf5",
+                    global_parameters=self.global_parameters,
+                    zstart=w.physical.start.z,
+                    sstart=self.entrance_s + sval_in[w.name],
+                    ref_idx=self.ref_idx,
+                )
+            ]
+            navi_locations_start += [loc]
+            navi_locations_end += [loc]
+        loc = self.lat_obj.sequence[-1]
+        subdir = self.global_parameters["master_subdir"]
+        navi_processes += [
+            SaveBeamOpenPMD(
+                filename=f"{subdir}/{self.names[-1]}.openpmd.hdf5",
+                global_parameters=self.global_parameters,
+                zstart=self.end_object.physical.end.z,
+                sstart=self.entrance_s + sval_out[self.end],
+                ref_idx=self.ref_idx,
+            )
+        ]
+        navi_locations_start += [loc]
+        navi_locations_end += [loc]
+        navi.add_physics_processes(
+            navi_processes, navi_locations_start, navi_locations_end
+        )
+        return navi
+
+    def physproc_lsc(self) -> "LSC":
+        """
+        Get an Ocelot `LSC`_ physics process
+
+        .. LSC: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/sc.py
+
+        Returns
+        -------
+        LSC
+            The Ocelot LSC PhysProc
+        """
+        from ocelot.cpbd.sc import LSC
+        lsc = LSC()
+        lsc.smooth_param = self.smooth_param
+        return lsc
+
+    def physproc_sc(self, grids: List[int]) -> "SpaceCharge":
+        """
+        Get an Ocelot `SpaceCharge`_ physics process
+
+        .. _SpaceCharge: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/sc.py
+
+        Parameters
+        ----------
+        grids: List[int]
+            The space charge grid number in x,y,z
+
+        Returns
+        -------
+        SpaceCharge
+            The Ocelot SpaceCharge PhysProc
+        """
+        from ocelot.cpbd.sc import SpaceCharge
+        sc = SpaceCharge(step=1)
+        sc.nmesh_xyz = grids
+        sc.random_mesh = self.random_mesh
+        return sc
+
+    def physproc_csr(self) -> tuple:
+        """
+        Get Ocelot `CSR`_ physics processes based on the start and end positions provided in `file_block`.
+        If these are not provided, just include CSR for the entire lattice.
+
+        .. _CSR: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/csr.py
+
+        Returns
+        -------
+        tuple
+            A list of CSR PhysProcs, and their start and end positions
+        """
+        csrlist = []
+        stlist = []
+        enlist = []
+        from ocelot.cpbd.csr import CSR
+        if ("start" in list(self.file_block["csr"].keys())) and (
+            "end" in list(self.file_block["csr"].keys())
+        ):
+            start = self.file_block["csr"]["start"]
+            st = [start] if isinstance(start, str) else start
+            end = self.file_block["csr"]["end"]
+            en = [end] if isinstance(end, str) else end
+            for i in range(len(st)):
+                stelem = self.lat_obj.sequence[self.names.index(st[i])]
+                enelem = self.lat_obj.sequence[self.names.index(en[i])]
+                csr = CSR()
+                csr.n_bin = self.nbin_csr
+                csr.m_bin = self.mbin_csr
+                csr.sigma_min = self.sigmamin_csr
+                csrlist.append(csr)
+                stlist.append(stelem)
+                enlist.append(enelem)
+        else:
+            csr = CSR()
+            csr.n_bin = self.nbin_csr
+            csr.m_bin = self.mbin_csr
+            csr.sigma_min = self.sigmamin_csr
+            stlist = [self.lat_obj.sequence[0]]
+            enlist = [self.lat_obj.sequence[-1]]
+        return csrlist, stlist, enlist
+
+    def physproc_wake(
+            self,
+            name: str,
+            loc: FieldMap | str,
+            ncell: int,
+    ) -> tuple:
+        """
+        Get an Ocelot `Wake`_ physics process based on the wakefield provided.
+
+        .. _Wake: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/wake.py
+
+        Parameters
+        ----------
+        name: str
+            Name of lattice object associated with the wake
+        loc: :class:`~simba.Modules.Fields.FieldMap` or str
+            If `field`, then write the field file to ASTRA format
+        ncell: int
+            Number of cells, which provides a multiplication factor for the wake
+
+        Returns
+        -------
+        tuple
+            A Wake PhysProc, and its index in the lattice
+        """
+        from ocelot.cpbd.wake3D import Wake, WakeTable
+        if isinstance(loc, FieldMap):
+            loc = loc.write_field_file(code="astra")
+        subdir = self.global_parameters["master_subdir"]
+        fname = subdir + '/' + os.path.basename(loc).replace('.hdf5', '.astra')
+        wake = Wake(
+            step=100,
+            w_sampling=self.wake_sampling,
+            filter_order=self.wake_filter,
+        )
+        wake.factor = ncell * self.wake_factor
+        wake.wake_table = WakeTable(fname)
+        w_ind = self.names.index(name)
+        return wake, w_ind
+
+    def physproc_beamtransform(
+            self,
+            tws: "Twiss",
+    ) -> "BeamTransform":
+        """
+        Get an Ocelot `BeamTransform`_ physics process based on the wakefield provided.
+
+        .. _Wake: https://github.com/ocelot-collab/ocelot/blob/master/ocelot/cpbd/physproc.py
+
+        Parameters
+        ----------
+        tws: Ocelot `Twiss` object
+            Object containing Twiss parameters
+
+        Returns
+        -------
+        tuple
+            A BeamTransform PhysProc
+        """
+        from ocelot.cpbd.physics_proc import BeamTransform
+        return BeamTransform(tws=tws)
+
+
+from simba._compat import deprecated_aliases  # noqa: E402
+
+__getattr__ = deprecated_aliases(
+    __name__,
+    globals(),
+    {
+        "ocelotLattice": "OcelotLattice",
+    },
+)

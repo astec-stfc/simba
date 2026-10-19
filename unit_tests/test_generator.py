@@ -1,5 +1,5 @@
-from simba.Codes.Generators import (
-    frameworkGenerator,
+from simba.codes.generators import (
+    FrameworkGenerator,
     ASTRAGenerator,
     GPTGenerator,
 )
@@ -9,7 +9,7 @@ import os
 
 @pytest.fixture
 def simple_generator():
-    gen = frameworkGenerator(
+    gen = FrameworkGenerator(
         global_parameters={
             "master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"
         },

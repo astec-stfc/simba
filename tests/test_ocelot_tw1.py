@@ -7,8 +7,8 @@ Plain asserts, no framework: run directly with `python tests/test_ocelot_tw1.py`
 
 import numpy as np
 
-from simba.Codes.Ocelot.Ocelot import _sw_focusing_matrix
-from simba.Modules.rf_focusing import tw1_focusing_matrix
+from simba.codes.ocelot.ocelot import _sw_focusing_matrix
+from simba.modules.rf_focusing import tw1_focusing_matrix
 
 M0 = 0.51099895e6  # electron rest energy [eV]
 VOLT = 20e6  # eV

@@ -1,7 +1,7 @@
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../")
-import simba.Framework as fw
+import simba.framework as fw
 import numpy as np
 import argparse
 
@@ -25,5 +25,5 @@ def rotation_matrix(theta):
 
 
 lattice = fw.Framework(None)
-lattice.loadSettings(args.filename)
+lattice.load_settings(args.filename)
 lattice.check_lattice(decimals=args.decimals)
