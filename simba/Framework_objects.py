@@ -517,6 +517,9 @@ class frameworkLattice(BaseModel):
     _wakefield_enable: bool = True
     """Flag to enable structure wakefields in the lattice."""
 
+    _tw_focusing: bool = True
+    """Flag to use travelling-wave focusing for TravellingWave cavities."""
+
     _lsc_bins: int = 20
     """Number of bins for LSC drifts."""
 
@@ -589,6 +592,8 @@ class frameworkLattice(BaseModel):
                 self.sample_interval = self.file_block["input"]["sample_interval"]
         else:
             self.file_block.update({"input": {}})
+        if "tw_focusing" in self.file_block:
+            self._tw_focusing = bool(self.file_block["tw_focusing"])
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -719,6 +724,22 @@ class frameworkLattice(BaseModel):
                 pass
             except AttributeError:
                 pass
+
+    @property
+    def tw_focusing(self) -> bool:
+        """
+        Property to get or set the travelling-wave focusing flag. When True
+        (the default), TravellingWave cavities get travelling-wave transverse
+        focusing in every code; when False they get the
+        standing-wave model like any other cavity. Use ``tw_focusing: false``
+        in the .def file to use the code's default.
+        """
+        return self._tw_focusing
+
+    @tw_focusing.setter
+    def tw_focusing(self, tw: bool) -> None:
+        self._tw_focusing = tw
+        self.section.tw_focusing = tw
 
     @property
     def wakefield_enable(self) -> bool:
@@ -1310,6 +1331,7 @@ class frameworkLattice(BaseModel):
             slt = SectionLatticeTranslator.from_section(section)
             slt.lsc_enable = self.lsc_enable
             slt.csr_enable = self.csr_enable
+            slt.tw_focusing = self.tw_focusing
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
             self._section = slt
@@ -1673,7 +1695,7 @@ class frameworkLattice(BaseModel):
             str += e + ", "
         return str + ")"
 
-    def createDrifts(
+    def create_drifts(
         self, drift_elements: tuple = ("screen", "beam_position_monitor")
     ) -> dict:
         """
@@ -1693,7 +1715,7 @@ class frameworkLattice(BaseModel):
             A dictionary containing the new drift elements created for the lattice.
             The keys are the names of the new drift elements, and the values are the corresponding drift objects.
         """
-        return self.section.createDrifts()
+        return self.section.create_drifts()
 
     def getSValues(
         self,
@@ -1724,7 +1746,7 @@ class frameworkLattice(BaseModel):
             If `as_dict` is True, returns a dictionary with element names as keys and their S values as values.
             If `as_dict` is False, returns a list of S values.
         """
-        elems = self.createDrifts() if drifts else self.elements
+        elems = self.create_drifts() if drifts else self.elements
         s = [0]
         for e in list(elems.values()):
             s.append(s[-1] + e.physical.length)
@@ -1756,7 +1778,7 @@ class frameworkLattice(BaseModel):
             If `as_dict` is False, returns a list of Z values.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         if as_dict:
@@ -1779,7 +1801,7 @@ class frameworkLattice(BaseModel):
             If `drifts` is True, includes drift elements; otherwise, only includes main elements.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         return [e.name for e in list(elems.values())]
@@ -1801,7 +1823,7 @@ class frameworkLattice(BaseModel):
             A list or dictionary of elements in the lattice.
         """
         if drifts:
-            elems = self.createDrifts()
+            elems = self.create_drifts()
         else:
             elems = self.elements
         if as_dict:
