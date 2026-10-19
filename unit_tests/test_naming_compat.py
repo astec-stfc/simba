@@ -144,6 +144,15 @@ class TestLegacyModulePaths:
     def test_unknown_legacy_path_is_not_registered(self):
         assert "simba.Codes.NotARealCode" not in LEGACY_MODULES
 
+    def test_legacy_subpackage_does_not_shadow_same_named_class(self):
+        import simba.modules.beams as beams
+        from simba.modules.beams.particles import Particles
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            importlib.import_module("simba.Modules.Beams.Particles")
+        assert beams.Particles is Particles
+
 
 class TestInstanceMethodAndFieldAliases:
     """
@@ -224,7 +233,7 @@ class TestWireValuesWereNotRenamed:
 
         assert set(framework_lattices.LATTICE_CLASSES) == {
             "astra", "cheetah", "csrtrack", "elegant", "genesis",
-            "gpt", "ocelot", "opal", "waket", "xsuite",
+            "gpt", "madx", "ocelot", "opal", "waket", "xsuite",
         }
 
     def test_group_type_lookup_keys_are_unchanged(self):

@@ -1,3 +1,7 @@
+Examples/
+Manuals/
+.vscode/
+
 build/
 dist/
 *.egg*/
@@ -26,3 +30,6 @@ docs/source/examples/notebooks/getting_started/*
 docs/source/examples/notebooks/utility_functions/*
 docs/source/examples/notebooks/changes.yaml
 docs/source/examples/notebooks/params.yaml
+unit_tests/JFEL-S02-SIM-APER-01.openpmd.hdf5
+JFEL-S02-SIM-APER-01.openpmd.hdf5
+M1.openpmd.hdf5

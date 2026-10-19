@@ -41,7 +41,7 @@ def lattice_transfer_map_z(lattice, energy, zfin):
     elem = lattice.sequence[i]
     L = elem.l
     while zfin > L:
-        for Rb, Bb, Tb, tm in zip(elem.r(E), elem.B(E), elem.T(E), elem.tms):
+        for Rb, Bb, Tb, tm in zip(elem.R(E), elem.B(E), elem.T(E), elem.tms):
             Ba, Ra, Ta = transfer_maps_mult(Ba, Ra, Ta, Bb, Rb, Tb)
             # Ba = np.dot(Rb, Ba) + Bb
             E += tm.get_delta_e()

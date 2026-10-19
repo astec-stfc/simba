@@ -1,6 +1,5 @@
 import os
 import pytest
-from unittest.mock import MagicMock
 import shutil
 from pydantic import ValidationError
 import simba.framework as fw
@@ -19,8 +18,8 @@ from laura import LAURA
 from laura.Exporters.YAML import export_machine
 
 @pytest.fixture
-def simple_machine():
-    outdir = f"{os.path.dirname(os.path.abspath(__file__))}/framework"
+def simple_machine(tmp_path):
+    outdir = str(tmp_path)
     m1 = Marker(
         name="M1",
         machine_area="FODO",
@@ -51,28 +50,6 @@ def simple_machine():
     export_machine(path=f"{outdir}/lattice", machine=machine, overwrite=True)
     return machine, outdir
 
-@pytest.fixture
-def simple_generator():
-    gen = FrameworkGenerator(
-        global_parameters={"master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"},
-        filename="M1.openpmd.hdf5",
-        initial_momentum=5e6,
-        sigma_x=1e-4,
-        sigma_px=1e3,
-        sigma_y=1e-4,
-        sigma_py=1e3,
-        sigma_z=1e-3,
-        sigma_pz=1e3,
-        gaussian_cutoff_x=3,
-        gaussian_cutoff_y=3,
-        gaussian_cutoff_z=3,
-        gaussian_cutoff_px=3,
-        gaussian_cutoff_py=3,
-        gaussian_cutoff_pz=3,
-        charge=100e-12,
-    )
-    return gen.write()
-
 def test_framework_initialization(simple_machine):
     machine, outdir = simple_machine
     framework = fw.Framework(
@@ -84,53 +61,12 @@ def test_framework_initialization(simple_machine):
     assert framework.machine == machine
     assert framework.directory == os.path.join(outdir, "ocelot")
 
-def test_framework_settings_and_tracking(simple_machine, simple_generator):
-    machine, outdir = simple_machine
-    gen = simple_generator
-    settings = fw.FrameworkSettings()
-    files = {}
-    for sec, elems in machine.sections.items():
-        files[sec] = {
-            "code": "ocelot",
-            "charge": {"space_charge_mode": "False"},
-            "input": {
-                "twiss": {
-                    "beta_x": 3.2844606,
-                    "alpha_x": 2.48956886,
-                    "nemit_x": 1e-6,
-                    "beta_y": 3.2846606,
-                    "alpha_y": -2.48956886,
-                    "nemit_y": 1e-6,
-                }
-            },
-            "output": {
-                "start_element": elems[0].name,
-                "end_element": elems[-1].name,
-            },
-        }
-    settings.files = files
-    settings.layout = machine.layout
-    settings.section = {"sections": {name: e.names for name, e in machine.sections.items()}}
-    settings.element_list = os.path.join(outdir, "lattice")
-    framework = fw.Framework(
-        machine=machine,
-        directory=os.path.join(outdir, "ocelot"),
-        clean=True,
-        verbose=True
-    )
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    framework.load_settings(settings=settings)
-    framework.save_settings("test.def", directory=test_dir)
-    framework.load_settings(filename=os.path.join(test_dir, "test.def"))
-    framework.global_parameters["beam"] = MagicMock()
-    framework["FODO"].lsc_enable = False
-    framework["FODO"].csr_enable = False
-    framework.set_lattice_prefix("FODO", f"{test_dir}/")
-    framework.track = MagicMock()
-    framework.track()
-    shutil.rmtree(f"{test_dir}/framework")
-    os.remove(f"{test_dir}/M1.openpmd.hdf5")
-    os.remove(f"{test_dir}/test.def")
+def test_framework_settings_round_trip(framework_with_machine, tmp_path):
+    framework = framework_with_machine
+    framework.save_settings("test.def", directory=str(tmp_path))
+    framework.load_settings(filename=str(tmp_path / "test.def"))
+    assert framework["FODO"].code == "ocelot"
+    assert "QUAD1F" in framework.element_objects
     with pytest.raises(FileNotFoundError):
         framework.load_settings(filename="non_existent.def")
     with pytest.raises(ValueError):
@@ -269,14 +205,12 @@ def test_change_lattice_code(framework_with_machine):
     assert isinstance(framework_with_machine.lattice_objects["FODO"], CheetahLattice)
     framework_with_machine.change_lattice_code(["FODO"], "astra")
     assert isinstance(framework_with_machine.lattice_objects["FODO"], AstraLattice)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_modify_lattices(framework_with_machine):
     framework_with_machine.modify_lattices("FODO", "lsc_enable", False)
     assert not framework_with_machine.lattice_objects["FODO"].lsc_enable
     framework_with_machine.modify_lattices(["FODO"], "csr_enable", False)
     assert not framework_with_machine.lattice_objects["FODO"].csr_enable
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_change_generator(framework_with_machine):
     framework_with_machine.add_generator(code="astra")
@@ -294,4 +228,3 @@ def test_change_generator(framework_with_machine):
             framework_with_machine.change_generator("none")
     framework_with_machine.change_generator("ASTRA")
     assert isinstance(framework_with_machine.lattice_objects["generator"], ASTRAGenerator)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")

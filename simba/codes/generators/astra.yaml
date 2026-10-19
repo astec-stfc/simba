@@ -13,7 +13,7 @@ disallowed:
   - objectdefaults
   - executables
   - kwargs
-  - allowedKeyWords
+  - allowed_key_words
   - emission_model
   - generator_keywords
   - image_filename

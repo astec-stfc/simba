@@ -149,10 +149,10 @@ class AstraLattice(FrameworkLattice):
         settings = deepcopy(newrun_settings)
         if "twiss" in settings:
             settings.pop("twiss")
-        starting_offset = [a + b for a, b in zip(self.start_object.physical.start, self.starting_offset)]
+        # starting_offset/starting_rotation are not passed to the namelists: both are in
+        # astra_newrun/astra_output's `exclude`, so ASTRA is never told about them. They
+        # are applied to the output beam instead, in astra_to_hdf5.
         self.section.astra_headers["newrun"] = AstraNewRun(
-            starting_offset=starting_offset,
-            starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             input_particle_definition = self.start_object.name,
             **settings,
@@ -192,8 +192,6 @@ class AstraLattice(FrameworkLattice):
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = AstraOutput(
-            starting_offset=self.starting_offset,
-            starting_rotation=self.starting_rotation,
             global_parameters=self.global_parameters,
             zstart=zstart,
             zstop=self.zstop,
@@ -257,36 +255,6 @@ class AstraLattice(FrameworkLattice):
             Space charge mode
         """
         self.astra_headers["charge"].space_charge_mode = str(mode)
-
-    @property
-    def sample_interval(self) -> int:
-        """
-        Factor by which to reduce the number of particles in the simulation, i.e. every 10th particle.
-
-        Returns
-        -------
-        int
-            The sampling interval `n_red` in ASTRA
-        """
-        return self._sample_interval
-
-    @sample_interval.setter
-    def sample_interval(self, interval: int) -> None:
-        """
-        Sets the factor by which to reduce the number of particles in the simulation in the &NEWRUN header,
-        and scales the number of space charge bins in the &CHARGE header accordingly;
-        see :func:`~simba.Codes.ASTRA.ASTRA.astra_newrun.framework_dict`,
-        :func:`~simba.Codes.ASTRA.ASTRA.astra_charge.grid_size`.
-
-        Parameters
-        ----------
-        interval:
-            Sampling interval
-        """
-        # print('Setting new ASTRA sample_interval = ', interval)
-        self._sample_interval = interval
-        self.astra_headers["newrun"].sample_interval = interval
-        self.astra_headers["charge"].sample_interval = interval
 
     @property
     def bunch_charge(self) -> float:
@@ -367,6 +335,11 @@ class AstraLattice(FrameworkLattice):
         self.ref_s = self.global_parameters["beam"].s if self.global_parameters["beam"].s is not None else 0
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
+        # `sample_interval` is an inherited pydantic field, so it cannot be a property here
+        # (pydantic drops the setter) - push it into the headers instead. &NEWRUN uses it as
+        # n_red, &CHARGE scales the space charge grid by it.
+        self.astra_headers["newrun"].sample_interval = self.sample_interval
+        self.astra_headers["charge"].sample_interval = self.sample_interval
 
     @lox.thread
     def screen_threaded_function(
@@ -393,7 +366,10 @@ class AstraLattice(FrameworkLattice):
         sval: float
             S-position of beam
         """
-        return self.astra_to_hdf5(objectname, scr, cathode, mult, sval)
+        # keywords, not positional - astra_to_hdf5 takes `final` before `sval`
+        return self.astra_to_hdf5(
+            lattice=objectname, scr=scr, cathode=cathode, mult=mult, sval=sval
+        )
 
     def get_screen_scaling(self) -> int:
         """
@@ -428,16 +404,15 @@ class AstraLattice(FrameworkLattice):
             self.astra_headers["newrun"].input_particle_definition == "initial_distribution"
         )
         mult = self.get_screen_scaling()
-        svals = np.array(self.get_s_values(at_entrance=False)) + self.ref_s
-        zvals = [a[-1] for a in self.get_z_values()]
+        offset = self.s_offset
+        self.write_s_offset()
         for e in self.screens_and_bpms:
-            sval = np.interp(e.middle.z, zvals, svals)
             self.screen_threaded_function.scatter(
                 scr=e,
                 objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
-                sval=sval,
+                sval=offset + e.middle.z,
             )
         self.screen_threaded_function.gather()
         endelem = Screen(
@@ -447,7 +422,49 @@ class AstraLattice(FrameworkLattice):
             machine_area="",
             physical=PhysicalElement(middle=[0, 0, self.zstop])
         )
-        self.astra_to_hdf5(lattice=self.objectname, scr=endelem, cathode=cathode, mult=mult, final=True)
+        self.astra_to_hdf5(
+            lattice=self.objectname,
+            scr=endelem,
+            cathode=cathode,
+            mult=mult,
+            final=True,
+            sval=offset + self.zstop,
+        )
+
+    @property
+    def s_offset(self) -> float:
+        """
+        Distance between this lattice's s and z origins, i.e. the extra path length
+        everything upstream has accumulated by bending. 
+
+        Returns
+        -------
+        float
+            s minus z at the start of this lattice.
+        """
+        return float(self.entrance_s - self.start_object.physical.start.z)
+
+    def write_s_offset(self) -> str:
+        """
+        Write :attr:`s_offset` next to the ASTRA output files.
+
+        ASTRA's Xemit/Yemit/Zemit files record lab z only, and the Twiss reader that
+        parses them has no lattice context, so it cannot know how far along the machine
+        this section starts. Every other code applies :attr:`start_s` itself when it
+        writes its Twiss output; ASTRA cannot, so persist the offset for the reader.
+        See :func:`~simba.Modules.Twiss.astra.read_s_offset`.
+
+        Returns
+        -------
+        str
+            Path of the offset file.
+        """
+        path = os.path.join(
+            self.global_parameters["master_subdir"], self.objectname + ".s_offset"
+        )
+        with open(path, "w") as f:
+            f.write(repr(self.s_offset))
+        return path
 
     def astra_to_hdf5(
             self,
@@ -499,7 +516,8 @@ class AstraLattice(FrameworkLattice):
                 preOffset=[0, 0, 0],
                 postOffset=-1 * np.array(self.starting_offset),
             )
-            beam.s = UnitValue(sval, units="m")
+
+            beam.particles.s = UnitValue(sval, units="m")
             HDF5filename = scr.name + ".openpmd.hdf5"
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
@@ -544,45 +562,52 @@ class AstraLattice(FrameworkLattice):
         str or None
             The ASTRA filename for the screen object, or None if the file does not exist.
         """
-        for i in [0, -0.001, 0.001]:
-            tempfilename = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i - self.start_object.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenamenozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((scr.physical.middle.z + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenameend = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i - self.start_object.physical.start.z) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            tempfilenameendnozstart = (
-                    lattice
-                    + "."
-                    + str(int(round((self.zstop + i) * mult))).zfill(4)
-                    + "."
-                    + str(master_run_no).zfill(3)
-            )
-            for f in [
-                tempfilename,
-                tempfilenameendnozstart,
-                tempfilenameend,
-                tempfilenamenozstart
-            ]:
-                if os.path.isfile(
-                    os.path.join(self.global_parameters["master_subdir"], f)
-                ):
-                    return f
+        # ASTRA names outputs in cm, but switches to mm for sections shorter than 1m.
+        # `mult` comes from the screens, which is useless for a lattice that has none
+        # (e.g. L4H), so fall back to the other conventions before giving up.
+        for m in dict.fromkeys([mult, 1000, 100, 10]):
+            for i in [0, -0.001, 0.001]:
+                tempfilename = (
+                        lattice
+                        + "."
+                        + str(int(round((scr.physical.middle.z + i - self.start_object.physical.start.z) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenamenozstart = (
+                        lattice
+                        + "."
+                        + str(int(round((scr.physical.middle.z + i) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenameend = (
+                        lattice
+                        + "."
+                        + str(int(round((self.zstop + i - self.start_object.physical.start.z) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                tempfilenameendnozstart = (
+                        lattice
+                        + "."
+                        + str(int(round((self.zstop + i) * m))).zfill(4)
+                        + "."
+                        + str(master_run_no).zfill(3)
+                )
+                # the screen's own position first (relative, then absolute); the
+                # end-of-lattice names are a last resort, otherwise every screen that
+                # misses on the relative name silently picks up the final distribution
+                for f in [
+                    tempfilename,
+                    tempfilenamenozstart,
+                    tempfilenameendnozstart,
+                    tempfilenameend,
+                ]:
+                    if os.path.isfile(
+                        os.path.join(self.global_parameters["master_subdir"], f)
+                    ):
+                        return f
         return None
 
     def hdf5_to_astra(self) -> str:

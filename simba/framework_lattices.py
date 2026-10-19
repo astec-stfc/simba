@@ -8,6 +8,7 @@ from .codes.xsuite.xsuite import XsuiteLattice  # noqa F401
 from .codes.wake_t.wake_t import WaketLattice           # noqa F401
 from .codes.genesis.genesis import GenesisLattice           # noqa F401
 from .codes.opal.opal import OpalLattice                # noqa F401
+from .codes.madx.madx import MadxLattice                # noqa F401
 # from .MAD8.MAD8 import mad8Lattice
 
 LATTICE_CLASSES = {
@@ -17,6 +18,7 @@ LATTICE_CLASSES = {
     "elegant": ElegantLattice,
     "genesis": GenesisLattice,
     "gpt": GptLattice,
+    "madx": MadxLattice,
     "ocelot": OcelotLattice,
     "opal": OpalLattice,
     "waket": WaketLattice,

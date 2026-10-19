@@ -16,8 +16,13 @@ package. The user can install the following codes from the links below:
 * `GPT <https://www.pulsar.nl/gpt/>`_ :cite:`GPT`
 * `Elegant <https://www.aps.anl.gov/Accelerator-Operations-Physics/Software#elegant>`_ :cite:`Elegant`
 * `CSRTrack <https://www.desy.de/xfel-beam/csrtrack/>`_ :cite:`CSRTrack`
+* `OPAL <https://amas.web.psi.ch/opal/Documentation/master/OPAL_Manual.html>`_
+* `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
 
-Note that the following python-based simulation packages are included in the dependencies of ``SIMBA``:
+Note that the following python-based simulation packages are **optional** dependencies of ``SIMBA``,
+installable via the ``simcodes`` extra (``pip install simba-accelerator[simcodes]``). They run in-process
+and are unaffected by ``container_runtime`` (see below), so they must be installed locally regardless of
+whether a container runtime is used for the other codes:
 
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
@@ -60,11 +65,96 @@ These executables are then accessible to the ``run()`` function of the ``framewo
 In ``simba/Executables.yaml`` the required structure is provided for this
 schema to work for different hardware architectures, either by the OS type or the computer name.
 
+Using a Container Runtime
+--------------------------
+
+.. note::
+   | Running **SIMBA** via Apptainer or Docker is only possible with an OS that supports it.
+   | Apptainer has no native Windows build at all. On Windows, use WSL (see :ref:`below <windows-wsl>`).
+
+Rather than installing the tracking codes locally, :mod:`SIMBA` can run them from a prebuilt container image,
+using either `Docker <https://www.docker.com/>`_ or `Apptainer <https://apptainer.org/>`_. This is enabled
+by passing the ``container_runtime`` argument to :mod:`SIMBA` on instantiation:
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    directory = "/path/to/working_directory"
+
+    fw = Framework(
+        directory=directory,
+        container_runtime="apptainer",  # or "docker"
+    )
+
+When ``container_runtime="apptainer"`` is used, :mod:`SIMBA` looks for a ``.sif`` image file at
+``<simcodes>/Apptainer/simcodes-apptainer_master.sif``, where ``<simcodes>`` is the directory
+passed via the ``simcodes`` argument (see :ref:`above <simcodes>`):
+
+.. code-block:: python
+
+    import simba.Framework as fw
+    directory = "/path/to/working_directory"
+    simcodes_location = "/path/to/simcodes/folder"
+
+    fw = Framework(
+        directory=directory,
+        simcodes=simcodes_location,
+        container_runtime="apptainer",
+    )
+
+If ``simcodes`` is not provided, the ``.sif`` file defaults to a per-OS cache location (e.g.
+``~/.local/share/apptainer/`` on Linux and ``~/Library/Application Support/apptainer/`` on macOS).
+
+If the ``.sif`` file is not already present at that location, :mod:`SIMBA` creates the containing
+directory (if necessary) and pulls the image from the registry defined in ``simba/Executables.yaml``
+(``ghcr.io/astec-stfc/simcodes-apptainer:master`` by default) the first time :mod:`SIMBA` is
+instantiated with ``container_runtime="apptainer"``. This image is several GB, so the initial pull
+can take some time; subsequent instantiations detect the existing ``.sif`` file and skip the pull.
+
+``container_runtime="docker"`` works analogously, pulling the ``ghcr.io/astec-stfc/simcodes-docker:master``
+image via the local Docker daemon instead of writing a ``.sif`` file to the ``simcodes`` directory.
+
+.. note::
+   | ``container_runtime`` covers ASTRA, Elegant, CSRTrack, OPAL, and Genesis. **GPT is not included**,
+     as it is proprietary and requires a license; it must be installed locally (see
+     :func:`~simba.Codes.Executables.Executables.define_gpt_command`) and run with ``GPTLICENSE`` set.
+   | The python-based codes (Ocelot, Xsuite, Cheetah, Wake-T) run in-process and are unaffected by
+     ``container_runtime`` - install them locally via the ``simcodes`` extra regardless.
+
+.. _windows-wsl:
+
+Running on Windows
+------------------
+
+The container images hold Linux binaries, so on Windows the supported route for running in containers is
+`WSL2 <https://learn.microsoft.com/en-us/windows/wsl/install>`_:
+
+.. code-block:: powershell
+
+   wsl --install -d Ubuntu
+
+Then, inside the WSL shell, install Docker (or Apptainer) and :mod:`SIMBA` as on any Linux
+machine, and work from a path under the WSL filesystem (``/home/...``) rather than under
+``/mnt/c``; bind-mounting a ``/mnt/c`` working directory into a container is slow and the
+tracking codes write a lot of intermediate files.
+
+Native Windows supports the codes that ship a Windows build - ASTRA, Elegant, CSRTrack and
+GPT - via the ``nt`` section of ``simba/Executables.yaml`` or the ``location`` argument
+(see :ref:`below <specific-location>`).
+
+**OPAL and Genesis are Linux-only.** There is no Windows binary to point ``Executables.yaml``
+at, so requesting either from a Windows Python process raises a ``RuntimeError`` telling you to
+use WSL or a container runtime, rather than failing later with a missing output file.
+
+``container_runtime`` on native Windows is untested.
+
 Editing the Executables.yaml file
 ---------------------------------
 
 If the user already has these executables installed, they can point directly to them in
 ``simba/Executables.yaml``
+
+.. _specific-location:
 
 Pointing to a specific location
 -------------------------------

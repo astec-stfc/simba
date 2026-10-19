@@ -6,3 +6,5 @@ elementary_charge = 1.602176634e-19
 pi = 3.141592653589793
 electron_mass = m_e
 proton_mass = m_p
+h_J_s = 6.626070040e-34
+h_eV_s = h_J_s / e

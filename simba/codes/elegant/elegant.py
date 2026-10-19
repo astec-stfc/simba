@@ -394,7 +394,7 @@ class ElegantLattice(FrameworkLattice):
                 p_central=np.mean(self.global_parameters["beam"].beta_gamma),
                 seed=seed,
                 # losses="%s.loss",
-                s_start=self.start_object.physical.start.z,
+                s_start=self.start_s,
                 use_beamline=self.objectname,
             )
 
@@ -616,20 +616,21 @@ class ElegantLattice(FrameworkLattice):
 
     def run(self):
         """Run the code with input 'filename'"""
+        command = self.executables[self.code] + [self.objectname + ".ele"]
+        workdir = os.path.abspath(self.global_parameters["master_subdir"])
+        command = self.executables.build_command(command, workdir)
         if self.remote_setup:
             super().run_remote()
         elif not os.name == "nt":
-            command = self.executables[self.code] + [self.objectname + ".ele"]
-            if self.global_parameters["simcodes_location"] is None:
-                my_env = {**os.environ}
-            else:
-                my_env = {
-                    **os.environ,
-                    "RPN_DEFNS": os.path.abspath(
-                        self.global_parameters["simcodes_location"]
-                    )
-                    + "/Elegant/defns_linux.rpn",
-                }
+            my_env = {**os.environ}
+            if self.global_parameters["simcodes_location"] is not None:
+                rpn_defns = os.path.join(
+                    os.path.abspath(self.global_parameters["simcodes_location"]),
+                    "Elegant",
+                    "defns_linux.rpn",
+                )
+                if os.path.isfile(rpn_defns):
+                    my_env["RPN_DEFNS"] = rpn_defns
             with open(
                 os.path.abspath(
                     self.global_parameters["master_subdir"]
@@ -647,21 +648,24 @@ class ElegantLattice(FrameworkLattice):
                 )
         else:
             code_string = " ".join(self.executables[self.code]).lower()
-            command = self.executables[self.code] + [self.objectname + ".ele"]
+            # a container command (docker/apptainer/wsl) stays POSIX-style; only a
+            # native Windows executable needs its paths in native backslash form
+            is_container_command = command and command[0] in ("docker", "apptainer", "wsl")
             if "pelegant" in code_string:
-                command = (
-                    [command[0]]
-                    + [
-                        "-env",
-                        "RPN_DEFNS",
-                        (
-                            os.path.abspath(self.global_parameters["simcodes_location"])
-                            + "/Elegant/defns.rpn"
-                        ).replace("/", "\\"),
-                    ]
-                    + command[1:]
-                )
-                command = [c.replace("/", "\\") for c in command]
+                if self.global_parameters["simcodes_location"] is not None:
+                    rpn_defns = (
+                        os.path.abspath(self.global_parameters["simcodes_location"])
+                        + "/Elegant/defns.rpn"
+                    )
+                    if not is_container_command:
+                        rpn_defns = rpn_defns.replace("/", "\\")
+                    command = (
+                        [command[0]]
+                        + ["-env", "RPN_DEFNS", rpn_defns]
+                        + command[1:]
+                    )
+                if not is_container_command:
+                    command = [c.replace("/", "\\") for c in command]
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
@@ -675,7 +679,14 @@ class ElegantLattice(FrameworkLattice):
                         command, stdout=f, cwd=self.global_parameters["master_subdir"]
                     )
             else:
-                command = [c.replace("/", "\\") for c in command]
+                if not is_container_command:
+                    command = [c.replace("/", "\\") for c in command]
+                rpn_defns = (
+                    os.path.abspath(self.global_parameters["simcodes_location"])
+                    + "/Elegant/defns.rpn"
+                )
+                if not is_container_command:
+                    rpn_defns = rpn_defns.replace("/", "\\")
                 with open(
                     os.path.abspath(
                         self.global_parameters["master_subdir"]
@@ -689,14 +700,7 @@ class ElegantLattice(FrameworkLattice):
                         command,
                         stdout=f,
                         cwd=self.global_parameters["master_subdir"],
-                        env={
-                            "RPN_DEFNS": (
-                                os.path.abspath(
-                                    self.global_parameters["simcodes_location"]
-                                )
-                                + "/Elegant/defns.rpn"
-                            ).replace("/", "\\")
-                        },
+                        env={"RPN_DEFNS": rpn_defns},
                     )
 
     def elegant_command_file(self, *args, **kwargs):

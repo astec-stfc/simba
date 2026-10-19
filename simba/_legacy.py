@@ -8,6 +8,7 @@ import importlib
 import importlib.abc
 import importlib.util
 import sys
+import types
 import warnings
 
 __all__ = ["LEGACY_MODULES", "install"]
@@ -34,6 +35,8 @@ LEGACY_MODULES: dict[str, str] = {
     "simba.Codes.Generators.opal": "simba.codes.generators.opal",
     "simba.Codes.Genesis": "simba.codes.genesis",
     "simba.Codes.Genesis.Genesis": "simba.codes.genesis.genesis",
+    "simba.Codes.MADX": "simba.codes.madx",
+    "simba.Codes.MADX.MADX": "simba.codes.madx.madx",
     "simba.Codes.OPAL": "simba.codes.opal",
     "simba.Codes.OPAL.OPAL": "simba.codes.opal.opal",
     "simba.Codes.Ocelot": "simba.codes.ocelot",
@@ -70,6 +73,7 @@ LEGACY_MODULES: dict[str, str] = {
     "simba.Modules.Beams.genesis": "simba.modules.beams.genesis",
     "simba.Modules.Beams.hdf5": "simba.modules.beams.hdf5",
     "simba.Modules.Beams.mad8": "simba.modules.beams.mad8",
+    "simba.Modules.Beams.madx": "simba.modules.beams.madx",
     "simba.Modules.Beams.ocelot": "simba.modules.beams.ocelot",
     "simba.Modules.Beams.opal": "simba.modules.beams.opal",
     "simba.Modules.Beams.openpmd": "simba.modules.beams.openpmd",
@@ -97,10 +101,12 @@ LEGACY_MODULES: dict[str, str] = {
     "simba.Modules.Twiss.genesis": "simba.modules.twiss.genesis",
     "simba.Modules.Twiss.gpt": "simba.modules.twiss.gpt",
     "simba.Modules.Twiss.hdf5": "simba.modules.twiss.hdf5",
+    "simba.Modules.Twiss.madx": "simba.modules.twiss.madx",
     "simba.Modules.Twiss.ocelot": "simba.modules.twiss.ocelot",
     "simba.Modules.Twiss.opal": "simba.modules.twiss.opal",
     "simba.Modules.Twiss.plot": "simba.modules.twiss.plot",
     "simba.Modules.Twiss.xsuite": "simba.modules.twiss.xsuite",
+    "simba.Modules.Wavefronts": "simba.modules.wavefronts",
     "simba.Modules.constants": "simba.modules.constants",
     "simba.Modules.gdf_beam": "simba.modules.gdf_beam",
     "simba.Modules.gdf_emit": "simba.modules.gdf_emit",
@@ -118,6 +124,7 @@ LEGACY_MODULES: dict[str, str] = {
     "simba.Modules.plotting.multiPlot": "simba.modules.plotting.multi_plot",
     "simba.Modules.plotting.plotting": "simba.modules.plotting.plotting",
     "simba.Modules.pmd_units": "simba.modules.pmd_units",
+    "simba.Modules.rf_focusing": "simba.modules.rf_focusing",
     "simba.Modules.symmlinks": "simba.modules.symmlinks",
     "simba.Modules.units": "simba.modules.units",
     # --- simba/Support_Files -------------------------------------------------
@@ -138,6 +145,22 @@ LEGACY_MODULES: dict[str, str] = {
 }
 
 
+class _GuardedModule(types.ModuleType):
+    """
+    Package that won't let a submodule replace a same-named non-module
+    attribute, e.g. the legacy ``Particles`` subpackage clobbering the
+    ``Particles`` class in ``simba.modules.beams``.
+    """
+
+    def __setattr__(self, name, value):
+        existing = self.__dict__.get(name)
+        if isinstance(value, types.ModuleType) and not isinstance(
+            existing, (types.ModuleType, type(None))
+        ):
+            return
+        super().__setattr__(name, value)
+
+
 class _LegacyLoader(importlib.abc.Loader):
     """Loader that returns the renamed module in place of the legacy one."""
 
@@ -146,6 +169,10 @@ class _LegacyLoader(importlib.abc.Loader):
         self.current = current
 
     def create_module(self, spec):
+        # The import system will setattr this module on its (shared) parent.
+        parent = sys.modules.get(self.legacy.rpartition(".")[0])
+        if type(parent) is types.ModuleType:
+            parent.__class__ = _GuardedModule
         warnings.warn(
             f"{self.legacy} was renamed to {self.current} for PEP 8 compliance. "
             f"The old import path still works but will be removed in a future "

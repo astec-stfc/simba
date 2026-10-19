@@ -18,6 +18,7 @@ from ...framework_objects import FrameworkLattice
 from ...modules import beams as rbf
 
 import os
+import numpy as np
 from yaml import safe_load
 from copy import deepcopy
 from typing import Dict, Any, ClassVar
@@ -42,6 +43,8 @@ twiss_keys = (
     "energy",
     "emittance_x",
     "emittance_y",
+    "projected_emittance_x",
+    "projected_emittance_y",
     "sigma_x",
     "sigma_y",
     "sigma_px",
@@ -189,7 +192,7 @@ class CheetahLattice(FrameworkLattice):
         self.global_parameters["beam"].beam.rematch_x_plane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematch_y_plane(**self.initial_twiss["vertical"])
 
-        self.pin = rbf.beam.write_cheetah_beam_file(
+        self.pin = rbf.Beam.write_cheetah_beam_file(
             self.global_parameters["beam"],
             cheetahbeamfilename,
             write=write
@@ -254,6 +257,8 @@ class CheetahLattice(FrameworkLattice):
             screens.update({self.end: self.pout})
         i = 0
         for name, scr in screens.items():
+            if name.replace("_", "-") == self.start:
+                continue
             outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
@@ -262,9 +267,21 @@ class CheetahLattice(FrameworkLattice):
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:
                 twsgrp = f.create_group("Twiss")
+                svals = None
                 for key, val in zip(twiss_keys, self.tws):
-                    twsgrp.create_dataset(key, data=val.numpy())
-
+                    data = val.numpy()
+                    if key == "s":
+                        # Cheetah's s is carried over from the incoming beam, so it
+                        # accumulates whatever the upstream sections tracked. Anchor it
+                        # to the lattice start instead, as Elegant/Ocelot/MAD-X do, so
+                        # every code reports the same s for the same element.
+                        svals = data - data[0]
+                        data = svals + self.start_s
+                    twsgrp.create_dataset(key, data=data)
+                if svals is not None:
+                    lat_s = np.array(self.get_s_values(at_entrance=False))
+                    lat_z = [a[-1] for a in self.get_z_values()]
+                    twsgrp.create_dataset("z", data=np.interp(svals, lat_s, lat_z))
 
 
 from simba._compat import deprecated_aliases  # noqa: E402

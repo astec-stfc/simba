@@ -39,6 +39,7 @@ from . import sdds
 from . import gdf
 from . import hdf5
 from . import mad8
+from . import madx
 from . import openpmd
 from . import xsuite
 from . import opal
@@ -341,9 +342,6 @@ class Beam(DeprecatedMethodAliases, BaseModel):
     particle_mass: np.ndarray | None = None
     """Particle mass in kg"""
 
-    beam_energy: float | None = None
-    """Beam energy [required for Cheetah]"""
-
     species: str = "electron"
 
     model_config = ConfigDict(
@@ -363,7 +361,7 @@ class Beam(DeprecatedMethodAliases, BaseModel):
         "status",
     ]
 
-    def __init__(self, filename=None, beam_energy=None, step=0, *args, **kwargs):
+    def __init__(self, filename=None, step=0, *args, **kwargs):
         super(Beam, self).__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
@@ -373,7 +371,7 @@ class Beam(DeprecatedMethodAliases, BaseModel):
         # self.sddsindex = sddsindex
         self.code = None
         if self.filename is not None:
-            self.read_beam_file(self.filename, beam_energy=beam_energy, step=step)
+            self.read_beam_file(self.filename, step=step)
             self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
@@ -733,10 +731,6 @@ class Beam(DeprecatedMethodAliases, BaseModel):
         """
         opal.read_opal_beam_file(self, *args, **kwargs)
 
-    def read_cheetah_beam_file(self, *args, **kwargs):
-        from . import cheetah
-        cheetah.read_cheetah_beam_file(self, *args, **kwargs)
-
     def write_openpmd_beam_file(self, *args, **kwargs):
         """
         Write out an openpmd-type beam distribution file.
@@ -797,7 +791,21 @@ class Beam(DeprecatedMethodAliases, BaseModel):
         """
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
-    def read_beam_file(self, filename, run_extension="001", beam_energy=None,  step=0):
+    def beam_to_madx_coords(self, *args, **kwargs):
+        """
+        Convert this beam into MAD-X canonical coordinates (X, PX, Y, PY,
+        T, PT) for a given reference momentum.
+        """
+        return madx.beam_to_madx_coords(self, *args, **kwargs)
+
+    def madx_coords_to_beam(self, *args, **kwargs):
+        """
+        Build a new beam from MAD-X canonical coordinates, taking the
+        mass/charge/species from this (reference) beam.
+        """
+        return madx.madx_coords_to_beam(self, *args, **kwargs)
+
+    def read_beam_file(self, filename, run_extension="001", step=0):
         """
         Load in a beam distribution file and update the
         :attr:`~simba.Modules.Beams.beam.particles` object.
@@ -810,21 +818,16 @@ class Beam(DeprecatedMethodAliases, BaseModel):
             The name of the file to be loaded
         run_extension: str
             Run extension for ASTRA-type beam distribution files.
-        beam_energy: float, optional
-            Beam energy in eV (for Cheetah beam distributions)
         step: int, optional
             Step number in output file (for OPAL beam distributions)
         """
         pre, ext = os.path.splitext(os.path.basename(filename))
         if ext.lower()[:4] == ".hdf":
-            if "cheetah" in pre:
-                from . import cheetah
-                cheetah.read_cheetah_beam_file(self, filename, beam_energy)
+            # cheetah writes plain openPMD, it just doesn't say so in the name
+            if "openpmd" in pre.lower() or "cheetah" in pre.lower():
+                openpmd.read_openpmd_beam_file(self, filename)
             else:
-                if "openpmd" in pre.lower():
-                    openpmd.read_openpmd_beam_file(self, filename)
-                else:
-                    hdf5.read_hdf5_beam_file(self, filename)
+                hdf5.read_hdf5_beam_file(self, filename)
         elif ext.lower() == ".sdds":
             sdds.read_sdds_beam_file(self, filename)
         elif ext.lower() == ".gdf":

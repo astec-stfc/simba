@@ -67,7 +67,20 @@ def write_gdf_beam_file(
     easygdf.save_initial_distribution(filename, **dataarray)
 
 
-def read_gdf_beam_file_object(self, file):
+def read_gdf_beam_file_object(file):
+    """
+    Open a GPT output file, or pass through an already-opened one.
+
+    Parameters
+    ----------
+    file: str or gdf_beam
+        Path to a GPT ``.gdf`` file, or an existing :class:`~GdfBeam`.
+
+    Returns
+    -------
+    gdf_beam
+        The opened beam file.
+    """
     if isinstance(file, str):
         gdfbeam = GdfBeam(file)
     elif isinstance(file, GdfBeam):
@@ -94,7 +107,7 @@ def read_gdf_beam_file(
 ):
     self.reset_dicts()
     if gdfbeam is None and filename is not None:
-        gdfbeam = read_gdf_beam_file_object(self, filename)
+        gdfbeam = read_gdf_beam_file_object(filename)
     elif gdfbeam is None and filename is None:
         return None
 
@@ -142,12 +155,12 @@ def read_gdf_beam_file(
         if hasattr(gdfbeamdata, "G"):
             gamma = UnitValue(gdfbeamdata.G)
         else:
-            beta = np.sqrt(gdfbeamdata.bx**2 + gdfbeamdata.by**2 + gdfbeamdata.bz**2)
+            beta = np.sqrt(gdfbeamdata.Bx**2 + gdfbeamdata.By**2 + gdfbeamdata.Bz**2)
             gamma = UnitValue(1.0 / np.sqrt(1 - beta**2))
         self._beam.px = UnitValue(
             (
                 gamma
-                * gdfbeamdata.bx
+                * gdfbeamdata.Bx
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -156,7 +169,7 @@ def read_gdf_beam_file(
         self._beam.py = UnitValue(
             (
                 gamma
-                * gdfbeamdata.by
+                * gdfbeamdata.By
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -165,7 +178,7 @@ def read_gdf_beam_file(
         self._beam.pz = UnitValue(
             (
                 gamma
-                * gdfbeamdata.bz
+                * gdfbeamdata.Bz
                 * self._beam.particle_rest_energy
                 / constants.speed_of_light
             ),
@@ -205,7 +218,7 @@ def read_gdf_beam_file(
     elif hasattr(gdfbeamdata, "t") and longitudinal_reference == "t":
         self._beam.t = UnitValue(gdfbeamdata.t, units="s")
         self._beam.z = UnitValue(
-            (-1 * gdfbeamdata.bz * constants.speed_of_light)
+            (-1 * gdfbeamdata.Bz * constants.speed_of_light)
             * (gdfbeamdata.t - np.mean(gdfbeamdata.t))
             + gdfbeamdata.z,
             units="m",
@@ -214,7 +227,7 @@ def read_gdf_beam_file(
         if hasattr(gdfbeamdata, "z"):  # and self.longitudinal_reference == "z":
             self._beam.z = UnitValue(gdfbeamdata.z, units="m")
             if hasattr(gdfbeamdata, "Bz"):
-                bz = gdfbeamdata.bz
+                bz = gdfbeamdata.Bz
             else:
                 bz = gdfbeamdata.GBz / self._beam.gamma
             self._beam.t = UnitValue(
@@ -225,7 +238,7 @@ def read_gdf_beam_file(
         elif hasattr(gdfbeamdata, "t"):
             self._beam.t = UnitValue(gdfbeamdata.t, units="s")
             if hasattr(gdfbeamdata, "Bz"):
-                bz = gdfbeamdata.bz
+                bz = gdfbeamdata.Bz
             else:
                 bz = gdfbeamdata.GBz / self._beam.gamma
             self._beam.z = UnitValue(

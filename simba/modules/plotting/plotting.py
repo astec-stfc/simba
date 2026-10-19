@@ -74,7 +74,8 @@ def fieldmap_data(element, master_lattice):
         scale = element.simulation.field_amplitude
     if element.hardware_type.lower() == "rfcavity":
         scale = scale / 1e6
-
+        if element.structure_type == "StandingWave" and element.cavity.n_cells > 2:
+            scale = scale / element.physical.length
     # file
     element = translate_elements(elements=[element], master_lattice=master_lattice)[element.name]
     element.update_field_definition()
@@ -83,10 +84,10 @@ def fieldmap_data(element, master_lattice):
 
     if field.field_type == "1DElectroDynamic" and field.cavity_type == "TravellingWave":
         dat = astra_tw_field_map(
-            np.transpose([field.z.value.val, field.ez.value.val]),
+            np.transpose([field.z.value.val, field.Ez.value.val]),
             field.start_cell_z,
             field.end_cell_z,
-            element.n_cells,
+            element.cavity.n_cells,
             field.mode_denominator,
         )
     else:
@@ -256,7 +257,7 @@ def add_fieldmaps_to_axes(
         for a in ax:
             a.set_yticks([])
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.get_s_values()), 0]])
     ax[0].plot(*data.T, color="black")
 
 
@@ -314,7 +315,7 @@ def add_magnets_to_axes(
             for name, (data, c) in fmaps[section].items():
                 a.fill(*data.T, color=c)
 
-    data = np.array([[0, 0], [100, 0]])
+    data = np.array([[0, 0], [max(lattice.get_s_values()), 0]])
     ax[0].plot(*data.T, color="black")
     if bounds:
         ax1.set_xlim(bounds[0], bounds[1])
@@ -453,8 +454,27 @@ def plot(
     Pnames = []
     X_particles = []
     if include_particles:
+        # Each beam file is named after the diagnostic element it was recorded at, so
+        # for a longitudinal x-axis anchor the marker to that element's physical
+        # position. This keeps the dots aligned with the lattice layout, which is drawn
+        # from physical.z -- a tracking code's arc length (e.g. MAD-X's) can drift from
+        # the SIMBA geometry. Falls back to the beam's own mean position when unmatched.
+        elements = getattr(
+            getattr(framework_object, "framework", None), "element_objects", None
+        ) or {}
+        keys = list(P.beams.keys()) if hasattr(P, "beams") else []
         for pname in range(len(P)):
-            xp = np.mean(getattr(P[pname], xkey))
+            xp = None
+            if xkey in ("z", "s") and pname < len(keys):
+                name = keys[pname].replace("\\", "/").split("/")[-1].split(".")[0]
+                elem = elements[name] if name in elements else None
+                if elem is not None:
+                    try:
+                        xp = float(elem.physical.middle.z)
+                    except AttributeError:
+                        xp = None
+            if xp is None:
+                xp = np.mean(getattr(P[pname], xkey))
             if limits[0] <= xp <= limits[1]:
                 Pnames.append(pname)
                 X_particles.append(xp)
@@ -647,7 +667,7 @@ def general_plot(
         ax_plot = [all_axis]
 
     if grid:
-        ax_plot[0].grid(b=True, which="major", color="#666666", linestyle="-")
+        ax_plot[0].grid(visible=True, which="major", color="#666666", linestyle="-")
 
     # collect axes
     if isinstance(ykeys, str):

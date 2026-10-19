@@ -22,13 +22,13 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
             import json
             try:
                 with open(filename, 'r') as fid:
-                    particles = xp.particles.from_dict(
+                    particles = xp.Particles.from_dict(
                         json.load(fid),
                         _context=context,
                     )
             except ValueError:
                 with open(filename, 'r') as fid:
-                    particles = xp.particles.from_dict(
+                    particles = xp.Particles.from_dict(
                         json.load(fid),
                         _context=context,
                         mass0=float(self.E0_eV.val)
@@ -37,19 +37,19 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
             import pickle
             with open(filename, 'rb') as fid:
                 try:
-                    particles = xp.particles.from_dict(
+                    particles = xp.Particles.from_dict(
                         pickle.load(fid),
                         _context=context,
                         mass0=self.E0_eV.val
                     )
                 except TypeError:
-                    particles = xp.particles.from_dict(
+                    particles = xp.Particles.from_dict(
                         pickle.load(fid),
                         _context=context,
                     )
         else:
             raise ValueError(f"File format not supported for xsuite beam file {filename}.")
-    elif isinstance(filename, xp.particles):
+    elif isinstance(filename, xp.Particles):
         particles = filename
     else:
         raise ValueError("Input must be a filename or an xpart.Particles instance.")
@@ -126,14 +126,14 @@ def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: 
     p0c = self._beam.centroids.mean_cp.val
     x = self.x.val
     y = self.y.val
-    zeta = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
-    px = self.cpx.val / self.cp.val
-    py = self.cpy.val / self.cp.val
+    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    px = self.cpx.val / p0c
+    py = self.cpy.val / p0c
     delta = self.deltap.val
     s = self.t.val * constants.speed_of_light
 
 
-    particles = xt.particles(
+    particles = xt.Particles(
         _context=context,
         mass0=[mass0],
         q0=q0,

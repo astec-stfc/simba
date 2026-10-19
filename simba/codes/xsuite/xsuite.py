@@ -128,7 +128,7 @@ class XsuiteLattice(FrameworkLattice):
         """
         import xtrack as xt
         self.env = xt.Environment()
-        particle_ref = xt.particles(
+        particle_ref = xt.Particles(
             p0c=[self.global_parameters["beam"].centroids.mean_cp.val],
             mass0=[self.global_parameters["beam"].particle_rest_energy_eV.val],
             q0=-1,
@@ -190,6 +190,14 @@ class XsuiteLattice(FrameworkLattice):
         prefix = prefix if self.track_beam else prefix + self.particle_definition
         self.ref_s = self.global_parameters["beam"].s
         self.read_input_file(prefix, self.particle_definition)
+        if self.initial_twiss["horizontal"]["beta"]:
+            self.global_parameters["beam"].beam.rematch_x_plane(
+                **self.initial_twiss["horizontal"]
+            )
+        if self.initial_twiss["vertical"]["beta"]:
+            self.global_parameters["beam"].beam.rematch_y_plane(
+                **self.initial_twiss["vertical"]
+            )
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
         self.hdf5_to_json(prefix)
 
@@ -206,29 +214,54 @@ class XsuiteLattice(FrameworkLattice):
             Flag to indicate whether to save the file
         """
         xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
-        self.pin = rbf.beam.write_xsuite_beam_file(
+        self.pin = rbf.Beam.write_xsuite_beam_file(
             self.global_parameters["beam"],
             xsuitebeamfilename,
             write=write,
-            s_start=self.start_object.physical.start.z,
+            s_start=self.start_s,
         )
+
+    def insert_reference_energy_increases(self) -> None:
+        """
+        Insert an ``xtrack.ReferenceEnergyIncrease`` immediately ahead of every
+        cavity in :attr:`~line`, so that the reference momentum follows the
+        acceleration.
+        """
+        import xtrack as xt
+        from xtrack import Cavity, ReferenceEnergyIncrease
+
+        if any(isinstance(e, ReferenceEnergyIncrease) for e in self.line.elements):
+            return
+        new_elements, new_names = [], []
+        for el, name in zip(self.line.elements, self.line.element_names):
+            if isinstance(el, Cavity):
+                # `phase` (radians) is the current Xsuite field, `lag` (degrees)
+                # the deprecated one; Xsuite sums the two.
+                on_crest_phase = el.phase + el.lag * np.pi / 180
+                new_elements.append(
+                    xt.ReferenceEnergyIncrease(
+                        Delta_p0c=el.voltage * np.sin(on_crest_phase)
+                    )
+                )
+                new_names.append(f"{name}_p0c")
+            new_elements.append(el)
+            new_names.append(name)
+        particle_ref = self.line.particle_ref
+        self.line = xt.Line(elements=new_elements, element_names=new_names)
+        self.line.particle_ref = particle_ref
+        self.names = self.line.element_names
 
     def run(self) -> None:
         """
         Run the code, and set :attr:`~tws` and :attr:`~pout`
         """
-        import xtrack as xt
-        from xtrack import Cavity
+        self.insert_reference_energy_increases()
         self.line.build_tracker(_context=self.context)
         self.line.freeze_longitudinal(state=False)
         self.line.freeze_energy(state=False, force=True)
         pin = deepcopy(self.pin)
 
         for el, name in zip(self.line.elements, self.line.element_names):
-            if isinstance(el, Cavity):
-                xt.ReferenceEnergyIncrease(
-                    Delta_p0c=el.voltage * np.sin(el.lag * np.pi / 180)
-                ).track(pin)
             pin.zeta -= np.mean(pin.zeta)  # Center zeta
             el.track(pin, increment_at_element=True)  # Track in-place
             stats = {
@@ -243,11 +276,17 @@ class XsuiteLattice(FrameworkLattice):
                 'momentum': np.mean(pin.energy) - pin.mass0,
                 'emit_xn': np.mean(self.compute_norm_emit(pin.x, pin.px, pin)),
                 'emit_yn': np.mean(self.compute_norm_emit(pin.y, pin.py, pin)),
+                'emit_xn_corrected': np.mean(
+                    self.compute_norm_emit_corrected(pin.x, pin.px, pin)
+                ),
+                'emit_yn_corrected': np.mean(
+                    self.compute_norm_emit_corrected(pin.y, pin.py, pin)
+                ),
             }
             self.beam_data.update({name: stats})
         self.beam_data.update({"_end_point": stats})
         self.pout = pin
-        self.tws = self.line.Twiss(
+        self.tws = self.line.twiss(
             betx=self.global_parameters["beam"].twiss.beta_x.val,
             alfx=self.global_parameters["beam"].twiss.alpha_x.val,
             bety=self.global_parameters["beam"].twiss.beta_y.val,
@@ -263,6 +302,37 @@ class XsuiteLattice(FrameworkLattice):
         gamma = particles.energy / particles.mass0
         beta = particles.beta0 * (1 + particles.delta.mean()) / (1 + particles.delta.mean() * particles.beta0 ** 2)
         return gamma * beta * emit
+
+    def compute_norm_emit_corrected(self, coord, mom, particles):
+        """
+        Normalised emittance with the dispersive contribution removed.
+
+        Both coordinates have their linear correlation with ``delta`` subtracted
+        before the emittance is formed, matching
+        :func:`~simba.Modules.Beams.Particles.emittance.horizontal_emittance_corrected`
+        (which regresses against the momentum column -- the regression is
+        scale-invariant, so ``delta`` gives the same answer).
+
+        Parameters
+        ----------
+        coord: np.ndarray
+            Transverse coordinate column (x or y)
+        mom: np.ndarray
+            Conjugate momentum column (px or py)
+        particles: xtrack.Particles
+            The distribution, used for delta and the normalisation factor
+
+        Returns
+        -------
+        float
+            Dispersion-corrected normalised emittance
+        """
+        delta = np.asarray(particles.delta)
+        var_delta = np.var(delta)
+        if var_delta > 0:
+            coord = np.asarray(coord) - (np.cov(coord, delta)[0, 1] / var_delta) * delta
+            mom = np.asarray(mom) - (np.cov(mom, delta)[0, 1] / var_delta) * delta
+        return self.compute_norm_emit(coord, mom, particles)
 
     def post_process(self) -> None:
         """
@@ -301,9 +371,9 @@ class XsuiteLattice(FrameworkLattice):
                 f'{self.global_parameters["master_subdir"]}/{elem.name}.openpmd.hdf5',
             )
         df = self.tws.to_pandas()
-        if self.ref_s is None:
-            self.ref_s = self.start_object.physical.start.z
-        df["s"] += self.ref_s
+        # Anchor s to the lattice start (not the incoming beam's accumulated s) to
+        # match Elegant/Ocelot/MAD-X.
+        df["s"] += self.start_s
         svals = np.array(self.get_s_values(at_entrance=False)) + df["s"][0]
         zvals = [a[-1] for a in self.get_z_values()]
         df["z"] = np.interp(df["s"], svals, zvals)

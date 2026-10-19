@@ -36,6 +36,7 @@ from . import cheetah
 from . import opal
 from . import xsuite
 from . import genesis
+from . import madx
 
 try:
     from . import plot
@@ -56,6 +57,7 @@ codes = {
     "cheetah": cheetah.read_cheetah_twiss_files,
     "xsuite": xsuite.read_xsuite_twiss_files,
     "genesis": genesis.read_genesis_twiss_files,
+    "madx": madx.read_madx_twiss_files,
 }
 
 code_signatures = [
@@ -70,6 +72,7 @@ code_signatures = [
     ["cheetah", "_twiss.cheetah.hdf5"],
     ["genesis", ".out.h5"],
     ["xsuite", "_twiss.csv"],
+    ["madx", "_twiss.madx.hdf5"],
 ]
 
 twiss_defaults = {
@@ -442,6 +445,7 @@ class Twiss(DeprecatedMethodAliases, BaseModel):
             "cheetah": cheetah.read_cheetah_twiss_files,
             "xsuite": xsuite.read_xsuite_twiss_files,
             "genesis": genesis.read_genesis_twiss_files,
+            "madx": madx.read_madx_twiss_files,
         }
         self.code_signatures = code_signatures
 
@@ -521,6 +525,11 @@ class Twiss(DeprecatedMethodAliases, BaseModel):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return genesis.read_genesis_twiss_files(self, *args, **kwargs)
+
+    def read_madx_twiss_files(self, *args, **kwargs) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return madx.read_madx_twiss_files(self, *args, **kwargs)
 
     def save_hdf5_twiss_file(self, *args, **kwargs) -> None:
         with warnings.catch_warnings():
@@ -963,6 +972,7 @@ class Twiss(DeprecatedMethodAliases, BaseModel):
             "cheetah": "_twiss.cheetah.hdf5",
             "xsuite": "_twiss.csv",
             "genesis": ".out.h5",
+            "madx": "_twiss.madx.hdf5",
         },
         preglob: str = "*",
         verbose: bool = False,
@@ -1029,6 +1039,7 @@ def load_directory(
         "cheetah": "_twiss.cheetah.hdf5",
         "xsuite": "_twiss.csv",
         "genesis": ".out.h5",
+        "madx": "_twiss.madx.hdf5",
     },
     preglob="*",
     verbose=False,

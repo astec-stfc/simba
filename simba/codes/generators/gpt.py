@@ -51,7 +51,7 @@ class GPTGenerator(FrameworkGenerator):
     :param kwargs: Additional keyword arguments for the generator.
     :ivar filename: Name of the output file.
     :ivar code: Code identifier for the generator.
-    :ivar allowedKeyWords: List of allowed keywords for the generator.
+    :ivar allowed_key_words: List of allowed keywords for the generator.
     :ivar generator_keywords: Keywords specific to the GPT generator.
     """
 
@@ -496,6 +496,7 @@ setGBphidist("beam","u", 0, 2*pi);
             HDF5filename = "laser.openpmd.hdf5"
         else:
             HDF5filename = self.filename
+        self.global_parameters["beam"].set_species(self.species)
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + HDF5filename,

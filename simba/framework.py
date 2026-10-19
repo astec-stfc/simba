@@ -23,17 +23,18 @@ from simba._compat import DeprecatedMethodAliases
 import os
 import yaml
 import inspect
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement
+from laura.models.element import PhysicalBaseElement, Dipole
 from laura.exporters.yaml_exporter import export_machine, export_elements
 
 from .modules.merge_two_dicts import merge_two_dicts
 from .modules import beams as rbf
 from .modules import twiss as rtf
+from .modules import wavefronts as rwf
 from .modules import constants
 from .codes import executables as exes
 from .codes.generators import (
@@ -124,7 +125,7 @@ yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
 lattice_classes = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+    obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
 with open(
@@ -152,7 +153,7 @@ disallowed_changes = [
     "field_definition",
     "wakefield_definition",
     "generator_keywords",
-    "allowedKeyWords",
+    "allowed_key_words",
     "executables",
 ]
 
@@ -320,6 +321,15 @@ class Framework(DeprecatedMethodAliases, BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA"""
 
+    container_runtime: Literal["docker", "apptainer"] | None = None
+    """Container runtime to use for executing codes; if `None`, will attempt to find executables locally"""
+
+    executables: exes.Executables | None = None
+    """Object containing the commands for executing the various simulation codes"""
+
+    executables_ready: bool = False
+    """Flag to indicate whether the executables have been prepared and are ready for execution"""
+
     def model_post_init(self, __context):
         gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
         astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
@@ -329,13 +339,17 @@ class Framework(DeprecatedMethodAliases, BaseModel):
             "delete_tracking_files": self.delete_output_files,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
+            "container_runtime": self.container_runtime,
         }
+        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
+            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
+                 "Cannot run simulations without either of these - please set one or the other")
         self.set_sub_directory(self.directory)
         self.set_master_lattice_location(self.master_lattice)
         self.set_sim_codes_location(self.simcodes)
         self.setup_generator_defaults(self.generator_defaults)
 
-        self.executables = self.prepare_executables()
+        self.executables = self.prepare_executables(location=self.container_runtime)
 
         # object encoding settings for simulations with multiple runs
         self.RunSetup = RunSetup()
@@ -390,7 +404,8 @@ class Framework(DeprecatedMethodAliases, BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
-        executables.define_astra_generator_command()
+        executables.define_astra_generator_command(override_location=location)
+        self.executables_ready = True
         return executables
 
     def clear(self) -> None:
@@ -438,6 +453,58 @@ class Framework(DeprecatedMethodAliases, BaseModel):
                 obj.global_parameters = self.global_parameters
                 obj.global_settings = self.global_settings
 
+    def _resolve_package_location(
+            self,
+            explicit: str | None,
+            cached: str | None,
+            candidates: list[str],
+            label: str,
+            kwarg_name: str,
+    ) -> str | None:
+        """
+        Resolve a package directory, trying in order: an explicit path, a
+        previously cached location (shared across `Framework` instances), or
+        the first of `candidates` (relative to this file) that exists on disk.
+
+        Parameters
+        ----------
+        explicit: str, optional
+            Path passed directly by the caller; used as-is if given.
+        cached: str, optional
+            Previously resolved location, e.g. from an earlier `Framework` instance
+            or an installed package location.
+        candidates: list[str]
+            Paths relative to this file to search, in priority order.
+        label: str
+            Human-readable name of the package, used in verbose messages.
+        kwarg_name: str
+            Name of the keyword argument to suggest if nothing is found.
+
+        Returns
+        -------
+        str or None:
+            The resolved, absolute, trailing-slash-terminated location, or `None`
+            if it could not be found and no `explicit` value was given.
+        """
+        if explicit is not None:
+            return os.path.join(os.path.abspath(explicit), "./")
+        if cached is not None:
+            resolved = cached.replace("\\", "/")
+            if self.verbose:
+                print(f"Found {label} Package =", resolved)
+            return resolved
+        here = os.path.dirname(os.path.abspath(__file__))
+        for candidate in candidates:
+            path = os.path.abspath(os.path.join(here, candidate)) + "/"
+            if os.path.isdir(path):
+                resolved = path.replace("\\", "/")
+                if self.verbose:
+                    print(f"Found {label} Directory at '{candidate}' =", resolved)
+                return resolved
+        if self.verbose:
+            print(f"{label} not available - specify using {kwarg_name}=<location>")
+        return None
+
     def set_master_lattice_location(self, master_lattice: str | None = None) -> None:
         """
         Set the location of the ``LAURA`` package.
@@ -450,81 +517,14 @@ class Framework(DeprecatedMethodAliases, BaseModel):
             The full path to the ``LAURA`` master lattice folder
         """
         global MasterLatticeLocation
-        if master_lattice is None:
-            if MasterLatticeLocation is not None:
-                self.global_parameters["master_lattice"] = (
-                    MasterLatticeLocation.replace("\\", "/")
-                )
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Package =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 2-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            else:
-                if self.verbose:
-                    print(
-                        "Master Lattice not available - specify using master_lattice=<location>"
-                    )
-                    self.global_parameters["master_lattice"] = "."
-        else:
-            self.global_parameters["master_lattice"] = os.path.join(
-                os.path.abspath(master_lattice), "./"
-            )
+        location = self._resolve_package_location(
+            master_lattice,
+            MasterLatticeLocation,
+            ["../../MasterLattice/MasterLattice", "../MasterLattice/MasterLattice", "../MasterLattice"],
+            "MasterLattice",
+            "master_lattice",
+        )
+        self.global_parameters["master_lattice"] = "." if location is None else location
         MasterLatticeLocation = self.global_parameters["master_lattice"]
         self.update_global_parameters()
 
@@ -540,78 +540,13 @@ class Framework(DeprecatedMethodAliases, BaseModel):
             The full path to the SimCodes folder
         """
         global SimCodesLocation
-        if simcodes is None:
-            if SimCodesLocation is not None:
-                self.global_parameters["simcodes_location"] = SimCodesLocation.replace(
-                    "\\", "/"
-                )
-                if self.verbose:
-                    print(
-                        "Found SimCodes Package =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 2-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            else:
-                if self.verbose:
-                    print("SimCodes not available - specify using simcodes=<location>")
-                self.global_parameters["simcodes_location"] = None
-        else:
-            self.global_parameters["simcodes_location"] = os.path.join(
-                os.path.abspath(simcodes), "./"
-            )
+        self.global_parameters["simcodes_location"] = self._resolve_package_location(
+            simcodes,
+            SimCodesLocation,
+            ["../../SimCodes/SimCodes", "../SimCodes/SimCodes", "../SimCodes"],
+            "SimCodes",
+            "simcodes",
+        )
         SimCodesLocation = self.global_parameters["simcodes_location"]
         self.update_global_parameters()
 
@@ -738,7 +673,10 @@ class Framework(DeprecatedMethodAliases, BaseModel):
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                 )
 
-            self.element_objects = {k: v for k, v in self.machine.elements.items()}
+            for k in list(self.machine.elements.keys()):
+                _ = self.machine.elements[k]
+
+            self.element_objects = dict(self.machine.elements)
 
             # for name, elem in list(elements.items()):
             #     self.read_Element(name, elem)
@@ -1109,7 +1047,7 @@ class Framework(DeprecatedMethodAliases, BaseModel):
                 end = np.array([elem.physical.end.x, elem.physical.end.y, elem.physical.end.z])
                 length = elem.physical.length
                 physical_angle = elem.physical.physical_angle
-    
+
                 # Calculate local offset from middle to end
                 if abs(physical_angle) > 1e-9:
                     # Bent element - correct arc geometry
@@ -1121,15 +1059,15 @@ class Framework(DeprecatedMethodAliases, BaseModel):
                     ex_local = 0
                     ey_local = 0
                     ez_local = length / 2.0
-    
+
                 local_offset = np.array([ex_local, ey_local, ez_local])
-    
+
                 # Apply the full 3D rotation matrix
                 rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-    
+
                 # Calculate expected end position
                 cend = middle + np.array(rotated_offset)
-    
+
                 # Check if calculated end matches actual end
                 diff = cend - end
                 if not np.allclose(diff, 0, atol=10 ** (-decimals)):
@@ -1486,6 +1424,21 @@ class Framework(DeprecatedMethodAliases, BaseModel):
                 **kwargs,
             )
         self.lattice_objects["generator"] = self.generator
+        self._propagate_generator()
+
+    def _propagate_generator(self) -> None:
+        """
+        Hand the generator to any lattice that declares a ``generator``
+        attribute. Codes that model beam generation and acceleration in a single
+        run (OPAL) need the generator's own settings to describe the cathode
+        distribution, rather than importing a particle file written by whichever
+        code produced it.
+        """
+        for name, lattice in self.lattice_objects.items():
+            if name == "generator":
+                continue
+            if "generator" in getattr(type(lattice), "model_fields", {}):
+                lattice.generator = self.generator
 
     def change_generator(
         self,
@@ -1866,6 +1819,8 @@ class Framework(DeprecatedMethodAliases, BaseModel):
         if check_lattice:
             if not self.check_lattice():
                 raise Exception("Lattice Error - check definitions")
+        if not self.executables_ready:
+            raise Exception("Executables not ready - check setup and paths")
         self.tracking = True
         self.progress = 0
         if files is None:
@@ -2140,11 +2095,14 @@ class FrameworkDirectory(DeprecatedMethodAliases, BaseModel):
     directory: str | None = None
     """Directory from which to load beam and Twiss files"""
 
-    Twiss: bool | rtf.Twiss = True
+    twiss: bool | rtf.Twiss = True
     """Flag to indicate whether to load Twiss files"""
 
     beams: bool | rbf.BeamGroup | None = False
     """Flag to indicate whether to load beam files"""
+
+    wavefronts: bool | rwf.WavefrontGroup | None = False
+    """Flag to indicate whether to load wavefront files"""
 
     verbose: bool = False
     """Flag to print status updates"""
@@ -2198,10 +2156,12 @@ class FrameworkDirectory(DeprecatedMethodAliases, BaseModel):
                     rest_mass = constants.m_e
             else:
                 rest_mass = self.rest_mass
-            self.Twiss = rtf.Twiss(rest_mass=rest_mass)
+            self.twiss = rtf.Twiss(rest_mass=rest_mass)
         else:
             self.beams = None
-            self.Twiss = rtf.Twiss()
+            self.twiss = rtf.Twiss()
+        if self.wavefronts:
+            self.wavefronts = rwf.load_directory(directory)
         if self.twiss:
             self.twiss.load_directory(directory, verbose=self.verbose)
 
@@ -2318,10 +2278,10 @@ class FrameworkDirectory(DeprecatedMethodAliases, BaseModel):
 
 
 def load_directory(
-    directory: str = ".", twiss: bool = True, beams: bool = False, **kwargs
+    directory: str = ".", twiss: bool = True, beams: bool = False, wavefronts: bool = False, **kwargs
 ) -> FrameworkDirectory:
     """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
-    fw = FrameworkDirectory(directory=directory, twiss=twiss, beams=beams, **kwargs)
+    fw = FrameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)
     return fw
 
 
