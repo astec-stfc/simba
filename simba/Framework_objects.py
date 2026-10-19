@@ -521,15 +521,15 @@ class frameworkLattice(BaseModel):
     otm_convention: ClassVar[str] = ""
     """The coordinate order of :attr:`one_turn_map` as this code writes it; see :meth:`one_turn_map_canonical`.
 
-    Only the longitudinal block differs: Ocelot by a sign from MAD-X, Xsuite by
-    ``beta0**2``, and elegant by an additive term, as its fifth coordinate is path length.
+    Only the longitudinal coordinates differ: Ocelot by a sign from MAD-X, Xsuite by
+    ``beta0`` in each, and elegant by an additive term, as its fifth coordinate is path length.
     """
 
     otm_longitudinal_sign: ClassVar[int] = 1
     """Sign of this code's fifth coordinate against the canonical one (Xsuite, Bmad)."""
 
     otm_longitudinal_scale: ClassVar[int | None] = None
-    """Power of ``beta0`` in the longitudinal conversion; None if it is not a rescale (elegant)."""
+    """Power of ``beta0`` in ``R56``, split evenly between the fifth and sixth coordinates; None if it is not a rescale (elegant)."""
 
     optics_summary: Any = None
     """The code's own tune and chromaticity; see :meth:`read_optics_summary`."""
@@ -2901,8 +2901,8 @@ class frameworkLattice(BaseModel):
         """
         :attr:`one_turn_map` in Xsuite's ``(x, px, y, py, zeta, delta)``, so codes compare.
 
-        A diagonal similarity ``D R D^-1`` that rescales only the longitudinal block,
-        so tunes are unchanged. Elegant's fifth coordinate is path length, not time
+        A diagonal similarity ``D R D^-1`` that rescales only the longitudinal
+        coordinates, so tunes are unchanged. Elegant's fifth coordinate is path length, not time
         of flight, so it cannot be rescaled (a drift has ``R56 = 0``).
 
         Parameters
@@ -2921,6 +2921,7 @@ class frameworkLattice(BaseModel):
         if matrix is None or np is None:
             return None
         ratio = float(self.otm_longitudinal_sign)
+        momentum = 1.0
         if magnitude:
             if self.otm_longitudinal_scale is None:
                 return None
@@ -2934,9 +2935,11 @@ class frameworkLattice(BaseModel):
                     return None
             if not beta0:
                 return None
-            ratio *= beta0**self.otm_longitudinal_scale
+            # zeta = beta0 * t and delta = pt / beta0: scaling only one would leave R16 and R51 off by beta0
+            momentum = beta0 ** (-self.otm_longitudinal_scale / 2)
+            ratio /= momentum
         matrix = np.asarray(matrix, dtype=float)
-        diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, 1.0])
+        diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, momentum])
         return (diagonal[:, None] * matrix) / diagonal[None, :]
 
     def ring_parameters(self) -> dict:

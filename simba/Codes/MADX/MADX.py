@@ -84,7 +84,7 @@ class madxLattice(frameworkLattice):
         return -speed_of_light
 
     supports_programs: ClassVar[bool] = True
-    """By re-stating ``name->attribute`` between turns of :meth:`run_segments`."""
+    """By tying each attribute to a variable before ``MAKETHIN`` (:meth:`bind_programs`) and setting that between turns (:meth:`apply_programs`)."""
 
     supports_ramp: ClassVar[bool] = True
     """MAD-X has no ramp, so ``BEAM`` is re-issued between turns (see :meth:`ring_reference`)."""
@@ -107,7 +107,7 @@ class madxLattice(frameworkLattice):
 
     otm_longitudinal_scale: ClassVar[int | None] = 2
     """``zeta = beta0 * t`` and ``delta = pt / beta0``, so ``R56`` picks up
-    ``beta0**2``."""
+    ``beta0**2`` and ``R16``/``R51`` one ``beta0`` each."""
 
     trackBeam: bool = True
     """Whether to track the beam."""

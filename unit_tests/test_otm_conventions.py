@@ -269,6 +269,30 @@ def test_the_ordered_product_matches_xsuite():
     assert np.allclose(got[:4, :4], expected[:4, :4], atol=1e-9)
 
 
+def test_normalising_matches_xsuite_in_every_term():
+    """Dispersion and R51 too: rescaling only the fifth coordinate fixes R56 and leaves them off by beta0."""
+    from ocelot.cpbd.elements import Drift, SBend
+    from ocelot.cpbd.magnetic_lattice import MagneticLattice
+    from ocelot.cpbd.optics import lattice_transfer_map
+
+    xt = pytest.importorskip("xtrack")
+    line = xt.Line(
+        elements=[xt.Drift(length=1.5), xt.Bend(length=1.0, angle=0.3, k0=0.3)]
+    )
+    line.particle_ref = xt.Particles(p0c=PC_SLOW, mass0=MC2)
+    line.build_tracker()
+    expected = np.asarray(
+        line.compute_R_matrix(particle_on_co=line.particle_ref.copy())["R_matrix"]
+    )
+    e_tot = np.sqrt(PC_SLOW**2 + MC2**2)
+    ocelot = lattice_transfer_map(
+        MagneticLattice((Drift(l=1.5), SBend(l=1.0, angle=0.3))), e_tot / 1e9
+    )
+    madx = canonical(ordered_product(madx_drift_and_dipole(PC_SLOW)), madxLattice, PC_SLOW)
+    assert np.allclose(madx, expected, atol=1e-8)
+    assert np.allclose(canonical(np.asarray(ocelot), ocelotLattice, PC_SLOW), expected, atol=1e-5)
+
+
 def test_the_product_order_matters():
     """Guards the test above against a symmetric-lattice accident."""
     maps = madx_drift_and_dipole(PC_SLOW)
