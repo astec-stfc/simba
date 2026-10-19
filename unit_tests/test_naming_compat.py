@@ -15,6 +15,7 @@ nothing.
 """
 
 import importlib
+import sys
 import warnings
 
 import pytest
@@ -72,9 +73,17 @@ ALIAS_REGISTERING_MODULES = [
 ]
 
 
+def _import_optional(mod):
+    try:
+        return importlib.import_module(mod)
+    except ModuleNotFoundError as e:
+        if e.name != "zmq":
+            raise
+
+
 def _import_all():
     for mod in ALIAS_REGISTERING_MODULES:
-        importlib.import_module(mod)
+        _import_optional(mod)
 
 
 class TestModuleLevelAliases:
@@ -132,9 +141,12 @@ class TestLegacyModulePaths:
         for old, new in LEGACY_MODULES.items():
             if new in self._UNIMPORTABLE:
                 continue
+            sys.modules.pop(old, None)
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
-                old_module = importlib.import_module(old)
+                old_module = _import_optional(old)
+            if old_module is None:
+                continue
             new_module = importlib.import_module(new)
             assert old_module is new_module, f"{old} does not resolve to {new}"
             assert any(

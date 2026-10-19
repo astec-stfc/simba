@@ -4,7 +4,7 @@ from unittest.mock import patch
 from simba.codes.executables import Executables
 
 
-@patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
+@patch("simba.codes.executables.ensure_image", lambda **kwargs: None)
 def test_docker_runtime_resolves_full_command(tmp_path):
     ex = Executables({"simcodes_location": str(tmp_path), "container_runtime": "docker"})
     assert ex.astra[0] == "docker"
@@ -25,7 +25,7 @@ def test_docker_runtime_resolves_full_command(tmp_path):
         assert "--user" not in ex.genesisExecutable.Executable
 
 
-@patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
+@patch("simba.codes.executables.ensure_image", lambda **kwargs: None)
 def test_apptainer_runtime_resolves_full_command(tmp_path):
     ex = Executables({"simcodes_location": str(tmp_path), "container_runtime": "apptainer"})
     assert ex.astra[0] == "apptainer"
@@ -34,8 +34,8 @@ def test_apptainer_runtime_resolves_full_command(tmp_path):
     assert ex.genesisExecutable.Executable[-1] == "/simcodes/Genesis/genesis4"
 
 
-@patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
-@patch("simba.Codes.Executables.os.name", "nt")
+@patch("simba.codes.executables.ensure_image", lambda **kwargs: None)
+@patch("simba.codes.executables.os.name", "nt")
 def test_linux_only_codes_raise_on_windows(tmp_path):
     ex = Executables({"simcodes_location": str(tmp_path)})
     # codes with a real Windows build still resolve, to a file that actually exists -
@@ -56,9 +56,9 @@ def test_linux_only_codes_raise_on_windows(tmp_path):
     assert exd["genesis"][0] == "docker"
 
 
-@patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
-@patch("simba.Codes.Executables.socket.gethostname", lambda: "apclara2")
-@patch("simba.Codes.Executables.os.name", "posix")
+@patch("simba.codes.executables.ensure_image", lambda **kwargs: None)
+@patch("simba.codes.executables.socket.gethostname", lambda: "apclara2")
+@patch("simba.codes.executables.os.name", "posix")
 def test_code_missing_from_host_section_falls_back_to_default(tmp_path):
     # apclara2 defines no genesis entry; this used to raise KeyError
     ex = Executables({"simcodes_location": str(tmp_path)})
