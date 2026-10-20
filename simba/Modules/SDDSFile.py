@@ -273,8 +273,8 @@ class SDDSFile(object):
         try:
             self._sddsObject = sdds.SDDS(index)
         except ValueError:
-            index += 1
-            self._index = index
+            self._sddsObject = sdds.SDDS(None)
+            self._index = self._sddsObject.index
         except Exception:
             self._sddsObject = sdds.sdds.SDDS(index)
         if ascii:
