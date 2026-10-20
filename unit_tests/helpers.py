@@ -41,14 +41,14 @@ def fodo_quads():
     ]
 
 
-def fodo_machine(tmp_path, cavity=False, closed=False, cavity_length=0.0):
+def fodo_machine(tmp_path, cavity=False, closed=False, cavity_length=0.0, middle=None):
     """The FODO cell between markers M1 and M3, exported to ``tmp_path/lattice``.
 
     ``cavity`` adds CAV1 at the end (a dict gives its fields; the bare one has
     no voltage). ``closed`` makes the section a ring. Ocelot's cavity divides
-    by its length, so cannot be thin.
+    by its length, so cannot be thin. ``middle`` replaces the two quadrupoles.
     """
-    middle = fodo_quads()
+    middle = middle or fodo_quads()
     if cavity:
         middle.append(
             RFCavity(

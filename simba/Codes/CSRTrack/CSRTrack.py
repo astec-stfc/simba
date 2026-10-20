@@ -68,14 +68,15 @@ class csrtrackLattice(frameworkLattice):
         )
 
     def setCSRMode(self) -> None:
-        """Set the ``forces`` header from ``csr: csr_mode``: "3D" is ``csr_g_to_p``, "1D" is ``projected``."""
+        """Set the ``forces`` header from ``csr: csr_mode``: "3D" is ``csr_g_to_p``, "1D" is ``projected``, unset is none."""
         if "csr" in self.file_block and "csr_mode" in self.file_block["csr"]:
             if self.file_block["csr"]["csr_mode"] == "3D":
                 self.csrtrack_headers["forces"] = CsrTrackForces(type="csr_g_to_p")
             elif self.file_block["csr"]["csr_mode"] == "1D":
                 self.csrtrack_headers["forces"] = CsrTrackForces(type="projected")
         else:
-            self.csrtrack_headers["forces"] = CsrTrackForces()
+            # no forces block: CSRTrack tracks without self force
+            self.csrtrack_headers.pop("forces", None)
 
     def writeElements(self) -> str:
         """

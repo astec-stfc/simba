@@ -105,7 +105,7 @@ class cheetahLattice(frameworkLattice):
         bool
             Always True
         """
-        self.segment = self.section.to_cheetah()
+        self.segment = self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c))
         return True
 
     def write(self) -> None:

@@ -419,6 +419,11 @@ class FakeMadxRing:
     madx_beam_command = madxLattice.madx_beam_command
     makethin = madxLattice.makethin
     segment_name = madxLattice.segment_name
+    input_segment = madxLattice.input_segment
+    rigidity_name = madxLattice.rigidity_name
+    rigidity = frameworkLattice.rigidity
+    apply_alignment = madxLattice.apply_alignment
+    segment_alignment, _alignment_text = {}, {}
     da_settings = frameworkLattice.da_settings
     da_grid = frameworkLattice.da_grid
     turns = frameworkLattice.turns
@@ -432,7 +437,7 @@ class FakeMadxRing:
             "master_subdir": str(directory), "beam": SimpleNamespace(species="electron"),
         }
         self.reference_p0c, self.rest_energy, self.reference_charge = 1e9, 0.51099895e6, -1
-        for name in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole", "makedipedge", "makethin_style"):
+        for name in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole", "nslice_solenoid", "makedipedge", "makethin_style"):
             setattr(self, name, madxLattice.model_fields[name].default)
 
     da_rays = FakeXsuiteRing.da_rays

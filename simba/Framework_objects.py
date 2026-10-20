@@ -986,6 +986,10 @@ class frameworkLattice(BaseModel):
                 return sign
         return -1
 
+    def rigidity(self, p0c: float) -> float:
+        """Rigidity ``p / q`` [T*m] at `p0c` [eV/c], negative for electrons."""
+        return p0c / (speed_of_light * self.reference_charge)
+
     def check_species(self) -> None:
         """
         Refuse a beam if :attr:`electrons_only`.

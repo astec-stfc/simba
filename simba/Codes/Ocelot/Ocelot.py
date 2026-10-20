@@ -227,7 +227,9 @@ class ocelotLattice(frameworkLattice):
         """
         stable_cavity_maps()
         fast_lattice_files()
-        self.lat_obj = self.section.to_ocelot(save=True)
+        self.lat_obj = self.section.to_ocelot(
+            save=True, Brho=self.rigidity(self.reference_p0c)
+        )
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
 

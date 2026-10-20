@@ -29,6 +29,7 @@ from ...Modules import constants
 from ...Modules.Twiss.madx import save_madx_twiss_hdf
 
 from laura.translator.converters.converter import translate_elements
+from laura.translator.converters.magnet import SolenoidTranslator
 from laura.translator.utils.functions import (
     sanitize_string,
     madx_functional_definitions,
@@ -135,6 +136,9 @@ class madxLattice(frameworkLattice):
     nslice_sextupole: int = 4
     """MAKETHIN slices for sextupoles."""
 
+    nslice_solenoid: int = 4
+    """MAKETHIN slices for solenoids."""
+
     cavity_model: str = "rsmatrix"
     """Transverse model for RF cavities: ``rsmatrix`` (Rosenzweig-Serafini
     ``MATRIX`` plus a thin ``RFCAVITY`` kick, as Ocelot), ``sliced``
@@ -173,6 +177,10 @@ class madxLattice(frameworkLattice):
     seqstrings: List = []
     """MAD-X ``SEQUENCE`` definition per segment."""
 
+    segment_alignment: Dict = {}
+    """``(name, centre, translator)`` of each misaligned element, by segment
+    name; see :meth:`apply_alignment`."""
+
     model_twiss_orbit: Any = None
     """Closed orbit at the start of the line; see :meth:`read_closed_orbit`."""
 
@@ -203,6 +211,9 @@ class madxLattice(frameworkLattice):
 
     _thin_sequences: set = None
     """Segment sequences already defined and sliced in the running MAD-X."""
+
+    _alignment_text: Dict = None
+    """Per-slice ``EALIGN`` input by segment name, built once; see :meth:`apply_alignment`."""
 
     _observation_points: Dict = None
     """Cache of :meth:`observation_points` by segment; cleared by :meth:`segmentElements`."""
@@ -303,6 +314,8 @@ class madxLattice(frameworkLattice):
         """
         self.segmentElements()
         self.seqstrings = []
+        self.segment_alignment = {}
+        self._alignment_text = {}
         self._design_energy = self.initial_energy()
         fulltext = madx_functional_definitions(self.section.functional_definitions)
         for iseg, segnames in enumerate(self.segments):
@@ -310,6 +323,11 @@ class madxLattice(frameworkLattice):
             seg_s0 = self._sval_in[segnames[0]]
             seg_s1 = self._sval_out[segnames[-1]]
             seg_len = seg_s1 - seg_s0
+            # the written file's default; input_segment sets the tracked momentum's
+            design_p0c = np.sqrt(max(self._design_energy**2 - self.rest_energy**2, 0.0))
+            if design_p0c:
+                fulltext += f"{self.rigidity_name(iseg)} = {self.rigidity(design_p0c)};\n"
+            self.segment_alignment[seqname] = []
             lines = [f"{seqname}: sequence, refer=centre, l = {seg_len};"]
             for name in segnames:
                 d = self._elem_dict[name]
@@ -322,7 +340,14 @@ class madxLattice(frameworkLattice):
                     )
                 else:
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
-                estr = d.to_madx(at=at).strip()
+                if isinstance(d, SolenoidTranslator):
+                    estr = d.to_madx(at=at, Brho=self.rigidity_name(iseg)).strip()
+                else:
+                    estr = d.to_madx(at=at).strip()
+                if d.madx_alignment():
+                    self.segment_alignment[seqname].append(
+                        (sanitize_string(d.name).lower(), at, d)
+                    )
                 if d.hardware_type.lower() == "rfcavity":
                     if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
                         estr, self._design_energy = self.rs_matrix_cavity(
@@ -344,6 +369,51 @@ class madxLattice(frameworkLattice):
     def segment_name(self, iseg: int) -> str:
         """MAD-X compatible name for lattice segment `iseg`"""
         return f"{sanitize_string(self.objectname)}_seg_{iseg}"
+
+    def rigidity_name(self, iseg: int) -> str:
+        """The MAD-X variable holding segment `iseg`'s rigidity, which its solenoids divide by."""
+        return f"brho_seg_{iseg}"
+
+    def input_segment(self, madx: Any, iseg: int, p0c: float) -> None:
+        """
+        Input segment `iseg`'s ``SEQUENCE``, its solenoids normalised at `p0c`
+        [eV/c]. MAD-X evaluates a solenoid's ``ks`` once, as it is defined.
+        """
+        madx.input(f"{self.rigidity_name(iseg)} = {self.rigidity(p0c)};")
+        madx.input(self.seqstrings[iseg])
+
+    def apply_alignment(self, madx: Any, seqname: str) -> None:
+        """
+        ``EALIGN`` each slice of a misaligned element at its body's offset
+        there, since ``MAKETHIN`` and every ``USE`` drop alignment errors.
+        Agrees with the thick element to second order in the errors.
+        """
+        if seqname not in self._alignment_text:
+            nodes = [
+                (e.name, e.at)
+                for e in madx.sequence[seqname].elements
+                if e.base_type.name != "marker"
+            ]
+            text = ""
+            for name, centre, d in self.segment_alignment.get(seqname, []):
+                dpsi = d.madx_alignment().get("dpsi", 0.0)
+                for node, at in nodes:
+                    if node == name or node.startswith(f"{name}.."):
+                        z = at - centre
+                        terms = {
+                            "dx": d.dx - d.dx_rot * z,
+                            "dy": d.dy - d.dy_rot * z,
+                            "ds": d.dz,
+                            "dpsi": dpsi,
+                        }
+                        text += (
+                            "select, flag=error, clear;\n"
+                            f"select, flag=error, range={node};\n"
+                            f"ealign, {', '.join(f'{k} = {v}' for k, v in terms.items())};\n"
+                        )
+            self._alignment_text[seqname] = text
+        if self._alignment_text[seqname]:
+            madx.input(self._alignment_text[seqname])
 
     def initial_energy(self) -> float:
         """
@@ -598,11 +668,13 @@ class madxLattice(frameworkLattice):
             select, flag=makethin, class=sbend, slice={self.nslice_sbend};
             select, flag=makethin, class=rbend, slice={self.nslice_sbend};
             select, flag=makethin, class=sextupole, slice={self.nslice_sextupole};
+            select, flag=makethin, class=solenoid, slice={self.nslice_solenoid};
             select, flag=makethin, class=rfcavity, slice=1;
             makethin, sequence={seqname}, style={self.makethin_style}, makedipedge={madedge};
             use, sequence={seqname};
             """
         )
+        self.apply_alignment(madx, seqname)
 
     def observation_points(self, segnames: List) -> List:
         """
@@ -799,7 +871,7 @@ class madxLattice(frameworkLattice):
             return None
         madx = self.start_madx()
         try:
-            madx.input(self.seqstrings[0])
+            self.input_segment(madx, 0, self.reference_p0c)
             seqname = self.segment_name(0)
             self.madx_beam_command(madx, self.reference_p0c, seqname)
             madx.input(f"use, sequence={seqname};")
@@ -1375,7 +1447,7 @@ class madxLattice(frameworkLattice):
             self.startObject.physical.start.z,
         )
 
-        madx.input(self.seqstrings[0])
+        self.input_segment(madx, 0, p0c)
         self.madx_beam_command(madx, p0c, seqname)
         madx.use(sequence=seqname)
         self.makethin(madx, seqname)
@@ -1539,8 +1611,9 @@ class madxLattice(frameworkLattice):
             if seqname in self._thin_sequences:
                 self.madx_beam_command(madx, p0c, seqname)
                 madx.use(sequence=seqname)
+                self.apply_alignment(madx, seqname)
             else:
-                madx.input(self.seqstrings[iseg])
+                self.input_segment(madx, iseg, p0c)
                 self.bind_programs(madx, segnames)
                 self.madx_beam_command(madx, p0c, seqname)
                 madx.use(sequence=seqname)
