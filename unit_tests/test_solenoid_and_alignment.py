@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 from helpers import fodo_machine, read_beam, skip_missing
-from laura.models.element import Quadrupole, Solenoid
+from laura.models.element import Dipole, Quadrupole, Solenoid
 from simba.Codes.Generators import frameworkGenerator
 
 
@@ -33,6 +33,16 @@ def misaligned_quad():
                 "rotation": {"theta": 4e-3, "phi": 5e-3, "psi": 6e-3},
             },
         },
+    )
+
+
+def misaligned_bend(error):
+    """Untilted: MAD-X's MAKETHIN models a tilted strong bend 1e-4 off even
+    without errors."""
+    return Dipole(
+        name="BEND1", machine_area="FODO",
+        magnetic={"length": 1.0, "angle": 0.5},
+        physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 2.5}, "error": error},
     )
 
 
@@ -90,6 +100,30 @@ def test_madx_keeps_alignment_errors_through_makethin(tmp_path, seed_beam):
     expected = track(tmp_path / "x", "xsuite", [misaligned_quad()], seed_beam)
     final = track(tmp_path / "m", "madx", [misaligned_quad()], seed_beam)
     assert close(final, expected, 5e-2)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        {"position": {"x": 1e-3}},
+        {"position": {"z": 1e-3}},
+        {"rotation": {"theta": 1e-3}},
+        {"rotation": {"phi": 1e-3}},
+        {"rotation": {"psi": 1e-2}},
+    ],
+    ids=["dx", "dz", "dx_rot", "dy_rot", "dz_rot"],
+)
+def test_madx_slices_follow_a_bends_arc(tmp_path, seed_beam, error):
+    """Each slice is misaligned where it sits on the arc. Straight-line levers
+    were 30% off on dx_rot and 5x on dy_rot; a thin slice cannot take the
+    shift along the arc, which leaves dx 5% off."""
+    def effect(code):
+        bare = track(tmp_path / f"{code}0", code, [misaligned_bend({})], seed_beam)
+        moved = track(tmp_path / code, code, [misaligned_bend(error)], seed_beam)
+        return moved - bare
+
+    got, want = effect("madx"), effect("xsuite")
+    assert np.abs(got - want).max() < 0.1 * np.abs(want).max()
 
 
 def close(final, expected, rtol):

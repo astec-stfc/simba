@@ -385,8 +385,9 @@ class madxLattice(frameworkLattice):
     def apply_alignment(self, madx: Any, seqname: str) -> None:
         """
         ``EALIGN`` each slice of a misaligned element at its body's offset
-        there, since ``MAKETHIN`` and every ``USE`` drop alignment errors.
-        Agrees with the thick element to second order in the errors.
+        and roll there, since ``MAKETHIN`` and every ``USE`` drop alignment
+        errors. A thin slice cannot pitch, so that comes from the offsets
+        along it.
         """
         if seqname not in self._alignment_text:
             nodes = [
@@ -396,21 +397,19 @@ class madxLattice(frameworkLattice):
             ]
             text = ""
             for name, centre, d in self.segment_alignment.get(seqname, []):
-                dpsi = d.madx_alignment().get("dpsi", 0.0)
                 for node, at in nodes:
                     if node == name or node.startswith(f"{name}.."):
-                        z = at - centre
                         terms = {
-                            "dx": d.dx - d.dx_rot * z,
-                            "dy": d.dy - d.dy_rot * z,
-                            "ds": d.dz,
-                            "dpsi": dpsi,
+                            k: v
+                            for k, v in d.madx_alignment(at - centre).items()
+                            if k in ("dx", "dy", "ds", "dpsi")
                         }
-                        text += (
-                            "select, flag=error, clear;\n"
-                            f"select, flag=error, range={node};\n"
-                            f"ealign, {', '.join(f'{k} = {v}' for k, v in terms.items())};\n"
-                        )
+                        if terms:
+                            text += (
+                                "select, flag=error, clear;\n"
+                                f"select, flag=error, range={node};\n"
+                                f"ealign, {', '.join(f'{k} = {v}' for k, v in terms.items())};\n"
+                            )
             self._alignment_text[seqname] = text
         if self._alignment_text[seqname]:
             madx.input(self._alignment_text[seqname])
