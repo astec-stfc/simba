@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 from helpers import fodo_machine, read_beam, skip_missing
-from laura.models.element import Dipole, Quadrupole, Solenoid
+from laura.models.element import Dipole, MatrixTransform, Quadrupole, Solenoid
 from simba.Codes.Generators import frameworkGenerator
 
 
@@ -91,6 +91,20 @@ def test_a_solenoid_turns_the_beam_as_xsuite_does(tmp_path, code, seed_beam):
     """One MAD-X slice is 2.4% off at this kL of 0.6; four are 5e-4."""
     expected = track(tmp_path / "x", "xsuite", [solenoid()], seed_beam)
     final = track(tmp_path / code, code, [solenoid()], seed_beam)
+    assert close(final, expected, 1e-3)
+
+
+def test_a_matrix_transform_tracks_in_madx_as_in_xsuite(tmp_path, seed_beam):
+    """MAD-X's (t, pt) differ from Bmad's (z, pz) by beta, 0.5% at 5 MeV/c."""
+    r = np.eye(6)
+    r[0, 4], r[2, 5] = 1.0, 0.5
+    matrix = MatrixTransform(
+        name="MAT1", machine_area="FODO",
+        simulation={"r_matrix": r},
+        physical={"length": 0.5, "middle": {"x": 0.0, "y": 0.0, "z": 0.75}},
+    )
+    expected = track(tmp_path / "x", "xsuite", [matrix], seed_beam)
+    final = track(tmp_path / "m", "madx", [matrix], seed_beam)
     assert close(final, expected, 1e-3)
 
 

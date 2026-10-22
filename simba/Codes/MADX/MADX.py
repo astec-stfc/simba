@@ -30,6 +30,7 @@ from ...Modules.Twiss.madx import save_madx_twiss_hdf
 
 from laura.translator.converters.converter import translate_elements
 from laura.translator.converters.magnet import SolenoidTranslator
+from laura.translator.converters.matrix import MatrixTransformTranslator
 from laura.translator.utils.functions import (
     sanitize_string,
     madx_functional_definitions,
@@ -342,6 +343,9 @@ class madxLattice(frameworkLattice):
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
                 if isinstance(d, SolenoidTranslator):
                     estr = d.to_madx(at=at, Brho=self.rigidity_name(iseg)).strip()
+                elif isinstance(d, MatrixTransformTranslator):
+                    gamma = self._design_energy / self.rest_energy if self._design_energy else None
+                    estr = d.to_madx(at=at, gamma=gamma).strip()
                 else:
                     estr = d.to_madx(at=at).strip()
                 if d.madx_alignment():
