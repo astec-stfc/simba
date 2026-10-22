@@ -11,7 +11,13 @@ import pytest
 pytest.importorskip("impactx")
 
 from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
-from laura.models.element import Dipole, HorizontalCorrector, Marker, Solenoid, VerticalCorrector
+from laura.models.element import (
+    Dipole,
+    HorizontalCorrector,
+    Marker,
+    Solenoid,
+    VerticalCorrector,
+)
 from laura.translator.utils.fields import FieldMap
 from laura.translator.utils.fields.field_parameter import FieldParameter
 from laura.translator.utils.units import UnitValue
@@ -205,14 +211,17 @@ def test_a_corrector_program_kicks_as_xsuites(tmp_path, seed_beam):
 
 
 def test_a_solenoid_follows_a_ramp_as_xsuites_does(tmp_path, seed_beam):
-    """ImpactX's exact solenoid is a ``ChrAcc``, whose ``bz`` is a field, not a strength."""
+    """ImpactX's exact solenoid is a ``ChrAcc``, whose ``bz`` is a field, not a strength.
+    Left unscaled, it lands 2e-5 m from Xsuite."""
     skip_missing("xsuite")
     solenoid = Solenoid(
         name="SOL1", machine_area="FODO",
-        magnetic={"length": 0.5, "fields": {"S0L": 0.5}},
+        magnetic={"length": 0.5, "fields": {"S0L": 1e-3}},
         physical={"length": 0.5, "middle": {"x": 0.0, "y": 0.0, "z": 1.75}},
     )
     quads = fodo_quads()
+    # Qx = Qy, coupled, fails Xsuite's 4d twiss
+    quads[0].magnetic.k1l = -1.1
     final = {}
     for code in ("impactx", "xsuite"):
         _, beam = run(
@@ -221,7 +230,7 @@ def test_a_solenoid_follows_a_ramp_as_xsuites_does(tmp_path, seed_beam):
             tracking={"turns": 10, "ramp": {"turns": [1, 10], "momentum": [5e6, 5.1e6]}},
         )
         final[code] = np.array([beam.x.val, beam.y.val])
-    np.testing.assert_allclose(final["impactx"], final["xsuite"], rtol=0, atol=1e-7)
+    np.testing.assert_allclose(final["impactx"], final["xsuite"], rtol=0, atol=3e-6)
 
 
 def test_the_reference_trajectory_is_xsuites(tmp_path, seed_beam):

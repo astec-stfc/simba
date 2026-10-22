@@ -384,7 +384,8 @@ How each code does it
    * - ImpactX
      - Between turns of SIMBA's loop, as Ocelot: the reference is moved and each
        particle's ``pt``, ``px`` and ``py`` re-expressed. Its strengths are
-       normalised, so the magnets follow.
+       normalised, so the magnets follow. The exact solenoid's ``bz`` is a
+       field, so it is scaled with the reference's momentum each turn.
    * - Bmad
      - Not supported yet; its tracking path here is single-pass.
 
