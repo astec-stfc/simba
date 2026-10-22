@@ -363,6 +363,62 @@ def test_the_momentum_compaction_agrees_across_codes():
     assert values["ocelot"] == pytest.approx(values["xsuite"], rel=1e-4), values
 
 
+@cache
+def at_ring():
+    at = pytest.importorskip("at")
+    cell = []
+    for i in range(NCELL):
+        cell += [
+            at.Quadrupole(f"qf{i}", QUAD_L, QUAD_K1),
+            at.Drift(f"d{i}a", DRIFT_L),
+            at.Dipole(f"b{i}", BEND_L, ANGLE),
+            at.Drift(f"d{i}b", DRIFT_L),
+            at.Quadrupole(f"qd{i}", QUAD_L, -QUAD_K1),
+            at.Drift(f"d{i}c", DRIFT_L),
+        ]
+    for element in cell:
+        # its default of 10 puts the tune 4e-6 out
+        element.NumIntSteps = 100
+    return at.Lattice(cell, energy=math.hypot(PC, MC2), particle="electron")
+
+
+def test_at_reports_the_ring_through_simba():
+    """Its map after `atLattice`'s reordering, and its own tunes and chromaticity.
+
+    The chromaticity is Ocelot's, in both planes, rather than the other three's.
+    """
+    from simba.Codes.AT.AT import atLattice
+
+    class FakeAT:
+        read_one_turn_map = atLattice.read_one_turn_map
+        read_optics_summary = atLattice.read_optics_summary
+        periodic_optics = atLattice.periodic_optics
+        optics_ring = atLattice.optics_ring
+        objectname = "ring"
+        ring = at_ring()
+        rf_voltage = 0.0
+        _optics = None
+
+    line = FakeAT()
+    matrix, tw = xsuite_ring()
+    ours = line.read_one_turn_map()
+    for plane in ("x", "y"):
+        assert fractional_tune(ours, plane) == pytest.approx(fractional_tune(matrix, plane), abs=1e-6)
+        assert periodic_twiss(ours, plane)["beta"] == pytest.approx(
+            periodic_twiss(matrix, plane)["beta"], rel=1e-5
+        )
+    diagonal = np.array([1.0, 1.0, 1.0, 1.0, atLattice.otm_longitudinal_sign, 1.0])
+    canonical = (diagonal[:, None] * ours) / diagonal[None, :]
+    assert momentum_compaction(canonical, CIRCUMFERENCE, GAMMA0) == pytest.approx(
+        momentum_compaction(matrix, CIRCUMFERENCE, GAMMA0), rel=1e-4
+    )
+    summary = line.read_optics_summary()
+    assert summary["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-5)
+    assert summary["tune_y_total"] == pytest.approx(float(tw.qy), rel=1e-5)
+    assert summary["chromaticity_x"] == pytest.approx(-1.16121, rel=1e-4)
+    assert summary["chromaticity_y"] == pytest.approx(-0.581474, rel=1e-4)
+
+
 def test_the_compaction_matches_what_the_codes_report():
     _, tw = xsuite_ring()
     _, summ = madx_ring()

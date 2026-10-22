@@ -7,12 +7,13 @@ import warnings
 import pytest
 
 from helpers import BentLine, xtrack_sector
+from simba.Codes.AT.AT import atLattice
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 
-CAN = [ocelotLattice, madxLattice, xsuiteLattice]
+CAN = [ocelotLattice, madxLattice, xsuiteLattice, atLattice]
 
 
 class FakeLine:

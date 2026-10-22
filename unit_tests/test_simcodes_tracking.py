@@ -15,6 +15,7 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
+    pytest.param("at", None, id="at"),
     pytest.param("opal", "docker", id="opal", marks=needs_container),
     pytest.param(
         "gpt", None, id="gpt",

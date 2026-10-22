@@ -10,6 +10,7 @@ from scipy.constants import c
 
 import simba.Framework as fw
 from helpers import fodo_machine, read_beam, skip_missing
+from simba.Codes.AT.AT import atLattice
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.Generators import frameworkGenerator
@@ -85,6 +86,7 @@ def test_a_phase_wraps_into_one_turn():
         (madxLattice, "synchronous"),
         (ocelotLattice, "synchronous"),
         (bmadLattice, None),
+        (atLattice, "synchronous"),
     ],
     ids=lambda c: getattr(c, "__name__", str(c)),
 )
@@ -260,6 +262,7 @@ def runs(tmp_path_factory, seed_beam):
         "follow": ({"ramp": RAMP, "rf": "follow"}, HARMONIC),
         "flat": ({}, HARMONIC),
         "off_harmonic": ({}, 10.02 / 10 * HARMONIC),
+        "native": ({"native_turns": True}, HARMONIC),
     }
 
     def get(code, case):
@@ -292,6 +295,26 @@ def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
     gains, reference = runs(code, "off_harmonic")[1], runs("elegant", "off_harmonic")[1]
     assert reference[-1] > 19000
     assert np.allclose(gains, reference, rtol=0, atol=40)
+
+
+def test_off_the_harmonic_at_slips_as_elegant_does(runs):
+    """AT takes beta = 1: its cavity gives beta**2 of elegant's cp (9948 eV in
+    10052), and misses the bunch arriving earlier as it speeds up, 220 eV by
+    turn 6. The wrong sign is 30 keV out by turn 10."""
+    gains, reference = runs("at", "off_harmonic")[1], runs("elegant", "off_harmonic")[1]
+    assert np.allclose(gains, reference * BETA**2, rtol=0, atol=250)
+
+
+def test_at_on_its_own_turn_count_slips_as_plain_at_does(runs):
+    """``native_turns: true``: AT takes a turn as ``C / c``, so the RF slips
+    ``2 pi h (1 / beta - 1)``, 18.7 deg a turn; simba's loop holds it at 9948 eV."""
+    at = pytest.importorskip("at")
+    line, gains = runs("at", "native")
+    rout, *_ = at.lattice_track(line.ring, line.pin.copy(order="F"), nturns=TURNS, refpts=[len(line.ring)])
+    delta = np.r_[np.mean(line.pin[4]), np.mean(rout[4, :, 0, :], axis=0)]
+    assert np.allclose(gains, np.diff(delta) * line.reference_p0c, rtol=0, atol=1)
+    assert gains[3] < 0
+    assert np.allclose(runs("at", "flat")[1], gains[0], rtol=0, atol=1)
 
 
 def test_ocelots_cavity_leaves_a_rings_reference_alone(runs):

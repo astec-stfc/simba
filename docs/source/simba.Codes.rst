@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    simba.Codes.ASTRA
+   simba.Codes.AT
    simba.Codes.Bmad
    simba.Codes.CSRTrack
    simba.Codes.Cheetah

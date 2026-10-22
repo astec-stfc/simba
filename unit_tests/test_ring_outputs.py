@@ -24,13 +24,13 @@ from simba.Framework_objects import frameworkLattice
 from simba.Modules import constants
 
 TURNS = 4
-RING_CODES = ["elegant", "xsuite", "madx", "ocelot"]
+RING_CODES = ["elegant", "xsuite", "madx", "ocelot", "at"]
 END_Z = 3.25 + 1.0
 BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
 
 
-def _machine(tmp_path):
-    """A FODO cell with a marker in the middle, called a ring."""
+def _machine(tmp_path, extra=()):
+    """A FODO cell with a marker in the middle, called a ring; ``extra`` goes before M3."""
     elements = [
         Marker(
             name="M1", machine_area="FODO", hardware_class="Marker",
@@ -50,6 +50,7 @@ def _machine(tmp_path):
             magnetic={"length": 1.0, "k1l": 1.0},
             physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 3.25}},
         ),
+        *extra,
         Marker(
             name="M3", machine_area="FODO", hardware_class="Marker",
             physical={"middle": {"x": 0.0, "y": 0.0, "z": END_Z}},
@@ -93,9 +94,9 @@ def _read(path):
     return beam
 
 
-def _framework(tmp_path, code, tracking, seed_beam, inputs=None):
+def _framework(tmp_path, code, tracking, seed_beam, inputs=None, extra=()):
     skip_missing(code)
-    machine, section = _machine(tmp_path)
+    machine, section = _machine(tmp_path, extra)
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
@@ -117,8 +118,8 @@ def _framework(tmp_path, code, tracking, seed_beam, inputs=None):
     return framework
 
 
-def _track(tmp_path, code, tracking, seed_beam):
-    framework = _framework(tmp_path, code, tracking, seed_beam)
+def _track(tmp_path, code, tracking, seed_beam, extra=()):
+    framework = _framework(tmp_path, code, tracking, seed_beam, extra=extra)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         framework.track()
@@ -299,9 +300,46 @@ def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
     np.testing.assert_allclose(cp, total[alive], rtol=1e-12)
 
 
-def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
-    program = {"element": "QUAD1F", "parameter": "k1",
-               "turns": [1, TURNS], "values": [-1.05, -0.9]}
+@pytest.mark.parametrize("ac_dipole", [False, True], ids=["", "ac dipole"])
+@pytest.mark.parametrize("tracking", [
+    {"write_turns": True, "nsuperperiods": 2}, {"write_turns": False},
+], ids=["every turn", "last turn"])
+def test_at_tracks_turns_natively_as_it_does_pass_by_pass(tmp_path, seed_beam, monkeypatch, tracking, ac_dipole):
+    """No cavity, no programs: one ``nturns`` call up to each recorded pass.
+    AT's turn count drives an AC dipole, so the loop has to keep it running."""
+    from laura.models.element import HorizontalACDipole
+
+    calls = []
+    native = lattices.atLattice.run_native
+    monkeypatch.setattr(lattices.atLattice, "run_native", lambda self, tp: calls.append(native(self, tp)))
+    kicker = HorizontalACDipole(
+        name="AC1", machine_area="FODO",
+        physical={"length": 0.0, "middle": {"x": 0.0, "y": 0.0, "z": 4.0}},
+        # 1e-4 rad at 5 MeV; LAURA's default ramp, all zeros, is off
+        simulation={"field_amplitude": 2.0, "frequency": 0.3 * constants.speed_of_light / END_Z,
+                    "ramp": [0, 1, 100, 101]},
+    )
+
+    def run(directory, extra, **more):
+        (tmp_path / directory).mkdir()
+        return _track(tmp_path / directory, "at", {"turns": TURNS, **tracking, **more}, seed_beam, extra)
+
+    extra = [kicker] if ac_dipole else []
+    fast = run("native", extra)
+    slow = run("looped", extra, native_turns=False)
+    assert len(calls) == 1
+    turns = _turns(fast, "MID") or [None]
+    assert _turns(fast, "MID") == _turns(slow, "MID")
+    for turn in turns:
+        np.testing.assert_array_equal(_turn(fast, "MID", turn).px.val, _turn(slow, "MID", turn).px.val)
+    if ac_dipole:
+        bare = run("bare", [])
+        assert not np.array_equal(_turn(fast, "MID", turns[-1]).px.val, _turn(bare, "MID", turns[-1]).px.val)
+
+
+@pytest.mark.parametrize("code, parameter", [("madx", "k1"), ("at", "PolynomB[1]")])
+def test_a_programmed_quadrupole_moves_as_it_does_in_xsuite(tmp_path, seed_beam, code, parameter):
+    program = {"element": "QUAD1F", "turns": [1, TURNS], "values": [-1.05, -0.9]}
 
     def sizes(code, **extra):
         subdir = _track(
@@ -313,11 +351,11 @@ def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
         ])
 
     effect = {
-        code: sizes(code, programs=[program]) - sizes(code)
-        for code in ("madx", "xsuite")
+        name: sizes(name, programs=[{**program, "parameter": value}]) - sizes(name)
+        for name, value in ((code, parameter), ("xsuite", "k1"))
     }
     assert np.min(np.abs(effect["xsuite"])) > 5e-6
-    np.testing.assert_allclose(effect["madx"], effect["xsuite"], rtol=0.1)
+    np.testing.assert_allclose(effect[code], effect["xsuite"], rtol=0.1)
 
 
 @pytest.mark.parametrize("block, name", [
@@ -363,7 +401,7 @@ def test_every_code_reads_the_input_beam_it_is_given(
 @pytest.mark.parametrize("species", ["proton", "positron"])
 @pytest.mark.parametrize("code, refused", [
     ("elegant", True), ("ocelot", True), ("cheetah", True),
-    ("xsuite", False), ("madx", False), ("bmad", False),
+    ("xsuite", False), ("madx", False), ("bmad", False), ("at", False),
 ])
 def test_an_electron_only_code_refuses_anything_else(
     code, refused, species, tmp_path, seed_beam
@@ -401,6 +439,7 @@ CAN = {
     # single-pass here, so no turns to ramp over; its scans track a turn at a
     # time through Tao, measured in test_bmad_turn_handback.py
     "bmad": {"periodic", "frequency_map", "dynamic_aperture", "radiation", "programs"},
+    "at": {"turns", "periodic", "frequency_map", "dynamic_aperture", "radiation", "programs", "nsuperperiods"},
 }
 LATTICES = {
     cls.model_fields["code"].default: cls
@@ -767,7 +806,8 @@ def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
 
 
 @needs_elegant
-@pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
+# AT takes beta = 1, so misses delta / gamma**2 of each particle's speed: 30 fs here
+@pytest.mark.parametrize("code", [c for c in RING_CODES if c not in ("elegant", "at")])
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
     for turn in range(1, TURNS + 1):

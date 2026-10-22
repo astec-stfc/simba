@@ -25,6 +25,7 @@ setup(
         "soliday.sdds",
         "easygdf>=2.1.1",
         "xsuite>=0.39.0",
+        "accelerator-toolbox>=0.9.0",
         "paramiko",
         "deap",
         "pyqtgraph",

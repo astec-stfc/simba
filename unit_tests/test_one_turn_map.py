@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from simba.Codes.ASTRA.ASTRA import astraLattice
+from simba.Codes.AT.AT import atLattice
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.MADX.MADX import madxLattice
@@ -11,7 +12,7 @@ from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 from simba.Framework_objects import frameworkLattice
 
-RING_CODES = [elegantLattice, xsuiteLattice, ocelotLattice, bmadLattice, madxLattice]
+RING_CODES = [elegantLattice, xsuiteLattice, ocelotLattice, bmadLattice, madxLattice, atLattice]
 
 
 def drift_map(length=2.0):

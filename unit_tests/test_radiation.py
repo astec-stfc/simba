@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pytest
 
+from simba.Codes.AT.AT import atLattice
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
@@ -67,8 +68,8 @@ def test_elegant_and_bmad_radiate_without_being_asked(cls):
     assert cls.radiates_by_default is True
 
 
-@pytest.mark.parametrize("cls", [xsuiteLattice, ocelotLattice], ids=lambda c: c.__name__)
-def test_xsuite_and_ocelot_do_not(cls):
+@pytest.mark.parametrize("cls", [xsuiteLattice, ocelotLattice, atLattice], ids=lambda c: c.__name__)
+def test_xsuite_ocelot_and_at_do_not(cls):
     assert cls.radiates_by_default is False
 
 

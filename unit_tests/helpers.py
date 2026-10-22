@@ -21,7 +21,7 @@ def skip_missing(code):
     """Skip unless ``code``'s executable or Python package is installed."""
     if code == "elegant" and ELEGANT is None:
         pytest.skip("elegant is not installed")
-    module = {"xsuite": "xtrack", "madx": "cpymad", "ocelot": "ocelot", "bmad": "pytao"}
+    module = {"xsuite": "xtrack", "madx": "cpymad", "ocelot": "ocelot", "bmad": "pytao", "at": "at"}
     if code in module:
         pytest.importorskip(module[code])
 

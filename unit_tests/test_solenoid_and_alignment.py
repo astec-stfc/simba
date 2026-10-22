@@ -86,7 +86,7 @@ def track(tmp_path, code, middle, seed_beam):
     return np.array([beam.x.val, beam.y.val])
 
 
-@pytest.mark.parametrize("code", ["madx", "ocelot", "cheetah"])
+@pytest.mark.parametrize("code", ["madx", "ocelot", "cheetah", "at"])
 def test_a_solenoid_turns_the_beam_as_xsuite_does(tmp_path, code, seed_beam):
     """One MAD-X slice is 2.4% off at this kL of 0.6; four are 5e-4."""
     expected = track(tmp_path / "x", "xsuite", [solenoid()], seed_beam)
@@ -124,6 +124,16 @@ def test_madx_slices_follow_a_bends_arc(tmp_path, seed_beam, error):
 
     got, want = effect("madx"), effect("xsuite")
     assert np.abs(got - want).max() < 0.1 * np.abs(want).max()
+
+
+@pytest.mark.parametrize(
+    "element", [misaligned_quad(), misaligned_bend({"rotation": {"phi": 1e-3}})],
+    ids=["quad", "bend"],
+)
+def test_at_keeps_alignment_errors_as_xsuite_does(tmp_path, seed_beam, element):
+    expected = track(tmp_path / "x", "xsuite", [element], seed_beam)
+    final = track(tmp_path / "a", "at", [element], seed_beam)
+    assert close(final, expected, 1e-3)
 
 
 def close(final, expected, rtol):

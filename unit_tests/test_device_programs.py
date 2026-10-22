@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from helpers import ELEGANT, needs_elegant
+from simba.Codes.AT.AT import atLattice
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.MADX.MADX import madxLattice
@@ -449,6 +450,60 @@ class TestOcelot:
             element=Marker(eid="KICK1"),
         )
         with pytest.warns(UserWarning, match="no 'angle' to set"):
+            line.apply_programs(4)
+
+
+class FakeAT(FakeLine):
+    """``atLattice.apply_programs`` over a real three-element ring."""
+
+    apply_programs = atLattice.apply_programs
+    program_attributes = atLattice.program_attributes
+
+    def __init__(self, tracking, element=None):
+        super().__init__(tracking, code="at", supports=True)
+        at = pytest.importorskip("at")
+        kicker = element if element is not None else at.Quadrupole("KICK1", 0.1, 0.0)
+        self.ring = at.Lattice(
+            [at.Drift("d1", LENGTH / 2), kicker, at.Drift("d2", LENGTH / 2)], energy=1e9
+        )
+
+    def kicks(self, turns=7):
+        at = pytest.importorskip("at")
+        r = np.zeros((6, 1), order="F")
+        history = []
+        for turn in range(1, turns + 1):
+            self.apply_programs(turn)
+            at.lattice_track(self.ring, r, refpts=[], in_place=True)
+            history.append((float(r[1, 0]), float(r[3, 0])))
+        return history
+
+
+class TestAT:
+    """``KickAngle`` set between turns of simba's own loop."""
+
+    @staticmethod
+    def line(**overrides):
+        return FakeAT({"programs": [{"element": "KICK1", **PULSE, **overrides}]})
+
+    def test_the_kick_lands_on_the_programmed_turn_and_stops(self):
+        """A quadrupole has no ``KickAngle`` until programmed; ``px`` is cumulative."""
+        px = [kick[0] for kick in self.line().kicks()]
+        assert px[:3] == [0.0, 0.0, 0.0]
+        assert px[3] == pytest.approx(1.0e-3)
+        assert px[6] == pytest.approx(px[3])
+
+    def test_the_vertical_plane_gets_the_vertical_entry(self):
+        line = self.line()
+        line._elements["KICK1"] = SimpleNamespace(hardware_type="Vertical_Corrector")
+        px, py = line.kicks()[3]
+        assert (px, py) == (0.0, pytest.approx(1.0e-3))
+
+    def test_an_element_without_a_default_says_so(self):
+        at = pytest.importorskip("at")
+        line = FakeAT(
+            {"programs": [{"element": "KICK1", **PULSE}]}, element=at.Marker("KICK1")
+        )
+        with pytest.warns(UserWarning, match="no default attribute"):
             line.apply_programs(4)
 
 

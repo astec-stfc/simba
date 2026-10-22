@@ -132,7 +132,7 @@ exist.
 
 Omitting it is not the same as switching it off. With no setting, every code is
 left on its own default — and those defaults are *not the same*: elegant and Bmad
-radiate with no asking, Xsuite and Ocelot do not. A long lepton ring tracked with
+radiate with no asking, Xsuite, Ocelot and AT do not. A long lepton ring tracked with
 radiation off warns, because without damping and excitation the emittance, the energy
 spread and bunch length at the end are the ones the run started with rather than
 the ring's.
@@ -288,6 +288,9 @@ How each code does it
    * - Bmad
      - ``set element`` inside the Tao turn loops, which are the only place Bmad
        counts turns here.
+   * - AT
+     - The attribute set between turns of simba's loop. The default is
+       ``KickAngle``, which every AT magnet honours; ``name[i]`` sets one entry.
 
 .. _energy-ramp:
 
@@ -445,6 +448,11 @@ own. The reference reaches a cavity at
      - synchronous
      - each cavity's ``phi`` between passes. Its sign is the opposite of the
        others', because Ocelot's phase is cosine-based.
+   * - AT
+     - synchronous
+     - each cavity's ``TimeLag`` between passes, also undoing the slip AT's
+       own turn count gives it (see :ref:`native-turns`). The count keeps
+       running, because it drives AT's AC dipoles and their ramps.
 
 .. note::
    **Ocelot's cavity moves the reference.** Its cavity map always adds
@@ -526,8 +534,24 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - no
      - no
+   * - AT
+     - yes
+     - yes
+     - yes
+     - yes
+     - no
+     - yes
+     - yes
+     - no
+     - yes
 
 ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
+
+.. note::
+   **AT takes** :math:`\beta = 1`.
+   Each particle's arrival time misses :math:`\delta/\gamma^2` of its speed, a
+   cavity changes :math:`cp` by :math:`\beta V` rather than :math:`V/\beta`,
+   and a ring with no bends has no closed orbit in 6D, so no periodic optics.
 
 .. _native-turns:
 
@@ -733,20 +757,40 @@ way. With :math:`T` the reference clock above,
    * - MAD-X
      - ``T`` [m]
      - :math:`-c\,(t - T)`
+   * - AT
+     - ``ct`` [m]
+     - :math:`+\beta_0 c\,(t - T)`
 
 so a particle arriving late has a negative ``zeta`` and ``T`` but a positive
-``tau``.
+``tau`` and ``ct``.
 
 One turn loop
 ^^^^^^^^^^^^^
 
-Ocelot and MAD-X (where it cannot count turns natively, see
+Ocelot, AT and MAD-X (where it cannot count turns natively, see
 :ref:`native-turns`) track a pass at a time, through one loop
 (:meth:`~simba.Framework_objects.frameworkLattice.run_turns`): programs set at the
 start of each turn, RF phases moved each pass (see the ``rf`` setting above), only
 the last pass of a turn recorded, and the line put back as turn 1 had it at the
 end — even if a pass fails — so the optics, a dynamic aperture or a frequency map
 run afterwards see the lattice that was asked for, not the last turn's.
+
+AT skips the loop when there is nothing to change between passes: no programs
+and no cavity with a voltage. It then tracks natively up to each recorded pass
+(:meth:`~simba.Codes.AT.AT.atLattice.run_native`), saving about 0.25 ms a pass.
+A cavity needs the loop because AT's own turn count assumes a revolution time
+of :math:`C/c`, which slips the RF by :math:`2\pi h(1/\beta - 1)` a turn: 18.7°
+at 5 MeV with :math:`h = 10`, and still about 1e-4 rad at 3 GeV with
+:math:`h = 1000`. The loop keeps AT's count running, for its AC dipoles,
+and moves each cavity's ``TimeLag`` back by the slip every pass.
+``native_turns: true`` lets the slip stand, cavity and
+all, to match a plain AT run; ``rf`` is then not imposed. ``native_turns:
+false`` always loops. Programs always loop::
+
+    files:
+      RING:
+        code: at
+        tracking: {turns: 1000, native_turns: true}
 
 The start's own file
 ^^^^^^^^^^^^^^^^^^^^
