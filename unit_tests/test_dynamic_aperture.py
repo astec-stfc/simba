@@ -64,7 +64,7 @@ def test_the_angle_count_has_a_floor():
 
 def test_the_base_class_returns_no_scan():
     """It returned [] in silence."""
-    with pytest.warns(UserWarning, match="bmad, elegant, madx, ocelot and xsuite are the codes that can"):
+    with pytest.warns(UserWarning, match="bmad, elegant, impactx, madx, ocelot and xsuite are the codes that can"):
         assert FakeLine().run_dynamic_aperture() == []
 
 
@@ -388,6 +388,51 @@ def test_xsuite_maps_the_particles_that_survived():
     assert 0 < len(survivors) < len(aperture), "grid must straddle the aperture"
     footprint = FakeXsuiteRing(tracking).run_frequency_map()
     assert {(x, y) for x, y, *_ in footprint} == survivors
+
+
+class FakeImpactXRing:
+    """``impactxLattice``'s scans on :func:`~helpers.xtrack_sector`'s ring, as ImpactX dicts."""
+
+    _footprint = frameworkLattice._footprint
+    da_settings = frameworkLattice.da_settings
+    da_grid = frameworkLattice.da_grid
+    turns = frameworkLattice.turns
+    da_rays = FakeXsuiteRing.da_rays
+    fixed_reference, passes_per_turn = True, 1
+    reference_charge, rest_energy = 1, 938.27208816e6
+    reference_energy = math.hypot(1e9, rest_energy)
+
+    def __init__(self, tracking):
+        from simba.Codes.ImpactX.ImpactX import impactxLattice
+
+        for name in ("_scan", "run_dynamic_aperture", "run_frequency_map", "_set_reference", "_lattice"):
+            setattr(self, name, getattr(impactxLattice, name).__get__(self))
+        self._qm = impactxLattice._qm.fget(self)
+        self.aperture_limit = impactxLattice.aperture_limit
+        self.objectname, self.file_block = "RING", {"tracking": tracking}
+        self.dicts = [
+            {"type": "ExactDrift", "name": "d", "ds": 0.5},
+            {"type": "Multipole", "name": "qf", "multipole": 2, "K_normal": 0.3, "K_skew": 0.0},
+            {"type": "ExactDrift", "name": "d", "ds": 0.5},
+            {"type": "Multipole", "name": "qd", "multipole": 2, "K_normal": -0.3, "K_skew": 0.0},
+            {"type": "Multipole", "name": "sx", "multipole": 3, "K_normal": 2.0, "K_skew": 0.0},
+        ] * 4
+
+    def normalisation_twiss(self):
+        return {}
+
+
+def test_impactx_scans_as_xsuite_does():
+    """The same losses on the same turns (9, 14 and 30 here), and tunes to 4e-7."""
+    pytest.importorskip("impactx")
+    pytest.importorskip("xtrack")
+    tracking = {"turns": 64, "dynamic_aperture": {"nx": 6, "ny": 2, "x_max": 0.012, "y_max": 0.002}}
+    aperture = FakeImpactXRing(tracking).run_dynamic_aperture()
+    assert aperture == FakeXsuiteRing(tracking).run_dynamic_aperture()
+    assert 0 < sum(turn == 64 for *_, turn in aperture) < len(aperture), "grid must straddle the aperture"
+    ours, theirs = FakeImpactXRing(tracking).run_frequency_map(), FakeXsuiteRing(tracking).run_frequency_map()
+    assert [row[:2] for row in ours] == [row[:2] for row in theirs]
+    np.testing.assert_allclose([row[2:4] for row in ours], [row[2:4] for row in theirs], rtol=0, atol=1e-6)
 
 
 def madx_ring_sequence(ncell=10):

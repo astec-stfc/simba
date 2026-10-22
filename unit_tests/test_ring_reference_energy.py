@@ -25,7 +25,7 @@ ELECTRON = 0.51099895e6
 OFFSET = 5e-3
 """Inside the 1 % :class:`OffDesignEnergyWarning` threshold, but well clear of the codes' noise."""
 
-CODES = ["xsuite", "elegant", "ocelot", "madx"]
+CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx"]
 
 
 def _machine(tmp_path, closed=True, reference_energy=None, scale=1.0, cavity=None):
@@ -237,7 +237,7 @@ def runs(tmp_path_factory, seed_beam):
     return get
 
 
-AGREEMENT = {"xsuite": 1e-6, "madx": 1e-6, "elegant": 2 * OFFSET, "ocelot": 0.05}
+AGREEMENT = {"xsuite": 1e-6, "madx": 1e-6, "impactx": 1e-6, "elegant": 2 * OFFSET, "ocelot": 0.05}
 """Design vs rescaled agreement, as a fraction of the design's effect. Xsuite
 and MAD-X are exact in delta; elegant and Ocelot expand to second order, so
 err by ~OFFSET (worst seen: 5.3e-4, and an Ocelot beam above 1e-2)."""
@@ -352,6 +352,7 @@ def timed(tmp_path_factory, seed_beam):
 TIMING = {
     "xsuite": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "madx": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
+    "impactx": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "elegant": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "ocelot": {"cp": 2e-2, "t": 2e-2},
 }

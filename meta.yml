@@ -43,6 +43,7 @@ requirements:
     - ocelot-desy
     - openpmd-beamphysics
     - xsuite
+    - impactx
     - pyfftw
     - deap
     - paramiko

@@ -15,6 +15,7 @@ Subpackages
    simba.Codes.GPT
    simba.Codes.Generators
    simba.Codes.Genesis
+   simba.Codes.ImpactX
    simba.Codes.MADX
    simba.Codes.OPAL
    simba.Codes.Ocelot

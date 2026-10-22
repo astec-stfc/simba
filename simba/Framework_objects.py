@@ -2004,7 +2004,8 @@ class frameworkLattice(BaseModel):
                 continue
             try:
                 total += float(magnetic.KnL(0))
-            except (TypeError, ValueError, KeyError):
+            # a solenoid's magnet has no KnL
+            except (AttributeError, TypeError, ValueError, KeyError):
                 continue
         return total
 

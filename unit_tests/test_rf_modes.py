@@ -13,6 +13,7 @@ from helpers import fodo_machine, read_beam, skip_missing
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.Generators import frameworkGenerator
+from simba.Codes.ImpactX.ImpactX import impactxLattice
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
@@ -84,6 +85,7 @@ def test_a_phase_wraps_into_one_turn():
         (xsuiteLattice, "synchronous"),
         (madxLattice, "synchronous"),
         (ocelotLattice, "synchronous"),
+        (impactxLattice, "synchronous"),
         (bmadLattice, None),
     ],
     ids=lambda c: getattr(c, "__name__", str(c)),
@@ -279,14 +281,14 @@ def test_the_two_modes_differ(runs):
 
 
 @pytest.mark.parametrize("mode", ["fixed", "follow"])
-@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot"])
+@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx"])
 def test_every_code_runs_the_rf_it_is_asked_for(code, mode, runs):
     """Against elegant; worst measured is MAD-X, 23 eV in 9500 on turn 10."""
     gains, reference = runs(code, mode)[1], runs("elegant", mode)[1]
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
-@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot"])
+@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx"])
 def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
     """7.2 deg a turn takes the gain from 10 to 20 keV; followers stayed at 10."""
     gains, reference = runs(code, "off_harmonic")[1], runs("elegant", "off_harmonic")[1]
@@ -294,10 +296,11 @@ def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
-def test_ocelots_cavity_leaves_a_rings_reference_alone(runs):
-    """Its cavity map moved the reference by ``V cos(phi)``, so the gain
-    stayed at 10052 eV where elegant's falls to 9050."""
-    gains, reference = runs("ocelot", "flat")[1], runs("elegant", "flat")[1]
+@pytest.mark.parametrize("code", ["ocelot", "impactx"])
+def test_a_cavity_leaves_a_rings_reference_alone(code, runs):
+    """Ocelot's cavity map and ImpactX's ``ShortRF`` moved the reference by
+    ``V cos(phi)``, so the gain stayed at 10052 eV where elegant's falls to 9050."""
+    gains, reference = runs(code, "flat")[1], runs("elegant", "flat")[1]
     assert reference[0] - reference[-1] > 900
     assert np.allclose(gains, reference, rtol=0, atol=40)
 

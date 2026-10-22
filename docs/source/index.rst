@@ -17,6 +17,7 @@ It provides a wrapper for several well-known particle tracking codes:
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
+* `ImpactX <https://impactx.readthedocs.io>`_
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
 * `MAD-X <https://mad.web.cern.ch/mad/>`_
 * `Bmad <https://www.classe.cornell.edu/bmad/>`_

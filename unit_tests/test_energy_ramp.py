@@ -275,7 +275,7 @@ def test_the_rest_energy_survives_a_beam_not_yet_read():
 
 
 TURNS = 10
-CODES = ["xsuite", "elegant", "ocelot", "madx"]
+CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx"]
 
 
 def _beam(subdir, name, turn=None):
@@ -368,9 +368,9 @@ def test_no_rf_means_no_energy_change(code, runs, seed_beam):
     assert np.allclose(final, start, rtol=1e-5, atol=0)
 
 
-@pytest.mark.parametrize("code", ["xsuite", "ocelot"])
+@pytest.mark.parametrize("code", ["xsuite", "ocelot", "impactx"])
 def test_the_thick_codes_agree_on_the_ramped_orbit(code, runs):
-    """Measured 1.0e-7 m and 2.7e-6 m against elegant, for a 1.6e-4 m effect."""
+    """Measured 1.0e-7 m, 2.7e-6 m and 5.6e-8 m against elegant, for a 1.6e-4 m effect."""
     a, b = runs(code, True)["final"]["x"], runs("elegant", True)["final"]["x"]
     assert np.abs(a - b).max() < 1e-5
 
@@ -381,10 +381,11 @@ def test_madx_agrees_up_to_its_thin_lenses(runs):
     assert np.abs(a - b).max() < 5e-5
 
 
-def test_madx_and_elegant_agree_on_time_every_turn(runs):
-    """Both carry absolute time (measured 4e-16 s apart); Xsuite's ``t`` is
+@pytest.mark.parametrize("code", ["madx", "impactx"])
+def test_absolute_time_agrees_with_elegant_every_turn(code, runs):
+    """These carry absolute time (measured 4e-16 s and 8e-17 s from elegant); Xsuite's ``t`` is
     relative and Ocelot's a turn ahead, so they are left out."""
-    madx, elegant = runs("madx", True)["turns"], runs("elegant", True)["turns"]
+    madx, elegant = runs(code, True)["turns"], runs("elegant", True)["turns"]
     assert set(madx) == set(elegant) == set(range(1, TURNS + 1))
     for turn in madx:
         assert np.allclose(madx[turn]["t"], elegant[turn]["t"], rtol=0, atol=1e-13), turn

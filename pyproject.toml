@@ -57,6 +57,7 @@ classifiers = [
 simcodes = [
     "ocelot-desy==25.06.0",
     "xsuite>=0.39.0",
+    "impactx>=26.10",
     "cheetah-accelerator>=0.8.4",
     "Wake-T>=0.8.0",
     "cpymad>=1.19.0",

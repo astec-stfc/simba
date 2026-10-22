@@ -78,7 +78,7 @@ def test_asking_a_code_with_no_switch_warns():
     line.code, line.supports_radiation = "madx", False
     with pytest.warns(
         UserWarning,
-        match="not applied.*bmad, elegant, ocelot and xsuite are the codes that can",
+        match="not applied.*bmad, elegant, impactx, ocelot and xsuite are the codes that can",
     ):
         line.check_radiation_supported()
 

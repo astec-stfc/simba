@@ -230,8 +230,9 @@ is :math:`n \cdot T_{rev}` for 0-based :math:`n`, so each backend converts.
 **Values are the element's strength as the lattice states it** — a deflection angle
 in radians for a steering element, positive toward positive *x* (or *y*), not a
 fraction of anything. Each backend converts into its own code's attribute: a
-corrector's angle is Ocelot's ``angle``, MAD-X's ``kick`` and elegant's ``ANGLE``
-unchanged, but Xtrack's ``knl[0]`` with the **sign reversed**, because a positive
+corrector's angle is Ocelot's ``angle``, MAD-X's ``kick``, elegant's ``ANGLE``
+and ImpactX's ``xkick``/``ykick`` unchanged, but Xtrack's ``knl[0]`` with
+the **sign reversed**, because a positive
 normal multipole deflects the other way there.
 
 **The default rule is** ``hold``, **and that is no code's default.** Every tracking
@@ -380,13 +381,17 @@ How each code does it
    * - MAD-X
      - Between turns of SIMBA's loop: the ring's reference ``p0c`` and time are
        carried from turn to turn rather than taken from the bunch.
+   * - ImpactX
+     - Between turns of SIMBA's loop, as Ocelot: the reference is moved and each
+       particle's ``pt``, ``px`` and ``py`` re-expressed. Its strengths are
+       normalised, so the magnets follow.
    * - Bmad
      - Not supported yet; its tracking path here is single-pass.
 
-``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all four
+``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all five
 codes. Over a 2% ramp with no RF, the ramp moves the orbit by about 1.2e-4 m.
-Xsuite and Ocelot agree with elegant to 1e-7 m and 3e-6 m. MAD-X, whose
-lenses are thin, agrees to 2e-5 m.
+Xsuite, Ocelot and ImpactX agree with elegant to 1e-7 m, 3e-6 m and 6e-8 m.
+MAD-X, whose lenses are thin, agrees to 2e-5 m.
 
 .. _rf-mode:
 
@@ -445,6 +450,10 @@ own. The reference reaches a cavity at
      - synchronous
      - each cavity's ``phi`` between passes. Its sign is the opposite of the
        others', because Ocelot's phase is cosine-based.
+   * - ImpactX
+     - synchronous
+     - each ``ShortRF``'s ``phase`` between passes; the lattice is rebuilt
+       every pass.
 
 .. note::
    **Ocelot's cavity moves the reference.** Its cavity map always adds
@@ -526,6 +535,17 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - no
      - no
+   * - ImpactX
+     - yes
+     - yes
+     - quantum only
+     - yes
+     - yes
+     - yes
+     - yes
+     - no
+     - yes
+
 
 ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
 
@@ -562,8 +582,8 @@ The two paths are the same tracking, and ``unit_tests/test_madx_native_turns.py`
 holds them to it turn by turn. The override is what lets that test run both.
 
 .. note::
-   Ocelot and Bmad still count turns in Python, and neither has a native turn
-   count to switch to.
+   Ocelot, Bmad and ImpactX still count turns in Python, and none has a native
+   turn count to switch to.
 
    **Bmad.** Tao has no multi-turn beam tracking: ``beam_init`` carries no turn
    count, ``tao.track_beam`` is one pass, and the only turn counts in Tao are

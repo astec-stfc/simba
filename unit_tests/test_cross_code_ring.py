@@ -165,6 +165,50 @@ def bmad_ring():
     }
 
 
+@cache
+def impactx_ring():
+    """``impactxLattice``'s own probe maps and chromaticity, on ImpactX dicts."""
+    pytest.importorskip("impactx")
+    from simba.Codes.ImpactX.ImpactX import impactxLattice
+
+    class FakeImpactX:
+        chromaticity = impactxLattice.chromaticity
+        _closed_orbit = impactxLattice._closed_orbit
+        _track_probes = impactxLattice._track_probes
+        _set_reference = impactxLattice._set_reference
+        _lattice = impactxLattice._lattice
+        _qm = impactxLattice._qm
+        fixed_reference = True
+        reference_charge, rest_energy, reference_p0c = -1, MC2, PC
+        reference_energy = math.hypot(PC, MC2)
+        dicts = [
+            {"type": "ExactQuad", "name": "qf", "ds": QUAD_L, "k": QUAD_K1, "int_order": 4},
+            {"type": "ExactDrift", "name": "d", "ds": DRIFT_L},
+            {"type": "ExactSbend", "name": "b", "ds": BEND_L, "phi": math.degrees(ANGLE)},
+            {"type": "ExactDrift", "name": "d", "ds": DRIFT_L},
+            {"type": "ExactQuad", "name": "qd", "ds": QUAD_L, "k": -QUAD_K1, "int_order": 4},
+            {"type": "ExactDrift", "name": "d", "ds": DRIFT_L},
+        ] * NCELL
+
+    lattice = FakeImpactX()
+    return lattice._closed_orbit(np.zeros(6), 4)[1], lattice.chromaticity()
+
+
+def test_impactx_agrees_on_the_tune():
+    for plane in ("x", "y"):
+        assert fractional_tune(impactx_ring()[0], plane) == pytest.approx(
+            fractional_tune(xsuite_ring()[0], plane), abs=1e-9
+        )
+
+
+def test_impactx_sides_with_xsuite_on_chromaticity():
+    """Horizontally all agree; vertically ImpactX's exact bend gives Xsuite's -0.4613, not MAD-X's -0.6536."""
+    _, tw = xsuite_ring()
+    chromaticity = impactx_ring()[1]
+    assert chromaticity[0] == pytest.approx(float(tw.dqx), rel=1e-5)
+    assert chromaticity[1] == pytest.approx(float(tw.dqy), rel=1e-4)
+
+
 @pytest.mark.parametrize("plane", ["x", "y"])
 def test_the_fractional_tune_agrees_across_codes(plane):
     """Transverse blocks need no convention conversion."""
