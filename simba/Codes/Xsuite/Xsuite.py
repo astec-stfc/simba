@@ -192,6 +192,8 @@ class xsuiteLattice(frameworkLattice):
                 **self.initial_twiss["vertical"]
             )
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.start_s, beam.centroids.mean_cp.val)
         self.hdf5_to_json(prefix)
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
@@ -342,7 +344,8 @@ class xsuiteLattice(frameworkLattice):
             bfname,
             zstart=self.endObject.physical.middle.z,
             s=svals[self.end],
-            ref_index=self.ref_idx
+            ref_index=self.ref_idx,
+            start=self.reference_start,
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
@@ -358,6 +361,7 @@ class xsuiteLattice(frameworkLattice):
                 zstart=elem.physical.middle.z,
                 s=svals[elem.name],
                 ref_index=self.ref_idx,
+                start=self.reference_start,
             )
             rbf.openpmd.write_openpmd_beam_file(
                 beam,

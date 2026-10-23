@@ -3,9 +3,9 @@ import re
 from shutil import copyfile
 import numpy as np
 from .Modules.Fields import field
+from .Modules.constants import speed_of_light
 from pydantic import BaseModel
 from deepdiff import DeepDiff
-from numbers import Number
 
 from laura.models.element import Element
 
@@ -78,6 +78,15 @@ def chunks(li, n):
 
 def dot(a, b) -> float:
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def reference_time(s, p, mass, start=None):
+    """Time the reference particle reaches s with momentum p (eV/c, mass in eV), having
+    left start = (t0, s0, p0); without a start it left s=0 at t=0 with p."""
+    t0, s0, p0 = start if start is not None else (0.0, 0.0, p)
+    energy, energy0 = np.hypot(p, mass), np.hypot(p0, mass)
+    inv_beta = (p - p0) / (energy - energy0) if abs(energy - energy0) > 1e-6 * energy else energy / p
+    return t0 + (s - s0) * inv_beta / speed_of_light
 
 
 def sortByPositionFunction(element):

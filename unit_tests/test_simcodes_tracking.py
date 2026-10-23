@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pytest
 import simba.Framework as fw
 from simba.Codes.Generators import frameworkGenerator
@@ -81,6 +82,34 @@ def _fodo_elements():
 def test_code_tracks(tmp_path, code, container_runtime):
     output_file = _track_lattice(tmp_path, code, container_runtime, _fodo_elements())
     assert os.path.isfile(output_file)
+
+
+@pytest.mark.parametrize("code", ["ocelot", "xsuite", "cheetah"])
+def test_output_timestamps(tmp_path, code):
+    """The bunch arrives L/(beta c) after it set off: Ocelot added the start z on top,
+    Xsuite and Cheetah divided by c alone and dropped the input time, and Cheetah put
+    every output at the start. Ocelot and Cheetah also read total energy as momentum."""
+    from scipy.constants import c
+    from simba.Modules.Beams import load_file
+    output_file = _track_lattice(tmp_path, code, None, _fodo_elements())
+    beam_in = load_file(os.path.join(os.path.dirname(output_file), "M1.openpmd.hdf5"))
+    beam = load_file(output_file)
+    flight = np.mean(beam.t.val) - np.mean(beam_in.t.val)
+    assert flight == pytest.approx(4.25 / (np.mean(beam_in.Bz.val) * c), abs=1e-13)
+    assert np.mean(beam.z.val) == pytest.approx(4.25, abs=1e-3)
+    assert np.mean(beam.energy.val) == pytest.approx(np.mean(beam_in.energy.val), rel=1e-6)
+
+
+def test_reference_time_through_acceleration():
+    """5 to 50 MeV, linearly in s, against the integral of ds/(beta c)."""
+    from scipy.constants import c
+    from simba.FrameworkHelperFunctions import reference_time
+    mass, length = 0.511e6, 2.0
+    energy = np.linspace(5e6, 50e6, 100001)
+    p = np.sqrt(energy**2 - mass**2)
+    expected = 1e-9 + np.trapezoid(energy / p, dx=length / 100000) / c
+    assert reference_time(3.0 + length, p[-1], mass, (1e-9, 3.0, p[0])) == pytest.approx(expected, rel=1e-9)
+    assert reference_time(length, p[0], mass) == pytest.approx(length * energy[0] / (p[0] * c))
 
 
 def test_waket_tracks(tmp_path):
