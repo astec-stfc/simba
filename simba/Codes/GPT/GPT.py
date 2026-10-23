@@ -56,7 +56,7 @@ import numpy as np
 from laura.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
-from ...FrameworkHelperFunctions import saveFile
+from ...FrameworkHelperFunctions import saveFile, gpt_license_argument
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from ...Modules.units import UnitValue
@@ -364,7 +364,7 @@ class gptLattice(frameworkLattice):
                 mr + ["-o", self.objectname + "_crest_out.gdf",
                       self.objectname + "_crest.mr"]
                 + gpt + [self.objectname + "_crest.in",
-                         "GPTLICENSE=" + str(self.global_parameters["GPTLICENSE"])],
+                         gpt_license_argument(self.global_parameters)],
                 cwd=subdir, env=env,
             )
             subprocess.call(
@@ -521,7 +521,7 @@ class gptLattice(frameworkLattice):
         main_command = (
             self.executables[self.code]
             + ["-o", self.objectname + "_out.gdf"]
-            + ["GPTLICENSE=" + self.global_parameters["GPTLICENSE"]]
+            + [gpt_license_argument(self.global_parameters)]
             + [self.objectname + ".in"]
         )
         my_env = os.environ.copy()

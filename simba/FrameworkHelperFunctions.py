@@ -237,6 +237,12 @@ def list_add(list1, list2):
     return [l1 + l2 for l1, l2 in zip(list1, list2)]
 
 
+def gpt_license_argument(global_parameters):
+    if not global_parameters.get("GPTLICENSE"):
+        raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
+    return f"GPTLICENSE={global_parameters['GPTLICENSE']}"
+
+
 def symlink(source, link_name):
     os_symlink = getattr(os, "symlink", None)
     if callable(os_symlink):
