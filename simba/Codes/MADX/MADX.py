@@ -300,6 +300,16 @@ class madxLattice(frameworkLattice):
                 current = []
         if len(current) > 0:
             segments.append(current)
+        # MAD-X refuses a sequence of length 0, so markers between two cavities,
+        # or after the last one, ride with the next segment (or the previous).
+        for i in range(len(segments) - 1, -1, -1):
+            seg = segments[i]
+            if len(segments) > 1 and self._sval_out[seg[-1]] - self._sval_in[seg[0]] <= 0:
+                if i + 1 < len(segments):
+                    segments[i + 1] = seg + segments[i + 1]
+                else:
+                    segments[i - 1] += seg
+                del segments[i]
         self.segments = segments
         return segments
 

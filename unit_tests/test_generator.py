@@ -168,6 +168,14 @@ def test_sample_gaussian_cutoff_follows_offset():
     assert np.all(np.abs(z - 10.0) <= 3) and z.min() < 9
 
 
+def test_opal_flattop_fwhm_is_astra_lt():
+    """ASTRA's lt is already the FWHM; adding the rise edges again made OPAL's
+    LCLS pulse 1.4 times longer than ASTRA's."""
+    from simba.Codes.Generators import OPALGenerator
+    gen = OPALGenerator(distribution_type_z="p", plateau_bunch_length=4e-12, plateau_rise_time=1e-12)
+    assert "TPULSEFWHM = 4e-12," in gen._write_distribution()
+
+
 def test_gpt_gaussian_tlen_from_sigma_z():
     from simba.Modules.constants import speed_of_light
     gen = GPTGenerator(distribution_type_z="g", sigma_z=3e-4, sigma_t=0.0)

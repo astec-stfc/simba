@@ -252,6 +252,12 @@ class gptLattice(frameworkLattice):
             rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
             scan_text, count=1, flags=re.MULTILINE,
         )
+        z_eval = float(self.elementObjects[name].physical.end.z)
+        z_start = float(self.startObject.physical.start.z)
+        scan_text += (
+            f'\nscreen("wcs","I",{z_eval});\n'
+            f'zminmax("wcs","I",{z_start - 0.01},{z_eval + 1e-3});\n'
+        )
 
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
@@ -276,7 +282,6 @@ class gptLattice(frameworkLattice):
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
-        z_eval = float(self.elementObjects[name].physical.end.z)
         phases, energies = scan(phase_range[0], phase_range[1], step)
         peak = phases[int(np.argmax(energies))]
         if refine:
@@ -393,6 +398,8 @@ class gptLattice(frameworkLattice):
 
         Needs ``GPTLICENSE`` in :attr:`global_parameters`.
         """
+        if not self.global_parameters["GPTLICENSE"]:
+            raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
         main_command = (
             self.executables[self.code]
             + ["-o", self.objectname + "_out.gdf"]
@@ -643,7 +650,8 @@ class gptLattice(frameworkLattice):
         rbf.gdf.read_gdf_beam_file(
             beam,
             os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
-            position=screen.physical.middle.z,
+            # past a dipole GPT's screen z is in that dipole's ccs
+            position=self.section.gpt_screen_positions.get(screen.name, screen.physical.middle.z),
             gdfbeam=gdf,
         )
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
