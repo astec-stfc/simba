@@ -1,4 +1,5 @@
 import os
+import warnings
 import pytest
 import simba.Framework as fw
 from simba.Codes.Generators import frameworkGenerator
@@ -24,6 +25,11 @@ CODES = [
 
 
 def _track_lattice(tmp_path, code, container_runtime, middle_elements):
+    framework = _run_lattice(tmp_path, code, container_runtime, middle_elements)
+    return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
+
+
+def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e3, cheetah_settings=None):
     m1 = Marker(name="M1", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}})
     end_z = middle_elements[-1].physical.middle.z + middle_elements[-1].physical.length
     m3 = Marker(name="M3", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": end_z}})
@@ -45,6 +51,8 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
     settings.layout = machine.layout
     settings.section = {"sections": {"FODO": element_names}}
     settings.element_list = f"{tmp_path}/lattice"
+    if cheetah_settings:
+        settings["global"] = {**(settings.get("global") or {}), "CHEETAHsettings": cheetah_settings}
 
     framework = fw.Framework(
         machine=machine,
@@ -59,7 +67,7 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
         global_parameters={"master_subdir": framework.subdirectory},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
-        sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3, sigma_z=1e-3, sigma_pz=1e3,
+        sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3, sigma_z=1e-3, sigma_pz=sigma_pz,
         gaussian_cutoff_x=3, gaussian_cutoff_y=3, gaussian_cutoff_z=3,
         gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3,
         charge=100e-12,
@@ -67,7 +75,7 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
     gen.write()
 
     framework.track()
-    return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
+    return framework
 
 
 def _fodo_elements():
@@ -81,6 +89,30 @@ def _fodo_elements():
 def test_code_tracks(tmp_path, code, container_runtime):
     output_file = _track_lattice(tmp_path, code, container_runtime, _fodo_elements())
     assert os.path.isfile(output_file)
+
+
+@pytest.mark.parametrize("sigma_pz, settings, expected", [
+    (1e3, None, "linear"),
+    (2.5e5, None, "second_order"),
+    (2.5e5, {"cheetah_tracking_method": "linear"}, "linear"),
+])
+def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, sigma_pz, settings, expected):
+    """With a 5% energy spread, linear tracking through the FODO misses its chromatic
+    aberration, so "auto" switches to second order and warns; a setting overrides it."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        framework = _run_lattice(
+            tmp_path, "cheetah", None, _fodo_elements(), sigma_pz=sigma_pz, cheetah_settings=settings
+        )
+    switched = [w for w in caught if "set cheetah_tracking_method" in str(w.message)]
+    assert len(switched) == (expected == "second_order")
+    segment = framework.latticeObjects["FODO"].segment
+    import cheetah
+    methods = {
+        type(e).__name__: e.tracking_method for e in segment.flattened().elements
+        if isinstance(e, (cheetah.Drift, cheetah.Quadrupole))
+    }
+    assert methods == {"Drift": expected, "Quadrupole": expected}
 
 
 def test_waket_tracks(tmp_path):
