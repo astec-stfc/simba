@@ -281,3 +281,53 @@ def test_tw_focusing_from_def_reaches_elegant(tmp_path, tw_focusing, model):
     assert lattice.tw_focusing is (tw_focusing is not False)
     lte = lattice.section.to_elegant()
     assert f"body_focus_model = {model}" in lte
+
+
+def _jfel_linac(tmp_path, code, overlap):
+    """The JFEL Linac in `code`, with S02 BPM-01 moved `overlap` m back inside QUAD-01."""
+    import os
+    ml = os.environ.get("JFEL_MASTER_LATTICE", os.path.expanduser("~/Documents/laura-lattices-gh/JFEL/"))
+    if not os.path.isdir(ml):
+        pytest.skip("JFEL master lattice not available")
+    f = sfw.Framework(directory=str(tmp_path / f"{code}{overlap}"), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="/jfel.yaml")
+    f.loadSettings("Lattices/jfel_combined.def")
+    if overlap:
+        q1 = f.elementObjects["JFEL-S02-MAG-QUAD-01"].physical
+        f.elementObjects["JFEL-S02-DIA-BPM-01"].physical.middle.z = q1.end.z - overlap
+    f.read_Lattice("Linac", dict(f.latticeObjects["Linac"].file_block, code=code))
+    return f.latticeObjects["Linac"]
+
+
+def test_madx_overlap_becomes_inverse_drift(tmp_path):
+    """MAD-X rejects overlapping sequence nodes, so a negative drift is written as a short
+    gap plus a zero-length inverse-drift matrix and everything after it moves downstream."""
+    from simba.Codes.MADX.MADX import STEP_BACK_GAP
+
+    def quad02_at(overlap):
+        text = _jfel_linac(tmp_path, "madx", overlap).writeElements()
+        step = re.search(r": matrix, l = 0, rm12 = ([-\d.e]+), rm34 = \1,", text)
+        assert (step is not None) is bool(overlap)
+        if overlap:
+            assert float(step.group(1)) == pytest.approx(-overlap - STEP_BACK_GAP)
+        return float(re.search(r"^JFEL_S02_MAG_QUAD_02: .*at = ([-\d.e]+);", text, re.M).group(1))
+
+    assert quad02_at(0.04) == pytest.approx(quad02_at(0) + 0.04 + STEP_BACK_GAP)
+
+
+def test_ocelot_overlap_becomes_inverse_drift(tmp_path):
+    """Ocelot's Navigator places saved beams by the running sum of element lengths, so a
+    negative drift becomes a short gap plus a zero-length inverse-drift Matrix."""
+    from ocelot.cpbd.elements import Drift, Matrix
+    from simba.Codes.MADX.MADX import STEP_BACK_GAP
+
+    lattice = _jfel_linac(tmp_path, "ocelot", 0.04)
+    lattice.pin = types.SimpleNamespace(E=0.25)  # GeV; only the step-back's R56 needs it
+    lattice.writeElements()
+    seq = lattice.lat_obj.sequence
+    assert all(e.l >= 0 for e in seq)
+    step = next(i for i, e in enumerate(seq) if isinstance(e, Matrix) and e.r[0, 1] < 0)
+    assert isinstance(seq[step - 1], Drift) and seq[step - 1].l == STEP_BACK_GAP
+    assert seq[step].r[0, 1] == pytest.approx(-0.04 - STEP_BACK_GAP)
+    assert lattice.names[step - 2] == "JFEL-S02-MAG-QUAD-01"
+    assert lattice.names[step + 1] == "JFEL-S02-DIA-BPM-01"
