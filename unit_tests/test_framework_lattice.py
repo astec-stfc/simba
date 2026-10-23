@@ -344,3 +344,19 @@ def test_z_at_s_through_overlap(tmp_path):
     z = [v for z0, z1 in lattice.getZValues() for v in ((z0 + z1) / 2, z1)]
     # 5 mm: z is not linear in s through a bend
     assert lattice.getZAtS(s)[1:] == pytest.approx(z, abs=5e-3)
+
+
+def test_elegant_failure_is_raised(tmp_path, monkeypatch):
+    """A failed ELEGANT run used to surface only as a bare ValueError reading a missing screen."""
+    import os
+    import simba.Codes.Elegant.Elegant as elegant_module
+
+    def failing_call(command, stdout, **kwargs):
+        stdout.write("tracking 4096 particles\nError: LSC must have an BINS>=2\n")
+        return 1
+
+    lattice = _jfel_linac(tmp_path, "elegant", 0)
+    os.makedirs(lattice.global_parameters["master_subdir"], exist_ok=True)
+    monkeypatch.setattr(elegant_module.subprocess, "call", failing_call)
+    with pytest.raises(RuntimeError, match="BINS>=2"):
+        lattice.run()
