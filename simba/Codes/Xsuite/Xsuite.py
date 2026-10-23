@@ -371,9 +371,7 @@ class xsuiteLattice(frameworkLattice):
         # Anchor s to the lattice start (not the incoming beam's accumulated s) to
         # match Elegant/Ocelot/MAD-X.
         df["s"] += self.start_s
-        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
-        df["z"] = np.interp(df["s"], svals, zvals)
+        df["z"] = self.getZAtS(df["s"])
         for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
             df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')

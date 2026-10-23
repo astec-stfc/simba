@@ -331,3 +331,16 @@ def test_ocelot_overlap_becomes_inverse_drift(tmp_path):
     assert seq[step].r[0, 1] == pytest.approx(-0.04 - STEP_BACK_GAP)
     assert lattice.names[step - 2] == "JFEL-S02-MAG-QUAD-01"
     assert lattice.names[step + 1] == "JFEL-S02-DIA-BPM-01"
+
+
+def test_z_at_s_through_overlap(tmp_path):
+    """Tracked S steps back at a negative drift; Twiss z must still follow the lattice."""
+    lattice = _jfel_linac(tmp_path, "elegant", 1.0)  # small overlaps happen to survive plain np.interp
+    exits = lattice.getSValues(at_entrance=False)
+    lengths = [e.physical.length for e in lattice.create_drifts().values()]
+    s = [10.0]  # entrance, then the middle and exit of each element
+    for x, l in zip(exits, lengths):
+        s += [10.0 + x - l / 2, 10.0 + x]
+    z = [v for z0, z1 in lattice.getZValues() for v in ((z0 + z1) / 2, z1)]
+    # 5 mm: z is not linear in s through a bend
+    assert lattice.getZAtS(s)[1:] == pytest.approx(z, abs=5e-3)

@@ -1789,6 +1789,26 @@ class frameworkLattice(BaseModel):
             return {e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()}
         return [[e.physical.start.z, e.physical.end.z] for e in elems.values()]
 
+    def getZAtS(self, s: list | np.ndarray) -> np.ndarray:
+        """
+        Get the lattice Z at each S tracked along this lattice (e.g. Twiss output).
+
+        Parameters
+        ----------
+        s: list | np.ndarray
+            S values in lattice order, starting at the lattice entrance and including every
+            element boundary (as Twiss output does).
+
+        Returns
+        -------
+        np.ndarray
+            Z value at each S.
+        """
+        lengths = [e.physical.length for e in self.create_drifts().values()]
+        lat_z = [a[-1] for a in self.getZValues()]
+        path = np.concatenate([[0.0], np.cumsum(np.abs(np.diff(s)))])
+        return np.interp(path, np.cumsum(np.abs(lengths)), lat_z)
+
     def getNames(self, drifts: bool = True) -> list:
         """
         Get the names of the elements in the lattice.

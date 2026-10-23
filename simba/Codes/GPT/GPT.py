@@ -656,14 +656,13 @@ class gptLattice(frameworkLattice):
         """
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.start_s
-        zvals = [a[-1] for a in self.getZValues()]
+        svals = self.getSValues(as_dict=True)
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
             if not e.name == self.start:
-                sval = np.interp(e.physical.middle.z, zvals, svals)
+                sval = svals[e.name] - e.physical.length / 2 + self.start_s
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
                     screen=e,
@@ -674,7 +673,7 @@ class gptLattice(frameworkLattice):
                 )
             # else:
             # print('Ignoring', self.ignore_start_screen.objectname)
-        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
+        sval = svals[self.end] - self.endObject.physical.length / 2 + self.start_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,

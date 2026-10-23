@@ -273,6 +273,4 @@ class cheetahLattice(frameworkLattice):
                         data = svals + self.start_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
-                    lat_s = np.array(self.getSValues(at_entrance=False))
-                    lat_z = [a[-1] for a in self.getZValues()]
-                    twsgrp.create_dataset("z", data=np.interp(svals, lat_s, lat_z))
+                    twsgrp.create_dataset("z", data=self.getZAtS(svals))
