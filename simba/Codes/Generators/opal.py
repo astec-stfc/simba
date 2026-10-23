@@ -123,7 +123,6 @@ class OPALGenerator(frameworkGenerator):
             fall_time = self.plateau_fall_time or rise_time
             dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: rise_time})
             dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: fall_time})
-            # ASTRA's lt is already the FWHM with rt the 10-90% rise, as OPAL's TPULSEFWHM/TRISE
             dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: self.plateau_bunch_length})
         else:
             if not self.sigma_t > 0:
