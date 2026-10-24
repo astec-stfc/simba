@@ -281,3 +281,39 @@ def test_tw_focusing_from_def_reaches_elegant(tmp_path, tw_focusing, model):
     assert lattice.tw_focusing is (tw_focusing is not False)
     lte = lattice.section.to_elegant()
     assert f"body_focus_model = {model}" in lte
+
+
+@pytest.fixture
+def jfel(tmp_path):
+    import os
+    ml = os.environ.get("JFEL_MASTER_LATTICE", os.path.expanduser("~/Documents/laura-lattices-gh/JFEL/"))
+    if not os.path.isdir(ml):
+        pytest.skip("JFEL master lattice not available")
+    f = sfw.Framework(directory=str(tmp_path), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="/jfel.yaml")
+    f.loadSettings("Lattices/jfel_combined.def")
+    return f
+
+
+def test_check_lattice_accepts_bends(jfel):
+    """The check follows LAURA's own bend geometry (the VBC dipoles failed it when
+    LAURA moved a bend's middle from the chord midpoint onto the arc)."""
+    assert jfel.check_lattice()
+
+
+def test_collective_flags_from_def_reach_elegant(jfel):
+    """`csr_enable`/`lsc_enable` in a .def file block switch off this line's
+    CSR/LSC drifts, and leave the shared elements alone."""
+    block = dict(jfel.latticeObjects["Linac"].file_block, code="elegant")
+    jfel.read_Lattice("Linac", dict(block, csr_enable=False, lsc_enable=False))
+    assert "csrdrift" not in jfel.latticeObjects["Linac"].section.to_elegant()
+    assert jfel.elementObjects["JFEL-VBC-MAG-DIP-01"].simulation.csr_enable
+    jfel.read_Lattice("Linac", block)
+    assert "csrdrift" in jfel.latticeObjects["Linac"].section.to_elegant()
+
+
+def test_settings_keep_the_changes_block(tmp_path):
+    """`changes` survives loading a .def, so `apply_changes` gets to see it."""
+    path = tmp_path / "test.def"
+    path.write_text("changes:\n  QUAD: {k1l: 1.0}\n")
+    assert sfw.FrameworkSettings(str(path))["changes"] == {"QUAD": {"k1l": 1.0}}

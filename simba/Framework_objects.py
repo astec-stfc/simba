@@ -594,6 +594,9 @@ class frameworkLattice(BaseModel):
             self.file_block.update({"input": {}})
         if "tw_focusing" in self.file_block:
             self._tw_focusing = bool(self.file_block["tw_focusing"])
+        for flag in ("csr_enable", "lsc_enable"):
+            if flag in self.file_block:
+                setattr(self, f"_{flag}", bool(self.file_block[flag]))
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -2519,10 +2522,6 @@ class chicane(frameworkGroup):
         dipole_names = list(self.elements)
         dipoles = [self.allElementObjects[e] for e in dipole_names]
         zs = [d.physical.middle.z for d in dipoles]
-        # Everything between the first and last dipole rides on the chicane's
-        # displaced axis, so it has to be moved with the dipoles -- otherwise the
-        # mid-chicane elements keep their design-angle x and the drifts around them
-        # pick up a bogus transverse offset.
         between = [
             (z, e)
             for z, e in ((zpos(e), e) for e in self.allElementObjects.values())
@@ -2532,10 +2531,6 @@ class chicane(frameworkGroup):
 
         z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
 
-        # Walk the reference trajectory. Each magnet keeps its z position, and its faces
-        # stay perpendicular to the 0mm axis, so it spans a *fixed* z; the beam crosses
-        # it on an arc that lengthens as the angle opens up, and the edge angles (which
-        # the lattice defines as tracking `angle`) carry the resulting edge focusing.
         x, phi, z_cursor = 0.0, 0.0, zs[0] - z_extents[0] / 2.0
         dipole_number = 0
         for e in obj:
@@ -2551,17 +2546,9 @@ class chicane(frameworkGroup):
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
                 else:
                     dx, arc = 0.0, lz
-                # LAURA anchors start/end symmetrically about `middle`, so `middle` is
-                # the arc's centre. With `arc` set below that reproduces a fixed z extent
-                # and exactly the right entrance/exit x -- but only while the element is
-                # unrotated, otherwise the +-half vector is tilted along with it.
                 e.physical.middle = Position(x=x + dx / 2.0, y=0, z=z_here)
                 e.physical.global_rotation.theta = 0.0
                 e.magnetic.angle = ang
-                # `physical_angle` drives the start/end offsets, whose sign LAURA takes
-                # from it; the *displacement* through a chicane's second dipole runs the
-                # same way as through the first even though it bends back, so this is the
-                # sense of the displacement, not of the magnetic bend.
                 e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
                 e.magnetic.length = arc
                 e.physical.length = arc

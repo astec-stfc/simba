@@ -1005,22 +1005,17 @@ class Framework(BaseModel):
                 length = elem.physical.length
                 physical_angle = elem.physical.physical_angle
 
-                # Calculate local offset from middle to end
-                if abs(physical_angle) > 1e-9:
+                if hasattr(elem.physical, "offset_from_middle"):
+                    rotated_offset = elem.physical.offset_from_middle("end")
+                elif abs(physical_angle) > 1e-9:
                     # Bent element - correct arc geometry
                     ex_local = length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
                     ey_local = 0
                     ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
+                    rotated_offset = elem.physical.rotated_position([ex_local, ey_local, ez_local])
                 else:
                     # Straight element
-                    ex_local = 0
-                    ey_local = 0
-                    ez_local = length / 2.0
-
-                local_offset = np.array([ex_local, ey_local, ez_local])
-
-                # Apply the full 3D rotation matrix
-                rotated_offset = elem.physical.rotated_position(local_offset.tolist())
+                    rotated_offset = elem.physical.rotated_position([0, 0, length / 2.0])
 
                 # Calculate expected end position
                 cend = middle + np.array(rotated_offset)
