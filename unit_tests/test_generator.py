@@ -156,3 +156,13 @@ def test_gpt_generator_write(monkeypatch, gpt_generator):
         gpt_generator.cathode = False
         gpt_generator.write()
     os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.in")
+
+@pytest.mark.parametrize("license", [None, ""])
+def test_gpt_generator_without_a_licence_raises(gpt_generator, license):
+    """gpt rejects its command line without a licence but exits 0, so nothing failed
+    until its output was read."""
+    gpt_generator.executables = {"gpt": ["gpt"]}
+    if license is not None:
+        gpt_generator.global_parameters["GPTLICENSE"] = license
+    with pytest.raises(RuntimeError, match="GPTLICENSE"):
+        gpt_generator.run()

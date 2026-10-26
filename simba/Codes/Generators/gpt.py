@@ -10,6 +10,7 @@ from ...FrameworkHelperFunctions import (
     saveFile,
     copylink,
     expand_substitution,
+    gpt_license_argument,
 )
 from .Generators import (
     frameworkGenerator,
@@ -67,7 +68,7 @@ class GPTGenerator(frameworkGenerator):
         command = (
             self.executables[self.code]
             + ["-o", "generator.gdf"]
-            + [f"GPTLICENSE={self.global_parameters['GPTLICENSE']}"]
+            + [gpt_license_argument(self.global_parameters)]
             + [f"{self.objectname}.in"]
         )
         my_env = os.environ.copy()
