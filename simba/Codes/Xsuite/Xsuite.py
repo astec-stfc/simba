@@ -192,6 +192,8 @@ class xsuiteLattice(frameworkLattice):
                 **self.initial_twiss["vertical"]
             )
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.start_s, beam.centroids.mean_cp.val)
         self.hdf5_to_json(prefix)
 
     def hdf5_to_json(self, prefix: str = "", write: bool = True) -> None:
@@ -342,7 +344,8 @@ class xsuiteLattice(frameworkLattice):
             bfname,
             zstart=self.endObject.physical.middle.z,
             s=svals[self.end],
-            ref_index=self.ref_idx
+            ref_index=self.ref_idx,
+            start=self.reference_start,
         )
         rbf.openpmd.write_openpmd_beam_file(
             beam,
@@ -358,6 +361,7 @@ class xsuiteLattice(frameworkLattice):
                 zstart=elem.physical.middle.z,
                 s=svals[elem.name],
                 ref_index=self.ref_idx,
+                start=self.reference_start,
             )
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
@@ -367,9 +371,7 @@ class xsuiteLattice(frameworkLattice):
         # Anchor s to the lattice start (not the incoming beam's accumulated s) to
         # match Elegant/Ocelot/MAD-X.
         df["s"] += self.start_s
-        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
-        df["z"] = np.interp(df["s"], svals, zvals)
+        df["z"] = self.getZAtS(df["s"])
         for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
             df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')

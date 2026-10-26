@@ -1,10 +1,11 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
-def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
     self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
     self._beam.particle_rest_energy = UnitValue(
         (
@@ -22,11 +23,13 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     # self._beam.gamma = UnitValue(parray.relativistic_gamma.numpy(), "")
     self._beam.x = UnitValue(parray.x.numpy(), "m")
     self._beam.y = UnitValue(parray.y.numpy(), "m")
-    self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
+    mass, energy = float(parray.species.mass_eV), float(parray.energy)
+    t_ref = reference_time(float(parray.s), np.sqrt(energy**2 - mass**2), mass, start)
+    self._beam.t = UnitValue(t_ref + parray.tau.numpy() / constants.speed_of_light, "s")
     # self._beam["p"] = parray.energies.numpy()
-    self._beam.px = UnitValue(parray.px.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(parray.py.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    cp = parray.energies.numpy()
+    cp = parray.momenta.numpy()
+    self._beam.px = UnitValue(parray.px.numpy() * cp * self.q_over_c, "kg*m/s")
+    self._beam.py = UnitValue(parray.py.numpy() * cp * self.q_over_c, "kg*m/s")
     self._beam.pz = UnitValue((
         self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
     ), "kg*m/s")
@@ -69,10 +72,7 @@ def write_cheetah_beam_file(self, filename=None, write=True):
     y = self.y.val
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
-    p = (self.energy.val - E) / E
-    # cheetah's tau runs with time, not against it: the head of the bunch (early t)
-    # sits at negative tau. Negating here put the bunch in back to front, which the
-    # RMS moments hide and only shows up as a reversed RF chirp out of a cavity.
+    p = (self.energy.val - E) / np.sqrt(E**2 - float(Species(self.species).mass_eV) ** 2)
     tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 

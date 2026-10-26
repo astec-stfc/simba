@@ -628,6 +628,7 @@ class elegantLattice(frameworkLattice):
         command = self.executables[self.code] + [self.objectname + ".ele"]
         workdir = os.path.abspath(self.global_parameters["master_subdir"])
         command = self.executables.build_command(command, workdir)
+        returncode = 0
         if self.remote_setup:
             super().run_remote()
         elif not os.name == "nt":
@@ -649,7 +650,7 @@ class elegantLattice(frameworkLattice):
                 ),
                 "w",
             ) as f:
-                subprocess.call(
+                returncode = subprocess.call(
                     command,
                     stdout=f,
                     cwd=self.global_parameters["master_subdir"],
@@ -684,7 +685,7 @@ class elegantLattice(frameworkLattice):
                     ),
                     "w",
                 ) as f:
-                    subprocess.call(
+                    returncode = subprocess.call(
                         command, stdout=f, cwd=self.global_parameters["master_subdir"]
                     )
             else:
@@ -705,12 +706,19 @@ class elegantLattice(frameworkLattice):
                     ),
                     "w",
                 ) as f:
-                    subprocess.call(
+                    returncode = subprocess.call(
                         command,
                         stdout=f,
                         cwd=self.global_parameters["master_subdir"],
                         env={"RPN_DEFNS": rpn_defns},
                     )
+        if returncode:
+            logfile = os.path.join(self.global_parameters["master_subdir"], self.objectname + ".log")
+            with open(logfile) as f:
+                lines = [line.strip() for line in f if line.strip()]
+            raise RuntimeError(
+                f"ELEGANT exited with code {returncode} ({lines[-1] if lines else 'empty log'}); see {logfile}"
+            )
 
     def elegantCommandFile(self, *args, **kwargs):
         return elegantCommandFile(*args, **kwargs)

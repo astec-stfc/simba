@@ -1,10 +1,12 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 from ocelot.cpbd.beam import ParticleArray
+from ocelot.common.globals import m_e_GeV
 
 
-def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
+def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, start=None):
     self._beam.particle_mass = UnitValue(
         np.full(len(parray.x()), constants.m_e),
         units="kg",
@@ -24,17 +26,14 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None):
     # self._beam.gamma = UnitValue(parray.gamma)
     self._beam.x = UnitValue(parray.x(), units="m")
     self._beam.y = UnitValue(parray.y(), units="m")
+    mass = constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
     self._beam.t = UnitValue(
-        (zstart + parray.s + parray.tau()) / constants.speed_of_light, units="s"
+        reference_time(s, parray.p0c * 1e9, mass, start) + parray.tau() / constants.speed_of_light, units="s"
     )
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
-    self._beam.px = UnitValue(
-        parray.px() * parray.energies * 1e9 * self.q_over_c, units="kg*m/s"
-    )
-    self._beam.py = UnitValue(
-        parray.py() * parray.energies * 1e9 * self.q_over_c, units="kg*m/s"
-    )
-    cp = parray.energies * 1e9
+    cp = parray.momenta * 1e9
+    self._beam.px = UnitValue(parray.px() * cp * self.q_over_c, units="kg*m/s")
+    self._beam.py = UnitValue(parray.py() * cp * self.q_over_c, units="kg*m/s")
     self._beam.pz = UnitValue(
         (self.q_over_c * cp / np.sqrt(parray.px() ** 2 + parray.py() ** 2 + 1)),
         units="kg*m/s",
@@ -74,7 +73,7 @@ def read_ocelot_beam_file(self, filename):
     self.code = "OCELOT"
     self._beam.particle_rest_energy_eV = self.E0_eV
     parray = load_particle_array(filename)
-    particle_array_to_beam(self, parray)
+    particle_array_to_beam(self, parray, s=parray.s)
 
 
 def write_ocelot_beam_file(self, filename, write=True):
@@ -100,7 +99,7 @@ def particle_group_to_parray(self, s_start=0) -> ParticleArray:
     y = self.y.val
     xp = self.cpx.val / self.cpz.val
     yp = self.cpy.val / self.cpz.val
-    p = ((self.energy.val * 1e-9) - E) / E
+    p = ((self.energy.val * 1e-9) - E) / np.sqrt(E**2 - m_e_GeV**2)
     tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = np.mean(self.t.val) * constants.speed_of_light
 

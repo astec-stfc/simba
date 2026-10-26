@@ -19,6 +19,7 @@ from ...Modules import constants
 from ...Modules.Fields import field
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.rf_focusing import tw1_focusing_matrix
+from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
 import numpy as np
 from numpy import array, savez_compressed, linspace, save, interp, searchsorted, clip
@@ -200,9 +201,39 @@ class ocelotLattice(frameworkLattice):
         :attr:`~simba.Codes.Ocelot.Ocelot.ocelotLattice.names`.
         """
         self.lat_obj = self.section.to_ocelot(save=True)
+        self.replace_negative_drifts()
         if self.tw_focusing:
             self.add_tw1_focusing()
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
+
+    def replace_negative_drifts(self) -> None:
+        """
+        Ocelot's ``Navigator`` places physics processes (and saved beams) at the running sum
+        of element lengths, which steps back over a negative (overlap) drift. Replace each
+        with a short gap plus a zero-length inverse-drift ``Matrix`` of the same name.
+        """
+        from ocelot.cpbd.elements import Cavity, Drift, Matrix
+        from ocelot.cpbd.magnetic_lattice import MagneticLattice
+
+        if not any(isinstance(e, Drift) and e.l < 0 for e in self.lat_obj.sequence):
+            return
+        m0 = self.particle_rest_energy_eV
+        design_energy = float(self.pin.E) * 1e9  # GeV -> eV
+        new_sequence = []
+        for elem in self.lat_obj.sequence:
+            if isinstance(elem, Drift) and elem.l < 0:
+                L = elem.l - STEP_BACK_GAP
+                bg2 = (design_energy / m0) ** 2 - 1
+                new_sequence.append(Drift(l=STEP_BACK_GAP, eid=f"{elem.id}_gap"))
+                elem = Matrix(
+                    l=0.0, eid=elem.id,
+                    r11=1.0, r12=L, r22=1.0, r33=1.0, r34=L, r44=1.0,
+                    r55=1.0, r56=-L / bg2 if bg2 > 0 else 0.0, r66=1.0,
+                )
+            elif isinstance(elem, Cavity):
+                design_energy += elem.v * 1e9 * np.cos(elem.phi * np.pi / 180.0)
+            new_sequence.append(elem)
+        self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
 
     @property
     def particle_rest_energy_eV(self) -> float:
@@ -306,6 +337,8 @@ class ocelotLattice(frameworkLattice):
             )
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.entrance_s, beam.centroids.mean_cp.val)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -356,22 +389,23 @@ class ocelotLattice(frameworkLattice):
                 if k == "s":
                     v += self.entrance_s
                 twsdat[k].append(v)
-        svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
+        elements = list(self.create_drifts().values())
+        shift = np.cumsum([STEP_BACK_GAP - e.physical.length if e.physical.length < 0 else 0.0 for e in elements])
+        svals = array(self.getSValues(at_entrance=False)) + shift + twsdat["s"][0]
         zvals = [a[-1] for a in self.getZValues()]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
         # Ocelot's tracked Twiss points carry no element identity (`id` is
         # empty), so tag each point with the name of the (drift-expanded)
         # element whose exit position first reaches it. This is what makes
         # Twiss.get_parameter_at_element usable for Ocelot output.
-        elem_names = array(
-            [e.name for e in self.create_drifts().values()], dtype="U"
-        )
+        elem_names = array([e.name for e in elements], dtype="U")
         if len(elem_names):
             idx = clip(
                 searchsorted(svals, twsdat["s"], side="left"),
                 0,
                 len(elem_names) - 1,
             )
+            twsdat["s"] = list(array(twsdat["s"]) - shift[idx])
             # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
             # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
             # would silently drop the names.
@@ -501,6 +535,7 @@ class ocelotLattice(frameworkLattice):
                     zstart=w.physical.start.z,
                     sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
@@ -514,6 +549,7 @@ class ocelotLattice(frameworkLattice):
                 zstart=self.endObject.physical.end.z,
                 sstart=self.entrance_s + sval_out[self.end],
                 ref_idx=self.ref_idx,
+                start=self.reference_start,
             )
         ]
         navi_locations_start += [loc]

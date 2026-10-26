@@ -281,3 +281,82 @@ def test_tw_focusing_from_def_reaches_elegant(tmp_path, tw_focusing, model):
     assert lattice.tw_focusing is (tw_focusing is not False)
     lte = lattice.section.to_elegant()
     assert f"body_focus_model = {model}" in lte
+
+
+def _jfel_linac(tmp_path, code, overlap):
+    """The JFEL Linac in `code`, with S02 BPM-01 moved `overlap` m back inside QUAD-01."""
+    import os
+    ml = os.environ.get("JFEL_MASTER_LATTICE", os.path.expanduser("~/Documents/laura-lattices-gh/JFEL/"))
+    if not os.path.isdir(ml):
+        pytest.skip("JFEL master lattice not available")
+    f = sfw.Framework(directory=str(tmp_path / f"{code}{overlap}"), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="/jfel.yaml")
+    f.loadSettings("Lattices/jfel_combined.def")
+    if overlap:
+        q1 = f.elementObjects["JFEL-S02-MAG-QUAD-01"].physical
+        f.elementObjects["JFEL-S02-DIA-BPM-01"].physical.middle.z = q1.end.z - overlap
+    f.read_Lattice("Linac", dict(f.latticeObjects["Linac"].file_block, code=code))
+    return f.latticeObjects["Linac"]
+
+
+def test_madx_overlap_becomes_inverse_drift(tmp_path):
+    """MAD-X rejects overlapping sequence nodes, so a negative drift is written as a short
+    gap plus a zero-length inverse-drift matrix and everything after it moves downstream."""
+    from simba.Codes.MADX.MADX import STEP_BACK_GAP
+
+    def quad02_at(overlap):
+        text = _jfel_linac(tmp_path, "madx", overlap).writeElements()
+        step = re.search(r": matrix, l = 0, rm12 = ([-\d.e]+), rm34 = \1,", text)
+        assert (step is not None) is bool(overlap)
+        if overlap:
+            assert float(step.group(1)) == pytest.approx(-overlap - STEP_BACK_GAP)
+        return float(re.search(r"^JFEL_S02_MAG_QUAD_02: .*at = ([-\d.e]+);", text, re.M).group(1))
+
+    assert quad02_at(0.04) == pytest.approx(quad02_at(0) + 0.04 + STEP_BACK_GAP)
+
+
+def test_ocelot_overlap_becomes_inverse_drift(tmp_path):
+    """Ocelot's Navigator places saved beams by the running sum of element lengths, so a
+    negative drift becomes a short gap plus a zero-length inverse-drift Matrix."""
+    from ocelot.cpbd.elements import Drift, Matrix
+    from simba.Codes.MADX.MADX import STEP_BACK_GAP
+
+    lattice = _jfel_linac(tmp_path, "ocelot", 0.04)
+    lattice.pin = types.SimpleNamespace(E=0.25)  # GeV; only the step-back's R56 needs it
+    lattice.writeElements()
+    seq = lattice.lat_obj.sequence
+    assert all(e.l >= 0 for e in seq)
+    step = next(i for i, e in enumerate(seq) if isinstance(e, Matrix) and e.r[0, 1] < 0)
+    assert isinstance(seq[step - 1], Drift) and seq[step - 1].l == STEP_BACK_GAP
+    assert seq[step].r[0, 1] == pytest.approx(-0.04 - STEP_BACK_GAP)
+    assert lattice.names[step - 2] == "JFEL-S02-MAG-QUAD-01"
+    assert lattice.names[step + 1] == "JFEL-S02-DIA-BPM-01"
+
+
+def test_z_at_s_through_overlap(tmp_path):
+    """Tracked S steps back at a negative drift; Twiss z must still follow the lattice."""
+    lattice = _jfel_linac(tmp_path, "elegant", 1.0)  # small overlaps happen to survive plain np.interp
+    exits = lattice.getSValues(at_entrance=False)
+    lengths = [e.physical.length for e in lattice.create_drifts().values()]
+    s = [10.0]  # entrance, then the middle and exit of each element
+    for x, l in zip(exits, lengths):
+        s += [10.0 + x - l / 2, 10.0 + x]
+    z = [v for z0, z1 in lattice.getZValues() for v in ((z0 + z1) / 2, z1)]
+    # 5 mm: z is not linear in s through a bend
+    assert lattice.getZAtS(s)[1:] == pytest.approx(z, abs=5e-3)
+
+
+def test_elegant_failure_is_raised(tmp_path, monkeypatch):
+    """A failed ELEGANT run used to surface only as a bare ValueError reading a missing screen."""
+    import os
+    import simba.Codes.Elegant.Elegant as elegant_module
+
+    def failing_call(command, stdout, **kwargs):
+        stdout.write("tracking 4096 particles\nError: LSC must have an BINS>=2\n")
+        return 1
+
+    lattice = _jfel_linac(tmp_path, "elegant", 0)
+    os.makedirs(lattice.global_parameters["master_subdir"], exist_ok=True)
+    monkeypatch.setattr(elegant_module.subprocess, "call", failing_call)
+    with pytest.raises(RuntimeError, match="BINS>=2"):
+        lattice.run()

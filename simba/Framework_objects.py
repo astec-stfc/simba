@@ -562,6 +562,10 @@ class frameworkLattice(BaseModel):
     _start_s: float = None
     """Cached s position of the start of the lattice; see :func:`start_s`."""
 
+    reference_start: tuple | None = None
+    """(t, s, p) of the input beam's reference, so codes that track relative to it can
+    write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
+
     remote_setup: Dict = {}
     """Dictionary containing parameters for running executables remotely."""
 
@@ -1784,6 +1788,26 @@ class frameworkLattice(BaseModel):
         if as_dict:
             return {e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()}
         return [[e.physical.start.z, e.physical.end.z] for e in elems.values()]
+
+    def getZAtS(self, s: list | np.ndarray) -> np.ndarray:
+        """
+        Get the lattice Z at each S tracked along this lattice (e.g. Twiss output).
+
+        Parameters
+        ----------
+        s: list | np.ndarray
+            S values in lattice order, starting at the lattice entrance and including every
+            element boundary (as Twiss output does).
+
+        Returns
+        -------
+        np.ndarray
+            Z value at each S.
+        """
+        lengths = [e.physical.length for e in self.create_drifts().values()]
+        lat_z = [a[-1] for a in self.getZValues()]
+        path = np.concatenate([[0.0], np.cumsum(np.abs(np.diff(s)))])
+        return np.interp(path, np.cumsum(np.abs(lengths)), lat_z)
 
     def getNames(self, drifts: bool = True) -> list:
         """
