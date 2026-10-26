@@ -9,8 +9,9 @@ except ImportError:
     has_cupy = False
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 
-def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
+def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, start=None):
     import xobjects as xo
     import xpart as xp
     if has_cupy:
@@ -71,7 +72,8 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
     self._beam.x = UnitValue(particles.x, units="m")
     self._beam.y = UnitValue(particles.y, units="m")
 
-    self._beam.t = UnitValue((particles.s - particles.zeta) / constants.speed_of_light, units="s")
+    t_ref = reference_time(particles.s, particles.p0c[0], particles.mass0, start)
+    self._beam.t = UnitValue(t_ref - particles.zeta / (particles.beta0 * constants.speed_of_light), units="s")
     # self._beam.p = UnitValue(parray.energies, units="eV/c")
     self._beam.px = UnitValue(particles.px * particles.p0c * self.q_over_c, units="kg*m/s")
     self._beam.py = UnitValue(particles.py * particles.p0c * self.q_over_c, units="kg*m/s")
@@ -100,7 +102,7 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None):
         """ If we don't have a reference particle, t=0 is relative to mean(t) """
         self._beam.z = UnitValue(zstart +
             (-1 * self._beam.Bz * constants.speed_of_light) * (
-                self._beam.t - self._beam.t[self.reference_particle_index]
+                self._beam.t - np.mean(self._beam.t)
             ),
             units="m",
         )
@@ -126,7 +128,7 @@ def write_xsuite_beam_file(self, filename: str=None, write: bool=True, s_start: 
     p0c = self._beam.centroids.mean_cp.val
     x = self.x.val
     y = self.y.val
-    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light * p0c / np.hypot(p0c, mass0)
     px = self.cpx.val / p0c
     py = self.cpy.val / p0c
     delta = self.deltap.val

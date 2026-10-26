@@ -306,6 +306,8 @@ class ocelotLattice(frameworkLattice):
             )
         self.ref_s = self.global_parameters["beam"].s
         self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.entrance_s, beam.centroids.mean_cp.val)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -501,6 +503,7 @@ class ocelotLattice(frameworkLattice):
                     zstart=w.physical.start.z,
                     sstart=self.entrance_s + sval_in[w.name],
                     ref_idx=self.ref_idx,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
@@ -514,6 +517,7 @@ class ocelotLattice(frameworkLattice):
                 zstart=self.endObject.physical.end.z,
                 sstart=self.entrance_s + sval_out[self.end],
                 ref_idx=self.ref_idx,
+                start=self.reference_start,
             )
         ]
         navi_locations_start += [loc]
