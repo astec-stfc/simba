@@ -49,6 +49,11 @@ elementary_charge = constants.elementary_charge
 
 madx_accelerating_types = ("rfcavity", "twcavity")
 
+# drift kept ahead of each inverse-drift map, so observation points either side of a
+# step-back do not share an s (MAD-X tracking output is matched to them by s); MAD-X
+# drops drifts of ~1e-6 m, so keep it well above that
+STEP_BACK_GAP = 1e-4
+
 # MAD-X particle names for the species supported by the beam object
 madx_particle_names = {
     "electron": "electron",
@@ -309,6 +314,14 @@ class madxLattice(frameworkLattice):
                     segments[i - 1] += seg
                 del segments[i]
         self.segments = segments
+        self._madx_shift = {}
+        for segnames in segments:
+            shift = 0.0
+            for name in segnames:
+                self._madx_shift[name] = shift
+                d = self._elem_dict[name]
+                if d.hardware_type.lower() == "drift" and d.physical.length < 0:
+                    shift += STEP_BACK_GAP - d.physical.length
         return segments
 
     def writeElements(self) -> str:
@@ -331,7 +344,7 @@ class madxLattice(frameworkLattice):
             seqname = self.segment_name(iseg)
             seg_s0 = self._sval_in[segnames[0]]
             seg_s1 = self._sval_out[segnames[-1]]
-            seg_len = seg_s1 - seg_s0
+            seg_len = seg_s1 - seg_s0 + self._madx_shift[segnames[-1]]
             # the written file's default; input_segment sets the tracked momentum's
             design_p0c = np.sqrt(max(self._design_energy**2 - self.rest_energy**2, 0.0))
             if design_p0c:
@@ -349,11 +362,22 @@ class madxLattice(frameworkLattice):
                     )
                 else:
                     at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
+                at += self._madx_shift[name]
                 if isinstance(d, SolenoidTranslator):
                     estr = d.to_madx(at=at, Brho=self.rigidity_name(iseg)).strip()
                 elif isinstance(d, MatrixTransformTranslator):
                     gamma = self._design_energy / self.rest_energy if self._design_energy else None
                     estr = d.to_madx(at=at, gamma=gamma).strip()
+                elif d.hardware_type.lower() == "drift" and d.physical.length < 0:
+                    entrance = at - d.physical.length / 2.0
+                    L = d.physical.length - STEP_BACK_GAP
+                    bg2 = (self._design_energy / self.particle_rest_energy_eV) ** 2 - 1
+                    estr = (
+                        f"{sanitize_string(name)}_gap: drift, l = {STEP_BACK_GAP}, "
+                        f"at = {entrance + STEP_BACK_GAP / 2.0};\n"
+                        f"{sanitize_string(name)}: matrix, l = 0, rm12 = {L}, rm34 = {L}, "
+                        f"rm56 = {L / bg2 if bg2 > 0 else 0.0}, at = {entrance + STEP_BACK_GAP};"
+                    )
                 else:
                     estr = d.to_madx(at=at).strip()
                 if d.madx_alignment():
@@ -1798,7 +1822,7 @@ class madxLattice(frameworkLattice):
         for name, s_local in observe:
             if not record:
                 continue
-            data = self.extract_observation(trackdata, s_local)
+            data = self.extract_observation(trackdata, s_local + self._madx_shift[name])
             if len(data["x"]) == 0:
                 warn(f"MADX: no particles recorded at {name}")
                 continue
@@ -1820,7 +1844,7 @@ class madxLattice(frameworkLattice):
             if name != self.end or name_turn is not None:
                 self.write_output_beam(name, bm, turn=name_turn)
 
-        data = self.extract_observation(trackdata, seg_len)
+        data = self.extract_observation(trackdata, seg_len + self._madx_shift[segnames[-1]])
         nlost = npart - len(data["x"])
         if nlost > 0:
             warn(f"MADX: {nlost} particles lost in segment")
@@ -1898,9 +1922,11 @@ class madxLattice(frameworkLattice):
         observe = self.observation_points(segnames)
         trackdata = self.run_track(madx, probecoords, observe)
 
-        def transformed_beam_at(s_local: float, zpos: float, spos: float):
-            """Distribution mapped to ``s_local``, or None if a probe was lost."""
-            data = self.extract_observation(trackdata, s_local)
+        def transformed_beam_at(s_local: float, zpos: float, spos: float, name: str):
+            """Beam obtained by applying the segment map (start -> ``s_local``,
+            built from the 13 probes) to the full input distribution, or
+            ``None`` if any probe was lost before ``s_local``."""
+            data = self.extract_observation(trackdata, s_local + self._madx_shift[name])
             if len(data["x"]) != 13:
                 return None
             centroid_out, rmatrix = map_from_probes(
@@ -1922,7 +1948,7 @@ class madxLattice(frameworkLattice):
                 continue
             elem = self._elements_with_drifts[name]
             spos = seg_s0 + s_local + sstart_lattice
-            bm = transformed_beam_at(s_local, elem.physical.middle.z, spos)
+            bm = transformed_beam_at(s_local, elem.physical.middle.z, spos, name)
             if bm is None:
                 warn(f"MADX single-particle: probe particles lost at {name}")
                 continue
@@ -1937,6 +1963,7 @@ class madxLattice(frameworkLattice):
             seg_len,
             endelem.physical.end.z,
             self._sval_out[segnames[-1]] + sstart_lattice,
+            segnames[-1],
         )
         if bm_end is None:
             raise RuntimeError(

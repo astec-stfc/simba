@@ -548,14 +548,14 @@ class gptLattice(frameworkLattice):
         """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
+        svals = self.getSValues(as_dict=True)
         zvals = [a[-1] for a in self.getZValues()]
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
-            if e.name != self.start:
-                sval = np.interp(e.physical.middle.z, zvals, svals)
+            if not e.name == self.start:
+                sval = svals[e.name] - e.physical.length / 2 + self.start_s
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
                     screen=e,
@@ -564,7 +564,9 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
+            # else:
+            # print('Ignoring', self.ignore_start_screen.objectname)
+        sval = svals[self.end] - self.endObject.physical.length / 2 + self.start_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,

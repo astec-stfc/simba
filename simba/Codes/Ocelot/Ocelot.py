@@ -11,6 +11,7 @@ from ...Modules.constants import speed_of_light
 from .cavitymaps import stable_cavity_maps
 from .latticefile import fast_lattice_files
 from ...Modules.rf_focusing import tw1_focusing_matrix
+from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
 from inspect import signature
 import numpy as np
@@ -259,10 +260,40 @@ class ocelotLattice(frameworkLattice):
         self.lat_obj = self.section.to_ocelot(
             save=True, Brho=self.rigidity(self.reference_p0c)
         )
+        self.replace_negative_drifts()
         if self.tw_focusing:
             self.add_tw1_focusing()
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
+
+    def replace_negative_drifts(self) -> None:
+        """
+        Ocelot's ``Navigator`` places physics processes (and saved beams) at the running sum
+        of element lengths, which steps back over a negative (overlap) drift. Replace each
+        with a short gap plus a zero-length inverse-drift ``Matrix`` of the same name.
+        """
+        from ocelot.cpbd.elements import Cavity, Drift, Matrix
+        from ocelot.cpbd.magnetic_lattice import MagneticLattice
+
+        if not any(isinstance(e, Drift) and e.l < 0 for e in self.lat_obj.sequence):
+            return
+        m0 = self.particle_rest_energy_eV
+        design_energy = float(self.pin.E) * 1e9  # GeV -> eV
+        new_sequence = []
+        for elem in self.lat_obj.sequence:
+            if isinstance(elem, Drift) and elem.l < 0:
+                L = elem.l - STEP_BACK_GAP
+                bg2 = (design_energy / m0) ** 2 - 1
+                new_sequence.append(Drift(l=STEP_BACK_GAP, eid=f"{elem.id}_gap"))
+                elem = Matrix(
+                    l=0.0, eid=elem.id,
+                    r11=1.0, r12=L, r22=1.0, r33=1.0, r34=L, r44=1.0,
+                    r55=1.0, r56=-L / bg2 if bg2 > 0 else 0.0, r66=1.0,
+                )
+            elif isinstance(elem, Cavity):
+                design_energy += elem.v * 1e9 * np.cos(elem.phi * np.pi / 180.0)
+            new_sequence.append(elem)
+        self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
 
     @property
     def particle_rest_energy_eV(self) -> float:
@@ -620,6 +651,8 @@ class ocelotLattice(frameworkLattice):
                 if k == "s":
                     v += self.entrance_s
                 twsdat[k].append(v)
+        elements = list(self.create_drifts().values())
+        shift = np.cumsum([STEP_BACK_GAP - e.physical.length if e.physical.length < 0 else 0.0 for e in elements])
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
         elems = self.create_drifts().values()
         zvals = [e.physical.end.z for e in elems]
@@ -633,6 +666,10 @@ class ocelotLattice(frameworkLattice):
                 0,
                 len(elem_names) - 1,
             )
+            twsdat["s"] = list(array(twsdat["s"]) - shift[idx])
+            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
+            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
+            # would silently drop the names.
             twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,

@@ -1039,9 +1039,9 @@ class xsuiteLattice(frameworkLattice):
         # as every code does.
         df["s"] += self.entrance_s
         svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
+        df["z"] = self.getZAtS(df["s"])
         df["z"] = np.interp(df["s"], svals, zvals)
         if self.beam_data:
-            for k in next(iter(self.beam_data.values())):
+            for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
                 df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')
