@@ -459,6 +459,10 @@ class frameworkLattice(BaseModel):
     _start_s: float = None
     """Cached s at the start of the lattice; see :attr:`start_s`."""
 
+    reference_start: tuple | None = None
+    """(t, s, p) of the input beam's reference, so codes that track relative to it can
+    write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
+
     remote_setup: Dict = {}
     """Settings for running executables remotely."""
 

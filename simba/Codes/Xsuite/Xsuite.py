@@ -454,6 +454,8 @@ class xsuiteLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.start_s, beam.centroids.mean_cp.val)
         self.hdf5_to_json(prefix)
         mode = self.space_charge_mode
         if mode not in self.space_charge_modes_off + ("3d",):
@@ -1024,7 +1026,8 @@ class xsuiteLattice(frameworkLattice):
             t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
-            payload, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference
+            payload, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference,
+            start=self.reference_start,
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)

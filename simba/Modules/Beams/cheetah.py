@@ -1,6 +1,7 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
@@ -18,11 +19,28 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
     interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
 
 
-def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
-    self.set_mass_and_charge(constants.m_e, parray.particle_charges.numpy(), len(parray.x.numpy()))
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
+    self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
+    self._beam.particle_rest_energy = UnitValue(
+        (
+                self._beam.particle_mass * constants.speed_of_light ** 2
+        ),
+        units="J",
+    )
+    self._beam.particle_rest_energy_eV = UnitValue(
+        (
+                self._beam.particle_rest_energy / constants.elementary_charge
+        ),
+        units="eV/c",
+    )
+    self._beam.particle_charge = UnitValue(parray.particle_charges.numpy(), "C")
+    # self._beam.gamma = UnitValue(parray.relativistic_gamma.numpy(), "")
     self._beam.x = UnitValue(parray.x.numpy(), "m")
     self._beam.y = UnitValue(parray.y.numpy(), "m")
-    self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
+    mass, energy = float(parray.species.mass_eV), float(parray.energy)
+    t_ref = reference_time(float(parray.s), np.sqrt(energy**2 - mass**2), mass, start)
+    self._beam.t = UnitValue(t_ref + parray.tau.numpy() / constants.speed_of_light, "s")
+    # self._beam["p"] = parray.energies.numpy()
     cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
     p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
     cpx = parray.px.numpy() * p0c
@@ -33,7 +51,28 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 
-    self.set_z_from_t(zstart, ref_index)
+    if ref_index is not None:
+        self.reference_particle_index = int(ref_index)
+        """ If we have a reference particle, t=0 is relative to it """
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - self._beam.t[self.reference_particle_index]),
+            units="m",
+        )
+        self.reference_particle = [
+            getattr(self._beam, coord)[self.reference_particle_index]
+            for coord in self.reference_particle_coords
+        ]
+    else:
+        """ If we don't have a reference particle, t=0 is relative to mean(t) """
+        self._beam.z = UnitValue(
+            zstart
+            + (-1 * self._beam.Bz * constants.speed_of_light)
+            * (self._beam.t - np.mean(self._beam.t)),
+            units="m",
+        )
+        self.reference_particle = None
     self._beam.s = UnitValue(s, units="m")
 
 
@@ -46,17 +85,13 @@ def write_cheetah_beam_file(self, filename=None, write=True, energy=None, t0=Non
     # {x, xp, y, yp, t, p, particleID}
     from cheetah import ParticleBeam
     from cheetah.particles.species import Species
-    E = self.energy.mean().val if energy is None else energy
-    if t0 is None:
-        t0 = np.mean(self.t.val)
-    p0c = np.sqrt(E**2 - self.E0_eV**2)
+    E = self.energy.mean().val
     x = self.x.val
     y = self.y.val
-    # p_x / p0c, not the slope p_x / p_z; see interpret_cheetah_ParticleBeam
-    xp = self.cpx.val / p0c
-    yp = self.cpy.val / p0c
-    p = (self.energy.val - E) / p0c
-    tau = (self.t.val - t0) * constants.speed_of_light
+    xp = self.cpx.val / self.cpz.val
+    yp = self.cpy.val / self.cpz.val
+    p = (self.energy.val - E) / np.sqrt(E**2 - float(Species(self.species).mass_eV) ** 2)
+    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])

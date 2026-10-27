@@ -352,6 +352,8 @@ class ocelotLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
+        beam = self.global_parameters["beam"]
+        self.reference_start = (beam.t.val.mean(), self.entrance_s, beam.centroids.mean_cp.val)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -915,6 +917,7 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_in[w.name]),
                     file_turn=file_turn,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
@@ -931,6 +934,7 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_out[self.end]),
                     file_turn=file_turn,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]

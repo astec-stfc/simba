@@ -8,8 +8,9 @@ except ImportError:
     has_cupy = False
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 
-def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_reference=None):
+def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_reference=None, start=None):
     """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
     ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds."""
     import xobjects as xo
@@ -93,7 +94,8 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_refer
     lag = -alive("zeta") / (alive("beta0") * constants.speed_of_light)
     if t_reference is None:
         t_reference = alive("s") / constants.speed_of_light
-    self._beam.t = UnitValue(t_reference + lag, units="s")
+    t_ref = reference_time(particles.s, particles.p0c[0], particles.mass0, start)
+    self._beam.t = UnitValue(t_ref + lag, units="s")
     p0c = alive("p0c")
     p_total = p0c * (1 + alive("delta"))
     cpx = alive("px") * p0c
@@ -137,7 +139,7 @@ def write_xsuite_beam_file(
     x = self.x.val
     y = self.y.val
     beta0 = p0c / np.sqrt(p0c**2 + mass0**2)
-    zeta = -(self.t.val - t0) * beta0 * constants.speed_of_light
+    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light * p0c / np.hypot(p0c, mass0)
     px = self.cpx.val / p0c
     py = self.cpy.val / p0c
     delta = self.cp.val / p0c - 1

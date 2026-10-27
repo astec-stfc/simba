@@ -1,7 +1,9 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 from ocelot.cpbd.beam import ParticleArray
+from ocelot.common.globals import m_e_GeV
 
 
 def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None):
@@ -11,7 +13,7 @@ def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_refere
     if t_reference is None:
         t_reference = (zstart + parray.s) / constants.speed_of_light
     self._beam.t = UnitValue(
-        t_reference + parray.tau() / constants.speed_of_light, units="s"
+        reference_time(s, parray.p0c * 1e9, mass, start) + parray.tau() / constants.speed_of_light, units="s"
     )
     cp = np.sqrt((parray.energies * 1e9) ** 2 - self.E0_eV**2)
     p0c = np.sqrt((parray.E * 1e9) ** 2 - self.E0_eV**2)
@@ -33,7 +35,7 @@ def read_ocelot_beam_file(self, filename):
     self.code = "OCELOT"
     self._beam.particle_rest_energy_eV = self.E0_eV
     parray = load_particle_array(filename)
-    particle_array_to_beam(self, parray)
+    particle_array_to_beam(self, parray, s=parray.s)
 
 
 def write_ocelot_beam_file(self, filename, write=True):
@@ -73,8 +75,8 @@ def particle_group_to_parray(self, s_start=0, energy=None, t0=None) -> ParticleA
     xp = self.cpx.val / (p0c * 1e9)
     yp = self.cpy.val / (p0c * 1e9)
     p = ((self.energy.val * 1e-9) - E) / p0c
-    tau = (self.t.val - t0) * constants.speed_of_light
-    s = t0 * constants.speed_of_light
+    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    s = np.mean(self.t.val) * constants.speed_of_light
 
     rparticles = np.array([x, xp, y, yp, tau, p])
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
