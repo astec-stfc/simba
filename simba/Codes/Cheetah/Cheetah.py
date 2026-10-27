@@ -15,6 +15,7 @@ import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
+from laura.translator.converters.codes.cheetah import choose_cheetah_tracking_method
 
 
 with open(
@@ -105,6 +106,7 @@ class cheetahLattice(frameworkLattice):
         bool
             Always True
         """
+        self.section.cheetah_tracking_method = self.cheetahglobal["cheetah_tracking_method"]
         self.segment = self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c))
         return True
 
@@ -150,6 +152,8 @@ class cheetahLattice(frameworkLattice):
     def run(self) -> None:
         """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``)."""
         pin = deepcopy(self.pin)
+        if self.cheetahglobal["cheetah_tracking_method"] == "auto":
+            choose_cheetah_tracking_method(self.segment, pin)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
