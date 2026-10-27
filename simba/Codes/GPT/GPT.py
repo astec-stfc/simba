@@ -83,6 +83,10 @@ class gptLattice(frameworkLattice):
     """Phase the section's cavities with :func:`~autophase` before each run, as
     ASTRA's ``Auto_Phase`` does; GPT itself tracks at whatever crest it is given."""
 
+    auto_phase: bool = True
+    """Phase the section's cavities with :func:`~autophase` before each run, as
+    ASTRA's ``Auto_Phase`` does; GPT itself tracks at whatever crest it is given."""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition

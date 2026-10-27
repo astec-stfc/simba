@@ -2,6 +2,7 @@ from simba.Codes.Generators import (
     frameworkGenerator,
     ASTRAGenerator,
     GPTGenerator,
+    OPALGenerator,
 )
 import numpy as np
 import pytest
@@ -152,6 +153,7 @@ def test_gpt_generator_write(gpt_generator, tmp_path):
     gpt_generator.cathode = False
     with pytest.raises(NotImplementedError):
         gpt_generator.write()
+    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.in")
 
 @pytest.mark.parametrize("species, sign", [("proton", 1), ("positrons", 1), ("electron", -1)])
 def test_species_sets_instance_mass_and_sign(species, sign):
@@ -181,3 +183,21 @@ def test_gpt_gaussian_tlen_from_sigma_z():
     gen = GPTGenerator(distribution_type_z="g", sigma_z=3e-4, sigma_t=0.0)
     assert f"tlen = {1e12 * 3e-4 / speed_of_light}e-12" in gen.generate_longitudinal_distribution()
     gen.distribution_type_z = "f"
+
+def test_opal_flattop_fwhm_is_the_plateau_length():
+    """The rise and fall were added to the FWHM, so OPAL's pulse came out too long."""
+    gen = OPALGenerator(
+        global_parameters={"master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"},
+        filename="test_opal.hdf5",
+        distribution_type_z="p",
+        plateau_bunch_length=3e-12,
+        plateau_rise_time=2e-13,
+        sigma_x=1e-4,
+        sigma_y=1e-4,
+        charge=100e-12,
+        number_of_particles=1000,
+    )
+    with pytest.warns(UserWarning):  # too few particles for the default emission steps
+        written = gen._write_distribution()
+    assert "TPULSEFWHM = 3e-12," in written
+    assert "TRISE = 2e-13," in written
