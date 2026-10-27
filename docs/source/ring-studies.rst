@@ -119,6 +119,33 @@ is what an injection-mismatch study on a real ring needs:
 
     tracking: {turns: 1000, periodic: false}
 
+The periodic optics are each code's own: tunes and chromaticity from its periodic
+Twiss, and the momentum compaction from the one-turn map. Elegant's map cannot be
+converted (its longitudinal coordinate is path length), so it reports the
+``alphac`` of its Twiss output and the slip factor follows as
+:math:`\alpha_c - 1/\gamma^2`.
+
+.. note::
+   **MAD-X's periodic optics carry the slicing error.** MAD-X tracks a line sliced by
+   ``MAKETHIN`` and the periodic ``TWISS`` runs on that line. With the default 4 slices
+   per quadrupole and sextupole and 8 per bend, a tune of the 561.6 m Diamond-I ring
+   came out 0.010 low and its momentum compaction 0.19 % high; 16 slices left 5e-4
+   and 64 left 3e-5. The slice counts are set in the ``tracking`` block, and SIMBA
+   warns when a periodic run uses fewer than 16:
+
+   .. code-block:: yaml
+
+       tracking: {periodic: true, nslice_quadrupole: 16, nslice_sbend: 16, nslice_sextupole: 16}
+
+.. note::
+   **Xsuite runs on the GPU if** ``cupy`` **imports.** Building the tracker then
+   compiles a CUDA kernel for the whole line, which for a ring of a few hundred
+   elements took minutes and more than 19 GB of memory. Ask for the CPU with
+   ``tracking: {context: cpu}`` (``auto``, ``cpu`` or ``gpu``), or for every run with
+   the environment variable ``SIMBA_XSUITE_CONTEXT``. If a cavity's phase leaves no
+   6D periodic solution (on the wrong side of transition, say) SIMBA warns and
+   falls back to the 4D solution, so the transverse optics are still reported.
+
 radiation
 ^^^^^^^^^^^^^
 

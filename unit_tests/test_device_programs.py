@@ -893,3 +893,21 @@ class TestBmad:
         with pytest.warns(UserWarning, match="not in the bmad lattice"):
             line.apply_programs(4)
         assert line.tao.commands == []
+
+
+def test_the_spline_is_built_once_per_set_of_knots(monkeypatch):
+    """A ramp asks for every turn of a long run; refitting each time is O(turns)."""
+    import scipy.interpolate as si
+
+    built = []
+    real = si.CubicSpline
+    monkeypatch.setattr(si, "CubicSpline", lambda *a, **k: built.append(1) or real(*a, **k))
+    splined = DeviceProgram(
+        element="K", turns=[1, 5, 9], values=[0.0, 1.0, 0.0], interpolation="spline"
+    )
+    for turn in range(1, 10):
+        splined.value_at(turn)
+    assert len(built) == 1
+    splined.values = [0.0, 2.0, 0.0]  # new knots, new spline
+    assert splined.value_at(5) == pytest.approx(2.0)
+    assert len(built) == 2

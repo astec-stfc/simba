@@ -71,6 +71,7 @@ class DeviceProgram:
     values: list = field(default_factory=list)
     interpolation: str = "hold"
     parameter: str | None = None
+    _spline_cache: tuple = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         self.turns = [int(t) for t in self.turns]
@@ -197,9 +198,20 @@ class DeviceProgram:
         return float(self._spline()(turn))
 
     def _spline(self):
-        """A cubic through the knots, or linear if there are too few for one."""
+        """A cubic through the knots, or linear if there are too few for one.
+
+        Built once per set of knots: a ramp asks for every turn of a long run.
+        """
         from scipy.interpolate import CubicSpline
 
+        key = (tuple(self.turns), tuple(self.values))
+        if self._spline_cache is not None and self._spline_cache[0] == key:
+            return self._spline_cache[1]
+        spline = self._build_spline(CubicSpline)
+        self._spline_cache = (key, spline)
+        return spline
+
+    def _build_spline(self, CubicSpline):
         if len(self.turns) < 3:
             warn(
                 f"Program for '{self.element}' asks for a spline through "

@@ -48,7 +48,7 @@ from warnings import warn
 
 import numpy as np
 
-from .DeviceProgram import DeviceProgram
+from .DeviceProgram import INTERPOLATIONS, DeviceProgram
 
 QUANTITIES = ("momentum", "kinetic_energy")
 """What a ramp may be stated in: ``p0c`` or kinetic energy, both in eV."""
@@ -214,6 +214,14 @@ class EnergyRamp:
                 f"A ramp is stated in one of {', '.join(QUANTITIES)}; "
                 f"got '{self.quantity}'."
             )
+        self.interpolation = str(self.interpolation).lower()
+        if self.interpolation not in INTERPOLATIONS:
+            # DeviceProgram's own fallback is ``hold``, but a ramp's default is ``linear``
+            warn(
+                f"The ramp asks for interpolation '{self.interpolation}', which is "
+                f"not one of {', '.join(INTERPOLATIONS)}. Using 'linear'."
+            )
+            self.interpolation = "linear"
         self._program = DeviceProgram(
             element="ramp",
             turns=self.turns,

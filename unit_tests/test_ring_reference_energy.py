@@ -104,6 +104,7 @@ def _energy(p0c):
 
 
 def _framework(tmp_path, seed_beam, code="xsuite", tracking=None, **machine):
+    skip_missing(code)
     machine, section = _machine(tmp_path, **machine)
     settings = fw.FrameworkSettings()
     settings.files = {

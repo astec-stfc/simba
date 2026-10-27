@@ -16,6 +16,7 @@ from ...Modules.constants import speed_of_light
 from copy import deepcopy
 import numpy as np
 import json
+import os
 
 from typing import Dict, List, Any, ClassVar, Literal
 from warnings import warn
@@ -172,11 +173,34 @@ class xsuiteLattice(frameworkLattice):
         super().model_post_init(__context)
         import xobjects as xo
         self.particle_definition = self.input_particle_definition
-        if has_cupy:
+        if self.use_gpu():
             self.context = xo.ContextCupy()
         else:
             self.context = xo.ContextCpu()
         self.grids = getGrids()
+
+    def use_gpu(self) -> bool:
+        """
+        Whether to build the tracker on the GPU.
+
+        ``tracking: {context: auto | cpu | gpu}``, else the environment variable
+        ``SIMBA_XSUITE_CONTEXT``, else ``auto``: the GPU if ``cupy`` imports. A GPU
+        context compiles a CUDA kernel for the whole line, which for a ring of
+        a few hundred elements can take minutes and many GB of memory, so a CPU
+        run can be asked for.
+
+        Returns
+        -------
+        bool
+        """
+        tracking = (self.file_block or {}).get("tracking") or {}
+        choice = str(tracking.get("context", os.environ.get("SIMBA_XSUITE_CONTEXT", "auto"))).lower()
+        if choice not in ("auto", "cpu", "gpu"):
+            warn(f"Xsuite context '{choice}' is not one of auto, cpu, gpu; using auto.")
+            choice = "auto"
+        if choice == "gpu" and not has_cupy:
+            warn("Xsuite was asked for the GPU but cupy is not installed; using the CPU.")
+        return has_cupy and choice != "cpu"
 
     @classmethod
     def native_time_scale(cls, beta0: float) -> float:
@@ -478,6 +502,7 @@ class xsuiteLattice(frameworkLattice):
             s_start=self.entrance_s,
             p0c=self.reference_p0c,
             t0=self.reference_t0,
+            context=self.context,
         )
 
     def insert_reference_energy_increases(self) -> None:
@@ -754,7 +779,21 @@ class xsuiteLattice(frameworkLattice):
             if not self.rf_voltage:
                 kwargs.update(method="4d")
                 kwargs.pop("freeze_energy")
-            return self.line.twiss(**kwargs)
+                return self.line.twiss(**kwargs)
+            try:
+                return self.line.twiss(**kwargs)
+            except Exception as error:
+                # a cavity at an unstable phase (the wrong side of transition, say)
+                # has no 6D periodic solution; the transverse optics still exist
+                warn(
+                    f"Line '{self.objectname}': Xsuite found no 6D periodic solution "
+                    f"({error}); the RF is probably not longitudinally stable, so "
+                    "check the cavity phase against transition. Falling back to the "
+                    "4D solution: no longitudinal quantities."
+                )
+                kwargs.update(method="4d")
+                kwargs.pop("freeze_energy")
+                return self.line.twiss(**kwargs)
         return self.line.twiss(
             betx=self.global_parameters["beam"].twiss.beta_x.val,
             alfx=self.global_parameters["beam"].twiss.alpha_x.val,
@@ -1024,7 +1063,8 @@ class xsuiteLattice(frameworkLattice):
             t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
-            payload, zstart=zstart, s=s, ref_index=self.ref_idx, t_reference=t_reference
+            payload, zstart=zstart, s=s, ref_index=self.ref_idx,
+            t_reference=t_reference, context=self.context,
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)

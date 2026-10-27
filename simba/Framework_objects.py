@@ -2886,7 +2886,8 @@ class frameworkLattice(BaseModel):
         -------
         dict
             Any of ``tune_x_total``, ``tune_y_total``, ``chromaticity_x``,
-            ``chromaticity_y``; empty if the code reports none.
+            ``chromaticity_y`` and, for a code whose one-turn map cannot be rescaled,
+            ``momentum_compaction``; empty if the code reports none.
         """
         return {}
 
@@ -2951,7 +2952,8 @@ class frameworkLattice(BaseModel):
         Tune and periodic Twiss from the one-turn map, plus momentum compaction from its canonical form.
 
         Also merges :attr:`optics_summary` and :attr:`closed_orbit`. Chromaticity
-        needs more than one map, so comes only from the code's own summary.
+        needs more than one map, so comes only from the code's own summary, as does
+        the momentum compaction of a code whose map cannot be rescaled (elegant).
 
         Returns
         -------
@@ -2990,17 +2992,21 @@ class frameworkLattice(BaseModel):
             for e in self.elements.values()
             if getattr(e, "physical", None) is not None
         )
+        try:
+            betagamma = float(np.mean(self.global_parameters["beam"].BetaGamma))
+            gamma0 = math.sqrt(1.0 + betagamma**2)
+        except (KeyError, TypeError, AttributeError, ValueError):
+            gamma0 = None
         if canonical is not None and circumference:
             result["slip_factor"] = slip_factor(canonical, circumference)
-            try:
-                betagamma = float(np.mean(self.global_parameters["beam"].BetaGamma))
-                gamma0 = math.sqrt(1.0 + betagamma**2)
-            except (KeyError, TypeError, AttributeError, ValueError):
-                gamma0 = None
             if gamma0:
                 result["momentum_compaction"] = momentum_compaction(
                     canonical, circumference, gamma0
                 )
+        elif gamma0 and "momentum_compaction" in result:
+            # a code whose map cannot be rescaled (elegant's path length) reports its
+            # own momentum compaction; the slip factor follows from it
+            result["slip_factor"] = result["momentum_compaction"] - 1.0 / gamma0**2
         return result
 
     def check_one_turn_map(self, tolerance: float = 1e-3) -> None:

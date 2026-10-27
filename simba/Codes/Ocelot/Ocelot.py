@@ -485,7 +485,14 @@ class ocelotLattice(frameworkLattice):
             summary["chromaticity_x"] = float(chrom_x)
             summary["chromaticity_y"] = float(chrom_y)
         except Exception as error:
-            warn(f"Ocelot chromaticity unavailable for {self.objectname}: {error}")
+            reason = (
+                "Ocelot's chromaticity() cannot multiply a Twiss by the second-order maps "
+                "(SecondTM) the lattice is tracked with, and first-order maps would give "
+                "the natural chromaticity without the sextupoles"
+                if "SecondTM" in str(error)
+                else str(error)
+            )
+            warn(f"Ocelot chromaticity unavailable for {self.objectname}: {reason}")
         return summary
 
     def read_one_turn_map(self):

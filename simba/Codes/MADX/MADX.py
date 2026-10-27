@@ -654,6 +654,46 @@ class madxLattice(frameworkLattice):
                 f"sequence={seqname};"
             )
 
+    def slices(self, name: str) -> int:
+        """
+        ``MAKETHIN`` slices for one kind of element: ``tracking: {nslice_quadrupole: 16}``
+        (also ``nslice_sbend``, ``nslice_sextupole``, ``nslice_solenoid``), else the
+        class default.
+
+        Parameters
+        ----------
+        name: str
+            The attribute, such as ``nslice_quadrupole``
+
+        Returns
+        -------
+        int
+        """
+        return int((self.file_block.get("tracking") or {}).get(name, getattr(self, name)))
+
+    def warn_if_coarsely_sliced(self) -> None:
+        """
+        Warn that periodic optics come from the sliced line, if few slices are used.
+
+        The periodic ``TWISS`` (tunes, chromaticity, one-turn map) runs on the line
+        :meth:`makethin` has sliced for tracking, so it carries the slicing error.
+        On the 561.6 m Diamond-I ring the default of 4 slices per quadrupole and
+        sextupole and 8 per bend shifted a tune by 0.010 and the momentum compaction
+        by 0.19 %; 16 slices left 5e-4 and 64 left 3e-5.
+        """
+        if not self.periodic:
+            return
+        counts = {k: self.slices(k) for k in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole")}
+        if min(counts.values()) >= 16:
+            return
+        warn(
+            f"Line '{self.objectname}': MAD-X periodic optics (tunes, chromaticity, "
+            f"one-turn map) come from the line sliced for tracking ({counts}), so they "
+            "carry the slicing error, which can reach 0.01 in a tune. It falls as the "
+            "slice count rises; set e.g. tracking: {nslice_quadrupole: 16, "
+            "nslice_sbend: 16, nslice_sextupole: 16}, or compare with another code."
+        )
+
     def makethin(self, madx: Any, seqname: str) -> None:
         """
         ``MAKETHIN`` the segment sequence for thin tracking and re-``USE`` it.
@@ -663,11 +703,11 @@ class madxLattice(frameworkLattice):
             f"""
             select, flag=makethin, clear;
             select, flag=makethin, class=matrix, slice=0;
-            select, flag=makethin, class=quadrupole, slice={self.nslice_quadrupole};
-            select, flag=makethin, class=sbend, slice={self.nslice_sbend};
-            select, flag=makethin, class=rbend, slice={self.nslice_sbend};
-            select, flag=makethin, class=sextupole, slice={self.nslice_sextupole};
-            select, flag=makethin, class=solenoid, slice={self.nslice_solenoid};
+            select, flag=makethin, class=quadrupole, slice={self.slices('nslice_quadrupole')};
+            select, flag=makethin, class=sbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=rbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=sextupole, slice={self.slices('nslice_sextupole')};
+            select, flag=makethin, class=solenoid, slice={self.slices('nslice_solenoid')};
             select, flag=makethin, class=rfcavity, slice=1;
             makethin, sequence={seqname}, style={self.makethin_style}, makedipedge={madedge};
             use, sequence={seqname};
@@ -1220,6 +1260,7 @@ class madxLattice(frameworkLattice):
         self.sector_maps = []
         self.model_twiss_orbit = None
         self._thin_sequences = set()
+        self.warn_if_coarsely_sliced()
         madx = self.start_madx()
         self._madx = madx
         try:
