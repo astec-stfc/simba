@@ -1,7 +1,6 @@
 """OPAL beam generator."""
 import os
 import subprocess
-import numpy as np
 from typing import Any, Dict
 from warnings import warn
 
@@ -124,12 +123,7 @@ class OPALGenerator(frameworkGenerator):
             fall_time = self.plateau_fall_time or rise_time
             dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: rise_time})
             dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: fall_time})
-            sigma_rise = rise_time / 1.6869
-            sigma_fall = fall_time / 1.6869
-            tpulsefwhm = self.plateau_bunch_length + np.sqrt(2 * np.log(2)) * (
-                sigma_rise + sigma_fall
-            )
-            dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: tpulsefwhm})
+            dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: self.plateau_bunch_length})
         else:
             if not self.sigma_t > 0:
                 raise ValueError("sigma_t must be defined for flattop longitudinal distribution")

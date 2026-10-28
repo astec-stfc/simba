@@ -84,6 +84,8 @@ def interpret_madx_data(self, lattice_name, fdat):
                 values = np.full(nrows, "")
         elif key in fdat:
             values = np.array(fdat[key], dtype=float)
+        elif param.dtype != "f":
+            continue  # e.g. turn: no other code's reader fills it, so zeros would leave it ragged
         else:
             values = np.zeros(nrows)
         param.val = np.append(param.val, values)

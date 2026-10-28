@@ -267,3 +267,23 @@ def test_variable_chicane_set_angle_is_idempotent(clara):
     clara.groupObjects["bunch_compressor"].set_angle(0.1185)
     again = [clara.elementObjects[f"CLA-VBC-MAG-DIP-0{i}"].physical.length for i in range(1, 5)]
     assert first == pytest.approx(again)
+
+
+@pytest.mark.parametrize("tw_focusing, model", [(None, "TW1"), (True, "TW1"), (False, "SRS")])
+def test_tw_focusing_from_def_reaches_elegant(tmp_path, tw_focusing, model):
+    """`tw_focusing` in a .def file block switches the TravellingWave body-focus model."""
+    import os
+    ml = os.environ.get("JFEL_MASTER_LATTICE", os.path.expanduser("~/Documents/laura-lattices-gh/JFEL/"))
+    if not os.path.isdir(ml):
+        pytest.skip("JFEL master lattice not available")
+    f = sfw.Framework(directory=str(tmp_path), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="/jfel.yaml")
+    f.loadSettings("Lattices/jfel_combined.def")
+    block = dict(f.latticeObjects["Linac"].file_block, code="elegant")
+    if tw_focusing is not None:
+        block["tw_focusing"] = tw_focusing
+    f.read_Lattice("Linac", block)
+    lattice = f.latticeObjects["Linac"]
+    assert lattice.tw_focusing is (tw_focusing is not False)
+    lte = lattice.section.to_elegant()
+    assert f"body_focus_model = {model}" in lte

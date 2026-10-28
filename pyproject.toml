@@ -40,7 +40,7 @@ dependencies = [
     "numexpr",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "laura-accelerator>=1.0.3",
+    "laura-accelerator>=1.0.4",
     "pytao>=1.0.0",
     "nafflib",
 ]

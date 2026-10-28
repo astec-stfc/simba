@@ -7,10 +7,12 @@ from ...Framework_objects import frameworkLattice, getGrids
 from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
+from ...Modules.rf_focusing import tw1_focusing_matrix
 from .cavitymaps import stable_cavity_maps
 from .latticefile import fast_lattice_files
 from copy import deepcopy
 from inspect import signature
+import numpy as np
 from numpy import array, linspace, save, interp, searchsorted, clip, pi, sqrt
 import os
 from yaml import safe_load
@@ -28,6 +30,32 @@ if TYPE_CHECKING:
     from ocelot.cpbd.navi import Navigator
     from ocelot.cpbd.physics_proc import BeamTransform
     from ocelot.cpbd.sc import LSC, SpaceCharge
+
+
+def _sw_focusing_matrix(
+    volt: float, phi: float, length: float, energy: float, m0: float
+) -> np.ndarray:
+    """
+    Reproduce Ocelot's own ``CavityAtom`` standing-wave (``eta = 1``)
+    Rosenzweig-Serafini transverse matrix exactly (see ``cavity_R_z`` in
+    ocelot's ``cpbd/elements/cavity_atom.py``), so that
+    :meth:`~ocelotLattice.add_tw1_focusing` can compute a corrective matrix
+    that cancels it out. ``phi`` uses the same convention as
+    :func:`~simba.Modules.rf_focusing.tw1_focusing_matrix`
+    (``de = volt * sin(phi)``).
+    """
+    cos_phi = np.sin(phi)  # RS-native phase = pi/2 - phi (see rs_matrix_cavity)
+    de = volt * np.sin(phi)
+    Ei = energy / m0
+    Ef = (energy + de) / m0
+    Ep = (Ef - Ei) / length if length else 0.0
+    alpha = np.sqrt(1.0 / 8.0) / cos_phi * np.log(Ef / Ei)
+    sin_a, cos_a = np.sin(alpha), np.cos(alpha)
+    r11 = cos_a - np.sqrt(2.0) * cos_phi * sin_a
+    r12 = np.sqrt(8.0) * Ei / Ep * cos_phi * sin_a if abs(Ep) > 1e-10 else length
+    r21 = -Ep / Ef * (cos_phi / np.sqrt(2.0) + np.sqrt(1.0 / 8.0) / cos_phi) * sin_a
+    r22 = Ei / Ef * (cos_a + np.sqrt(2.0) * cos_phi * sin_a)
+    return np.array([[r11, r12], [r21, r22]])
 
 
 class ocelotLattice(frameworkLattice):
@@ -230,8 +258,74 @@ class ocelotLattice(frameworkLattice):
         self.lat_obj = self.section.to_ocelot(
             save=True, Brho=self.rigidity(self.reference_p0c)
         )
+        if self.tw_focusing:
+            self.add_tw1_focusing()
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
+
+    def add_tw1_focusing(self) -> None:
+        """
+        Ocelot's own ``Cavity``/``CavityAtom`` only implements the
+        Rosenzweig-Serafini standing-wave matrix, which
+        over-predicts the real (much weaker) travelling-wave RF focusing;
+        see :func:`~simba.Modules.rf_focusing.tw1_focusing_matrix`.
+
+        For every TravellingWave cavity, insert a thin corrective
+        ``Matrix`` element immediately after it that cancels the
+        standing-wave matrix Ocelot will apply at
+        that cavity and replace it with the travelling-wave model.
+        """
+        from ocelot.cpbd.elements import Cavity, Matrix
+        from ocelot.cpbd.magnetic_lattice import MagneticLattice
+
+        m0 = self.rest_energy
+        design_energy = float(self.pin.E) * 1e9  # GeV -> eV
+        elements = self.elements
+
+        new_sequence = []
+        for elem in self.lat_obj.sequence:
+            new_sequence.append(elem)
+            if not isinstance(elem, Cavity) or elem.v == 0:
+                continue
+            volt = elem.v * 1e9  # GV -> eV
+            phi_ocelot = elem.phi * np.pi / 180.0  # Ocelot's own phi, in rad
+            de = volt * np.cos(phi_ocelot)
+            source = elements.get(elem.id)
+            is_tw = (
+                source is not None
+                and getattr(source, "hardware_type", "").lower() == "rfcavity"
+                and getattr(getattr(source, "cavity", None), "structure_type", None)
+                == "TravellingWave"
+            )
+            if is_tw and elem.l > 0:
+                # Ocelot's own phi convention (de = volt*cos(phi_ocelot)) maps
+                # onto tw1_focusing_matrix's (de = volt*sin(phi)) convention
+                # via phi = pi/2 - phi_ocelot.
+                phi = np.pi / 2.0 - phi_ocelot
+                sw = _sw_focusing_matrix(volt, phi, elem.l, design_energy, m0)
+                sim = getattr(source, "simulation", None)
+                m11, m12, m21, m22, _ = tw1_focusing_matrix(
+                    volt, elem.freq, phi, elem.l, design_energy, m0,
+                    canonical_rescale=False,
+                    end1_focus=bool(getattr(sim, "end1_focus", True)),
+                    end2_focus=bool(getattr(sim, "end2_focus", True)),
+                )
+                tw = np.array([[m11, m12], [m21, m22]])
+                correction = tw @ np.linalg.inv(sw)
+                new_sequence.append(
+                    Matrix(
+                        l=0.0,
+                        eid=f"{elem.id}_TW1",
+                        r11=correction[0, 0], r12=correction[0, 1],
+                        r21=correction[1, 0], r22=correction[1, 1],
+                        r33=correction[0, 0], r34=correction[0, 1],
+                        r43=correction[1, 0], r44=correction[1, 1],
+                        r55=1.0, r66=1.0,
+                    )
+                )
+            design_energy += de
+
+        self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
 
     def write(self) -> None:
         """
@@ -538,7 +632,7 @@ class ocelotLattice(frameworkLattice):
                     v += self.entrance_s
                 twsdat[k].append(v)
         svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
-        elems = self.createDrifts().values()
+        elems = self.create_drifts().values()
         zvals = [e.physical.end.z for e in elems]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
         elem_names = array([e.name for e in elems], dtype="U")
