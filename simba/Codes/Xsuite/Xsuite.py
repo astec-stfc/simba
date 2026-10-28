@@ -585,6 +585,29 @@ class xsuiteLattice(frameworkLattice):
         if bound:
             self.line.enable_time_dependent_vars = True
 
+    def native_rf_slip(self, frequency, s, pass_length, beta0) -> np.ndarray:
+        """
+        Re-phased every pass, but newer Xtrack times a ramped reference by the
+        ``EnergyProgram`` clock, not its own speed: it reaches each pass late by
+        ``tau``, and the cavity sees ``-2 pi f tau``.
+        """
+        from ...Modules.EnergyRamp import wrap_phase
+
+        slip = super().native_rf_slip(frequency, s, pass_length, beta0)
+        try:
+            from xtrack.track_flags import flag_mapping
+        except ImportError:
+            return slip
+        clock = self.ramp_clock(pass_length)
+        if clock is None or "XS_FLAG_USE_TIME_BASED_ZETA_UPDATE" not in flag_mapping:
+            return slip
+        beta0 = np.asarray(beta0, dtype=float)
+        late = np.diff(clock.times)[: len(beta0) - 1] - pass_length / (
+            beta0[:-1] * speed_of_light
+        )
+        tau = np.concatenate(([0.0], np.cumsum(late)))
+        return wrap_phase(slip - 2 * np.pi * frequency * tau)
+
     def bind_rf_phases(self) -> None:
         """
         Bind each cavity's ``lag`` to a per-pass staircase in ``t_turn_s``.

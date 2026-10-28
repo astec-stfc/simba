@@ -362,9 +362,10 @@ Where a code needs time rather than turn number, turn :math:`n` starts at
 .. math::
 
    t_1 = 0, \qquad
-   t_{n+1} = t_n + \frac{C}{c\,\tfrac12\left(\beta_0(n) + \beta_0(n+1)\right)}
+   t_{n+1} = t_n + \frac{C}{c}\,\frac{E_0(n) + E_0(n+1)}{p_0c(n) + p_0c(n+1)}
 
-with :math:`C` the length of one pass. The mid-point is Xsuite's own convention.
+with :math:`C` the length of one pass: exact for momentum linear in time across
+the pass, as Xsuite's own clock.
 Written with one knot per pass, it puts Xsuite on integer turns exactly. A
 :ref:`device program <device-programs>` in a ramped run is timed on the same
 clock.

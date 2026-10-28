@@ -31,10 +31,10 @@ The model every backend implements:
 starts at::
 
     t(1) = 0
-    t(n + 1) = t(n) + C / (c * (beta0(n) + beta0(n + 1)) / 2)
+    t(n + 1) = t(n) + C / c * (E0(n) + E0(n + 1)) / (p0c(n) + p0c(n + 1))
 
-with ``C`` the length of one pass. This mid-point rule is Xsuite's
-``EnergyProgram.get_t_s_at_turn``.
+with ``C`` the length of one pass: exact for momentum linear in time across
+the pass, as Xsuite's ``EnergyProgram.get_t_s_at_turn``.
 
 **The RF.** How a cavity keeps time from pass to pass is its own setting,
 ``tracking: {rf: follow | fixed}``; see :func:`rf_phase_slip`. A cavity off
@@ -65,7 +65,7 @@ def rf_phase_slip(mode, frequency, s, pass_length, beta0) -> np.ndarray:
 
     * ``fixed``: a free-running oscillator. The reference reaches ``s`` on pass
       ``j`` at ``T_j = sum_{k < j} C / (beta0_k c) + s / (beta0_j c)`` (each
-      pass at its own speed, not :class:`RampClock`'s mid-point), so the slip
+      pass at its own speed, not :class:`RampClock`'s linear ramp), so the slip
       is ``f (T_j - T_0)`` cycles.
     * ``follow``: frequency ``f beta0_k / beta0_0`` on pass ``k``, so every pass
       is ``h = f C / (beta0_0 c)`` cycles and the slip is ``j h``.
@@ -364,10 +364,12 @@ class EnergyRamp:
         RampClock
             Callable from turn number to seconds.
         """
-        beta = beta_from_p0c(
-            self.p0c_per_pass(turns, rest_energy, passes_per_turn), rest_energy
+        p0c = self.p0c_per_pass(turns, rest_energy, passes_per_turn)
+        energy = np.hypot(p0c, rest_energy)
+        steps = (
+            pass_length / SPEED_OF_LIGHT
+            * (energy[1:] + energy[:-1]) / (p0c[1:] + p0c[:-1])
         )
-        steps = pass_length / (SPEED_OF_LIGHT * 0.5 * (beta[1:] + beta[:-1]))
         return RampClock(
             times=np.concatenate(([0.0], np.cumsum(steps))),
             passes_per_turn=passes_per_turn,

@@ -1441,8 +1441,7 @@ class frameworkLattice(BaseModel):
             s = 0.5 * (s_in[name] + s_out[name])
             args = (float(frequency), s, self.pass_length, beta0)
             correction = wrap_phase(
-                rf_phase_slip(self.rf_mode, *args)
-                - rf_phase_slip(self.native_rf or "synchronous", *args)
+                rf_phase_slip(self.rf_mode, *args) - self.native_rf_slip(*args)
             )
             if np.max(np.abs(correction)) > 1e-4:
                 corrections[name] = correction
@@ -1452,6 +1451,12 @@ class frameworkLattice(BaseModel):
             ))
             return {}
         return corrections
+
+    def native_rf_slip(self, frequency, s, pass_length, beta0) -> np.ndarray:
+        """The phase this code's own RF slips by; :func:`~simba.Modules.EnergyRamp.rf_phase_slip` of :attr:`native_rf`."""
+        return rf_phase_slip(
+            self.native_rf or "synchronous", frequency, s, pass_length, beta0
+        )
 
     def cavity_phase(self, name: str) -> float | None:
         """

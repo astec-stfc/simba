@@ -51,7 +51,7 @@ def test_off_the_harmonic_follow_slips_by_the_fraction_each_pass():
 
 
 def test_fixed_times_the_reference_as_it_travels():
-    """Each pass at its own speed: the ramp clock's mid-point put elegant
+    """Each pass at its own speed: the ramp clock's linear ramp put elegant
     4 eV out on the first ramped turn."""
     beta = np.array([0.990, 0.991, 0.993])
     s = 1.7
@@ -137,6 +137,7 @@ class FakeLine:
     live_cavities = frameworkLattice.live_cavities
     cavity_voltage = staticmethod(frameworkLattice.cavity_voltage)
     rf_phase_corrections = frameworkLattice.rf_phase_corrections
+    native_rf_slip = frameworkLattice.native_rf_slip
 
 
 def test_follow_is_the_default():
