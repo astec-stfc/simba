@@ -468,11 +468,9 @@ class ocelotLattice(frameworkLattice):
 
     def read_optics_summary(self) -> dict:
         """
-        Ocelot keeps the phase advance on the Twiss objects and computes
-        chromaticity separately, from the periodic solution.
+        Ocelot keeps the phase advance on the Twiss objects; chromaticity comes
+        from :meth:`chromaticity`.
         """
-        from ocelot.cpbd.chromaticity import chromaticity
-
         periodic = self._ocelot_periodic()
         if not periodic:
             return {}
@@ -481,19 +479,38 @@ class ocelotLattice(frameworkLattice):
             "tune_y_total": float(periodic[-1].muy) / (2 * pi),
         }
         try:
-            chrom_x, chrom_y = chromaticity(self.lat_obj, periodic[0])[:2]
-            summary["chromaticity_x"] = float(chrom_x)
-            summary["chromaticity_y"] = float(chrom_y)
+            summary["chromaticity_x"], summary["chromaticity_y"] = self.chromaticity()
         except Exception as error:
-            reason = (
-                "Ocelot's chromaticity() cannot multiply a Twiss by the second-order maps "
-                "(SecondTM) the lattice is tracked with, and first-order maps would give "
-                "the natural chromaticity without the sextupoles"
-                if "SecondTM" in str(error)
-                else str(error)
-            )
-            warn(f"Ocelot chromaticity unavailable for {self.objectname}: {reason}")
+            warn(f"Ocelot chromaticity unavailable for {self.objectname}: {error}")
         return summary
+
+    def chromaticity(self, step: float = 1e-4) -> tuple:
+        """
+        ``(xi_x, xi_y)`` per unit ``dp/p``, by central difference of the tunes at
+        ``p = +-step``, each from the second-order one-turn map linearised about
+        its closed orbit there.
+        """
+        from numpy import einsum, eye, zeros
+        from numpy.linalg import solve
+        from ...Modules.Matrices import fractional_tune
+
+        R = self.read_one_turn_map()
+        B, T = self.lat_obj.B.ravel(), self.lat_obj.T
+        tunes = []
+        for p in (step, -step):
+            X = zeros(6)
+            X[5] = p
+            for _ in range(5):  # Newton on the transverse closed orbit
+                J = R + 2 * einsum("ijk,k->ij", T, X)
+                residual = B + R @ X + einsum("ijk,j,k->i", T, X, X) - X
+                X[:4] -= solve(J[:4, :4] - eye(4), residual[:4])
+            J = R + 2 * einsum("ijk,k->ij", T, X)
+            tunes.append([fractional_tune(J, plane) for plane in "xy"])
+        beta0 = self.reference_p0c / self.reference_energy
+        return tuple(
+            float(beta0 * ((up - down + 0.5) % 1 - 0.5) / (2 * step))
+            for up, down in zip(*tunes)
+        )
 
     def read_one_turn_map(self):
         """

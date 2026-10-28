@@ -53,11 +53,13 @@ def xsuite_ring():
 
 
 @cache
-def ocelot_ring():
+def ocelot_ring(second_order=False):
+    """First-order maps unless ``second_order``, which is how LAURA builds it."""
     oc = pytest.importorskip("ocelot.cpbd.elements")
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
     from ocelot.cpbd.optics import lattice_transfer_map
     from ocelot.cpbd.optics import twiss as ocelot_twiss
+    from ocelot.cpbd.transformations.second_order import SecondTM
 
     cell = []
     for _ in range(NCELL):
@@ -69,7 +71,7 @@ def ocelot_ring():
             oc.Quadrupole(l=QUAD_L, k1=-QUAD_K1),
             oc.Drift(l=DRIFT_L),
         ]
-    lattice = MagneticLattice(cell)
+    lattice = MagneticLattice(cell, method={"global": SecondTM} if second_order else None)
     e_tot_gev = math.sqrt(PC**2 + MC2**2) / 1e9
     matrix = np.asarray(lattice_transfer_map(lattice, e_tot_gev))
     return matrix, ocelot_twiss(lattice, tws0=None), lattice
@@ -281,6 +283,23 @@ def test_ocelot_horizontal_chromaticity_is_the_outlier():
     ocelot_x = float(chromaticity(lattice, periodic[0])[0])
     assert ocelot_x == pytest.approx(-1.16126, rel=1e-4)
     assert abs(ocelot_x / float(tw.dqx) - 1) > 0.3
+
+
+def test_simbas_ocelot_chromaticity_matches_madx():
+    """Differencing Ocelot's second-order one-turn map, not its analytic chromaticity()."""
+    import types
+
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    _, summ = madx_ring()
+    _, _, lattice = ocelot_ring(second_order=True)
+    ring = types.SimpleNamespace(
+        lat_obj=lattice, reference_p0c=PC, reference_energy=math.hypot(PC, MC2)
+    )
+    ring.read_one_turn_map = lambda: ocelotLattice.read_one_turn_map(ring)
+    xi_x, xi_y = ocelotLattice.chromaticity(ring)
+    assert xi_x == pytest.approx(float(summ["dq1"][-1]), rel=1e-5)
+    assert xi_y == pytest.approx(float(summ["dq2"][-1]), rel=1e-5)
 
 
 def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():

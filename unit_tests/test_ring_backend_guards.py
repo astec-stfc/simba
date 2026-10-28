@@ -137,27 +137,22 @@ def test_an_open_line_does_not_warn():
         MadxStub(periodic=False).warn_if_coarsely_sliced()
 
 
-# -- Ocelot: why there is no chromaticity -------------------------------------------
+# -- Ocelot: a failed chromaticity keeps the tunes -----------------------------------
 
 
 class OcelotStub:
     read_optics_summary = ocelotLattice.read_optics_summary
     objectname = "RING"
-    lat_obj = None
 
     def _ocelot_periodic(self):
         return [types.SimpleNamespace(mux=2 * 3.141592653589793 * 1.25, muy=2 * 3.141592653589793 * 0.5)]
 
+    def chromaticity(self):
+        raise ValueError("off-momentum map is unstable")
 
-def test_the_ocelot_chromaticity_warning_says_why(monkeypatch):
-    pytest.importorskip("ocelot")
-    import ocelot.cpbd.chromaticity as chromaticity
 
-    def refuse(*args, **kwargs):
-        raise TypeError("unsupported operand type(s) for *: 'SecondTM' and 'Twiss'")
-
-    monkeypatch.setattr(chromaticity, "chromaticity", refuse)
-    with pytest.warns(UserWarning, match="natural chromaticity without the sextupoles"):
+def test_a_failed_ocelot_chromaticity_warns_and_keeps_the_tunes():
+    with pytest.warns(UserWarning, match="off-momentum map is unstable"):
         summary = OcelotStub().read_optics_summary()
     assert summary["tune_x_total"] == pytest.approx(1.25)
     assert "chromaticity_x" not in summary
