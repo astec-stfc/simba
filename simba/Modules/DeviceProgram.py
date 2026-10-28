@@ -25,7 +25,9 @@ states it; ``parameter:`` instead sets the named code attribute verbatim.
 
 The default rule is ``hold``, which those devices want and no code offers, so
 SIMBA implements it. Outside the listed turns the value is clamped to the
-first or last knot, so a pulse that comes back down needs a final knot at zero.
+first or last knot, so a pulse that comes back down needs a final knot at zero,
+and one that starts later needs a first knot at zero (elegant alone does not fire
+before its first knot).
 """
 
 from __future__ import annotations

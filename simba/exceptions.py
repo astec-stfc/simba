@@ -133,6 +133,18 @@ class ProgramHeldWarning(SettingWarning):
         )
 
 
+class ProgramEarlyWarning(SettingWarning):
+    """A program whose first knot, after turn 1, is not zero."""
+
+    def __init__(self, line: str, element: str, first_turn: int, value: float):
+        super().__init__(
+            f"{_line(line)} programs '{element}' from turn {first_turn} at "
+            f"{value:.4g}, which most codes apply from turn 1 (elegant does not "
+            f"fire until turn {first_turn}). Add a knot at turn 1 if it should "
+            "start elsewhere."
+        )
+
+
 class ProgramMissingElementWarning(SettingWarning):
     """A program for an element the code's lattice does not have."""
 

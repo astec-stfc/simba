@@ -895,8 +895,12 @@ class frameworkLattice(BaseModel):
         ))
 
     def check_programs_fit(self) -> None:
-        """Warn about knots past the last turn, or a non-zero last knot held for the rest of the run."""
+        """Warn about knots past the last turn, or a non-zero first or last knot held beyond it."""
         for program in self.programs:
+            if program.first_turn > 1 and program.values[0]:
+                warn(exceptions.ProgramEarlyWarning(
+                    self.objectname, program.element, program.first_turn, program.values[0]
+                ))
             if program.last_turn > self.turns:
                 warn(exceptions.ProgramOverrunWarning(
                     self.objectname, program.element, program.last_turn, self.turns

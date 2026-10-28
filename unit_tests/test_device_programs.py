@@ -221,6 +221,18 @@ def test_a_program_left_switched_on_warns():
         line.check_programs_fit()
 
 
+def test_a_program_starting_switched_on_warns():
+    """It would fire from turn 1 in every code but elegant."""
+    line = FakeLine(
+        {
+            "turns": 10,
+            "programs": [{"element": "K", "turns": [4, 5], "values": [1.0e-3, 0.0]}],
+        }
+    )
+    with pytest.warns(UserWarning, match="apply from turn 1"):
+        line.check_programs_fit()
+
+
 def test_a_pulse_that_comes_back_down_is_quiet(recwarn):
     line = FakeLine({"turns": 1000, "programs": [{"element": "K", **PULSE}]})
     line.check_programs_fit()
