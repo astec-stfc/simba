@@ -1103,7 +1103,6 @@ class elegantLattice(frameworkLattice):
         command = self.executables[self.code] + [self.objectname + ".ele"]
         workdir = os.path.abspath(self.global_parameters["master_subdir"])
         command = self.executables.build_command(command, workdir)
-        returncode = 0
         logfile = os.path.join(workdir, self.objectname + ".log")
         if self.remote_setup:
             super().run_remote()

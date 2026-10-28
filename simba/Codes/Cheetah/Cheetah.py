@@ -125,8 +125,7 @@ class cheetahLattice(frameworkLattice):
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_openpmd()
-        beam = self.global_parameters["beam"]
-        self.reference_start = (beam.t.val.mean(), float(self.pin.s), beam.centroids.mean_cp.val)
+        self.reference_start = (self.reference_t0, float(self.pin.s), self.reference_p0c)
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
         """
@@ -176,14 +175,14 @@ class cheetahLattice(frameworkLattice):
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
-        try:
-            z = self.elementObjects[name].physical.middle.z
-        except KeyError:
-            z = self.elementObjects[name.replace('_', "-")].physical.middle.z
+        if name == self.end:
+            zstart = self.endObject.physical.end.z
+        else:
+            zstart = self.elementObjects[name].physical.start.z
         rbf_cheetah.interpret_cheetah_ParticleBeam(
             beam,
             scr,
-            zstart=z,
+            zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
             start=self.reference_start,

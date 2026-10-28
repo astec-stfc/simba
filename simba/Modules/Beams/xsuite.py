@@ -92,10 +92,12 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_refer
     self._beam.y = UnitValue(alive("y"), units="m")
 
     lag = -alive("zeta") / (alive("beta0") * constants.speed_of_light)
+    if t_reference is None and start is not None:
+        # open line: the reference's time of flight from start = (t0, s0, p0)
+        t_reference = reference_time(s, float(alive("p0c")[0]), float(particles.mass0), start)
     if t_reference is None:
         t_reference = alive("s") / constants.speed_of_light
-    t_ref = reference_time(particles.s, particles.p0c[0], particles.mass0, start)
-    self._beam.t = UnitValue(t_ref + lag, units="s")
+    self._beam.t = UnitValue(t_reference + lag, units="s")
     p0c = alive("p0c")
     p_total = p0c * (1 + alive("delta"))
     cpx = alive("px") * p0c
@@ -139,7 +141,7 @@ def write_xsuite_beam_file(
     x = self.x.val
     y = self.y.val
     beta0 = p0c / np.sqrt(p0c**2 + mass0**2)
-    zeta = -(self.t.val - np.mean(self.t.val)) * constants.speed_of_light * p0c / np.hypot(p0c, mass0)
+    zeta = -(self.t.val - t0) * beta0 * constants.speed_of_light
     px = self.cpx.val / p0c
     py = self.cpy.val / p0c
     delta = self.cp.val / p0c - 1

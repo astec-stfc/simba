@@ -383,8 +383,7 @@ class ocelotLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
-        beam = self.global_parameters["beam"]
-        self.reference_start = (beam.t.val.mean(), self.entrance_s, beam.centroids.mean_cp.val)
+        self.reference_start = (self.reference_t0, self.entrance_s, self.reference_p0c)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -653,13 +652,11 @@ class ocelotLattice(frameworkLattice):
                 twsdat[k].append(v)
         elements = list(self.create_drifts().values())
         shift = np.cumsum([STEP_BACK_GAP - e.physical.length if e.physical.length < 0 else 0.0 for e in elements])
-        svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
-        elems = self.create_drifts().values()
-        zvals = [e.physical.end.z for e in elems]
+        # Ocelot tracks a step back as a short forward drift, so its s runs ahead by shift
+        svals = array(self.getSValues(at_entrance=False)) + shift + twsdat["s"][0]
+        zvals = [e.physical.end.z for e in elements]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
-        elem_names = array(
-            [e.name for e in self.create_drifts().values()], dtype="U"
-        )
+        elem_names = array([e.name for e in elements], dtype="U")
         if len(elem_names):
             idx = clip(
                 searchsorted(svals, twsdat["s"], side="left"),

@@ -4,6 +4,7 @@ from simba.Codes.Generators import (
     GPTGenerator,
     OPALGenerator,
 )
+import os
 import numpy as np
 import pytest
 
@@ -153,7 +154,6 @@ def test_gpt_generator_write(gpt_generator, tmp_path):
     gpt_generator.cathode = False
     with pytest.raises(NotImplementedError):
         gpt_generator.write()
-    os.remove(f"{os.path.dirname(os.path.abspath(__file__))}/generator.in")
 
 @pytest.mark.parametrize("species, sign", [("proton", 1), ("positrons", 1), ("electron", -1)])
 def test_species_sets_instance_mass_and_sign(species, sign):

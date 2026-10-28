@@ -371,7 +371,7 @@ class madxLattice(frameworkLattice):
                 elif d.hardware_type.lower() == "drift" and d.physical.length < 0:
                     entrance = at - d.physical.length / 2.0
                     L = d.physical.length - STEP_BACK_GAP
-                    bg2 = (self._design_energy / self.particle_rest_energy_eV) ** 2 - 1
+                    bg2 = (self._design_energy / self.rest_energy) ** 2 - 1
                     estr = (
                         f"{sanitize_string(name)}_gap: drift, l = {STEP_BACK_GAP}, "
                         f"at = {entrance + STEP_BACK_GAP / 2.0};\n"
@@ -618,7 +618,7 @@ class madxLattice(frameworkLattice):
         tuple
             (MAD-X definitions string, energy at the exit of the cavity [eV])
         """
-        m0 = self.particle_rest_energy_eV
+        m0 = self.rest_energy
         if ":=" in cavstring or energy <= m0:
             if energy <= m0:
                 warn(

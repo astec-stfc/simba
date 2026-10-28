@@ -454,8 +454,7 @@ class xsuiteLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
-        beam = self.global_parameters["beam"]
-        self.reference_start = (beam.t.val.mean(), self.start_s, beam.centroids.mean_cp.val)
+        self.reference_start = (self.reference_t0, self.entrance_s, self.reference_p0c)
         self.hdf5_to_json(prefix)
         mode = self.space_charge_mode
         if mode not in self.space_charge_modes_off + ("3d",):
@@ -1038,10 +1037,8 @@ class xsuiteLattice(frameworkLattice):
         # Anchor s to the lattice entrance (not the incoming beam's accumulated s),
         # as every code does.
         df["s"] += self.entrance_s
-        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
         df["z"] = self.getZAtS(df["s"])
-        df["z"] = np.interp(df["s"], svals, zvals)
         if self.beam_data:
-            for k in self.beam_data[list(self.beam_data.keys())[0]].keys():
+            for k in next(iter(self.beam_data.values())):
                 df[k] = [x[k] for x in self.beam_data.values()]
         df.to_csv(f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.csv')

@@ -329,6 +329,7 @@ def test_ocelot_overlap_becomes_inverse_drift(tmp_path):
 
     lattice = _jfel_linac(tmp_path, "ocelot", 0.04)
     lattice.pin = types.SimpleNamespace(E=0.25)  # GeV; only the step-back's R56 needs it
+    lattice._input_reference = {"cp": 0.25e9}  # eV; the magnets' Brho, as preProcess sets it
     lattice.writeElements()
     seq = lattice.lat_obj.sequence
     assert all(e.l >= 0 for e in seq)
