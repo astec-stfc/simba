@@ -453,6 +453,11 @@ class bmadLattice(frameworkLattice):
             if turn < program.first_turn:
                 design = self.tao.ele_gen_attribs(name, which="design", raises=False)
                 before = (design or {}).get(attribute.upper())
+                if before is None:
+                    warn(
+                        f"Line '{self.objectname}': Tao has no design {attribute} for "
+                        f"'{program.element}', so turn {turn} takes the first knot's value."
+                    )
             self.tao.cmd(
                 f"set element {name} {attribute} = {program.value_at(turn, before)}",
                 raises=False,

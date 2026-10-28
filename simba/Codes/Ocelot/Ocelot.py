@@ -3,13 +3,14 @@
 .. _Ocelot: https://github.com/ocelot-collab/ocelot
 """
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice, getGrids
 from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from ...Modules.rf_focusing import tw1_focusing_matrix
 from .bendmaps import transport_bend_maps
-from .cavitymaps import stable_cavity_maps
+from .cavitymaps import stable_cavity_maps, turn_map_with_cavity_drifts
 from .latticefile import fast_lattice_files
 from copy import deepcopy
 from inspect import signature
@@ -257,9 +258,10 @@ class ocelotLattice(frameworkLattice):
         stable_cavity_maps()
         transport_bend_maps()
         fast_lattice_files()
-        self.lat_obj = self.section.to_ocelot(
-            save=True, Brho=self.rigidity(self.reference_p0c)
-        )
+        with exceptions.one_edge_order_warning(self.objectname):
+            self.lat_obj = self.section.to_ocelot(
+                save=True, Brho=self.rigidity(self.reference_p0c)
+            )
         if self.tw_focusing:
             self.add_tw1_focusing()
         self._periodic = None
@@ -596,8 +598,8 @@ class ocelotLattice(frameworkLattice):
         from numpy.linalg import solve
         from ...Modules.Matrices import fractional_tune
 
-        R = self.read_one_turn_map()
-        B, T = self.lat_obj.B.ravel(), self.lat_obj.T
+        B, R, T = turn_map_with_cavity_drifts(self.lat_obj, self.reference_energy / 1e9)
+        B = B.ravel()
         tunes = []
         for p in (step, -step):
             X = zeros(6)

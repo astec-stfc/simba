@@ -23,6 +23,7 @@ import math
 import numpy as np
 from yaml import safe_load
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
@@ -312,6 +313,10 @@ class madxLattice(frameworkLattice):
         str
             The full MAD-X lattice
         """
+        with exceptions.one_edge_order_warning(self.objectname):
+            return self._write_elements()
+
+    def _write_elements(self) -> str:
         self.segmentElements()
         self.seqstrings = []
         self.segment_alignment = {}
@@ -1421,7 +1426,7 @@ class madxLattice(frameworkLattice):
             variable = self.program_variable(program)
             if attribute.lower() in ("knl", "ksl"):
                 # the program is the dipole order; keep the rest as they are
-                lattice, *higher = list(getattr(element, attribute.lower()))
+                lattice, *higher = list(getattr(element, attribute.lower())) or [0.0]
                 expression = "{" + ", ".join(
                     [variable] + [repr(float(value)) for value in higher]
                 ) + "}"

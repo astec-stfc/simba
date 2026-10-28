@@ -297,6 +297,7 @@ COMBINED_FUNCTION = (("k1", -0.03), ("k2", 2.0), ("e1", 0.05), ("e2", 0.05))
         ((), 1e-5),
         # Ocelot's default maps put xi_y 3 % out; without the exit edge's
         # -k1 tan(e), 7e-4. What is left (8e-5) needs k2 and edges together.
+        # TRANSPORT for every element is right too, but loses ELEGANT on a ramp.
         (COMBINED_FUNCTION, 2e-4),
     ],
 )
@@ -313,10 +314,28 @@ def test_simbas_ocelot_chromaticity_matches_madx(bend, rel):
     ring = types.SimpleNamespace(
         lat_obj=lattice, reference_p0c=PC, reference_energy=math.hypot(PC, MC2)
     )
-    ring.read_one_turn_map = lambda: ocelotLattice.read_one_turn_map(ring)
     xi_x, xi_y = ocelotLattice.chromaticity(ring)
     assert xi_x == pytest.approx(float(summ["dq1"][-1]), rel=rel)
     assert xi_y == pytest.approx(float(summ["dq2"][-1]), rel=rel)
+
+
+def test_an_ocelot_cavity_is_at_least_a_drift_to_second_order():
+    """Its ``CavityTM`` has no ``T``; the booster's cavities put xi_x 6 % out."""
+    import ocelot.cpbd.elements as oc
+    from ocelot.cpbd.magnetic_lattice import MagneticLattice
+    from ocelot.cpbd.transformations.second_order import SecondTM
+
+    from simba.Codes.Ocelot.cavitymaps import turn_map_with_cavity_drifts
+
+    def lattice(gap):
+        return MagneticLattice(
+            [oc.Quadrupole(l=QUAD_L, k1=QUAD_K1), gap], method={"global": SecondTM}
+        )
+
+    cavity = turn_map_with_cavity_drifts(lattice(oc.Cavity(l=1.8, phi=90.0)), 1.0)
+    drift = lattice(oc.Drift(l=1.8)).transfer_maps(1.0)
+    for a, b in zip(cavity, drift):
+        np.testing.assert_allclose(a, b, atol=1e-12)
 
 
 def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():

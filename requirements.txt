@@ -31,7 +31,7 @@ pyfftw
 paramiko
 numexpr
 Wake-T>=0.8.0
-laura-accelerator
+laura-accelerator>=1.1.0
 cpymad>=1.19.0
 sympy
 nafflib

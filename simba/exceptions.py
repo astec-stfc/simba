@@ -17,7 +17,10 @@ Errors are :class:`SimbaError` and also the built-in error they always were,
 so ``except ValueError`` still catches :class:`WrongSpeciesError`.
 """
 
+import contextlib
 import math
+import re
+import warnings
 
 import numpy as np
 
@@ -392,6 +395,40 @@ class RigidityMismatchWarning(PhysicsWarning):
             f"pass {start} states a momentum of {stated:.4g} eV/c "
             f"({expected:.4f} T.m)."
         )
+
+
+class EdgeOrderWarning(UnsupportedWarning):
+    """Bends asking for first-order edges, in a code that always models second."""
+
+    def __init__(self, line: str, code: str, bends: list):
+        super().__init__(
+            f"{_line(line)} has {len(bends)} bends with edge_order = 1 (e.g. "
+            f"{bends[0]}), but {code} always models the second-order edge terms, "
+            "so they will not match the other codes."
+        )
+
+
+@contextlib.contextmanager
+def one_edge_order_warning(line: str):
+    """Gather LAURA's per-bend edge_order warnings into one :class:`EdgeOrderWarning`."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        yield
+    bends, code = [], None
+    for w in caught:
+        match = _EDGE_ORDER.match(str(w.message))
+        if match:
+            bends.append(match["bend"])
+            code = match["code"]
+        else:
+            warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+    if bends:
+        warnings.warn(EdgeOrderWarning(line, code, bends), stacklevel=3)
+
+
+_EDGE_ORDER = re.compile(
+    r"(?P<bend>.+): edge_order = 1, but (?P<code>.+) always models the second-order"
+)
 
 
 class SpaceChargeModeWarning(UnsupportedWarning):

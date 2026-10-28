@@ -937,6 +937,12 @@ class TestBmad:
         line.apply_programs(2)
         assert line.tao.commands == ["set element KICK1 kick = 0.0002"]
 
+    def test_a_missing_design_value_says_so(self):
+        line = FakeBmad({"programs": [{"element": "KICK1", **LATE}]})
+        with pytest.warns(UserWarning, match="no design bl_hkick"):
+            line.apply_programs(2)
+        assert line.tao.commands == ["set element KICK1 bl_hkick = 0.001"]
+
     def test_the_quiet_turns_are_set_too(self):
         """Tao holds whatever it was last given."""
         line = self.line()
