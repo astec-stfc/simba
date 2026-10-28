@@ -98,7 +98,7 @@ def test_a_stable_rf_keeps_the_6d_solution():
         assert ring._twiss_now() == "6d"
 
 
-# -- MAD-X: slices behind the periodic optics --------------------------------------
+# -- MAD-X: slices behind the tracked line --------------------------------------------
 
 
 class MadxStub:
@@ -118,9 +118,9 @@ def test_slice_counts_can_be_set_in_the_tracking_block():
     assert ring.slices("nslice_sbend") == 8
 
 
-def test_default_slicing_warns_that_periodic_optics_carry_the_error():
+def test_default_slicing_warns_that_tracking_carries_the_error():
     """4 slices shifted a Diamond-I tune by 0.010; 64 left 3e-5."""
-    with pytest.warns(UserWarning, match="slicing error"):
+    with pytest.warns(UserWarning, match="thick periodic optics"):
         MadxStub().warn_if_coarsely_sliced()
 
 

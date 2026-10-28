@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 import simba.Framework as fw
-from helpers import fodo_machine, read_beam, skip_missing
+from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
 from laura.models.element import Dipole, Quadrupole, Solenoid
 from simba.Codes.Generators import frameworkGenerator
 
@@ -124,6 +124,51 @@ def test_madx_slices_follow_a_bends_arc(tmp_path, seed_beam, error):
 
     got, want = effect("madx"), effect("xsuite")
     assert np.abs(got - want).max() < 0.1 * np.abs(want).max()
+
+
+def madx_ring_optics(tmp_path, slices, seed_beam):
+    """``(optics summary, closed orbit)`` of a one-cell FODO ring with a
+    misaligned quadrupole, from MAD-X slicing quadrupoles ``slices`` times."""
+    skip_missing("madx")
+    error = {"position": {"x": 1e-3}, "rotation": {"theta": 1e-3}}
+    quads = fodo_quads()
+    for quad, k1l in zip(quads, (-0.5, 0.5)):
+        quad.magnetic.k1l = k1l
+    quads[0].physical.error = error
+    machine, _, section = fodo_machine(tmp_path, closed=True, middle=quads)
+    settings = fw.FrameworkSettings()
+    settings.files = {
+        "FODO": {
+            "code": "madx",
+            "charge": {"space_charge_mode": "False"},
+            "input": {},
+            "output": {"start_element": "M1", "end_element": "M3"},
+            "tracking": {"periodic": True, "turns": 1, "nslice_quadrupole": slices},
+        }
+    }
+    settings.layout = machine.layout
+    settings.section = section
+    settings.element_list = f"{tmp_path}/lattice"
+    framework = fw.Framework(
+        machine=machine, directory=str(tmp_path), clean=True, verbose=False
+    )
+    framework.loadSettings(settings=settings)
+    shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    framework.track()
+    ring = framework.latticeObjects["FODO"]
+    return ring.read_optics_summary(), ring.read_closed_orbit()
+
+
+def test_madx_periodic_optics_come_from_the_thick_ring(tmp_path, seed_beam):
+    """The periodic TWISS ran on the line sliced for tracking, so 4 slices put
+    a Diamond-I tune 0.010 out; on the thick sequence, misaligned through its
+    own EALIGN, the slicing no longer reaches the optics or the orbit."""
+    coarse, coarse_orbit = madx_ring_optics(tmp_path / "1", 1, seed_beam)
+    fine, fine_orbit = madx_ring_optics(tmp_path / "64", 64, seed_beam)
+
+    assert coarse == pytest.approx(fine, rel=1e-9)
+    assert abs(coarse_orbit[0]) > 1e-5, "the error must move the orbit"
+    assert coarse_orbit == pytest.approx(fine_orbit, abs=1e-12)
 
 
 def close(final, expected, rtol):

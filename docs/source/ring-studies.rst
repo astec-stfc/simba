@@ -126,12 +126,12 @@ converted (its longitudinal coordinate is path length), so it reports the
 :math:`\alpha_c - 1/\gamma^2`.
 
 .. note::
-   **MAD-X's periodic optics carry the slicing error.** MAD-X tracks a line sliced by
-   ``MAKETHIN`` and the periodic ``TWISS`` runs on that line. With the default 4 slices
-   per quadrupole and sextupole and 8 per bend, a tune of the 561.6 m Diamond-I ring
-   came out 0.010 low and its momentum compaction 0.19 % high; 16 slices left 5e-4
-   and 64 left 3e-5. The slice counts are set in the ``tracking`` block, and SIMBA
-   warns when a periodic run uses fewer than 16:
+   **MAD-X tracks a sliced line, but its optics are thick.** The periodic ``TWISS``
+   (tunes, chromaticity, one-turn map) runs on the thick sequence, misalignments
+   included, before ``MAKETHIN`` slices it for tracking. The tracked line keeps the
+   slicing error. The slice counts
+   are set in the ``tracking`` block, and SIMBA warns when a periodic run uses fewer
+   than 16:
 
    .. code-block:: yaml
 
