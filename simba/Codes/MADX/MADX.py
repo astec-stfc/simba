@@ -1381,9 +1381,9 @@ class madxLattice(frameworkLattice):
         if madx is None:
             return
         for program in self.programs:
-            madx.input(
-                f"{self.program_variable(program)} = {float(program.value_at(turn))!r};"
-            )
+            variable = self.program_variable(program)
+            before = madx.globals.get(f"{variable}_lattice")
+            madx.input(f"{variable} = {float(program.value_at(turn, before))!r};")
 
     def bind_programs(self, madx: Any, segnames: List) -> None:
         """
@@ -1421,12 +1421,17 @@ class madxLattice(frameworkLattice):
             variable = self.program_variable(program)
             if attribute.lower() in ("knl", "ksl"):
                 # the program is the dipole order; keep the rest as they are
-                higher = list(getattr(element, attribute.lower()))[1:]
+                lattice, *higher = list(getattr(element, attribute.lower()))
                 expression = "{" + ", ".join(
                     [variable] + [repr(float(value)) for value in higher]
                 ) + "}"
             else:
+                lattice = getattr(element, attribute.lower(), 0.0)
                 expression = variable
+            # apply_programs holds the element here until the first knot, but
+            # set turn 1 now: its apply_programs ran before this segment existed
+            madx.input(f"{variable}_lattice = {float(lattice)!r};")
+            madx.input(f"{variable} = {float(program.value_at(1, lattice))!r};")
             madx.input(f"{name}, {attribute}:={expression};")
 
     def check_programs_present(self) -> None:

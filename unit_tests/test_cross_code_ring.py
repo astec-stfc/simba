@@ -53,8 +53,9 @@ def xsuite_ring():
 
 
 @cache
-def ocelot_ring(second_order=False):
-    """First-order maps unless ``second_order``, which is how LAURA builds it."""
+def ocelot_ring(second_order=False, bend=()):
+    """First-order maps unless ``second_order``, which is how LAURA builds it.
+    ``bend`` is extra ``(name, value)`` pairs for every SBend."""
     oc = pytest.importorskip("ocelot.cpbd.elements")
     from ocelot.cpbd.magnetic_lattice import MagneticLattice
     from ocelot.cpbd.optics import lattice_transfer_map
@@ -66,7 +67,7 @@ def ocelot_ring(second_order=False):
         cell += [
             oc.Quadrupole(l=QUAD_L, k1=QUAD_K1),
             oc.Drift(l=DRIFT_L),
-            oc.SBend(l=BEND_L, angle=ANGLE),
+            oc.SBend(l=BEND_L, angle=ANGLE, **dict(bend)),
             oc.Drift(l=DRIFT_L),
             oc.Quadrupole(l=QUAD_L, k1=-QUAD_K1),
             oc.Drift(l=DRIFT_L),
@@ -78,7 +79,7 @@ def ocelot_ring(second_order=False):
 
 
 @cache
-def madx_ring():
+def madx_ring(bend=()):
     madx_module = pytest.importorskip("cpymad.madx")
     madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
     cell_l = 2 * QUAD_L + BEND_L + 3 * DRIFT_L
@@ -88,7 +89,9 @@ def madx_ring():
         body.append(f"qf{i}: quadrupole, at={s + QUAD_L / 2}, l={QUAD_L}, k1={QUAD_K1};")
         body.append(
             f"b{i}: sbend, at={s + QUAD_L + DRIFT_L + BEND_L / 2}, "
-            f"l={BEND_L}, angle={ANGLE};"
+            f"l={BEND_L}, angle={ANGLE}"
+            + "".join(f", {name}={value}" for name, value in bend)
+            + ";"
         )
         body.append(
             f"qd{i}: quadrupole, "
@@ -285,21 +288,35 @@ def test_ocelot_horizontal_chromaticity_is_the_outlier():
     assert abs(ocelot_x / float(tw.dqx) - 1) > 0.3
 
 
-def test_simbas_ocelot_chromaticity_matches_madx():
+COMBINED_FUNCTION = (("k1", -0.03), ("k2", 2.0), ("e1", 0.05), ("e2", 0.05))
+
+
+@pytest.mark.parametrize(
+    "bend, rel",
+    [
+        ((), 1e-5),
+        # Ocelot's default maps put xi_y 3 % out; without the exit edge's
+        # -k1 tan(e), 7e-4. What is left (8e-5) needs k2 and edges together.
+        (COMBINED_FUNCTION, 2e-4),
+    ],
+)
+def test_simbas_ocelot_chromaticity_matches_madx(bend, rel):
     """Differencing Ocelot's second-order one-turn map, not its analytic chromaticity()."""
     import types
 
+    from simba.Codes.Ocelot.bendmaps import transport_bend_maps
     from simba.Codes.Ocelot.Ocelot import ocelotLattice
 
-    _, summ = madx_ring()
-    _, _, lattice = ocelot_ring(second_order=True)
+    transport_bend_maps()  # as ocelotLattice.writeElements does
+    _, summ = madx_ring(bend)
+    _, _, lattice = ocelot_ring(second_order=True, bend=bend)
     ring = types.SimpleNamespace(
         lat_obj=lattice, reference_p0c=PC, reference_energy=math.hypot(PC, MC2)
     )
     ring.read_one_turn_map = lambda: ocelotLattice.read_one_turn_map(ring)
     xi_x, xi_y = ocelotLattice.chromaticity(ring)
-    assert xi_x == pytest.approx(float(summ["dq1"][-1]), rel=1e-5)
-    assert xi_y == pytest.approx(float(summ["dq2"][-1]), rel=1e-5)
+    assert xi_x == pytest.approx(float(summ["dq1"][-1]), rel=rel)
+    assert xi_y == pytest.approx(float(summ["dq2"][-1]), rel=rel)
 
 
 def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
@@ -312,6 +329,7 @@ def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
     class FakeOcelot:
         read_optics_summary = ocelotLattice.read_optics_summary
         _ocelot_periodic = ocelotLattice._ocelot_periodic
+        read_one_turn_map = ocelotLattice.read_one_turn_map
         objectname = "ring"
         lat_obj = lattice
         _periodic = None

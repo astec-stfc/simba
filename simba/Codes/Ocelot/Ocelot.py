@@ -8,6 +8,7 @@ from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from ...Modules.rf_focusing import tw1_focusing_matrix
+from .bendmaps import transport_bend_maps
 from .cavitymaps import stable_cavity_maps
 from .latticefile import fast_lattice_files
 from copy import deepcopy
@@ -254,6 +255,7 @@ class ocelotLattice(frameworkLattice):
         Build the Ocelot lattice and set :attr:`lat_obj` and :attr:`names`.
         """
         stable_cavity_maps()
+        transport_bend_maps()
         fast_lattice_files()
         self.lat_obj = self.section.to_ocelot(
             save=True, Brho=self.rigidity(self.reference_p0c)
@@ -377,7 +379,6 @@ class ocelotLattice(frameworkLattice):
             if not matches:
                 self.program_attribute(program, None)
                 continue
-            value = program.value_at(turn)
             for element in matches:
                 attribute = program.parameter or "angle"
                 if attribute not in ("dx", "dy", "tilt") and (
@@ -390,7 +391,10 @@ class ocelotLattice(frameworkLattice):
                         "'parameter:' in the program."
                     )
                     continue
-                setattr(element, attribute, value)
+                lattice = element.__dict__.setdefault(
+                    f"_simba_lattice_{attribute}", getattr(element, attribute)
+                )
+                setattr(element, attribute, program.value_at(turn, lattice))
 
     def _cavities(self, name: str) -> list:
         return [e for e in self.lat_obj.sequence if str(e.id) == name]
@@ -490,8 +494,9 @@ class ocelotLattice(frameworkLattice):
         """
         ``optics.twiss`` for the periodic solution, cached per run.
 
-        Seeded with a ``Twiss`` carrying the reference energy, since Ocelot refuses
-        ``tws0=None`` when the lattice has a cavity.
+        Seeded from the one-turn map with ``R66`` set to 1: Ocelot reads
+        ``R66 != 1`` as an energy gain and rescales the transverse map, but in a
+        ring it is the RF's synchrotron coupling.
 
         Returns
         -------
@@ -502,11 +507,14 @@ class ocelotLattice(frameworkLattice):
             return self._periodic
         stable_cavity_maps()
         from ocelot.cpbd.beam import Twiss
-        from ocelot.cpbd.optics import twiss as ocelot_twiss
+        from ocelot.cpbd.optics import periodic_twiss, twiss as ocelot_twiss
 
         tws0 = Twiss()
         tws0.E = self.reference_energy / 1e9
-        self._periodic = ocelot_twiss(self.lat_obj, tws0=tws0) or []
+        R = self.read_one_turn_map()
+        R[5, 5] = 1.0
+        tws0 = periodic_twiss(tws0, R)
+        self._periodic = (ocelot_twiss(self.lat_obj, tws0=tws0) or []) if tws0 is not None else []
         return self._periodic
 
     def _track_nturns(self, track_list, save_track: bool):

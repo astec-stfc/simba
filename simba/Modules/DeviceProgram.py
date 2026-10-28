@@ -24,10 +24,10 @@ Turns are 1-based, matching
 states it; ``parameter:`` instead sets the named code attribute verbatim.
 
 The default rule is ``hold``, which those devices want and no code offers, so
-SIMBA implements it. Outside the listed turns the value is clamped to the
-first or last knot, so a pulse that comes back down needs a final knot at zero,
-and one that starts later needs a first knot at zero (elegant alone does not fire
-before its first knot).
+SIMBA implements it. Before the first knot the element keeps its lattice value,
+as elegant's ``FIRE_ON_PASS`` does, and steps to the first knot's value on that
+turn. After the last knot the value is held, so a pulse that comes back down
+needs a final knot at zero.
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ class DeviceProgram:
         """
         return max(self.values, key=abs)
 
-    def value_at(self, turn: int) -> float:
+    def value_at(self, turn: int, before: float | None = None) -> float:
         """
         The programmed value on ``turn``.
 
@@ -182,12 +182,17 @@ class DeviceProgram:
         ----------
         turn: int
             Turn number, 1-based.
+        before: float | None
+            The value before the first knot: the element's lattice value. None
+            clamps to the first knot, as an energy ramp wants.
 
         Returns
         -------
         float
-            The value, clamped to the first or last knot outside the programmed range.
+            The value, clamped to the last knot after the programmed range.
         """
+        if turn < self.turns[0] and before is not None:
+            return before
         if turn <= self.turns[0]:
             return self.values[0]
         if turn >= self.turns[-1]:
@@ -223,12 +228,17 @@ class DeviceProgram:
             return lambda turn: np.interp(turn, self.turns, self.values)
         return CubicSpline(self.turns, self.values, bc_type="natural")
 
-    def linear_knots(self) -> tuple:
+    def linear_knots(self, before: float | None = None) -> tuple:
         """
         Knots whose *linear* interpolation reproduces this program exactly.
 
         Codes take programmed attributes as piecewise-linear samples; exact only
         at integer turns, the only place a tracked particle asks.
+
+        Parameters
+        ----------
+        before: float | None
+            As for :meth:`value_at`; stepped up from as a ``hold`` step is.
 
         Returns
         -------
@@ -236,6 +246,14 @@ class DeviceProgram:
             ``(turns, values)``, both lists of float; ``turns`` need not be
             integers, as a ``hold`` step is a riser between two of them.
         """
+        turns, values = self._linear_knots()
+        if before is not None and self.turns[0] > 1:
+            first = self.turns[0]
+            turns = [first - _HOLD_RISER[0], first - _HOLD_RISER[1]] + turns
+            values = [before, values[0]] + values
+        return (turns, values)
+
+    def _linear_knots(self) -> tuple:
         if self.interpolation == "linear":
             return ([float(t) for t in self.turns], list(self.values))
         if self.interpolation == "spline":
@@ -252,7 +270,8 @@ class DeviceProgram:
         return (turns, values)
 
     def time_knots(
-        self, revolution_period: float, origin_turn: int = 1, clock=None
+        self, revolution_period: float, origin_turn: int = 1, clock=None,
+        before: float | None = None,
     ) -> tuple:
         """
         :meth:`linear_knots` on a time axis, for the codes that have one.
@@ -268,13 +287,15 @@ class DeviceProgram:
         clock: :class:`~simba.Modules.EnergyRamp.RampClock` | None
             Seconds at the start of a turn, for a ramped run; replaces
             ``revolution_period`` when given.
+        before: float | None
+            As for :meth:`linear_knots`.
 
         Returns
         -------
         tuple
             ``(times, values)``, times in seconds.
         """
-        turns, values = self.linear_knots()
+        turns, values = self.linear_knots(before)
         if clock is not None:
             origin = clock(origin_turn)
             return ([clock(t) - origin for t in turns], values)

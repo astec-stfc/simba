@@ -448,9 +448,13 @@ class bmadLattice(frameworkLattice):
             attribute = self.program_attribute(program, etype)
             if attribute is None:
                 continue
+            name = sanitize_string(program.element)
+            before = None
+            if turn < program.first_turn:
+                design = self.tao.ele_gen_attribs(name, which="design", raises=False)
+                before = (design or {}).get(attribute.upper())
             self.tao.cmd(
-                f"set element {sanitize_string(program.element)} {attribute} = "
-                f"{program.value_at(turn)}",
+                f"set element {name} {attribute} = {program.value_at(turn, before)}",
                 raises=False,
             )
 

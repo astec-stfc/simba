@@ -268,10 +268,12 @@ on turn 2 and two thirds on turn 3 — before the kicker has fired at all. ``hol
 ``linear`` and ``spline`` are all available; ``hold`` is what a step device wants,
 so it is the default and is said out loud here.
 
-Outside the listed turns the value is **clamped** to the first or last knot, which
-is what every code's own interpolation does too, except that elegant does not fire
-before the first knot. A pulse that has to come back down therefore says so, with a
-final knot at zero; a slow bumper that stays on simply stops listing knots.
+**Before the first knot the element keeps its lattice value** and steps to the first
+knot's value on that turn, as elegant's ``FIRE_ON_PASS`` does; simba makes the other
+codes do the same. After the last knot the value is **held**. A pulse that has to
+come back down therefore says so, with a final knot at zero; a slow bumper that stays
+on simply stops listing knots. A program whose last value is non-zero while the run
+continues past it warns, as does a run that ends part-way through a program.
 
 An optional ``parameter:`` names the code-native attribute to set directly. That
 turns off both the plane lookup and the sign conversion, and is the escape hatch

@@ -18,6 +18,9 @@ from simba.Modules.DeviceProgram import DeviceProgram
 PULSE = {"turns": [1, 4, 5], "values": [0.0, 1.0e-3, 0.0]}
 """One turn of kick on turn 4, the shape both R19 devices have."""
 
+LATE = {"turns": [4, 5], "values": [1.0e-3, 0.0]}
+"""The same pulse with no knot before it, over an element the lattice sets to 2e-4."""
+
 LENGTH = 10.0
 """Ring circumference for the backend tests, in metres."""
 
@@ -147,14 +150,25 @@ def test_the_value_is_held_outside_the_programmed_turns():
     assert bumper.value_at(1000) == 1.0e-3
 
 
+def test_before_the_first_knot_the_lattice_value_stands():
+    """As elegant's FIRE_ON_PASS does; then it steps, whatever the rule."""
+    late = DeviceProgram(
+        element="K", turns=[4, 5], values=[1.0e-3, 0.0], interpolation="linear"
+    )
+    assert [late.value_at(t, before=2.0e-4) for t in (1, 3, 4)] == [2.0e-4, 2.0e-4, 1.0e-3]
+
+
+@pytest.mark.parametrize("before", (None, 2.0e-4))
 @pytest.mark.parametrize("rule", ("hold", "linear", "spline"))
-def test_linear_knots_reproduce_the_rule_at_every_turn(rule):
+def test_linear_knots_reproduce_the_rule_at_every_turn(rule, before):
     """Every code joins samples with straight lines, so the backends rest on this."""
-    programmed = program(interpolation=rule)
-    turns, values = programmed.linear_knots()
+    programmed = DeviceProgram(
+        element="K", turns=[3, 4, 6], values=[1.0e-3, 0.0, 5.0e-4], interpolation=rule
+    )
+    turns, values = programmed.linear_knots(before)
     for turn in range(1, 8):
         assert np.interp(turn, turns, values) == pytest.approx(
-            programmed.value_at(turn), abs=1e-15
+            programmed.value_at(turn, before), abs=1e-15
         )
 
 
@@ -221,16 +235,16 @@ def test_a_program_left_switched_on_warns():
         line.check_programs_fit()
 
 
-def test_a_program_starting_switched_on_warns():
-    """It would fire from turn 1 in every code but elegant."""
+def test_a_program_starting_switched_on_is_quiet(recwarn):
+    """Before its first knot the element keeps its lattice value, in every code."""
     line = FakeLine(
         {
             "turns": 10,
             "programs": [{"element": "K", "turns": [4, 5], "values": [1.0e-3, 0.0]}],
         }
     )
-    with pytest.warns(UserWarning, match="apply from turn 1"):
-        line.check_programs_fit()
+    line.check_programs_fit()
+    assert len(recwarn) == 0
 
 
 def test_a_pulse_that_comes_back_down_is_quiet(recwarn):
@@ -332,6 +346,14 @@ class TestXsuite:
     def test_a_positive_value_deflects_toward_positive_x(self):
         """``knl[0]`` negated; nothing downstream of a sign error looks wrong."""
         assert self.line().kicks()[4] > 0
+
+    def test_before_the_first_knot_the_lattice_value_stands(self):
+        xt = pytest.importorskip("xtrack")
+        line = FakeXsuite(
+            {"programs": [{"element": "KICK1", **LATE}]},
+            element=xt.Multipole(knl=[-2.0e-4], length=0.0),
+        )
+        assert np.diff(line.kicks())[:5] == pytest.approx([2e-4, 2e-4, 2e-4, 1e-3, 0.0])
 
     def test_an_element_simba_has_no_default_for_says_so(self):
         xt = pytest.importorskip("xtrack")
@@ -448,6 +470,19 @@ class TestOcelot:
     def test_a_positive_value_deflects_toward_positive_x(self):
         assert self.line().kicks()[3] > 0
 
+    def test_before_the_first_knot_the_lattice_value_stands(self):
+        """And comes back when ``end_turns`` restores turn 1."""
+        from ocelot.cpbd.elements import Hcor
+
+        line = FakeOcelot(
+            {"programs": [{"element": "KICK1", **LATE}]},
+            element=Hcor(l=0.0, angle=2.0e-4, eid="KICK1"),
+        )
+        px = line.kicks(turns=5)
+        assert np.diff([0.0, *px]) == pytest.approx([2e-4, 2e-4, 2e-4, 1e-3, 0.0])
+        line.apply_programs(1)
+        assert line.kicker.angle == pytest.approx(2.0e-4)
+
     def test_an_element_that_is_not_there_says_so(self):
         line = FakeOcelot({"programs": [{"element": "NOPE", **PULSE}]})
         with pytest.warns(UserWarning, match="not in the ocelot lattice"):
@@ -554,6 +589,16 @@ class TestMadx:
         line = self.line()
         try:
             assert line.kicks()[4] == pytest.approx(0.0)
+        finally:
+            line.close()
+
+    def test_before_the_first_knot_the_lattice_value_stands(self):
+        """Turn 1 too, though its ``apply_programs`` ran before the element existed."""
+        line = FakeMadx(
+            {"programs": [{"element": "KICK1", **LATE}]}, attributes=", KICK=2.0e-4"
+        )
+        try:
+            assert line.kicks(turns=5) == pytest.approx([2e-4, 2e-4, 2e-4, 1e-3, 0.0])
         finally:
             line.close()
 
@@ -824,6 +869,9 @@ class RecordingTao:
         self.commands.append(command)
         return []
 
+    def ele_gen_attribs(self, name, which="model", raises=True):
+        return {"KICK": 2.0e-4}
+
 
 class FakeBmad(FakeLine):
     """``bmadLattice.apply_programs``, which drives Tao by ``set element``."""
@@ -883,6 +931,11 @@ class TestBmad:
         line = self.line(hardware="corrector")
         line.apply_programs(4)
         assert line.tao.commands == ["set element KICK1 kick = 0.001"]
+
+    def test_before_the_first_knot_the_design_value_stands(self):
+        line = FakeBmad({"programs": [{"element": "KICK1", **LATE}]}, hardware="corrector")
+        line.apply_programs(2)
+        assert line.tao.commands == ["set element KICK1 kick = 0.0002"]
 
     def test_the_quiet_turns_are_set_too(self):
         """Tao holds whatever it was last given."""

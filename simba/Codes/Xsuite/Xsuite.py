@@ -562,15 +562,20 @@ class xsuiteLattice(frameworkLattice):
             if attribute is None:
                 continue
             sign = self.program_signs.get(attribute, 1.0) if not program.parameter else 1.0
-            times, values = program.time_knots(period, clock=clock)
+            *path, last = attribute.replace("]", "").split("[")
+            target = self.line.element_refs[program.element]
+            lattice = element
+            for piece in path:
+                target = target[int(piece)] if piece.isdigit() else getattr(target, piece)
+                lattice = lattice[int(piece)] if piece.isdigit() else getattr(lattice, piece)
+            lattice = lattice[int(last)] if last.isdigit() else getattr(lattice, last)
+            times, values = program.time_knots(
+                period, clock=clock, before=sign * float(lattice)
+            )
             name = f"{program.element}_simba_program"
             self.line.functions[name] = xt.FunctionPieceWiseLinear(
                 x=times, y=[sign * value for value in values]
             )
-            target = self.line.element_refs[program.element]
-            *path, last = attribute.replace("]", "").split("[")
-            for piece in path:
-                target = target[int(piece)] if piece.isdigit() else getattr(target, piece)
             expression = self.line.functions[name](self.line.vars["t_turn_s"])
             if last.isdigit():
                 target[int(last)] = expression
