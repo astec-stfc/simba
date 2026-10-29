@@ -18,6 +18,10 @@ It provides a wrapper for several well-known particle tracking codes:
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
+* `MAD-X <https://mad.web.cern.ch/mad/>`_
+* `Bmad <https://www.classe.cornell.edu/bmad/>`_
+* `OPAL <https://amas.web.psi.ch/opal/>`_
+* `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
 
 Setup
 -----
@@ -31,6 +35,7 @@ Setup
    installation
    getting-started
    loading-a-lattice
+   ring-studies
    SimCodes
    
 
@@ -64,6 +69,7 @@ We are also happy to help with installation and setting up your accelerator latt
    Framework
    Framework_objects
    Framework_elements
+   simba
    simba.Codes
    simba.Modules
    
@@ -73,6 +79,8 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. _references:
 
 References
 ----------

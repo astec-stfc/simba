@@ -10,7 +10,7 @@ def read_hdf_summary(self, filename, reset=True):
     xemit = f.get("Xemit")
     yemit = f.get("Yemit")
     zemit = f.get("Zemit")
-    for item, params in sorted(xemit.items()):
+    for item, _ in sorted(xemit.items()):
         self.interpret_astra_data(
             np.array(xemit.get(item)),
             np.array(yemit.get(item)),
@@ -32,10 +32,10 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
                 [
                     (
                         self[k]
-                        if not k == "element_name" and not k == "lattice_name"
+                        if k != "element_name" and k != "lattice_name"
                         else np.array(self[k], dtype="S")
                     )
-                    for k in self.properties.keys()
+                    for k in self.properties
                     if len(self[k]) > 0
                 ]
             ).transpose()
@@ -46,16 +46,37 @@ def write_HDF5_twiss_file(self, filename, sourcefilename=None, version=2):
                 if len(getattr(self, name).val) > 0:
                     array = (
                         getattr(self, name).val
-                        if not name == "element_name" and not name == "lattice_name"
+                        if name != "element_name" and name != "lattice_name"
                         else np.array(getattr(self, name).val, dtype="S")
                     )
                     dataset = twissgrp.create_dataset(name, data=array)
                     dataset.attrs.create("Units", str(unit.unit))
 
 
+def twiss_file_version(h5file) -> str:
+    """
+    Format version of a Twiss HDF5 file.
+
+    Parameters
+    ----------
+    h5file: h5py.File
+        Open Twiss file
+
+    Returns
+    -------
+    str
+        Version string, or ``"1"`` for a file too old to carry one
+    """
+    dataset = h5file.get("Parameters/Version")
+    if dataset is None:
+        return "1"
+    value = dataset[()]
+    return value.decode() if isinstance(value, bytes) else str(value)
+
+
 def read_HDF5_twiss_file(self, filename):
     with h5py.File(filename, "r") as h5file:
-        if not hasattr(h5file, "version") or h5file["Version"] < "2":
+        if twiss_file_version(h5file) < "2":
             cols = list(h5file.get("twiss/columns").asstr())
             twiss = np.array(h5file.get("twiss/twiss")).transpose()
             units = list(h5file.get("twiss/units").asstr())
@@ -63,7 +84,7 @@ def read_HDF5_twiss_file(self, filename):
                 setattr(self, c, UnitValue(v, units=u, dtype=self.properties[c].dtype))
                 for c, v, u in zip(cols, twiss, units)
             ]
-        elif h5file["Version"] == "2":
+        else:
             for name, data in h5file["twiss"].items():
                 setattr(
                     self,
