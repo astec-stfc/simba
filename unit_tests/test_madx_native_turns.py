@@ -8,7 +8,8 @@ import pytest
 
 import simba.Framework as fw
 import simba.Modules.Beams as rbf
-from helpers import fodo_machine, read_beam
+from helpers import fodo_machine, fodo_quads, read_beam
+from laura.models.element import RFCavity
 from simba.Codes.Generators import frameworkGenerator
 from simba.Codes.MADX.MADX import madxLattice
 
@@ -35,8 +36,10 @@ def seed_beam(tmp_path_factory):
     return os.path.join(str(directory), "M1.openpmd.hdf5")
 
 
-def _build(tmp_path, tracking, seed_beam, cavity=False, closed=False):
-    machine, names, section = fodo_machine(tmp_path, cavity=cavity, closed=closed)
+def _build(tmp_path, tracking, seed_beam, cavity=False, closed=False, middle=None):
+    machine, names, section = fodo_machine(
+        tmp_path, cavity=cavity, closed=closed, middle=middle
+    )
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
@@ -128,8 +131,19 @@ def test_the_turns_are_actually_different(tmp_path, seed_beam):
     assert not np.allclose(first, last)
 
 
+def _cavity_between_the_quads():
+    """A thin CAV1 at 2 m: a cavity at the end of a line has nothing after it
+    to split off, as MAD-X refuses a zero-length segment."""
+    focusing, defocusing = fodo_quads()
+    cavity = RFCavity(
+        name="CAV1", machine_area="FODO",
+        physical={"length": 0.0, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+    )
+    return [focusing, cavity, defocusing]
+
+
 def test_a_cavity_splits_a_line(tmp_path, seed_beam):
-    lattice = _lattice(tmp_path, {"turns": 1}, seed_beam, cavity=True)
+    lattice = _lattice(tmp_path, {"turns": 1}, seed_beam, middle=_cavity_between_the_quads())
     assert lattice.segment_at_cavities
     assert len(lattice.segments) == 2
 
@@ -197,7 +211,9 @@ def test_the_live_cavity_really_moves_the_centroid(tmp_path, seed_beam):
 
 def test_a_split_line_cannot(tmp_path, seed_beam):
     """A segment boundary hands back to Python, so the loop has to be there."""
-    lattice = _lattice(tmp_path, {"turns": TURNS}, seed_beam, cavity=True, closed=False)
+    lattice = _lattice(
+        tmp_path, {"turns": TURNS}, seed_beam, middle=_cavity_between_the_quads()
+    )
     assert len(lattice.segments) > 1
     assert not lattice.use_native_turns
 

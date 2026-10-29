@@ -268,3 +268,14 @@ def test_the_total_tune_comes_from_the_code_not_the_map():
     got = FakeRing(np.eye(6), summary={"tune_x_total": 1.93}).ring_parameters()
     assert got["tune_x_total"] == 1.93
     assert got["tune_x"] == pytest.approx(0.0)
+
+
+def test_a_code_that_reports_its_own_compaction_gets_a_slip_factor_from_it():
+    """elegant's path-length coordinate cannot be rescaled into a slip factor, but it
+    writes ``alphac``; the slip factor follows as alpha_c - 1/gamma^2."""
+    ring = FakeRing(np.eye(6), betagamma=5870.0, summary={"momentum_compaction": 5.657e-3})
+    ring.otm_longitudinal_scale = None
+    got = ring.ring_parameters()
+    gamma = math.sqrt(1.0 + 5870.0**2)
+    assert got["momentum_compaction"] == pytest.approx(5.657e-3)
+    assert got["slip_factor"] == pytest.approx(5.657e-3 - 1.0 / gamma**2)

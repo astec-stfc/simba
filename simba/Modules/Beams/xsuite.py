@@ -10,12 +10,20 @@ from .. import constants
 from ..units import UnitValue
 from ...FrameworkHelperFunctions import reference_time
 
-def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_reference=None, start=None):
+def read_xsuite_beam_file(
+    self, filename, zstart=0, s=0, ref_index=None, t_reference=None, start=None,
+    context=None,
+):
     """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
-    ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds."""
+    ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds.
+
+    ``context`` is the xobjects context to build the particles in; the lattice's,
+    so that a run held to the CPU does not make GPU particles. Default: the GPU if
+    ``cupy`` imports."""
     import xobjects as xo
     import xpart as xp
-    context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+    if context is None:
+        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
 
     def from_dict(payload):
         try:
@@ -122,12 +130,13 @@ def read_xsuite_beam_file(self, filename, zstart=0, s=0, ref_index=None, t_refer
 
 def write_xsuite_beam_file(
     self, filename: str = None, write: bool = True, s_start: float = 0,
-    p0c: float = None, t0: float = None,
+    p0c: float = None, t0: float = None, context=None,
 ):
-    """Save a json file for xsuite."""
+    """Save a json file for xsuite; ``context`` as for :func:`read_xsuite_beam_file`."""
     import xobjects as xo
     import xtrack as xt
-    context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+    if context is None:
+        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
 
     if filename is None:
         fn = os.path.splitext(self.filename)

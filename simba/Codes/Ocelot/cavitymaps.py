@@ -12,6 +12,34 @@ import numpy as np
 _PATCHED = False
 
 
+def turn_map_with_cavity_drifts(lattice, energy: float) -> tuple:
+    """
+    ``(B, R, T)`` as ``MagneticLattice.transfer_maps`` gives them, but with a drift's
+    ``T`` for each element tracked by its own map (a cavity's ``CavityTM``), which
+    Ocelot gives none.
+
+    Parameters
+    ----------
+    lattice: ocelot.cpbd.magnetic_lattice.MagneticLattice
+    energy: float
+        Reference energy, in GeV.
+    """
+    from ocelot.cpbd.high_order import t_nnn
+    from ocelot.cpbd.tm_utils import sym_matrix, transfer_maps_mult
+    from ocelot.cpbd.transformations.second_order import SecondTM
+
+    B, R, T = np.zeros((6, 1)), np.eye(6), np.zeros((6, 6, 6))
+    for element in lattice.sequence:
+        own = element._tm_class_type is not SecondTM
+        for Rb, Bb, Tb, tm in zip(element.R(energy), element.B(energy), element.T(energy), element.tms):
+            if own and tm.length:
+                # symmetric, as get_rotated_T gives every other element's
+                Tb = sym_matrix(t_nnn(tm.length, 0.0, 0.0, 0.0, energy))
+            B, R, T = transfer_maps_mult(B, R, T, Bb, Rb, Tb)
+            energy += tm.get_delta_e()
+    return B, R, T
+
+
 def _gain_ratios(g0: float, g1: float) -> tuple:
     """
     Ocelot's ``(g0 g1 (b0 b1 - 1) + 1) / (g0 - g1)^2`` and the ``T566``, ``T556`` and

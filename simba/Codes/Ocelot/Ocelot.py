@@ -3,14 +3,15 @@
 .. _Ocelot: https://github.com/ocelot-collab/ocelot
 """
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice, getGrids
 from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
-from ...Modules import constants
 from ...Modules.constants import speed_of_light
-from .cavitymaps import stable_cavity_maps
-from .latticefile import fast_lattice_files
 from ...Modules.rf_focusing import tw1_focusing_matrix
+from .bendmaps import transport_bend_maps
+from .cavitymaps import stable_cavity_maps, turn_map_with_cavity_drifts
+from .latticefile import fast_lattice_files
 from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
 from inspect import signature
@@ -256,10 +257,12 @@ class ocelotLattice(frameworkLattice):
         Build the Ocelot lattice and set :attr:`lat_obj` and :attr:`names`.
         """
         stable_cavity_maps()
+        transport_bend_maps()
         fast_lattice_files()
-        self.lat_obj = self.section.to_ocelot(
-            save=True, Brho=self.rigidity(self.reference_p0c)
-        )
+        with exceptions.one_edge_order_warning(self.objectname):
+            self.lat_obj = self.section.to_ocelot(
+                save=True, Brho=self.rigidity(self.reference_p0c)
+            )
         self.replace_negative_drifts()
         if self.tw_focusing:
             self.add_tw1_focusing()
@@ -277,7 +280,7 @@ class ocelotLattice(frameworkLattice):
 
         if not any(isinstance(e, Drift) and e.l < 0 for e in self.lat_obj.sequence):
             return
-        m0 = self.particle_rest_energy_eV
+        m0 = self.rest_energy
         design_energy = float(self.pin.E) * 1e9  # GeV -> eV
         new_sequence = []
         for elem in self.lat_obj.sequence:
@@ -295,16 +298,6 @@ class ocelotLattice(frameworkLattice):
             new_sequence.append(elem)
         self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
 
-    @property
-    def particle_rest_energy_eV(self) -> float:
-        """Rest energy of the tracked particles in eV"""
-        try:
-            return float(
-                np.mean(self.global_parameters["beam"].particle_rest_energy_eV.val)
-            )
-        except Exception:
-            return constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
-
     def add_tw1_focusing(self) -> None:
         """
         Ocelot's own ``Cavity``/``CavityAtom`` only implements the
@@ -320,7 +313,7 @@ class ocelotLattice(frameworkLattice):
         from ocelot.cpbd.elements import Cavity, Matrix
         from ocelot.cpbd.magnetic_lattice import MagneticLattice
 
-        m0 = self.particle_rest_energy_eV
+        m0 = self.rest_energy
         design_energy = float(self.pin.E) * 1e9  # GeV -> eV
         elements = self.elements
 
@@ -420,7 +413,6 @@ class ocelotLattice(frameworkLattice):
             if not matches:
                 self.program_attribute(program, None)
                 continue
-            value = program.value_at(turn)
             for element in matches:
                 attribute = program.parameter or "angle"
                 if attribute not in ("dx", "dy", "tilt") and (
@@ -433,7 +425,10 @@ class ocelotLattice(frameworkLattice):
                         "'parameter:' in the program."
                     )
                     continue
-                setattr(element, attribute, value)
+                lattice = element.__dict__.setdefault(
+                    f"_simba_lattice_{attribute}", getattr(element, attribute)
+                )
+                setattr(element, attribute, program.value_at(turn, lattice))
 
     def _cavities(self, name: str) -> list:
         return [e for e in self.lat_obj.sequence if str(e.id) == name]
@@ -533,8 +528,9 @@ class ocelotLattice(frameworkLattice):
         """
         ``optics.twiss`` for the periodic solution, cached per run.
 
-        Seeded with a ``Twiss`` carrying the reference energy, since Ocelot refuses
-        ``tws0=None`` when the lattice has a cavity.
+        Seeded from the one-turn map with ``R66`` set to 1: Ocelot reads
+        ``R66 != 1`` as an energy gain and rescales the transverse map, but in a
+        ring it is the RF's synchrotron coupling.
 
         Returns
         -------
@@ -545,11 +541,14 @@ class ocelotLattice(frameworkLattice):
             return self._periodic
         stable_cavity_maps()
         from ocelot.cpbd.beam import Twiss
-        from ocelot.cpbd.optics import twiss as ocelot_twiss
+        from ocelot.cpbd.optics import periodic_twiss, twiss as ocelot_twiss
 
         tws0 = Twiss()
         tws0.E = self.reference_energy / 1e9
-        self._periodic = ocelot_twiss(self.lat_obj, tws0=tws0) or []
+        R = self.read_one_turn_map()
+        R[5, 5] = 1.0
+        tws0 = periodic_twiss(tws0, R)
+        self._periodic = (ocelot_twiss(self.lat_obj, tws0=tws0) or []) if tws0 is not None else []
         return self._periodic
 
     def _track_nturns(self, track_list, save_track: bool):
@@ -605,11 +604,9 @@ class ocelotLattice(frameworkLattice):
 
     def read_optics_summary(self) -> dict:
         """
-        Ocelot keeps the phase advance on the Twiss objects and computes
-        chromaticity separately, from the periodic solution.
+        Ocelot keeps the phase advance on the Twiss objects; chromaticity comes
+        from :meth:`chromaticity`.
         """
-        from ocelot.cpbd.chromaticity import chromaticity
-
         periodic = self._ocelot_periodic()
         if not periodic:
             return {}
@@ -618,12 +615,38 @@ class ocelotLattice(frameworkLattice):
             "tune_y_total": float(periodic[-1].muy) / (2 * pi),
         }
         try:
-            chrom_x, chrom_y = chromaticity(self.lat_obj, periodic[0])[:2]
-            summary["chromaticity_x"] = float(chrom_x)
-            summary["chromaticity_y"] = float(chrom_y)
+            summary["chromaticity_x"], summary["chromaticity_y"] = self.chromaticity()
         except Exception as error:
             warn(f"Ocelot chromaticity unavailable for {self.objectname}: {error}")
         return summary
+
+    def chromaticity(self, step: float = 1e-4) -> tuple:
+        """
+        ``(xi_x, xi_y)`` per unit ``dp/p``, by central difference of the tunes at
+        ``p = +-step``, each from the second-order one-turn map linearised about
+        its closed orbit there.
+        """
+        from numpy import einsum, eye, zeros
+        from numpy.linalg import solve
+        from ...Modules.Matrices import fractional_tune
+
+        B, R, T = turn_map_with_cavity_drifts(self.lat_obj, self.reference_energy / 1e9)
+        B = B.ravel()
+        tunes = []
+        for p in (step, -step):
+            X = zeros(6)
+            X[5] = p
+            for _ in range(5):  # Newton on the transverse closed orbit
+                J = R + 2 * einsum("ijk,k->ij", T, X)
+                residual = B + R @ X + einsum("ijk,j,k->i", T, X, X) - X
+                X[:4] -= solve(J[:4, :4] - eye(4), residual[:4])
+            J = R + 2 * einsum("ijk,k->ij", T, X)
+            tunes.append([fractional_tune(J, plane) for plane in "xy"])
+        beta0 = self.reference_p0c / self.reference_energy
+        return tuple(
+            float(beta0 * ((up - down + 0.5) % 1 - 0.5) / (2 * step))
+            for up, down in zip(*tunes)
+        )
 
     def read_one_turn_map(self):
         """

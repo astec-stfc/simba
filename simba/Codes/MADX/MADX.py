@@ -23,6 +23,7 @@ import math
 import numpy as np
 from yaml import safe_load
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
@@ -219,7 +220,7 @@ class madxLattice(frameworkLattice):
     """Segment sequences already defined and sliced in the running MAD-X."""
 
     _alignment_text: Dict = None
-    """Per-slice ``EALIGN`` input by segment name, built once; see :meth:`apply_alignment`."""
+    """``EALIGN`` input by ``(segment name, thick)``, built once; see :meth:`apply_alignment`."""
 
     _observation_points: Dict = None
     """Cache of :meth:`observation_points` by segment; cleared by :meth:`segmentElements`."""
@@ -334,6 +335,10 @@ class madxLattice(frameworkLattice):
         str
             The full MAD-X lattice
         """
+        with exceptions.one_edge_order_warning(self.objectname):
+            return self._write_elements()
+
+    def _write_elements(self) -> str:
         self.segmentElements()
         self.seqstrings = []
         self.segment_alignment = {}
@@ -431,14 +436,16 @@ class madxLattice(frameworkLattice):
         madx.input(f"{self.rigidity_name(iseg)} = {self.rigidity(p0c)};")
         madx.input(self.seqstrings[iseg])
 
-    def apply_alignment(self, madx: Any, seqname: str) -> None:
+    def apply_alignment(self, madx: Any, seqname: str, thick: bool = False) -> None:
         """
         ``EALIGN`` each slice of a misaligned element at its body's offset
         and roll there, since ``MAKETHIN`` and every ``USE`` drop alignment
         errors. A thin slice cannot pitch, so that comes from the offsets
-        along it.
+        along it. With `thick`, each element of the unsliced sequence whole,
+        about its entrance, pitch included, for the optics before :meth:`makethin`.
         """
-        if seqname not in self._alignment_text:
+        key = (seqname, thick)
+        if key not in self._alignment_text:
             nodes = [
                 (e.name, e.at)
                 for e in madx.sequence[seqname].elements
@@ -448,7 +455,7 @@ class madxLattice(frameworkLattice):
             for name, centre, d in self.segment_alignment.get(seqname, []):
                 for node, at in nodes:
                     if node == name or node.startswith(f"{name}.."):
-                        terms = {
+                        terms = d.madx_alignment() if thick else {
                             k: v
                             for k, v in d.madx_alignment(at - centre).items()
                             if k in ("dx", "dy", "ds", "dpsi")
@@ -459,9 +466,9 @@ class madxLattice(frameworkLattice):
                                 f"select, flag=error, range={node};\n"
                                 f"ealign, {', '.join(f'{k} = {v}' for k, v in terms.items())};\n"
                             )
-            self._alignment_text[seqname] = text
-        if self._alignment_text[seqname]:
-            madx.input(self._alignment_text[seqname])
+            self._alignment_text[key] = text
+        if self._alignment_text[key]:
+            madx.input(self._alignment_text[key])
 
     def initial_energy(self) -> float:
         """
@@ -782,6 +789,45 @@ class madxLattice(frameworkLattice):
                 f"sequence={seqname};"
             )
 
+    def slices(self, name: str) -> int:
+        """
+        ``MAKETHIN`` slices for one kind of element: ``tracking: {nslice_quadrupole: 16}``
+        (also ``nslice_sbend``, ``nslice_sextupole``, ``nslice_solenoid``), else the
+        class default.
+
+        Parameters
+        ----------
+        name: str
+            The attribute, such as ``nslice_quadrupole``
+
+        Returns
+        -------
+        int
+        """
+        return int((self.file_block.get("tracking") or {}).get(name, getattr(self, name)))
+
+    def warn_if_coarsely_sliced(self) -> None:
+        """
+        Warn that a coarsely sliced ring tracks with other tunes than its optics.
+
+        The periodic ``TWISS`` (tunes, chromaticity, one-turn map) runs on the thick
+        sequence, but tracking runs on the line :meth:`makethin` slices. On the
+        561.6 m Diamond-I ring the default of 4 slices per quadrupole and sextupole
+        and 8 per bend shifted a tune by 0.010 and the momentum compaction by
+        0.19 %; 16 slices left 5e-4 and 64 left 3e-5.
+        """
+        if not self.periodic:
+            return
+        counts = {k: self.slices(k) for k in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole")}
+        if min(counts.values()) >= 16:
+            return
+        warn(
+            f"Line '{self.objectname}': MAD-X tracks a line sliced {counts}, whose "
+            "tunes can differ from the thick periodic optics by 0.01. It falls as the "
+            "slice count rises; set e.g. tracking: {nslice_quadrupole: 16, "
+            "nslice_sbend: 16, nslice_sextupole: 16}."
+        )
+
     def makethin(self, madx: Any, seqname: str) -> None:
         """
         ``MAKETHIN`` the segment sequence for thin tracking and re-``USE`` it.
@@ -791,11 +837,11 @@ class madxLattice(frameworkLattice):
             f"""
             select, flag=makethin, clear;
             select, flag=makethin, class=matrix, slice=0;
-            select, flag=makethin, class=quadrupole, slice={self.nslice_quadrupole};
-            select, flag=makethin, class=sbend, slice={self.nslice_sbend};
-            select, flag=makethin, class=rbend, slice={self.nslice_sbend};
-            select, flag=makethin, class=sextupole, slice={self.nslice_sextupole};
-            select, flag=makethin, class=solenoid, slice={self.nslice_solenoid};
+            select, flag=makethin, class=quadrupole, slice={self.slices('nslice_quadrupole')};
+            select, flag=makethin, class=sbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=rbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=sextupole, slice={self.slices('nslice_sextupole')};
+            select, flag=makethin, class=solenoid, slice={self.slices('nslice_solenoid')};
             select, flag=makethin, class=rfcavity, slice=1;
             makethin, sequence={seqname}, style={self.makethin_style}, makedipedge={madedge};
             use, sequence={seqname};
@@ -1348,6 +1394,7 @@ class madxLattice(frameworkLattice):
         self.sector_maps = []
         self.model_twiss_orbit = None
         self._thin_sequences = set()
+        self.warn_if_coarsely_sliced()
         madx = self.start_madx()
         self._madx = madx
         try:
@@ -1375,9 +1422,9 @@ class madxLattice(frameworkLattice):
         if madx is None:
             return
         for program in self.programs:
-            madx.input(
-                f"{self.program_variable(program)} = {float(program.value_at(turn))!r};"
-            )
+            variable = self.program_variable(program)
+            before = madx.globals.get(f"{variable}_lattice")
+            madx.input(f"{variable} = {float(program.value_at(turn, before))!r};")
 
     def bind_programs(self, madx: Any, segnames: List) -> None:
         """
@@ -1415,12 +1462,17 @@ class madxLattice(frameworkLattice):
             variable = self.program_variable(program)
             if attribute.lower() in ("knl", "ksl"):
                 # the program is the dipole order; keep the rest as they are
-                higher = list(getattr(element, attribute.lower()))[1:]
+                lattice, *higher = list(getattr(element, attribute.lower())) or [0.0]
                 expression = "{" + ", ".join(
                     [variable] + [repr(float(value)) for value in higher]
                 ) + "}"
             else:
+                lattice = getattr(element, attribute.lower(), 0.0)
                 expression = variable
+            # apply_programs holds the element here until the first knot, but
+            # set turn 1 now: its apply_programs ran before this segment existed
+            madx.input(f"{variable}_lattice = {float(lattice)!r};")
+            madx.input(f"{variable} = {float(program.value_at(1, lattice))!r};")
             madx.input(f"{name}, {attribute}:={expression};")
 
     def check_programs_present(self) -> None:
@@ -1577,12 +1629,13 @@ class madxLattice(frameworkLattice):
         self.input_segment(madx, 0, p0c)
         self.madx_beam_command(madx, p0c, seqname)
         madx.use(sequence=seqname)
-        self.makethin(madx, seqname)
-        self._thin_sequences.add(seqname)
         if self.write_model_twiss:
+            self.apply_alignment(madx, seqname, thick=True)
             self.model_twiss_segment(
                 madx, seqname, self.initial_twiss_conditions(current_beam)
             )
+        self.makethin(madx, seqname)
+        self._thin_sequences.add(seqname)
 
         passes = self.passes_per_turn
         total = self.turns * passes
@@ -1744,11 +1797,12 @@ class madxLattice(frameworkLattice):
                 self.bind_programs(madx, segnames)
                 self.madx_beam_command(madx, p0c, seqname)
                 madx.use(sequence=seqname)
+                # the first pass meets every segment unsliced
+                if self.write_model_twiss and pass_index == 0:
+                    self.apply_alignment(madx, seqname, thick=True)
+                    twiss_init = self.model_twiss_segment(madx, seqname, twiss_init)
                 self.makethin(madx, seqname)
                 self._thin_sequences.add(seqname)
-
-            if self.write_model_twiss and pass_index == 0:
-                twiss_init = self.model_twiss_segment(madx, seqname, twiss_init)
 
             if self.single_particle:
                 current_beam = self.track_segment_single_particle(

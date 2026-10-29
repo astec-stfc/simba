@@ -984,6 +984,7 @@ class elegantLattice(frameworkLattice):
             "tune_y_total": "nuy",
             "chromaticity_x": "dnux/dp",
             "chromaticity_y": "dnuy/dp",
+            "momentum_compaction": "alphac",
         }
         summary = {}
         for name, key in keys.items():

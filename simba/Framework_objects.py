@@ -578,9 +578,9 @@ class frameworkLattice(BaseModel):
                 self.sample_interval = self.file_block["input"]["sample_interval"]
         else:
             self.file_block.update({"input": {}})
-        self._apply_collective_settings()
         if "tw_focusing" in self.file_block:
             self._tw_focusing = bool(self.file_block["tw_focusing"])
+        self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
 
@@ -671,14 +671,6 @@ class frameworkLattice(BaseModel):
                 pass
 
     @property
-    def lsc_in_use(self) -> bool:
-        """Whether any element in this lattice actually asks the code for LSC."""
-        return any(
-            getattr(getattr(elem, "simulation", None), "lsc_enable", False)
-            for elem in self.elementObjects.values()
-        )
-
-    @property
     def tw_focusing(self) -> bool:
         """
         Property to get or set the travelling-wave focusing flag. When True
@@ -693,6 +685,14 @@ class frameworkLattice(BaseModel):
     def tw_focusing(self, tw: bool) -> None:
         self._tw_focusing = tw
         self.section.tw_focusing = tw
+
+    @property
+    def lsc_in_use(self) -> bool:
+        """Whether any element in this lattice actually asks the code for LSC."""
+        return any(
+            getattr(getattr(elem, "simulation", None), "lsc_enable", False)
+            for elem in self.elementObjects.values()
+        )
 
     @property
     def wakefield_enable(self) -> bool:
@@ -1445,8 +1445,7 @@ class frameworkLattice(BaseModel):
             s = 0.5 * (s_in[name] + s_out[name])
             args = (float(frequency), s, self.pass_length, beta0)
             correction = wrap_phase(
-                rf_phase_slip(self.rf_mode, *args)
-                - rf_phase_slip(self.native_rf or "synchronous", *args)
+                rf_phase_slip(self.rf_mode, *args) - self.native_rf_slip(*args)
             )
             if np.max(np.abs(correction)) > 1e-4:
                 corrections[name] = correction
@@ -1456,6 +1455,12 @@ class frameworkLattice(BaseModel):
             ))
             return {}
         return corrections
+
+    def native_rf_slip(self, frequency, s, pass_length, beta0) -> np.ndarray:
+        """The phase this code's own RF slips by; :func:`~simba.Modules.EnergyRamp.rf_phase_slip` of :attr:`native_rf`."""
+        return rf_phase_slip(
+            self.native_rf or "synchronous", frequency, s, pass_length, beta0
+        )
 
     def cavity_phase(self, name: str) -> float | None:
         """
@@ -2913,7 +2918,8 @@ class frameworkLattice(BaseModel):
         -------
         dict
             Any of ``tune_x_total``, ``tune_y_total``, ``chromaticity_x``,
-            ``chromaticity_y``; empty if the code reports none.
+            ``chromaticity_y`` and, for a code whose one-turn map cannot be rescaled,
+            ``momentum_compaction``; empty if the code reports none.
         """
         return {}
 
@@ -2978,7 +2984,8 @@ class frameworkLattice(BaseModel):
         Tune and periodic Twiss from the one-turn map, plus momentum compaction from its canonical form.
 
         Also merges :attr:`optics_summary` and :attr:`closed_orbit`. Chromaticity
-        needs more than one map, so comes only from the code's own summary.
+        needs more than one map, so comes only from the code's own summary, as does
+        the momentum compaction of a code whose map cannot be rescaled (elegant).
 
         Returns
         -------
@@ -3017,17 +3024,21 @@ class frameworkLattice(BaseModel):
             for e in self.elements.values()
             if getattr(e, "physical", None) is not None
         )
+        try:
+            betagamma = float(np.mean(self.global_parameters["beam"].BetaGamma))
+            gamma0 = math.sqrt(1.0 + betagamma**2)
+        except (KeyError, TypeError, AttributeError, ValueError):
+            gamma0 = None
         if canonical is not None and circumference:
             result["slip_factor"] = slip_factor(canonical, circumference)
-            try:
-                betagamma = float(np.mean(self.global_parameters["beam"].BetaGamma))
-                gamma0 = math.sqrt(1.0 + betagamma**2)
-            except (KeyError, TypeError, AttributeError, ValueError):
-                gamma0 = None
             if gamma0:
                 result["momentum_compaction"] = momentum_compaction(
                     canonical, circumference, gamma0
                 )
+        elif gamma0 and "momentum_compaction" in result:
+            # a code whose map cannot be rescaled (elegant's path length) reports its
+            # own momentum compaction; the slip factor follows from it
+            result["slip_factor"] = result["momentum_compaction"] - 1.0 / gamma0**2
         return result
 
     def check_one_turn_map(self, tolerance: float = 1e-3) -> None:
@@ -3066,23 +3077,8 @@ class frameworkLattice(BaseModel):
             str += e + ", "
         return str + ")"
 
-    def create_drifts(
-        self, drift_elements: tuple = ("screen", "beam_position_monitor")
-    ) -> dict:
-        """
-        Insert drifts into a sequence of 'elements'.
-
-        Parameters
-        ----------
-        drift_elements: tuple, optional
-            A tuple of element types for which drifts should be created.
-            Default is ("screen", "beam_position_monitor").
-
-        Returns
-        -------
-        dict
-            A dictionary containing the new drift elements created for the lattice.
-        """
+    def create_drifts(self) -> dict:
+        """The lattice's elements with drifts inserted between them."""
         return self.section.create_drifts()
 
     def getSValues(

@@ -21,7 +21,6 @@ from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
-    GptSetReduce,
     GptAccuracy,
     GptSpaceCharge,
     GptTout,
@@ -79,10 +78,6 @@ class gptLattice(frameworkLattice):
 
     crest_scan_particles: int = 10
     """Particles kept for :meth:`find_crest`; the crest is single-particle, so a handful will do."""
-
-    auto_phase: bool = True
-    """Phase the section's cavities with :func:`~autophase` before each run, as
-    ASTRA's ``Auto_Phase`` does; GPT itself tracks at whatever crest it is given."""
 
     auto_phase: bool = True
     """Phase the section's cavities with :func:`~autophase` before each run, as
@@ -405,8 +400,6 @@ class gptLattice(frameworkLattice):
         Run GPT, then ``gdfa`` for the averaged beam properties (``_emit.gdf``, ``_emitt.gdf``, ``traj.gdf``).
 
         Needs ``GPTLICENSE`` in :attr:`global_parameters`.
-        `GPTLICENSE` must be provided in
-        :attr:`~simba.Framework_objects.frameworkLattice.global_parameters`.
 
         With :attr:`~auto_phase`, the cavities are phased first and the input file
         rewritten with their crests.
@@ -593,13 +586,6 @@ class gptLattice(frameworkLattice):
         if self.particle_definition == "laser":
             self.global_parameters["beam"].z = UnitValue(0 * self.global_parameters["beam"].t, units="m")
         self.headers["setfile"].time = np.mean(self.global_parameters["beam"].t)
-        if self.sample_interval > 1:
-            self.headers["setreduce"] = GptSetReduce(
-                set='"beam"',
-                setreduce=int(
-                    len(self.global_parameters["beam"].x) / self.sample_interval
-                ),
-            )
         if self.override_meanBz is not None and isinstance(
             self.override_meanBz, (int, float)
         ):
@@ -687,5 +673,3 @@ class gptLattice(frameworkLattice):
             beam,
             self.global_parameters["master_subdir"] + "/" + HDF5filename,
         )
-        # except:
-        #     print('Error with screen', self.objectname,'at', self.gpt_screen_position)
