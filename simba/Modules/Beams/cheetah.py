@@ -18,16 +18,28 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
     interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
 
 
+lab_coordinates = ("x", "cpx", "y", "cpy", "t", "cpz")
+"""Columns of :func:`cheetah_lab_coordinates`, in m, eV/c and s."""
+
+
+def cheetah_lab_coordinates(parray, E0_eV):
+    """A Cheetah beam's particles as an (n, 6) tensor of :data:`lab_coordinates`, kept in torch so it differentiates."""
+    from torch import sqrt, stack
+    p0c = sqrt(parray.energy**2 - E0_eV**2)
+    cpx = parray.px * p0c
+    cpy = parray.py * p0c
+    cpz = sqrt(parray.energies**2 - E0_eV**2 - cpx**2 - cpy**2)
+    t = (parray.s + parray.tau) / constants.speed_of_light
+    return stack([parray.x, cpx, parray.y, cpy, t, cpz], dim=-1)
+
+
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
     self.set_mass_and_charge(constants.m_e, parray.particle_charges.numpy(), len(parray.x.numpy()))
-    self._beam.x = UnitValue(parray.x.numpy(), "m")
-    self._beam.y = UnitValue(parray.y.numpy(), "m")
-    self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
-    cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
-    p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
-    cpx = parray.px.numpy() * p0c
-    cpy = parray.py.numpy() * p0c
-    cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
+    E0_eV = as_tensor(np.asarray(self.E0_eV), dtype=float64)
+    x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV).numpy().T
+    self._beam.x = UnitValue(x, "m")
+    self._beam.y = UnitValue(y, "m")
+    self._beam.t = UnitValue(t, "s")
     self.set_momenta(cpx, cpy, cpz)
     self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))

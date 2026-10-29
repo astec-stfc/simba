@@ -500,6 +500,9 @@ class frameworkLattice(BaseModel):
     supports_ramp: ClassVar[bool] = False
     """Whether this code can track an energy ramp; see :class:`~simba.Modules.EnergyRamp.EnergyRamp`."""
 
+    supports_gradients: ClassVar[bool] = False
+    """Whether this code can differentiate its tracking; see :attr:`gradient_parameters`."""
+
     electrons_only: ClassVar[bool] = False
     """Whether this code tracks only electrons; other beams are refused by :meth:`check_species`."""
 
@@ -913,6 +916,27 @@ class frameworkLattice(BaseModel):
         warn(exceptions.ProgramsUnsupportedWarning(
             self.objectname, self.code, [p.element for p in self.programs],
             self.codes_that_can("supports_programs"),
+        ))
+
+    @property
+    def gradient_parameters(self) -> list:
+        """
+        The ``ELEMENT:keyword`` entries of ``global: gradients: parameters`` whose element is in this line::
+
+            global:
+              gradients:
+                parameters: [QUAD1F:k1l, CAV1:phase]
+        """
+        gradients = self.settings["global"].get("gradients") or {}
+        return [p for p in gradients.get("parameters") or [] if p.split(":")[0] in self.elements]
+
+    def check_gradients_supported(self) -> None:
+        """Warn when gradients were asked for in this line and this code cannot differentiate."""
+        if not self.gradient_parameters or self.supports_gradients:
+            return
+        warn(exceptions.GradientsUnsupportedWarning(
+            self.objectname, self.code, self.gradient_parameters,
+            self.codes_that_can("supports_gradients"),
         ))
 
     def check_programs_fit(self) -> None:
@@ -2878,6 +2902,7 @@ class frameworkLattice(BaseModel):
         self.check_nsuperperiods_supported()
         self.check_programs_supported()
         self.check_programs_fit()
+        self.check_gradients_supported()
         self.check_ramp()
         self._apply_radiation_to_section()
         self._apply_fixed_reference_to_section()

@@ -112,6 +112,17 @@ class ProgramsUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class GradientsUnsupportedWarning(UnsupportedWarning):
+    """Gradients asked for in a code that cannot differentiate its tracking."""
+
+    def __init__(self, line: str, code: str, parameters: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} has gradient parameters {', '.join(parameters)}, but "
+            f"{code} cannot differentiate its tracking, so none are computed. "
+            f"{alternatives}"
+        )
+
+
 class ProgramOverrunWarning(SettingWarning):
     """A program with knots past the last turn tracked."""
 
