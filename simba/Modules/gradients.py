@@ -12,6 +12,14 @@ that can differentiate (``supports_gradients``) to ``<line>_gradients.<code>.hdf
 import h5py
 import numpy as np
 
+lab_coordinates = ("x", "cpx", "y", "cpy", "t", "cpz")
+"""Columns of a tangent, in m, eV/c and s."""
+
+
+def lab_array(beam) -> np.ndarray:
+    """A :class:`~simba.Modules.Beams.beam`'s particles as an (n, 6) array of :data:`lab_coordinates`."""
+    return np.stack([getattr(beam, c).val for c in lab_coordinates], -1)
+
 
 def write_gradients(
     filename: str,

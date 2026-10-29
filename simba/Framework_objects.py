@@ -15,7 +15,11 @@ Classes:
 import math
 import os
 import subprocess
-from warnings import warn
+from warnings import warn, catch_warnings, simplefilter
+import shutil
+import tempfile
+from functools import reduce
+import h5py
 import stat
 import yaml
 from copy import deepcopy
@@ -43,8 +47,10 @@ from .Modules.EnergyRamp import (
 )
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution
+from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
+from .Modules.gradients import lab_array, lab_coordinates, write_gradients
+from .Modules.units import UnitValue
 from .Codes import Executables as exes
 from .Modules import constants
 from .Modules.constants import speed_of_light
@@ -461,6 +467,9 @@ class frameworkLattice(BaseModel):
 
     _input_particle: dict | None = None
     """The incoming reference particle's ``t`` and ``z``, if any; see :attr:`reference_t0`."""
+
+    _input_shift: np.ndarray | None = None
+    """(n, 6) nudge to the input beam's lab coordinates; see :meth:`finite_difference_tangents`."""
 
     _section: SectionLatticeTranslator = None
     """LAURA section translator."""
@@ -1025,9 +1034,27 @@ class frameworkLattice(BaseModel):
         gradients = self.settings["global"].get("gradients") or {}
         return [p for p in gradients.get("parameters") or [] if p.split(":")[0] in self.elements]
 
+    @property
+    def finite_difference_step(self) -> float | None:
+        """
+        The relative step of :meth:`finite_difference_tangents`, from the file block, or None when off::
+
+            gradients:
+              finite_difference: true     # or {step: 1.0e-3}; the default step is 1e-4
+        """
+        stated = (self.file_block.get("gradients") or {}).get("finite_difference")
+        if not stated:
+            return None
+        return 1e-4 if stated is True else float(stated["step"])
+
+    @property
+    def carries_gradients(self) -> bool:
+        """This code differentiates its tracking, or this line asks for :meth:`finite_difference_tangents`."""
+        return self.supports_gradients or self.finite_difference_step is not None
+
     def check_gradients_supported(self) -> None:
-        """Warn when gradients were asked for in this line and this code cannot differentiate."""
-        if not self.gradient_parameters or self.supports_gradients:
+        """Warn when gradients were asked for in this line and it cannot carry them."""
+        if not self.gradient_parameters or self.carries_gradients:
             return
         warn(exceptions.GradientsUnsupportedWarning(
             self.objectname, self.code, self.gradient_parameters,
@@ -1051,7 +1078,7 @@ class frameworkLattice(BaseModel):
         """
         if self.incoming_tangents is None:
             return
-        if not self.supports_gradients:
+        if not self.carries_gradients:
             warn(exceptions.GradientsUnsupportedWarning(
                 self.objectname, self.code, self.incoming_tangents["parameters"],
                 self.codes_that_can("supports_gradients"),
@@ -1068,6 +1095,131 @@ class frameworkLattice(BaseModel):
                 f"its {n_particles} particles do not match the {len(self.incoming_tangents['tangent'])} "
                 "the tangents were computed for",
             )
+
+    def finite_difference_tangents(self) -> None:
+        """
+        Carry gradients through a code that cannot differentiate (:attr:`finite_difference_step`),
+        by re-running the line in a scratch directory with its input beam, or one of its
+        :attr:`gradient_parameters`, nudged either side; the line end only.
+
+        Each input coordinate is nudged twice: every particle the same way, and alternately up
+        and down, which leaves the beam's mean where it was. Between them they split each
+        particle's response into its ``own`` and the part ``through_mean`` coming from the
+        reference following the beam's mean, so that::
+
+            t_out = own @ t_in + through_mean @ mean(t_in) + d out / d local parameters
+
+        which holds for tracking without collective effects. Makes 24 runs, only when
+        :attr:`incoming_tangents` arrived, plus 2 per local parameter.
+
+        The line-end tangent goes on to the next line and to
+        ``<line>_gradients.<code>.hdf5``; ``own`` and ``through_mean``, (n, 6, 6), go to
+        ``<line>_jacobian.<code>.hdf5``.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            If a run loses particles, or the line tracks more than one turn.
+        """
+        step = self.finite_difference_step
+        local = self.gradient_parameters
+        if step is None or self.supports_gradients or not (local or self.incoming_tangents):
+            return
+        if self.turns > 1:
+            raise exceptions.GradientChainError(self.objectname, "finite differences follow only one turn")
+        subdir = self.global_parameters["master_subdir"]
+        end = self.output_beam_file(self.end)
+        out = self.lab_particles(end)
+        n = len(out)
+        scratch = tempfile.mkdtemp(dir=subdir)
+
+        def rerun(shift=None, parameter=None, value=None):
+            line = deepcopy(self)
+            line.global_parameters["master_subdir"] = scratch
+            line.global_parameters["tangents"] = {}
+            line.set_prefix(self.prefix)
+            line._input_shift = shift
+            if parameter is not None:
+                name, key = parameter.split(":")
+                set_deep_attr(line.elements[name], key, value)
+            with catch_warnings():
+                simplefilter("ignore")  # the real run has warned already
+                line.preProcess()
+                line.write()
+                line.run()
+                line.postProcess()
+            particles = self.lab_particles(line.output_beam_file(line.end))
+            if len(particles) != n:
+                raise exceptions.GradientChainError(self.objectname, "it loses particles")
+            return particles
+
+        def derivative(h, **plus_minus):
+            plus, minus = (rerun(**{k: v[i] for k, v in plus_minus.items()}) for i in (0, 1))
+            return (plus - minus) / (2 * h)
+
+        try:
+            tangent = np.zeros((n, 6, 0))
+            if self.incoming_tangents is not None:
+                incoming = self.incoming_tangents["tangent"]
+                lab = self.lab_particles(
+                    self.read_input_file(self.prefix, self.input_particle_definition, read_file=False)
+                )
+                if len(lab) != n:
+                    raise exceptions.GradientChainError(self.objectname, "it loses particles")
+                alternate = (-1.0) ** np.arange(n)
+                alternate -= alternate.mean()
+                own, through_mean = np.zeros((n, 6, 6)), np.zeros((n, 6, 6))
+                for k in range(6):
+                    h = step * np.std(lab[:, k])
+                    shift = np.zeros((n, 6))
+                    shift[:, k] = h
+                    uniform = derivative(h, shift=(shift, -shift))
+                    shift[:, k] = h * alternate
+                    own[:, :, k] = derivative(h, shift=(shift, -shift)) / alternate[:, None]
+                    through_mean[:, :, k] = uniform - own[:, :, k]
+                tangent = (
+                    np.einsum("nij,njp->nip", own, incoming)
+                    + np.einsum("nij,jp->nip", through_mean, incoming.mean(0))
+                )
+                with h5py.File(f"{subdir}/{self.objectname}_jacobian.{self.code}.hdf5", "w") as f:
+                    f.attrs.update(code=self.code, lattice=self.objectname, coordinates=list(lab_coordinates))
+                    f["own"], f["through_mean"] = own, through_mean
+            values = []
+            local_tangent = np.zeros((n, 6, len(local)))
+            for j, parameter in enumerate(local):
+                name, key = parameter.split(":")
+                value = float(reduce(getattr, key.split("."), self.elements[name]))
+                h = step * max(abs(value), 1.0)
+                values.append(value)
+                local_tangent[..., j] = derivative(h, parameter=(parameter, parameter), value=(value + h, value - h))
+        finally:
+            shutil.rmtree(scratch)
+        incoming = self.incoming_tangents or {"parameters": [], "values": []}
+        handoff = {
+            "parameters": list(incoming["parameters"]) + local,
+            "values": list(incoming["values"]) + values,
+            "tangent": np.concatenate([tangent, local_tangent], -1),
+        }
+        # for the line that reads this file next; see check_incoming_tangents
+        self.global_parameters.get("tangents", {})[os.path.abspath(end)] = handoff
+        write_gradients(
+            f"{subdir}/{self.objectname}_gradients.{self.code}.hdf5",
+            handoff["parameters"],
+            handoff["values"],
+            {},
+            {self.output_basename(self.end): handoff["tangent"]},
+            code=self.code,
+            lattice=self.objectname,
+            coordinates=list(lab_coordinates),
+            method="finite_difference",
+        )
+
+    @staticmethod
+    def lab_particles(filename: str) -> np.ndarray:
+        """An openPMD beam file's particles as an (n, 6) array of :data:`~simba.Modules.gradients.lab_coordinates`."""
+        beam = rbf.beam()
+        rbf.openpmd.read_openpmd_beam_file(beam, filename)
+        return lab_array(beam)
 
     def check_programs_fit(self) -> None:
         """Warn about knots past the last turn, or a non-zero last knot held for the rest of the run."""
@@ -2444,6 +2596,11 @@ class frameworkLattice(BaseModel):
         """
         filepath = self.read_input_file(prefix, particle_definition)
         full = self.global_parameters["beam"]
+        if self._input_shift is not None:
+            x, cpx, y, cpy, t, cpz = (lab_array(full) + self._input_shift).T
+            full._beam.z = UnitValue(full._beam.z - full._beam.Bz * speed_of_light * self._input_shift[:, 4], "m")
+            full._beam.x, full._beam.y, full._beam.t = UnitValue(x, "m"), UnitValue(y, "m"), UnitValue(t, "s")
+            full.set_momenta(cpx, cpy, cpz)
         self._input_reference = {
             coord: float(np.mean(getattr(full, coord).val)) for coord in ("cp", "t", "z")
         }

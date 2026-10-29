@@ -1,6 +1,7 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ..gradients import lab_array
 from torch import tensor, get_default_device, float64, as_tensor
 
 
@@ -16,10 +17,6 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
         dtype=float64,
     )
     interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
-
-
-lab_coordinates = ("x", "cpx", "y", "cpy", "t", "cpz")
-"""Columns of :func:`cheetah_lab_coordinates`, in m, eV/c and s."""
 
 
 def reference_time(s, p, mass, start):
@@ -39,7 +36,8 @@ def reference_time(s, p, mass, start):
 
 def cheetah_lab_coordinates(parray, E0_eV, start=None):
     """
-    A Cheetah beam's particles as an (n, 6) tensor of :data:`lab_coordinates`, kept in torch so it differentiates.
+    A Cheetah beam's particles as an (n, 6) tensor of :data:`~simba.Modules.gradients.lab_coordinates`,
+    kept in torch so it differentiates.
 
     ``t`` is ``(s + tau) / c``, or on an open line, with ``start = (t0, s0, p0)``, the reference's
     time of flight from it (:func:`reference_time`) plus ``tau / c``.
@@ -59,7 +57,7 @@ def cheetah_lab_coordinates(parray, E0_eV, start=None):
 
 def cheetah_particles(lab, E0_eV, p0c, t0):
     """
-    Cheetah's (n, 7) particles from an (n, 6) tensor of :data:`lab_coordinates`, about a
+    Cheetah's (n, 7) particles from an (n, 6) tensor of :data:`~simba.Modules.gradients.lab_coordinates`, about a
     reference ``p0c`` (eV) and ``t0`` (s): the inverse of :func:`cheetah_lab_coordinates`,
     kept in torch so it differentiates.
     """
@@ -107,7 +105,7 @@ def write_cheetah_beam_file(self, filename=None, write=True, energy=None, t0=Non
     p0c = as_tensor(np.sqrt(E**2 - np.asarray(self.E0_eV) ** 2), dtype=float64)
     s = self.s if self.s is not None else 0.0
     x = self.x.val
-    lab = as_tensor(np.stack([getattr(self, c).val for c in lab_coordinates], -1), dtype=float64)
+    lab = as_tensor(lab_array(self), dtype=float64)
     particles = cheetah_particles(lab, E0_eV, p0c, t0)
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
     particle_charges = tensor(q_array, dtype=float64)

@@ -1758,6 +1758,8 @@ class Framework(BaseModel):
                 latt.postProcess()
                 self.progress = base_percentage + 1 * percentage_step
                 if lattice_name != "generator":
+                    # first: it reruns the line, rewriting the end-of-line file the other species are added to
+                    latt.finite_difference_tangents()
                     latt.carry_other_species()
                     for name, elem in latt.elementObjects.items():
                         if name in self.elementObjects:

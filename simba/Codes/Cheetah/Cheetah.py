@@ -6,7 +6,7 @@ SIMBA Cheetah module: builds and tracks a Cheetah segment. See `Cheetah github`_
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import set_deep_attr
 from ...Modules import Beams as rbf
-from ...Modules.gradients import write_gradients
+from ...Modules.gradients import lab_array, lab_coordinates, write_gradients
 from ... import exceptions
 
 import os
@@ -227,7 +227,7 @@ class cheetahLattice(frameworkLattice):
         Parameters
         ----------
         lab: torch.Tensor
-            (n, 6) incoming :data:`~simba.Modules.Beams.cheetah.lab_coordinates`
+            (n, 6) incoming :data:`~simba.Modules.gradients.lab_coordinates`
 
         Returns
         -------
@@ -239,7 +239,6 @@ class cheetahLattice(frameworkLattice):
             lab[:, [1, 3, 5]].norm(dim=-1).mean() if self.design_p0c is None
             else as_tensor(self.design_p0c, dtype=float64)
         )
-        # ponytail: a fixed reference (a ring's) is held constant, also when it is the beam's reference particle
         t0 = lab[:, 4].mean() if not self.fixed_reference else as_tensor(self.reference_t0, dtype=float64)
         return p0c, t0
 
@@ -255,18 +254,17 @@ class cheetahLattice(frameworkLattice):
         Dict
             ``parameters`` and their ``values``; ``twiss``: key -> (n_s, P) array, with the
             ``s`` -> (n_s,) it is sampled at; ``beams``: element name -> (n, 6, P) array of
-            :data:`~simba.Modules.Beams.cheetah.lab_coordinates`
+            :data:`~simba.Modules.gradients.lab_coordinates`
         """
         from torch import as_tensor, eye, float64, sqrt, stack, zeros, zeros_like
         from torch.func import jvp
         from cheetah.accelerator import Screen
-        from ...Modules.Beams.cheetah import cheetah_lab_coordinates, cheetah_particles, lab_coordinates
+        from ...Modules.Beams.cheetah import cheetah_lab_coordinates, cheetah_particles
 
         E0 = self.rest_energy
         end_is_screen = isinstance(self.segment.elements[-1], Screen)
         local = [self.cheetah_derivatives(p) for p in self.gradient_parameters]
-        beam = self.global_parameters["beam"]
-        lab = as_tensor(np.stack([getattr(beam, c).val for c in lab_coordinates], -1), dtype=float64)
+        lab = as_tensor(lab_array(self.global_parameters["beam"]), dtype=float64)
 
         def track(t, lab):
             segment = deepcopy(self.segment)
@@ -395,7 +393,6 @@ class cheetahLattice(frameworkLattice):
                     twsgrp.create_dataset(key, data=data)
                 twsgrp.create_dataset("z", data=z)
         if self.tangents is not None:
-            from ...Modules.Beams.cheetah import lab_coordinates
             s, z = self.s_and_z(self.tangents["twiss"]["s"])
             write_gradients(
                 f'{self.global_parameters["master_subdir"]}/{self.objectname}_gradients.cheetah.hdf5',

@@ -154,7 +154,8 @@ class GradientsUnsupportedWarning(UnsupportedWarning):
         super().__init__(
             f"{_line(line)} carries gradients for {', '.join(parameters)}, but "
             f"{code} cannot differentiate its tracking, so they stop here. "
-            f"{alternatives}"
+            f"{alternatives} Or set 'gradients: {{finite_difference: true}}' on the line "
+            "to carry them by re-running it."
         )
 
 
@@ -601,11 +602,11 @@ class NeutralSpeciesError(SimbaError, ValueError):
 
 
 class GradientChainError(SimbaError, ValueError):
-    """Gradients from upstream reaching a line that changes the beam in a way they cannot follow."""
+    """Gradients reaching a line that changes the beam in a way they cannot follow."""
 
     def __init__(self, line: str, reason: str):
         super().__init__(
-            f"{_line(line)} receives gradients from upstream, but {reason}, which "
+            f"{_line(line)} carries gradients, but {reason}, which "
             "breaks the chain. Remove it, or start the gradients after this line."
         )
 

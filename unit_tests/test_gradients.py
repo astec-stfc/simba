@@ -20,8 +20,11 @@ from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
 COORDINATES = ("x", "cpx", "y", "cpy", "t", "cpz")
 
 
-def _framework(tmp_path, middle, lines, parameters):
-    """The FODO cell with the ``middle`` elements between the quads, tracked as ``lines`` (name -> code, start, end)."""
+def _framework(tmp_path, middle, lines, parameters, finite_difference=()):
+    """
+    The FODO cell with the ``middle`` elements between the quads, tracked as ``lines``
+    (name -> code, start, end), with the ``finite_difference`` lines asking for it.
+    """
     quads = fodo_quads()
     machine, names, section = fodo_machine(tmp_path, middle=[quads[0], *middle, quads[1]])
     settings = fw.FrameworkSettings()
@@ -32,6 +35,7 @@ def _framework(tmp_path, middle, lines, parameters):
             "charge": {"space_charge_mode": "False"},
             "input": {},
             "output": {"start_element": start, "end_element": end},
+            **({"gradients": {"finite_difference": True}} if name in finite_difference else {}),
         }
         for name, (code, start, end) in lines.items()
     }
@@ -57,7 +61,10 @@ def _value(framework, parameter):
 
 
 def _track(framework, line, changes={}):
-    """Track with ``changes`` (ELEMENT:keyword -> value), then put them back; the end particles and ``line``'s beta_x."""
+    """
+    Track with ``changes`` (ELEMENT:keyword -> value), then put them back; the end particles
+    and ``line``'s beta_x, if it is a Cheetah line.
+    """
     original = {parameter: _value(framework, parameter) for parameter in changes}
     for parameter, value in changes.items():
         framework.modifyElement(*parameter.split(":"), value)
@@ -69,7 +76,10 @@ def _track(framework, line, changes={}):
     subdir = framework.subdirectory
     beam = read_beam(subdir, "M3")
     particles = np.stack([getattr(beam, c).val for c in COORDINATES], -1)
-    with h5py.File(os.path.join(subdir, f"{line}_twiss.cheetah.hdf5")) as f:
+    twiss = os.path.join(subdir, f"{line}_twiss.cheetah.hdf5")
+    if not os.path.isfile(twiss):
+        return particles, None
+    with h5py.File(twiss) as f:
         beta_x = f["Twiss"]["beta_x"][()]
     return particles, beta_x
 
@@ -86,6 +96,8 @@ def _check_against_finite_differences(framework, line, grads, column, step=1e-4)
         # plus the round-off a finite difference sees in coordinates this large
         noise = 1e-10 * np.abs(plus[:, c]).max() / step
         np.testing.assert_allclose(end[:, c], fd[:, c], rtol=0, atol=1e-6 * np.abs(fd[:, c]).max() + noise)
+    if beta_plus is None:
+        return
     fd_beta = (beta_plus - beta_minus) / (2 * step)
     np.testing.assert_allclose(
         grads["Twiss"]["beta_x"][:, column], fd_beta, rtol=0, atol=1e-6 * np.abs(fd_beta).max(),
@@ -109,7 +121,7 @@ def test_cheetah_gradients_match_finite_differences(tmp_path):
     _check_against_finite_differences(framework, "FODO", grads, 0)
 
 
-def _split_fodo(tmp_path, code_b="cheetah", cavity=False):
+def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=()):
     """
     The FODO cell as two lines, A (M1 to M2, holding QUAD1F) and B (M2 to M3, holding QUAD1D);
     ``cavity`` puts an off-crest cavity in A, whose phase moves B's reference energy and time.
@@ -128,7 +140,7 @@ def _split_fodo(tmp_path, code_b="cheetah", cavity=False):
         ))
         parameters = ["CAV1:cavity.phase", "QUAD1D:k1l"]
     lines = {"A": ("cheetah", "M1", "M2"), "B": (code_b, "M2", "M3")}
-    return _framework(tmp_path, middle, lines, parameters)
+    return _framework(tmp_path, middle, lines, parameters, finite_difference)
 
 
 def test_gradients_chain_across_cheetah_lines(tmp_path):
@@ -158,6 +170,20 @@ def test_gradients_stop_at_a_code_that_cannot_differentiate(tmp_path):
     framework = _split_fodo(tmp_path, code_b="ocelot")
     with pytest.warns(exceptions.GradientsUnsupportedWarning):
         framework.track()
+
+
+@pytest.mark.parametrize("cavity", [False, True])
+def test_finite_differences_carry_gradients_through_ocelot(tmp_path, cavity):
+    skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, code_b="ocelot", cavity=cavity, finite_difference=["B"])
+    _track(framework, "B")
+
+    grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
+    assert grads["parameters"] == (["CAV1:cavity.phase"] if cavity else ["QUAD1F:k1l"]) + ["QUAD1D:k1l"]
+    assert grads["attrs"]["method"] == "finite_difference"
+    assert os.path.isfile(os.path.join(framework.subdirectory, "B_jacobian.ocelot.hdf5"))
+    _check_against_finite_differences(framework, "B", grads, 0, step=1e-3 if cavity else 1e-4)
+    _check_against_finite_differences(framework, "B", grads, 1)
 
 
 def test_rematching_breaks_the_chain(tmp_path):
