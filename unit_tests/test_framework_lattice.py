@@ -12,7 +12,7 @@ from simba.Codes.ASTRA.ASTRA import astraLattice
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.Twiss.astra import read_s_offset
 from simba.Modules.units import UnitValue
-from laura.models.element import Quadrupole, Marker, Element, PhysicalBaseElement
+from laura.models.element import Quadrupole, Element, PhysicalBaseElement
 from laura.models.physical import PhysicalElement
 
 @pytest.fixture
@@ -104,12 +104,17 @@ def test_no_property_setter_shadowed_by_inherited_field():
             broken[cls.__name__] = lost
     assert not broken, f"property setters dropped by pydantic: {broken}"
 
+def _to_local_stub(point):
+    """A lattice that is not in local-frame mode hands world positions straight back."""
+    return (0.0, 0.0, point.z)
+
 def _astra_lattice_stub(tmp_path, zstart, zstop):
-    """Enough of an astraLattice for find_ASTRA_filename, which only touches these three."""
+    """Enough of an astraLattice for find_ASTRA_filename, which only touches these four."""
     return types.SimpleNamespace(
         startObject=types.SimpleNamespace(physical=types.SimpleNamespace(start=types.SimpleNamespace(z=zstart))),
         zstop=zstop,
         global_parameters={"master_subdir": str(tmp_path)},
+        to_local=_to_local_stub,
     )
 
 def test_find_astra_filename_prefers_screen_position_over_lattice_end(tmp_path):
@@ -145,6 +150,7 @@ def test_astra_s_offset(entrance_s, start_z, expected):
         startObject=types.SimpleNamespace(
             physical=types.SimpleNamespace(start=types.SimpleNamespace(z=start_z))
         ),
+        to_local=_to_local_stub,
     )
     assert astraLattice.s_offset.fget(latt) == pytest.approx(expected)
 
@@ -261,3 +267,23 @@ def test_variable_chicane_set_angle_is_idempotent(clara):
     clara.groupObjects["bunch_compressor"].set_angle(0.1185)
     again = [clara.elementObjects[f"CLA-VBC-MAG-DIP-0{i}"].physical.length for i in range(1, 5)]
     assert first == pytest.approx(again)
+
+
+@pytest.mark.parametrize("tw_focusing, model", [(None, "TW1"), (True, "TW1"), (False, "SRS")])
+def test_tw_focusing_from_def_reaches_elegant(tmp_path, tw_focusing, model):
+    """`tw_focusing` in a .def file block switches the TravellingWave body-focus model."""
+    import os
+    ml = os.environ.get("JFEL_MASTER_LATTICE", os.path.expanduser("~/Documents/laura-lattices-gh/JFEL/"))
+    if not os.path.isdir(ml):
+        pytest.skip("JFEL master lattice not available")
+    f = sfw.Framework(directory=str(tmp_path), clean=False, verbose=False,
+                      master_lattice=ml, generator_defaults="/jfel.yaml")
+    f.loadSettings("Lattices/jfel_combined.def")
+    block = dict(f.latticeObjects["Linac"].file_block, code="elegant")
+    if tw_focusing is not None:
+        block["tw_focusing"] = tw_focusing
+    f.read_Lattice("Linac", block)
+    lattice = f.latticeObjects["Linac"]
+    assert lattice.tw_focusing is (tw_focusing is not False)
+    lte = lattice.section.to_elegant()
+    assert f"body_focus_model = {model}" in lte

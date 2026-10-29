@@ -20,10 +20,10 @@ simba.Codes.Ocelot.mbi module
    :show-inheritance:
    :undoc-members:
 
-simba.Codes.Ocelot.ocelot\_conversion module
---------------------------------------------
+simba.Codes.Ocelot.savebeamopenpmd module
+-----------------------------------------
 
-.. automodule:: simba.Codes.Ocelot.ocelot_conversion
+.. automodule:: simba.Codes.Ocelot.savebeamopenpmd
    :members:
    :show-inheritance:
    :undoc-members:

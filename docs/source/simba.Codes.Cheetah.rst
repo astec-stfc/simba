@@ -12,14 +12,6 @@ simba.Codes.Cheetah.Cheetah module
    :show-inheritance:
    :undoc-members:
 
-simba.Codes.Cheetah.cheetah\_conversion module
-----------------------------------------------
-
-.. automodule:: simba.Codes.Cheetah.cheetah_conversion
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Module contents
 ---------------
 

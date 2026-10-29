@@ -1,26 +1,21 @@
-import os
-import sys
-from io import StringIO
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from matplotlib.transforms import Bbox
 from matplotlib import colors
 from . import constants
 
-# plt.rcParams["axes.axisbelow"] = False
 from copy import copy
 
 try:
-    from ..units import nice_array, nice_scale_prefix, set_nice_array
-except:
+    from beamphysics.units import nice_array, nice_scale_prefix
+except Exception:
     pass
 
 try:
     from fastkde import fastKDE
 
     fastKDE_installed = True
-except ImportError as e:
+except ImportError:
     print("fastKDE missing - plotScreenImage will use SciPy")
     fastKDE_installed = False
 
@@ -28,13 +23,11 @@ try:
     from scipy import stats
 
     SciPy_installed = True
-except:
+except Exception:
     SciPy_installed = False
 CMAP0 = copy(plt.get_cmap("viridis"))
 CMAP0.set_under("white")
 CMAP1 = copy(plt.get_cmap("plasma"))
-
-# beamobject = rbf.beam()
 
 
 def density_plot(
@@ -44,14 +37,7 @@ def density_plot(
         filename=None,
         **kwargs,
 ):
-    """
-    1D density plot. Also see: marginal_plot
-
-    Example:
-
-        density_plot(P, 'x', bins=100)
-
-    """
+    """1D charge-density histogram of `key`, e.g. ``density_plot(P, 'x', bins=100)``."""
 
     if not bins:
         n = len(particle_group)
@@ -62,7 +48,7 @@ def density_plot(
         w = abs(particle_group.charge)
     else:
         w = np.ones(len(getattr(particle_group, key)))
-    u1 = ""  # particle_group.units(key).unitSymbol
+    u1 = ""
     ux = p1 + u1
 
     labelx = f"{key} ({ux})"
@@ -98,14 +84,7 @@ def slice_plot(
         filename=None,
         **kwargs,
 ):
-    """
-    slice plot. Also see: marginal_plot
-
-    Example:
-
-        slice plot(P, 'slice_current', bins=100)
-
-    """
+    """Plot slice properties against slice `xkey`, e.g. ``slice_plot(P, ykey='slice_current', bins=100)``."""
 
     P = particle_group
 
@@ -137,7 +116,7 @@ def slice_plot(
         good = slice(None, None, None)  # everything
 
     # X axis scaling
-    units_x = "s"  # str(P.units(xkey))
+    units_x = "s"
     if nice:
         X, factor_x, prefix_x = nice_array(X)
         units_x = prefix_x + units_x
@@ -149,8 +128,6 @@ def slice_plot(
         ax.set_xlim(xlim[0] / factor_x, xlim[1] / factor_x)
         ax.set_xlabel(f"{xkey} ({units_x})")
 
-    # Draw for Y1 and Y2
-
     linestyles = ["solid", "dashed"]
 
     ii = -1  # counter for colors
@@ -161,7 +138,7 @@ def slice_plot(
         linestyle = linestyles[ix]
 
         # Check that units are compatible
-        ulist = [getattr(P.slice, key).units for key in keys]  # [I.units(key) for key in keys]
+        ulist = [getattr(P.slice, key).units for key in keys]
         if len(ulist) > 1:
             for u2 in ulist[1:]:
                 assert ulist[0] == u2, f"Incompatible units: {ulist[0]} and {u2}"
@@ -179,7 +156,6 @@ def slice_plot(
 
         # Make a line and point
         for key, dat in zip(keys, data):
-            #
             ii += 1
             color = "C" + str(ii)
             ax.plot(
@@ -219,14 +195,7 @@ def marginal_plot(
     filename=None,
     **kwargs,
 ):
-    """
-    Density plot and projections
-
-    Example:
-
-        marginal_plot(P, 't', 'energy', bins=200)
-
-    """
+    """2D density plot with projections, e.g. ``marginal_plot(P, 't', 'energy', bins=200)``."""
 
     if not bins:
         n = len(particle_group)
@@ -251,8 +220,8 @@ def marginal_plot(
     x = x / scale[0]
     y = y / scale[1]
 
-    w = np.full(len(x), 1)  #
-    charge = getattr(particle_group, "charge")
+    w = np.full(len(x), 1)
+    charge = particle_group.charge
 
     u1, u2 = [getattr(particle_group, k).units for k in [key1, key2]]
     ux = p1 + u1
@@ -268,8 +237,6 @@ def marginal_plot(
     ax_joint = fig.add_subplot(gs[1:4, 0:3])
     ax_marg_x = fig.add_subplot(gs[0, 0:3])
     ax_marg_y = fig.add_subplot(gs[1:4, 3])
-    # ax_info = fig.add_subplot(gs[0, 3:4])
-    # ax_info.table(cellText=['a'])
 
     # Proper weighting
     ax_joint.hexbin(
@@ -278,15 +245,7 @@ def marginal_plot(
     if limits is not None:
         ax_joint.axis(limits)
 
-    # Manual histogramming version
-    # H, xedges, yedges = np.histogram2d(x, y, weights=w, bins=bins)
-    # extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-    # ax_joint.imshow(H.T, cmap=cmap, vmin=1e-16, origin='lower', extent=extent, aspect='auto')
-
     # Top histogram
-    # Old method:
-    # dx = x.ptp()/bins
-    # ax_marg_x.hist(x, weights=w/dx/f1, bins=bins, color='gray')
     hist, bin_edges = np.histogram(x, bins=bins, weights=w)
     hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
     hist_width = np.diff(bin_edges)
@@ -297,7 +256,6 @@ def marginal_plot(
         )
         ax_marg_x.bar(hist_x, hist_y, hist_width, color="gray")
         _, hist_prefix = nice_scale_prefix(hist_f / f1)
-        # print(np.sum(charge).val, hist_f, f1)
         ax_marg_x.set_ylabel(f"{hist_prefix}A")
     else:
         if abs(np.sum(charge).val) > 0:
@@ -314,9 +272,6 @@ def marginal_plot(
         ax_marg_x.set_xlim(limits[0:2])
 
     # Side histogram
-    # Old method:
-    # dy = y.ptp()/bins
-    # ax_marg_y.hist(y, orientation="horizontal", weights=w/dy, bins=bins, color='gray')
     hist, bin_edges = np.histogram(y, bins=bins, weights=w)
     hist_x = bin_edges[:-1] + np.diff(bin_edges) / 2
     hist_width = np.diff(bin_edges)
@@ -357,8 +312,7 @@ def plot(self, keys=None, bins=None, type="density", **kwargs):
     if keys is not None and (
         (isinstance(keys, (list, tuple)) and len(keys) == 1) or isinstance(keys, str)
     ):
-        if isinstance(keys, (list, tuple)):
-            ykey = keys[0]
+        ykey = keys[0] if isinstance(keys, (list, tuple)) else keys
         if type == "slice" or "slice_" in ykey:
             return slice_plot(self, ykey=ykey, bins=bins, **kwargs)
         elif type == "density":
@@ -519,7 +473,7 @@ def plotScreenImage(
         ax.grid(which="major", color="w", alpha=0.55, clip_path=circ)
 
     # --- Main PDF ---
-    mesh = ax.pcolormesh(v1, v2, myPDF, cmap=colormap, zorder=1, shading="auto")
+    ax.pcolormesh(v1, v2, myPDF, cmap=colormap, zorder=1, shading="auto")
 
     # --- Axis labels with optional size ---
     if labelsize is not None:
@@ -530,9 +484,7 @@ def plotScreenImage(
         ax.set_xlabel(labelx)
         ax.set_ylabel(labely)
 
-    # --- Suptitle ---
     file, ext = os.path.splitext(os.path.basename(beam.filename))
-    # plt.suptitle(title if title else file)
 
     # --- Save file ---
     if isinstance(filename, str):
@@ -595,10 +547,6 @@ def getScreenImage(
     # normalise the PDF to 1
     myPDF = myPDF / myPDF.max() * iscale
 
-
-    # Define ticks
-    # Major ticks every 5, minor ticks every 1
-    use_size = False
     xmin, xmax = [min(v1.flatten()), max(v1.flatten())]
     ymin, ymax = [min(v2.flatten()), max(v2.flatten())]
     return v1, v2, myPDF, colormap, labelx, labely
@@ -752,7 +700,6 @@ def plot_wigner_axes(
 
     # --- Colorbar ---
     if ax_cbar is not None:
-        # plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
         ax_cbar.tick_params(labelleft=False, labelbottom=False)
         ax_cbar.spines['top'].set_visible(False)
         ax_cbar.spines['right'].set_visible(False)

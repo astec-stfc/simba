@@ -7,30 +7,30 @@ speed_of_light = constants.speed_of_light
 elementary_charge = constants.elementary_charge
 
 
-def beam_to_madx_coords(self, p0c: float) -> dict:
+def beam_to_madx_coords(self, p0c: float, tbar: float | None = None) -> dict:
     """
-    Convert this :class:`~simba.Modules.Beams.beam` object into MAD-X
-    canonical coordinates (X, PX, Y, PY, T, PT) for a given reference
-    momentum. The momenta are normalised to `p0c`, ``PT`` is the energy
-    deviation ``(E - E0)/(p0*c)``, and ``T = -c(t - <t>)`` (T > 0 = bunch
-    head), following the conventions in Chapter 1 of the MAD-X manual.
+    Convert the beam to MAD-X canonical coordinates (X, PX, Y, PY, T, PT).
+
+    Momenta are normalised to `p0c`, ``PT = (E - E0)/(p0*c)`` and
+    ``T = -c(t - tbar)`` (T > 0 is the bunch head), as in Chapter 1 of the MAD-X manual.
 
     Parameters
     ----------
     p0c: float
         Reference momentum in eV/c
+    tbar: float, optional
+        Reference time [s]; defaults to the bunch's mean time
 
     Returns
     -------
-    Dict
-        Dictionary with the canonical coordinate arrays, the mean time
-        `tbar` and the reference beta/energy
+    dict
+        Coordinate arrays plus ``tbar``, ``beta0`` and ``E0ref``
     """
     m0 = np.mean(self.particle_rest_energy_eV.val)
     E0ref = np.sqrt(p0c**2 + m0**2)
     beta0 = p0c / E0ref
     tarr = np.array(self.t.val)
-    tbar = float(np.mean(tarr))
+    tbar = float(np.mean(tarr)) if tbar is None else float(tbar)
     return {
         "x": np.array(self.x.val),
         "px": np.array(self.cpx.val) / p0c,
@@ -56,17 +56,14 @@ def madx_coords_to_beam(
     ref_index: int = None,
 ):
     """
-    Convert MAD-X canonical coordinates at an observation point back into
-    a generic :class:`~simba.Modules.Beams.beam` object, so that the
-    distributions can be interpreted in the same way as those produced by
-    the other tracking codes. The mass, charge sign and species of the new
-    beam are taken from this (reference) beam.
+    Build a new :class:`~simba.Modules.Beams.beam` from MAD-X canonical coordinates.
+
+    Mass, charge sign and species are taken from this (reference) beam.
 
     Parameters
     ----------
-    coords: Dict
-        Dictionary with (x, px, y, py, t, pt) arrays from the MAD-X track
-        table
+    coords: dict
+        (x, px, y, py, t, pt) arrays from the MAD-X track table
     p0c: float
         Reference momentum in eV/c
     tbar0: float
@@ -74,18 +71,17 @@ def madx_coords_to_beam(
     s_local: float
         Position of the observation point along the segment [m]
     zpos: float
-        Global z position of the observation point [m]
+        Global z of the observation point [m]
     spos: float
-        Global s position of the observation point [m]
+        Global s of the observation point [m]
     charge_total: float
-        Total charge of the (surviving) bunch [C]
+        Total charge of the surviving bunch [C]
     ref_index: int, optional
         Index of the reference particle
 
     Returns
     -------
     :class:`~simba.Modules.Beams.beam`
-        The output beam object
     """
     m0 = np.mean(self.particle_rest_energy_eV.val)
     E0ref = np.sqrt(p0c**2 + m0**2)
@@ -104,39 +100,15 @@ def madx_coords_to_beam(
     mass = self.particle_mass
     mass = np.mean(mass.val) if hasattr(mass, "val") else constants.m_e
     chargesign = np.sign(np.mean(self.Q.val)) or -1
-    nb.particle_mass = UnitValue(np.full(npart, mass), units="kg")
-    nb.particle_rest_energy = UnitValue(
-        nb.particle_mass * speed_of_light**2, units="J"
-    )
-    nb.particle_rest_energy_eV = UnitValue(
-        nb.particle_rest_energy / elementary_charge, units="eV/c"
-    )
-    nb.particle_charge = UnitValue(
-        np.full(npart, chargesign * elementary_charge), units="C"
-    )
+    newbeam.set_mass_and_charge(mass, chargesign * elementary_charge, npart)
     nb.x = UnitValue(np.array(coords["x"]), units="m")
     nb.y = UnitValue(np.array(coords["y"]), units="m")
     nb.t = UnitValue(t, units="s")
-    q_over_c = elementary_charge / speed_of_light
-    nb.px = UnitValue(cpx * q_over_c, units="kg*m/s")
-    nb.py = UnitValue(cpy * q_over_c, units="kg*m/s")
-    nb.pz = UnitValue(cpz * q_over_c, units="kg*m/s")
+    newbeam.set_momenta(cpx, cpy, cpz)
     nb.set_total_charge(chargesign * abs(charge_total))
     nb.nmacro = UnitValue(np.full(npart, 1))
     nb.status = UnitValue(np.full(npart, 5))
-    if ref_index is not None:
-        newbeam.reference_particle_index = int(ref_index)
-        tref = nb.t[int(ref_index)]
-    else:
-        tref = np.mean(nb.t)
-    nb.z = UnitValue(
-        zpos + (-1 * nb.Bz * speed_of_light) * (nb.t - tref), units="m"
-    )
+    newbeam.set_z_from_t(zpos, ref_index)
     nb.s = UnitValue(spos, units="m")
-    if ref_index is not None:
-        newbeam.reference_particle = [
-            getattr(nb, coord)[int(ref_index)]
-            for coord in newbeam.reference_particle_coords
-        ]
     newbeam.species = self.species
     return newbeam

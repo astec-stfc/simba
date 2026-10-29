@@ -36,6 +36,14 @@ simba.Modules.Beams.gdf module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Beams.genesis module
+----------------------------------
+
+.. automodule:: simba.Modules.Beams.genesis
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.Beams.hdf5 module
 -------------------------------
 
@@ -48,6 +56,14 @@ simba.Modules.Beams.mad8 module
 -------------------------------
 
 .. automodule:: simba.Modules.Beams.mad8
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+simba.Modules.Beams.madx module
+-------------------------------
+
+.. automodule:: simba.Modules.Beams.madx
    :members:
    :show-inheritance:
    :undoc-members:
@@ -88,14 +104,6 @@ simba.Modules.Beams.sdds module
 -------------------------------
 
 .. automodule:: simba.Modules.Beams.sdds
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.Beams.vsim module
--------------------------------
-
-.. automodule:: simba.Modules.Beams.vsim
    :members:
    :show-inheritance:
    :undoc-members:
