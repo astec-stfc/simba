@@ -1,11 +1,7 @@
-import os
-import sys
-from io import StringIO
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 from copy import copy
-from ..units import nice_array, nice_scale_prefix
+from beamphysics.units import nice_array, nice_scale_prefix
 
 CMAP0 = copy(plt.get_cmap("viridis"))
 CMAP0.set_under("white")
@@ -24,18 +20,28 @@ def plot(
     **kwargs,
 ):
     """
-    Plots stat output multiple keys.
+    Plot Twiss parameters against `xkey`; adapted from lume-impact's ``plot_stats_with_layout``.
 
-    If a list of ykeys2 is given, these will be put on the right hand axis. This can also be given as a single key.
-
-    Logical switches, all default to True:
-        nice: a nice SI prefix and scaling will be used to make the numbers reasonably sized.
-
-        include_legend: The plot will include the legend
-
-        include_labels: the layout will include element labels.
-
-    Copied almost verbatim from lume-impact's Impact.plot.plot_stats_with_layout
+    Parameters
+    ----------
+    twiss_object: :class:`~simba.Modules.Twiss.twiss`
+        Twiss data; sorted in place
+    ykeys: list or str
+        Parameters for the left axis
+    ykeys2: list or str
+        Parameters for the right axis
+    xkey: str
+        Parameter for the x axis
+    xlim: tuple, optional
+        x-axis limits
+    nice: bool
+        Scale values with an SI prefix
+    include_labels: bool
+        Unused
+    include_legend: bool
+        Draw a legend
+    **kwargs
+        Passed to ``plt.subplots``
     """
     I = twiss_object  # convenience
     I.sort()  # sort before plotting!
@@ -56,7 +62,7 @@ def plot(
     if len(ykeys) == 1 and not ykeys2:
         include_legend = False
 
-    X = I.stat(xkey)
+    X = np.asarray(I.stat(xkey).val)
 
     # Only get the data we need
     if xlim:
@@ -69,7 +75,7 @@ def plot(
     # X axis scaling
     units_x = str(I.stat(xkey).unit)
     if nice:
-        X, factor_x, prefix_x = nice_array(X.val)
+        X, factor_x, prefix_x = nice_array(X)
         units_x = prefix_x + units_x
     else:
         factor_x = 1
@@ -99,7 +105,7 @@ def plot(
         unit = str(ulist[0])
 
         # Data
-        data = [I.stat(key).val[good] for key in keys]
+        data = [np.asarray(I.stat(key).val)[good] for key in keys]
 
         if nice:
             factor, prefix = nice_scale_prefix(np.ptp(data))
@@ -109,7 +115,6 @@ def plot(
 
         # Make a line and point
         for key, dat in zip(keys, data):
-            #
             ii += 1
             color = "C" + str(ii)
             ax.plot(
@@ -131,5 +136,3 @@ def plot(
             lines += a
             labels += b
         ax_plot[0].legend(lines, labels, loc="best")
-
-    # return fig

@@ -1,9 +1,10 @@
 import os
 import pytest
-from unittest.mock import MagicMock
 import shutil
+import types
 from pydantic import ValidationError
 import simba.Framework as fw
+from simba.Framework_objects import chicane
 from simba.Codes.Generators import (
     frameworkGenerator,
     ASTRAGenerator,
@@ -13,14 +14,17 @@ from simba.Framework_lattices import (
     elegantLattice,
     astraLattice,
     cheetahLattice,
+    bmadLattice,
 )
-from laura.models.element import Quadrupole, Marker, PhysicalBaseElement
+from laura.models.element import Dipole, Quadrupole, Marker, PhysicalBaseElement
 from laura import LAURA
-from laura.Exporters.YAML import export_machine
+from laura.exporters.yaml_exporter import export_machine
 
 @pytest.fixture
-def simple_machine():
-    outdir = f"{os.path.dirname(os.path.abspath(__file__))}/framework"
+def simple_machine(tmp_path):
+    # not beside this file: under xdist, one test's rmtree raced another's
+    # writes, and left unit_tests/framework behind
+    outdir = str(tmp_path / "framework")
     m1 = Marker(
         name="M1",
         machine_area="FODO",
@@ -52,9 +56,9 @@ def simple_machine():
     return machine, outdir
 
 @pytest.fixture
-def simple_generator():
+def simple_generator(tmp_path):
     gen = frameworkGenerator(
-        global_parameters={"master_subdir": f"{os.path.dirname(os.path.abspath(__file__))}"},
+        global_parameters={"master_subdir": str(tmp_path)},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
         sigma_x=1e-4,
@@ -71,7 +75,8 @@ def simple_generator():
         gaussian_cutoff_pz=3,
         charge=100e-12,
     )
-    return gen.write()
+    gen.write()
+    return tmp_path
 
 def test_framework_initialization(simple_machine):
     machine, outdir = simple_machine
@@ -83,58 +88,6 @@ def test_framework_initialization(simple_machine):
     )
     assert framework.machine == machine
     assert framework.directory == os.path.join(outdir, "ocelot")
-
-def test_framework_settings_and_tracking(simple_machine, simple_generator):
-    machine, outdir = simple_machine
-    gen = simple_generator
-    settings = fw.FrameworkSettings()
-    files = {}
-    for sec, elems in machine.sections.items():
-        files[sec] = {
-            "code": "ocelot",
-            "charge": {"space_charge_mode": "False"},
-            "input": {
-                "twiss": {
-                    "beta_x": 3.2844606,
-                    "alpha_x": 2.48956886,
-                    "nemit_x": 1e-6,
-                    "beta_y": 3.2846606,
-                    "alpha_y": -2.48956886,
-                    "nemit_y": 1e-6,
-                }
-            },
-            "output": {
-                "start_element": elems[0].name,
-                "end_element": elems[-1].name,
-            },
-        }
-    settings.files = files
-    settings.layout = machine.layout
-    settings.section = {"sections": {name: e.names for name, e in machine.sections.items()}}
-    settings.element_list = os.path.join(outdir, "lattice")
-    framework = fw.Framework(
-        machine=machine,
-        directory=os.path.join(outdir, "ocelot"),
-        clean=True,
-        verbose=True
-    )
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    framework.loadSettings(settings=settings)
-    framework.save_settings("test.def", directory=test_dir)
-    framework.loadSettings(filename=os.path.join(test_dir, "test.def"))
-    framework.global_parameters["beam"] = MagicMock()
-    framework["FODO"].lsc_enable = False
-    framework["FODO"].csr_enable = False
-    framework.set_lattice_prefix("FODO", f"{test_dir}/")
-    framework.track = MagicMock()
-    framework.track()
-    shutil.rmtree(f"{test_dir}/framework")
-    os.remove(f"{test_dir}/M1.openpmd.hdf5")
-    os.remove(f"{test_dir}/test.def")
-    with pytest.raises(FileNotFoundError):
-        framework.loadSettings(filename="non_existent.def")
-    with pytest.raises(ValueError):
-        framework.loadSettings()
 
 @pytest.fixture
 def sample_framework(tmp_path):
@@ -182,12 +135,37 @@ def framework_with_machine(simple_machine):
     framework.loadSettings(settings=settings)
     return framework
 
+def test_framework_settings_and_tracking(framework_with_machine, simple_generator):
+    framework = framework_with_machine
+    framework.save_settings("test.def", directory=str(simple_generator))
+    framework.loadSettings(filename=str(simple_generator / "test.def"))
+    framework["FODO"].lsc_enable = False
+    framework["FODO"].csr_enable = False
+    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
+    framework.track()
+    assert os.path.isfile(os.path.join(framework.directory, "M3.openpmd.hdf5"))
+    with pytest.raises(FileNotFoundError):
+        framework.loadSettings(filename="non_existent.def")
+    with pytest.raises(ValueError):
+        framework.loadSettings()
+
 def test_getElement(sample_framework):
     fw_obj = sample_framework
     assert fw_obj.getElement("E1").name == "E1"
     assert fw_obj.getElement("E1", "hardware_type") == "Dipole"
     with pytest.warns(UserWarning):
         assert fw_obj.getElement("NonExistent") == {}
+
+def test_original_elements_are_copies_sharing_one_trajectory(framework_with_machine):
+    """Copied per element, each took the section trajectory: CLIC DR needed 8.8 GB."""
+    fw_obj = framework_with_machine
+    names = [n for n in fw_obj.elementObjects if fw_obj.elementObjects[n].physical._trajectory]
+    assert len(names) > 1
+    originals = [fw_obj.original_elementObjects[n] for n in names]
+    assert all(o is not fw_obj.elementObjects[n] for o, n in zip(originals, names))
+    assert len({id(o.physical._trajectory) for o in originals}) == 1
+    assert originals[0].physical._trajectory is not fw_obj.elementObjects[names[0]].physical._trajectory
+
 
 def test_getElementType(framework_with_machine):
     fw_obj = framework_with_machine
@@ -202,6 +180,50 @@ def test_modifyElement(sample_framework):
     fw_obj.modifyElement("E1", "name", "NewE1")
     assert fw_obj.elementObjects["E1"].name == "NewE1"
 
+
+def test_check_lattice_after_chicane_angle_change(sample_framework):
+    dipoles = {
+        f"D{index + 1}": Dipole(
+            name=f"D{index + 1}",
+            machine_area="A1",
+            magnetic={"length": 0.2, "angle": 0.0},
+            physical={"length": 0.2, "middle": {"x": 0, "y": 0, "z": index}},
+        )
+        for index in range(4)
+    }
+    sample_framework.elementObjects = dipoles
+
+    chicane(
+        "bunch_compressor",
+        sample_framework,
+        "chicane",
+        list(dipoles),
+    ).set_angle(0.1)
+
+    assert sample_framework.check_lattice()
+
+
+def test_check_lattice_catches_a_magnet_the_layout_was_not_told_about(sample_framework):
+    """A field change without a move leaves tracking and layout disagreeing."""
+    def dipole(layout_angle):
+        return Dipole(
+            name="D1",
+            machine_area="A1",
+            magnetic={"length": 0.2, "angle": 0.1},
+            physical={
+                "length": 0.2,
+                "middle": {"x": 0, "y": 0, "z": 1.0},
+                "physical_angle": layout_angle,
+            },
+        )
+
+    sample_framework.elementObjects = {"D1": dipole(0.1)}
+    assert sample_framework.check_lattice()
+
+    sample_framework.elementObjects = {"D1": dipole(0.13)}
+    assert not sample_framework.check_lattice()
+
+
 def test_modifyElements(sample_framework):
     fw_obj = sample_framework
     fw_obj.modifyElements(["E1", "E2"], "alias", "mag")
@@ -212,24 +234,13 @@ def test_modifyElementType(sample_framework):
     fw_obj.modifyElementType("Dipole", "machine_area", "new_area")
     assert fw_obj.elementObjects["E1"].machine_area == "new_area"
 
-def test_detect_changes(sample_framework):
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"elements": ["E1"]}, {"elementtype": "Dipole"}], ids=["all", "single", "by_type"]
+)
+def test_detect_changes(sample_framework, kwargs):
     fw_obj = sample_framework
     fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes()
-    assert "E1" in changes
-    assert "machine_area" in str(changes["E1"])
-
-def test_detect_changes_single(sample_framework):
-    fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes(elements=["E1"])
-    assert "E1" in changes
-    assert "machine_area" in str(changes["E1"])
-
-def test_detect_changes_by_type(sample_framework):
-    fw_obj = sample_framework
-    fw_obj.modifyElement("E1", "machine_area", "new_area")
-    changes = fw_obj.detect_changes(elementtype="Dipole")
+    changes = fw_obj.detect_changes(**kwargs)
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 
@@ -265,18 +276,19 @@ def test_change_subdirectory(sample_framework):
 def test_change_lattice_code(framework_with_machine):
     framework_with_machine.change_Lattice_Code("FODO", "elegant")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], elegantLattice)
+    framework_with_machine.change_Lattice_Code("FODO", "bmad")
+    assert isinstance(framework_with_machine.latticeObjects["FODO"], bmadLattice)
     framework_with_machine.change_Lattice_Code("All", "cheetah")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], cheetahLattice)
     framework_with_machine.change_Lattice_Code(["FODO"], "astra")
     assert isinstance(framework_with_machine.latticeObjects["FODO"], astraLattice)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
+
 
 def test_modify_lattices(framework_with_machine):
     framework_with_machine.modifyLattices("FODO", "lsc_enable", False)
     assert not framework_with_machine.latticeObjects["FODO"].lsc_enable
     framework_with_machine.modifyLattices(["FODO"], "csr_enable", False)
     assert not framework_with_machine.latticeObjects["FODO"].csr_enable
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
 
 def test_change_generator(framework_with_machine):
     framework_with_machine.add_Generator(code="astra")
@@ -289,9 +301,33 @@ def test_change_generator(framework_with_machine):
     assert isinstance(framework_with_machine.latticeObjects["generator"], GPTGenerator)
     framework_with_machine.change_generator("simba")
     assert isinstance(framework_with_machine.latticeObjects["generator"], frameworkGenerator)
-    with pytest.raises(ValidationError):
-        with pytest.warns(UserWarning):
-            framework_with_machine.change_generator("none")
+    with pytest.raises(ValidationError), pytest.warns(UserWarning):
+        framework_with_machine.change_generator("none")
     framework_with_machine.change_generator("ASTRA")
     assert isinstance(framework_with_machine.latticeObjects["generator"], ASTRAGenerator)
-    shutil.rmtree(f"{os.path.dirname(os.path.abspath(__file__))}/framework")
+
+
+def test_modify_lattice_with_lists(framework_with_machine):
+    framework_with_machine.modifyLattice("FODO", ["lsc_enable", "csr_enable"], [False, False])
+    assert not framework_with_machine.latticeObjects["FODO"].lsc_enable
+    assert not framework_with_machine.latticeObjects["FODO"].csr_enable
+
+
+def test_detect_changes_generator_reports_only_changed_fields(sample_framework, tmp_path):
+    gen = frameworkGenerator(global_parameters={"master_subdir": str(tmp_path)}, charge=1e-12)
+    sample_framework.generator = gen
+    sample_framework.original_elementObjects["generator"] = gen.model_copy(deep=True)
+    gen.charge = 2e-12
+    assert sample_framework.detect_changes(elements=["generator"]) == {"generator": {"charge": 2e-12}}
+
+
+def test_framework_directory_element_prints_laura_element(sample_framework):
+    directory = types.SimpleNamespace(framework=sample_framework)
+    assert fw.frameworkDirectory.element(directory, "E1").name == "E1"
+
+
+def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
+    from simba import yaml_checker
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        yaml_checker.main([str(tmp_path / "missing.def")])

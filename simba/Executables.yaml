@@ -16,6 +16,7 @@ apclara1:
   opal: ["source", "/opt/OPAL-2022.1/etc/profile.d/opal.sh", ';', "mpirun", '-np', $ncpu$, "/opt/OPAL-2022.1/bin/opal", ">", "out.txt"]
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
+  tao: [$simcodes$/Bmad/lib/libtao.so]
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -25,6 +26,7 @@ apclara2:
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
+  tao: [$simcodes$/Bmad/lib/libtao.so]
 apclara3:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -34,6 +36,7 @@ apclara3:
   opal: ['/opt/OPAL/opal']
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
+  tao: [$simcodes$/Bmad/lib/libtao.so]
 posix:
   astragenerator: [$simcodes$/ASTRA/generator]
   astra: [$simcodes$/ASTRA/Astra]
@@ -43,6 +46,8 @@ posix:
   gpt: [$simcodes$/GPT/bin/gpt, '-j',$ncpu$]
   opal: ["source", $simcodes$/OPAL/etc/profile.d/opal.sh, ';', $simcodes$/OPAL/bin/opal]
   genesis: [$simcodes$/Genesis/genesis4]
+  madx: [$simcodes$/MADX/madx]
+  tao: [$simcodes$/Bmad/lib/libtao.so]
 docker:
   image: ghcr.io/astec-stfc/simcodes-docker:master
   astragenerator: ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Astra-serial/generator','-v','$workdir$:/workdir','-w','/workdir','$image$']

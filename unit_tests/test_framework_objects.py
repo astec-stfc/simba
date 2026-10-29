@@ -1,101 +1,100 @@
-# from pydantic import ValidationError
-#
-# from SimulationFramework.Framework_elements import *
-# from SimulationFramework.Framework_objects import frameworkElement
-# import SimulationFramework.Modules.Beams as rbf  # noqa E402
-# from test_field import simple_field
-# import pytest
-# import warnings
-# import numpy as np
-#
-# def all_subclasses(cls):
-#     subclasses = cls.__subclasses__()
-#     for subclass in subclasses:
-#         subclasses += all_subclasses(subclass)
-#     return subclasses
-#
-# @pytest.fixture
-# def simple_element():
-#     return frameworkElement(
-#         objectname="ELEMENT",
-#         objecttype="marker",
-#         centre=[0, 0, 0],
-#     )
-#
-# def test_framework_object(simple_element):
-#     with pytest.raises(NameError):
-#         frameworkElement(
-#             objectname="ELEMENT",
-#             objecttype="element",
-#             centre=[0, 0, 0],
-#         )
-#     with pytest.raises(ValueError):
-#         frameworkElement(
-#             objectname=1,
-#             objecttype="element",
-#             centre=[0, 0, 0],
-#         )
-#     with pytest.raises(ValueError):
-#         frameworkElement(
-#             objectname="ELEMENT",
-#             objecttype=1,
-#             centre=[0, 0, 0],
-#         )
-#     with pytest.raises(ValidationError):
-#         simple_element.centre= -1
-#
-# def test_framework_object_positions(simple_element):
-#     for param in ["x", "y", "z"]:
-#         setattr(simple_element, param, 0.1)
-#         setattr(simple_element, "d" + param, 0.1)
-#         setattr(simple_element, param + "_rot", 0.1)
-#         setattr(simple_element, "d" + param + "_rot", 0.1)
-#     assert simple_element.position_errors == [0.1, 0.1, 0.1]
-#     assert simple_element.centre == [0.1, 0.1, 0.1]
-#     assert simple_element.global_rotation == [0.1, 0.1, 0.1]
-#     assert simple_element.rotation_errors == [0.1, 0.1, 0.1]
-#     assert simple_element.tilt == 0.1
-#     assert simple_element.theta == 0.1
-#     assert simple_element.get_field_amplitude is None
-#
-#
-# def test_framework_elements(simple_field):
-#     warnings.filterwarnings("ignore", category=UserWarning)
-#     exclude = ["global", "gpt", "astra", "csrtrack"]
-#     for elem in all_subclasses(frameworkElement):
-#         if not any(x in elem.__name__ for x in exclude):
-#             element = elem(
-#                 name="ELEMENT",
-#                 type=elem.__name__,
-#                 global_parameters={"master_subdir": ".", "master_lattice": "."},
-#                 length=1.0,
-#             )
-#             if elem.__name__ == "dipole":
-#                 element.angle = 1.0
-#                 for param in [
-#                     "arc_middle",
-#                     "line_middle",
-#                     "TD_middle",
-#                     "intersection",
-#                     "position_start",
-#                     "position_end",
-#                     "astra_end",
-#                 ]:
-#                     assert isinstance(getattr(element, param), np.ndarray)
-#             element.write_Elegant()
-#             element.write_Ocelot()
-#             if elem.__name__ in ["cavity", "solenoid", "rf_deflecting_cavity"]:
-#                 if elem.__name__ in ["cavity", "rf_deflecting_cavity"]:
-#                     element.frequency = 1e9
-#                     element.wakefield_definition = simple_field
-#                 element.field_amplitude = 1e6
-#                 element.field_definition = simple_field
-#             if elem.__name__ == "wakefield":
-#                 element.field_definition = simple_field
-#             if elem.__name__ in ["aperture", "collimator", "scraper", "rcollimator"]:
-#                 for typ in ["circular", "planar", "rectangular"]:
-#                     element.shape = typ
-#                     element.horizontal_size = element.vertical_size = 1.0
-#                     element.write_ASTRA(1)
-#             element.write_ASTRA(1)
-#             assert element.x == element.y == element.z == element.dx == element.dy == element.dz == 0
+import types
+
+import pytest
+from laura.models.element import (
+    Combined_Corrector, Dipole, Horizontal_Corrector, PhysicalBaseElement, Quadrupole, RFCavity,
+)
+from laura.models.physical import PhysicalElement
+from laura.translator.utils.fields import FieldMap
+
+from simba.Framework_objects import frameworkGroup, frameworkLattice, r56_group
+from simba.FrameworkHelperFunctions import convert_numpy_types, convert_outputs
+
+
+def _element(z, length):
+    return PhysicalBaseElement(
+        name="E", hardware_class="Magnet", hardware_type="Quadrupole", machine_area="A",
+        physical=PhysicalElement(middle=[0, 0, z + length / 2.0], length=length),
+    )
+
+
+def test_end_from_zstop():
+    latt = types.SimpleNamespace(
+        file_block={"output": {"zstop": 2.0}},
+        elementObjects={"A": _element(0.0, 1.0), "B": _element(1.0, 1.0), "C": _element(2.0, 1.0)},
+    )
+    assert frameworkLattice.end.fget(latt) == "B"
+
+
+def test_lattice_repr_is_a_string():
+    latt = types.SimpleNamespace(name="L", elements={"A": None, "B": None})
+    latt.__str__ = lambda: frameworkLattice.__str__(latt)
+    assert frameworkLattice.__repr__(latt) == "L = (A, B, )"
+
+
+def test_lattice_set_element_type():
+    q1 = Quadrupole(name="Q1", hardware_class="Magnet", machine_area="A")
+    d1 = Dipole(name="D1", hardware_class="Magnet", machine_area="A")
+    frameworkLattice.setElementType(types.SimpleNamespace(getElementType=lambda typ: [q1]), "quadrupole", "virtual_name", ["V"])
+    assert q1.virtual_name == "V"
+    frameworkLattice.setElementType(types.SimpleNamespace(getElementType=lambda typ: [d1]), "dipole", "angle", [0.1])
+    assert d1.magnetic.multipoles.K0L.normal == pytest.approx(0.1)
+
+
+def test_wakefields_and_cavity_wakefields_skips_cavities_without_wakes():
+    with_wake = RFCavity(name="C1", hardware_class="RF", machine_area="A")
+    with_wake.simulation.wakefield_definition = "wake.sdds"
+    without = RFCavity(name="C2", hardware_class="RF", machine_area="A")
+    latt = types.SimpleNamespace(cavities=[with_wake, without], getElementType=lambda typ: [])
+    assert frameworkLattice.wakefields_and_cavity_wakefields.fget(latt) == [with_wake]
+
+
+def test_type_properties_match_laura_hardware_types():
+    elements = {
+        "C1": RFCavity(name="C1", hardware_class="RF", machine_area="A"),
+        "H1": Horizontal_Corrector(name="H1", machine_area="A"),
+        "K1": Combined_Corrector(name="K1", machine_area="A"),
+        "Q1": Quadrupole(name="Q1", hardware_class="Magnet", machine_area="A"),
+    }
+    latt = types.SimpleNamespace(elements=elements)
+    latt.getElementType = types.MethodType(frameworkLattice.getElementType, latt)
+    assert [e.name for e in frameworkLattice.cavities.fget(latt)] == ["C1"]
+    assert sorted(e.name for e in frameworkLattice.kickers.fget(latt)) == ["H1", "K1"]
+
+
+def test_convert_numpy_types_dumps_laura_fieldmap():
+    assert isinstance(convert_numpy_types(FieldMap()), dict)
+
+
+def _framework(*names):
+    elements = {n: Quadrupole(name=n, hardware_class="Magnet", machine_area="A") for n in names}
+    return types.SimpleNamespace(elementObjects=elements, groupObjects={})
+
+
+def test_group_get_parameter_prefers_group_attribute():
+    group = frameworkGroup("G", _framework("Q1"), "element_group", ["Q1"])
+    group.custom = 5
+    assert group.get_Parameter("custom") == 5
+    assert group.get_Parameter("machine_area") == "A"
+
+
+def test_r56_group_update_elements_with_a_list():
+    fw = _framework("Q1", "Q2", "Q3")
+    group = r56_group("R", fw, "r56_group", ["Q1", ["Q2", "Q3"]], ratios=[], keys=[])
+    group.updateElements(["Q2", "Q3"], "virtual_name", "V")
+    assert [fw.elementObjects[n].virtual_name for n in ("Q1", "Q2", "Q3")] == ["", "V", "V"]
+
+
+@pytest.mark.parametrize("workers", [1, 3])
+def test_convert_outputs_converts_every_item(tmp_path, workers):
+    names = [f"S{i}" for i in range(7)]
+    convert_outputs(lambda n: (tmp_path / n).write_text(n), names, workers)
+    assert sorted(p.name for p in tmp_path.iterdir()) == names
+
+
+def test_convert_outputs_raises_a_workers_error(tmp_path):
+    def convert(n):
+        if n == "BAD":
+            raise ValueError("no beam file for BAD")
+    with pytest.raises(ValueError, match="BAD"):
+        convert_outputs(convert, ["S1", "BAD", "S2"], workers=2)

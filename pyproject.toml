@@ -40,8 +40,9 @@ dependencies = [
     "numexpr",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "laura-accelerator>=1.0.4",
-    "tfs-pandas",
+    "laura-accelerator>=1.1.0",
+    "pytao>=1.0.0",
+    "nafflib",
 ]
 
 requires-python = ">= 3.11"

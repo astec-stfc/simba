@@ -1,0 +1,310 @@
+"""A turn count is a tracking setting and only some codes honour it."""
+
+import inspect
+import math
+import warnings
+
+import numpy as np
+import pytest
+
+from helpers import BentLine
+from simba.Codes.Elegant.Elegant import elegantLattice
+from simba.Framework_objects import frameworkLattice
+
+
+class FakeLine:
+    """A lattice stub carrying only what the turn-count code reads."""
+
+    def __init__(self, file_block=None, code="astra", supports=False):
+        self.file_block = file_block or {}
+        self.code = code
+        self.objectname = "RING"
+        self.supports_turns = supports
+
+    turns = frameworkLattice.turns
+    check_turns_supported = frameworkLattice.check_turns_supported
+    codes_that_can = frameworkLattice.codes_that_can
+
+
+def test_no_setting_means_one_turn():
+    assert FakeLine().turns == 1
+
+
+def test_an_empty_tracking_block_means_one_turn():
+    assert FakeLine({"tracking": {}}).turns == 1
+
+
+def test_a_null_tracking_block_means_one_turn():
+    """How YAML hands over a bare ``tracking:``."""
+    assert FakeLine({"tracking": None}).turns == 1
+
+
+def test_the_count_is_read_from_the_files_block():
+    assert FakeLine({"tracking": {"turns": 1000}}).turns == 1000
+
+
+def test_a_string_count_is_coerced():
+    assert FakeLine({"tracking": {"turns": "512"}}).turns == 512
+
+
+def test_asking_a_single_pass_code_for_turns_warns_rather_than_refusing():
+    """One settings file driving several codes is ordinary."""
+    line = FakeLine({"tracking": {"turns": 1000}}, code="astra", supports=False)
+    with pytest.warns(UserWarning, match=r"1000 turns.*astra tracks a line once"):
+        line.check_turns_supported()
+    assert line.turns == 1000
+
+
+@pytest.mark.filterwarnings("error")
+def test_a_capable_code_is_silent():
+    line = FakeLine({"tracking": {"turns": 1000}}, code="elegant", supports=True)
+    line.check_turns_supported()
+
+
+@pytest.mark.filterwarnings("error")
+def test_one_turn_is_silent_everywhere():
+    for code, supports in (("astra", False), ("elegant", True)):
+        FakeLine({}, code=code, supports=supports).check_turns_supported()
+
+
+@pytest.mark.filterwarnings("error")
+def test_a_closed_ring_is_silent():
+    BentLine(4, math.pi / 2, periodic=False).check_turns_closed()
+
+
+def test_an_open_line_warns_with_its_gap():
+    """Eight 1 m elements, dead straight; and no superperiod hint, as no
+    bend is a sector of nothing."""
+    with pytest.warns(UserWarning, match="does not close: it ends 8 m from where it starts") as caught:
+        BentLine(4, 0.0, periodic=False).check_turns_closed()
+    assert "superperiod" not in str(caught[0].message)
+
+
+@pytest.mark.filterwarnings("error")
+def test_one_turn_never_checks_closure():
+    BentLine(4, 0.0, turns=1, periodic=False).check_turns_closed()
+
+
+def test_the_periodic_solution_checks_closure_on_a_single_turn():
+    """`periodic` claims a ring just as a turn count does."""
+    with pytest.warns(UserWarning, match="asks for the periodic solution"):
+        BentLine(4, 0.0, turns=1, periodic=True).check_turns_closed()
+
+
+@pytest.mark.filterwarnings("error")
+def test_a_closed_ring_is_silent_when_periodic():
+    BentLine(4, math.pi / 2, turns=1, periodic=True).check_turns_closed()
+
+
+@pytest.mark.parametrize("nbend, fraction", [(2, 2), (1, 4)])
+def test_a_superperiod_is_named_as_such(nbend, fraction):
+    with pytest.warns(UserWarning, match=rf"1/{fraction} fraction of a turn"):
+        BentLine(nbend, math.pi / 2, periodic=False).check_turns_closed()
+
+
+def test_the_net_bend_of_a_closed_ring_is_a_full_turn():
+    assert BentLine(4, math.pi / 2).net_bend_angle == pytest.approx(2 * math.pi)
+
+
+def test_the_net_bend_of_a_straight_line_is_zero():
+    assert BentLine(4, 0.0).net_bend_angle == pytest.approx(0.0)
+
+
+class NamingLine:
+    """A stub exposing just the naming path."""
+
+    def __init__(self, turns=1, colliding=(), name="LINAC"):
+        self.file_block = {"tracking": {"turns": turns}}
+        self.colliding_outputs = set(colliding)
+        self.objectname = name
+
+    turns = frameworkLattice.turns
+    output_basename = frameworkLattice.output_basename
+
+
+def test_a_single_turn_run_is_unchanged():
+    assert NamingLine(turns=1).output_basename("SCR", turn=1) == "SCR"
+
+
+def test_no_turn_given_is_unchanged():
+    assert NamingLine(turns=100).output_basename("SCR") == "SCR"
+
+
+def test_turns_qualify_the_name():
+    assert NamingLine(turns=100).output_basename("SCR", turn=7) == "SCR-t007"
+
+
+def test_the_index_is_padded_to_the_count():
+    """So the files sort in turn order."""
+    assert NamingLine(turns=1000).output_basename("SCR", turn=7) == "SCR-t0007"
+    assert NamingLine(turns=9).output_basename("SCR", turn=7) == "SCR-t7"
+
+
+def test_every_turn_gets_a_distinct_name():
+    line = NamingLine(turns=5)
+    names = {line.output_basename("SCR", turn=t) for t in range(1, 6)}
+    assert len(names) == 5
+
+
+def test_a_line_collision_and_a_turn_compose():
+    line = NamingLine(turns=20, colliding=["SCR"], name="PASS2")
+    assert line.output_basename("SCR", turn=3) == "PASS2-SCR-t03"
+
+
+def test_a_pass_selector_and_a_turn_compose():
+    line = NamingLine(turns=20)
+    assert line.output_basename("SCR#2", turn=3) == "SCR.2-t03"
+
+
+def test_a_screen_monitor_is_sized_for_one_turn_by_default():
+    """`stop_at_turn` is how many slots a ParticlesMonitor has."""
+    pytest.importorskip("xtrack")
+    from laura.models.element import Screen
+    from laura.translator.converters.converter import translate_elements
+
+    screen = Screen(name="SCR", machine_area="A", physical={"length": 0.0})
+    _, _, properties = translate_elements([screen])["SCR"].to_xsuite(beam_length=10)
+    assert properties["stop_at_turn"] == 1
+
+
+def test_a_multi_turn_line_resizes_its_monitors():
+    """Otherwise every turn after the first is silently dropped."""
+    pytest.importorskip("xtrack")
+    from laura.models.element import Screen, Drift
+    from laura.models.element_list import SectionLattice, ElementList
+    from laura.translator.converters.section import SectionLatticeTranslator
+
+    screen = Screen(name="SCR", machine_area="A", physical={"length": 0.0})
+    drift = Drift(
+        name="D1",
+        hardware_class="Drift",
+        hardware_type="Drift",
+        machine_area="A",
+        physical={"length": 1.0},
+    )
+    section = SectionLattice(
+        name="S",
+        order=["D1", "SCR"],
+        elements=ElementList(elements={"D1": drift, "SCR": screen}),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        line = SectionLatticeTranslator.from_section(section).to_xsuite(
+            beam_length=10, turns=250, save=False
+        )
+    assert line["SCR"].stop_at_turn == 250
+
+
+def tracked_monitor(num_particles=4, num_turns=3):
+    """A real xtrack monitor, tracked, so the layout is measured not assumed."""
+    pytest.importorskip("xtrack")
+    import xtrack as xt
+    import xpart as xp
+
+    env = xt.Environment()
+    line = env.new_line()
+    line.append("d1", xt.Drift(length=1.0))
+    line.append(
+        "mon",
+        xt.ParticlesMonitor(
+            num_particles=num_particles, start_at_turn=0, stop_at_turn=num_turns
+        ),
+    )
+    line.particle_ref = xt.Particles(
+        p0c=[1e9], mass0=[xp.ELECTRON_MASS_EV], q0=-1
+    )
+    particles = xt.Particles(
+        p0c=1e9,
+        mass0=xp.ELECTRON_MASS_EV,
+        q0=-1,
+        x=[1e-3 * (i + 1) for i in range(num_particles)],
+    )
+    line.build_tracker()
+    line.track(particles, num_turns=num_turns)
+    return line["mon"]
+
+
+def test_a_monitor_records_one_row_per_particle_per_turn():
+    data = tracked_monitor(4, 3).data.to_dict()
+    assert np.asarray(data["x"]).size == 12
+    assert list(np.asarray(data["at_turn"])) == [0, 1, 2] * 4
+
+
+def test_selecting_a_turn_keeps_one_row_per_particle():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    for turn in range(3):
+        selected = _select_turn(data, turn)
+        assert np.asarray(selected["x"]).size == 4
+        assert set(np.asarray(selected["at_turn"])) == {turn}
+
+
+def test_every_particle_appears_once_in_a_turn():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    ids = np.asarray(_select_turn(data, 1)["particle_id"])
+    assert sorted(ids) == [0, 1, 2, 3]
+
+
+def test_the_turns_partition_the_record():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+
+    data = tracked_monitor(4, 3).data.to_dict()
+    total = sum(np.asarray(_select_turn(data, t)["x"]).size for t in range(3))
+    assert total == np.asarray(data["x"]).size
+
+
+def test_a_dump_without_at_turn_is_returned_untouched():
+    from simba.Codes.Xsuite.Xsuite import _select_turn
+
+    data = {"x": [1, 2, 3]}
+    assert _select_turn(data, 0) is data
+
+
+def test_ocelot_track_nturns_takes_a_track_list_not_a_bunch():
+    """Why it is not used for bunches: the signature is the evidence."""
+    pytest.importorskip("ocelot")
+    from ocelot.cpbd.track import track_nturns
+
+    parameters = list(inspect.signature(track_nturns).parameters)
+    assert parameters[:3] == ["lat", "nturns", "track_list"]
+    assert "nsuperperiods" in parameters
+
+
+def test_ocelot_track_takes_a_particle_array_and_a_navigator():
+    pytest.importorskip("ocelot")
+    from ocelot.cpbd.track import track
+
+    parameters = list(inspect.signature(track).parameters)
+    assert parameters[:3] == ["lattice", "p_array", "navi"]
+
+
+def test_a_navigator_can_be_rewound_for_the_next_turn():
+    pytest.importorskip("ocelot")
+    from ocelot.cpbd.navi import Navigator
+
+    assert hasattr(Navigator, "go_to_start")
+
+
+def test_the_ocelot_loop_rebuilds_the_navigator_each_turn():
+    """Monitor filenames are fixed when it is built: a shared navigator
+    would write every turn to one file."""
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    source = inspect.getsource(ocelotLattice.run)
+    assert "self.navi_setup(" in source
+    assert "turn=" in source
+    # Called, not merely mentioned -- the comment above the loop names
+    # `track_nturns` precisely to say why it is the wrong one.
+    assert "track_nturns(" not in source
+
+
+def test_elegant_no_longer_hardcodes_one_pass():
+    """Every ``run_control`` site passed the literal 1. Counted against
+    ``n_passes=`` so a new command does not break it."""
+    source = inspect.getsource(elegantLattice)
+    assert "n_passes=1" not in source
+    assert source.count("n_passes=") == source.count("n_passes=self.turns")
+    assert source.count("n_passes=self.turns") >= 3

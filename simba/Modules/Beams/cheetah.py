@@ -4,76 +4,59 @@ from ..units import UnitValue
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
+def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index=None):
+    from cheetah import ParticleBeam
+    self.filename = filename
+    self.code = "Cheetah"
+    self._beam.particle_rest_energy_eV = self.E0_eV
+
+    parray = ParticleBeam.from_openpmd_file(
+        filename,
+        energy=beam_energy,
+        dtype=float64,
+    )
+    interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
+
+
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
-    self._beam.particle_mass = UnitValue(np.full(len(parray.x.numpy()), constants.m_e), "kg")
-    self._beam.particle_rest_energy = UnitValue(
-        (
-                self._beam.particle_mass * constants.speed_of_light ** 2
-        ),
-        units="J",
-    )
-    self._beam.particle_rest_energy_eV = UnitValue(
-        (
-                self._beam.particle_rest_energy / constants.elementary_charge
-        ),
-        units="eV/c",
-    )
-    self._beam.particle_charge = UnitValue(parray.particle_charges.numpy(), "C")
-    # self._beam.gamma = UnitValue(parray.relativistic_gamma.numpy(), "")
+    self.set_mass_and_charge(constants.m_e, parray.particle_charges.numpy(), len(parray.x.numpy()))
     self._beam.x = UnitValue(parray.x.numpy(), "m")
     self._beam.y = UnitValue(parray.y.numpy(), "m")
     self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
-    # self._beam["p"] = parray.energies.numpy()
-    self._beam.px = UnitValue(parray.px.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    self._beam.py = UnitValue(parray.py.numpy() * parray.energies.numpy() * self.q_over_c, "kg*m/s")
-    cp = parray.energies.numpy()
-    self._beam.pz = UnitValue((
-        self.q_over_c * cp / np.sqrt(parray.px.numpy() ** 2 + parray.py.numpy() ** 2 + 1)
-    ), "kg*m/s")
+    cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
+    p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
+    cpx = parray.px.numpy() * p0c
+    cpy = parray.py.numpy() * p0c
+    cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
+    self.set_momenta(cpx, cpy, cpz)
     self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 
-    if ref_index is not None:
-        self.reference_particle_index = int(ref_index)
-        """ If we have a reference particle, t=0 is relative to it """
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - self._beam.t[self.reference_particle_index]),
-            units="m",
-        )
-        self.reference_particle = [
-            getattr(self._beam, coord)[self.reference_particle_index]
-            for coord in self.reference_particle_coords
-        ]
-    else:
-        """ If we don't have a reference particle, t=0 is relative to mean(t) """
-        self._beam.z = UnitValue(
-            zstart
-            + (-1 * self._beam.Bz * constants.speed_of_light)
-            * (self._beam.t - np.mean(self._beam.t)),
-            units="m",
-        )
-        self.reference_particle = None
+    self.set_z_from_t(zstart, ref_index)
     self._beam.s = UnitValue(s, units="m")
 
 
-def write_cheetah_beam_file(self, filename=None, write=True):
-    """Save an openpmd file for cheetah."""
+def write_cheetah_beam_file(self, filename=None, write=True, energy=None, t0=None):
+    """Save an openpmd file for cheetah.
+
+    ``energy`` (eV) and ``t0`` (s) are the reference energy and the time tau
+    is measured from; the beam's own means if not given.
+    """
     # {x, xp, y, yp, t, p, particleID}
     from cheetah import ParticleBeam
     from cheetah.particles.species import Species
-    E = self.energy.mean().val
+    E = self.energy.mean().val if energy is None else energy
+    if t0 is None:
+        t0 = np.mean(self.t.val)
+    p0c = np.sqrt(E**2 - self.E0_eV**2)
     x = self.x.val
     y = self.y.val
-    xp = self.cpx.val / self.cpz.val
-    yp = self.cpy.val / self.cpz.val
-    p = (self.energy.val - E) / E
-    # cheetah's tau runs with time, not against it: the head of the bunch (early t)
-    # sits at negative tau. Negating here put the bunch in back to front, which the
-    # RMS moments hide and only shows up as a reversed RF chirp out of a cavity.
-    tau = (self.t.val - np.mean(self.t.val)) * constants.speed_of_light
+    # p_x / p0c, not the slope p_x / p_z; see interpret_cheetah_ParticleBeam
+    xp = self.cpx.val / p0c
+    yp = self.cpy.val / p0c
+    p = (self.energy.val - E) / p0c
+    tau = (self.t.val - t0) * constants.speed_of_light
     s = self.s if self.s is not None else 0.0
 
     rparticles = np.array([x, xp, y, yp, tau, p])

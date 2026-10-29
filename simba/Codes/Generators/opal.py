@@ -1,8 +1,4 @@
-"""
-This file generates an OPAL beam file from the provided parameters.
-
-It includes methods to run the OPAL generator, write the input file, and post-process the generated beam data.
-"""
+"""OPAL beam generator."""
 import os
 import subprocess
 from typing import Any, Dict
@@ -21,25 +17,18 @@ from ...Modules import Beams as rbf
 
 class OPALGenerator(frameworkGenerator):
     """
-    A class to generate an OPAL beam file from the provided parameters.
-
-    :param executables: Dictionary containing the paths to the executables.
-    :param global_parameters: Dictionary containing global parameters for the simulation.
-    :param generator_keywords: Dictionary containing keywords for the generator.
-    :param kwargs: Additional keyword arguments for the generator.
-    :ivar filename: Name of the output file.
-    :ivar code: Code identifier for the generator.
+    Generates a cathode beam by emission in OPAL.
     """
 
     opalglobal: Dict = {}
     """Global settings for OPAL"""
 
     breakstr: str = "//----------------------------------------------------------------------------"
-    """String to indicate a new section of the generator txt file"""
+    """Section separator in the input file."""
 
     MIN_PARTICLES_PER_EMISSION_STEP: int = 64
     """Fewest particles an emission step may emit before
-    :func:`~capped_emission_steps` starts reducing the step count."""
+    :meth:`capped_emission_steps` reduces the step count."""
 
     MIN_EMISSION_STEPS: int = 50
     """Floor on the emission step count, so a small bunch still resolves the
@@ -53,10 +42,7 @@ class OPALGenerator(frameworkGenerator):
 
     def run(self) -> None:
         """
-        Run the OPAL generator to create the beam file.
-        This method constructs the command to run the OPAL executable with the input file
-        and executes it in the specified working directory.
-        :return: None
+        Run OPAL on the input file in `master_subdir`.
         """
         command = self.executables[self.code] + [self.objectname + ".in"]
         workdir = os.path.abspath(self.global_parameters["master_subdir"])
@@ -69,9 +55,7 @@ class OPALGenerator(frameworkGenerator):
     @property
     def initial_gamma(self) -> float:
         """
-        Calculate the initial Lorentz factor (gamma) of the particles based on their thermal kinetic energy.
-
-        :return: The initial Lorentz factor (gamma) of the particles.
+        Initial Lorentz factor from :attr:`thermal_kinetic_energy`.
         """
         if self.species not in list(aliases["aliases"]["opal"].keys()):
             raise NotImplementedError(f"{self.species} is not current implemented for OPAL")
@@ -95,26 +79,20 @@ class OPALGenerator(frameworkGenerator):
 
     def capped_emission_steps(self, requested: int) -> int:
         """
-        Limit the emission steps so each one emits a useful number of particles.
+        Lower `requested` emission steps so each emits a useful number of particles.
 
-        OPAL solves the space charge afresh at every emission step. If the step
-        count is large relative to the bunch, each step adds only a handful of
-        particles and the emitted slice is vanishingly thin next to the spot
-        size, so the solver works on an absurd aspect ratio and injects spurious
-        emittance at the cathode.
-
-        This only ever lowers the value -- an explicit setting is respected
-        wherever it is already sensible for the particle count.
+        Too few particles per step make a slice too thin for OPAL's space-charge
+        solver, which then adds spurious emittance at the cathode.
 
         Parameters
         ----------
         requested: int
-            The configured number of emission steps.
+            Configured number of emission steps
 
         Returns
         -------
         int
-            The number of emission steps to actually use.
+            Number of emission steps to use
         """
         ceiling = max(
             int(self.particles // self.MIN_PARTICLES_PER_EMISSION_STEP),
@@ -132,32 +110,23 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_distribution(self) -> str:
         """
-        Write the OPAL distribution input file with the parameters defined in the class.
-        Global opal parameters are used to generate the input file base on the `globals_opal.yaml` file.
-
-        Base attributes of :class:`~simba.Codes.Generators.frameworkGenerator`
-        are used to generate the input file, with the appropriate aliases and multipliers applied for the OPAL code.
-
-        This method constructs the distribution parameters based on the attributes of the class,
-        including the type of distribution, thermal kinetic energy, and other relevant parameters.
-
-        :return: A string representation of the OPAL distribution input parameters.
+        OPAL ``DISTRIBUTION`` command from the allowed attributes, under their OPAL aliases.
         """
         output = "//DISTRIBUTION\n"
-        output += f"DIST: DISTRIBUTION"
+        output += "DIST: DISTRIBUTION"
         dist_dict = {}
         if self.distribution_type_z in ["p", "flattop"]:
             dist_dict.update({"TYPE": "FLATTOP"})
-            if not getattr(self, "plateau_bunch_length") > 0:
-                raise ValueError(f"plateau_bunch_length must be defined for flattop longitudinal distribution")
+            if not self.plateau_bunch_length > 0:
+                raise ValueError("plateau_bunch_length must be defined for flattop longitudinal distribution")
             rise_time = self.plateau_rise_time
             fall_time = self.plateau_fall_time or rise_time
             dist_dict.update({aliases["aliases"]["opal"]["plateau_rise_time"]["alias"]: rise_time})
             dist_dict.update({aliases["aliases"]["opal"]["plateau_fall_time"]["alias"]: fall_time})
             dist_dict.update({aliases["aliases"]["opal"]["plateau_bunch_length"]["alias"]: self.plateau_bunch_length})
         else:
-            if not getattr(self, "sigma_t") > 0:
-                raise ValueError(f"sigma_t must be defined for flattop longitudinal distribution")
+            if not self.sigma_t > 0:
+                raise ValueError("sigma_t must be defined for flattop longitudinal distribution")
             dist_dict.update({"TYPE": "GAUSS"})
             dist_dict.update({aliases["aliases"]["opal"]["sigma_t"]["alias"]: self.sigma_t})
         for k, v in self.__dict__.items():
@@ -165,11 +134,7 @@ class OPALGenerator(frameworkGenerator):
             if k not in disallowed:
                 dist = True
                 if k in list(aliases["aliases"]["opal"].keys()):
-                    dist = (
-                        True
-                        if aliases["aliases"]["opal"][k]["type"] == "distribution"
-                        else False
-                    )
+                    dist = aliases["aliases"]["opal"][k]["type"] == "distribution"
                     k = aliases["aliases"]["opal"][k]["alias"]
                 if (getattr(self, k) is not None) and dist and (k.lower() != "type"):
                     dist_dict.update({k: v})
@@ -203,10 +168,7 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_globals(self):
         """
-        Write the global parameters for the OPAL input file with the parameters defined in the class.
-        Global opal parameters are used to generate the input file base on the `globals_opal.yaml` file.
-
-        :return: A string representation of the OPAL global parameters input.
+        OPAL global ``REAL`` variables.
         """
         output = "//GLOBAL PARAMETERS\n"
         output += f"REAL rf_freq = {float(self.bfreq)};\n"
@@ -224,10 +186,7 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_options(self):
         """
-        Write the options for the OPAL input file with the parameters defined in the class.
-        Global opal parameters are used to generate the input file base on the `globals_opal.yaml` file.
-
-        :return: A string representation of the OPAL options input.
+        OPAL ``OPTION`` commands from :attr:`opalglobal`.
         """
         output = "//OPTIONS\n"
         for name, val in self.opalglobal["option"].items():
@@ -237,27 +196,20 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_line(self):
         """
-        Write the lattice line for the OPAL input file with the parameters defined in the class (a simple monitor).
-
-        :return: A string representation of the OPAL line input.
+        OPAL line holding just the emission monitor.
         """
         output = "//EMISSION MONITOR\n"
         output += f"MONI: MONITOR, OUTFN=\"MONI\", TYPE=TEMPORAL, ELEMEDGE={str(self._get_elemedge())};\n"
-        output += f"EMISSION: LINE = (MONI);\n"
+        output += "EMISSION: LINE = (MONI);\n"
         output += f"{self.breakstr}\n"
         return output
 
     def _write_field_solver(self):
         """
-        Write the field solver parameters for the OPAL input file with the parameters defined in the class.
-        Global opal parameters are used to generate the input file base on the `globals_opal.yaml` file.
-
-        Space charge is not used in this case, so the field solver type is set to NONE.
-
-        :return: A string representation of the OPAL field solver input.
+        OPAL ``FIELDSOLVER`` command, of type NONE: no space charge here.
         """
         output = "//FIELD SOLVER\n"
-        output += f"FS: FIELDSOLVER "
+        output += "FS: FIELDSOLVER "
         self.opalglobal["fieldsolver"].update({"FSTYPE": "NONE"})
         self.opalglobal["fieldsolver"].update({"MX": 1, "MY": 1, "MT": 1})
         for name, val in self.opalglobal["fieldsolver"].items():
@@ -268,37 +220,30 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_beam(self):
         """
-        Write the beam parameters for the OPAL input file with the parameters defined in the class.
-
-        The beam is defined with the particle type, gamma, number of particles, bunch frequency,
-        bunch charge, and charge sign.
-        :return: A string representation of the OPAL beam input.
+        OPAL ``BEAM`` command.
         """
         if self.species not in list(aliases["aliases"]["opal"].keys()):
             raise NotImplementedError(f"{self.species} is not currently implemented for OPAL")
         output = "//BEAM\n"
-        output += f"BEAM1: BEAM,\n"
+        output += "BEAM1: BEAM,\n"
         output += f"\tPARTICLE = {aliases['aliases']['opal'][self.species]['alias']},\n"
-        output += f"\tGAMMA = GAMMA,\n"
-        output += f"\tNPART = n_particles,\n"
-        output += f"\tBFREQ = 1,\n"
-        output += f"\tBCURRENT = beam_bunch_charge,\n"
+        output += "\tGAMMA = GAMMA,\n"
+        output += "\tNPART = n_particles,\n"
+        output += "\tBFREQ = 1,\n"
+        output += "\tBCURRENT = beam_bunch_charge,\n"
         output += f"\tCHARGE = {int(self.charge_sign)};\n"
         output += f"{self.breakstr}\n"
         return output
 
     def _write_track(self):
         """
-        Write the track command for the OPAL input file with the parameters defined in the class.
-        By default we stop a short time after particle generation (cannot do it at z=0).
-
-        :return: A string representation of the OPAL track command.
+        OPAL ``TRACK`` command, stopping just after emission (it cannot stop at z=0).
         """
         output = "//TRACK\n"
-        output += f"TRACK, \n"
-        output += f"\tLINE = EMISSION,\n"
-        output += f"\tBEAM = BEAM1,\n"
-        output += f"\tMAXSTEPS = 100000,\n"
+        output += "TRACK, \n"
+        output += "\tLINE = EMISSION,\n"
+        output += "\tBEAM = BEAM1,\n"
+        output += "\tMAXSTEPS = 100000,\n"
         output += "\tDT = {" + str(self.tstep) + "},\n"
         output += "\tZSTOP = {" + str(self._get_bunch_length()*constants.speed_of_light*0.1) + "};\n"
         output += f"{self.breakstr}\n"
@@ -306,26 +251,21 @@ class OPALGenerator(frameworkGenerator):
 
     def _write_run(self):
         """
-        Write the run command for the OPAL input file with the parameters defined in the class.
-        This uses properties defined earlier in the file.
-
-        :return: A string representation of the OPAL track command.
+        OPAL ``RUN`` command and the end of the file.
         """
         output = "//RUN\n"
-        output += f"RUN, \n"
-        output += f'\tMETHOD = "PARALLEL-T",\n'
-        output += f"\tBEAM = BEAM1,\n"
-        output += f"\tFIELDSOLVER = FS,\n"
-        output += f"\tDISTRIBUTION = DIST;\n"
-        output += f"ENDTRACK;\n"
-        output += f"QUIT;\n"
+        output += "RUN, \n"
+        output += '\tMETHOD = "PARALLEL-T",\n'
+        output += "\tBEAM = BEAM1,\n"
+        output += "\tFIELDSOLVER = FS,\n"
+        output += "\tDISTRIBUTION = DIST;\n"
+        output += "ENDTRACK;\n"
+        output += "QUIT;\n"
         return output
 
     def write(self):
         """
-        Write the OPAL commands to an input file.
-
-        :return: None
+        Write the OPAL input file to `master_subdir`.
         """
         self.apply_alias_and_multiplier(aliases, "opal")
         output = ""
@@ -345,9 +285,7 @@ class OPALGenerator(frameworkGenerator):
 
     def postProcess(self):
         """
-        Convert the output from OPAL to standard HDF5 format.
-
-        #TODO filename is hardcoded and it shouldn't be.
+        Convert OPAL's ``MONI.h5`` to ``laser.hdf5`` (names hardcoded).
         """
         opalbeamfilename = "MONI.h5"
         rbf.opal.read_opal_beam_file(

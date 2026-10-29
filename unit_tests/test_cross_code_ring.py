@@ -1,0 +1,427 @@
+"""The strongest correctness test available: the codes check each other."""
+
+import math
+import os
+import tempfile
+from functools import cache
+
+import numpy as np
+import pytest
+
+from simba.Modules.Matrices import (
+    fractional_tune,
+    momentum_compaction,
+    periodic_twiss,
+)
+
+# One cell, and the whole ring is eight of them. Every code below builds
+# exactly this, so any disagreement is the code and not the lattice.
+NCELL = 8
+QUAD_L, QUAD_K1 = 0.3, 1.2
+BEND_L = 1.0
+DRIFT_L = 0.5
+ANGLE = 2 * math.pi / NCELL
+PC = 1e9
+MC2 = 0.510998950e6
+CIRCUMFERENCE = NCELL * (2 * QUAD_L + BEND_L + 3 * DRIFT_L)
+GAMMA0 = math.sqrt(1 + (PC / MC2) ** 2)
+
+
+@cache
+def xsuite_ring():
+    xt = pytest.importorskip("xtrack")
+    els, nms = [], []
+    for i in range(NCELL):
+        for nm, el in (
+            (f"qf{i}", xt.Quadrupole(length=QUAD_L, k1=QUAD_K1)),
+            (f"d{i}a", xt.Drift(length=DRIFT_L)),
+            (f"b{i}", xt.Bend(length=BEND_L, angle=ANGLE)),
+            (f"d{i}b", xt.Drift(length=DRIFT_L)),
+            (f"qd{i}", xt.Quadrupole(length=QUAD_L, k1=-QUAD_K1)),
+            (f"d{i}c", xt.Drift(length=DRIFT_L)),
+        ):
+            nms.append(nm)
+            els.append(el)
+    line = xt.Line(elements=els, element_names=nms)
+    line.particle_ref = xt.Particles(p0c=PC, mass0=MC2)
+    line.build_tracker()
+    tw = line.twiss(method="4d")
+    matrix = np.asarray(
+        line.compute_R_matrix(particle_on_co=tw.particle_on_co)["R_matrix"]
+    )
+    return matrix, tw
+
+
+@cache
+def ocelot_ring(second_order=False, bend=()):
+    """First-order maps unless ``second_order``, which is how LAURA builds it.
+    ``bend`` is extra ``(name, value)`` pairs for every SBend."""
+    oc = pytest.importorskip("ocelot.cpbd.elements")
+    from ocelot.cpbd.magnetic_lattice import MagneticLattice
+    from ocelot.cpbd.optics import lattice_transfer_map
+    from ocelot.cpbd.optics import twiss as ocelot_twiss
+    from ocelot.cpbd.transformations.second_order import SecondTM
+
+    cell = []
+    for _ in range(NCELL):
+        cell += [
+            oc.Quadrupole(l=QUAD_L, k1=QUAD_K1),
+            oc.Drift(l=DRIFT_L),
+            oc.SBend(l=BEND_L, angle=ANGLE, **dict(bend)),
+            oc.Drift(l=DRIFT_L),
+            oc.Quadrupole(l=QUAD_L, k1=-QUAD_K1),
+            oc.Drift(l=DRIFT_L),
+        ]
+    lattice = MagneticLattice(cell, method={"global": SecondTM} if second_order else None)
+    e_tot_gev = math.sqrt(PC**2 + MC2**2) / 1e9
+    matrix = np.asarray(lattice_transfer_map(lattice, e_tot_gev))
+    return matrix, ocelot_twiss(lattice, tws0=None), lattice
+
+
+@cache
+def madx_ring(bend=()):
+    madx_module = pytest.importorskip("cpymad.madx")
+    madx = madx_module.Madx(stdout=False, cwd=tempfile.mkdtemp())
+    cell_l = 2 * QUAD_L + BEND_L + 3 * DRIFT_L
+    body = []
+    for i in range(NCELL):
+        s = i * cell_l
+        body.append(f"qf{i}: quadrupole, at={s + QUAD_L / 2}, l={QUAD_L}, k1={QUAD_K1};")
+        body.append(
+            f"b{i}: sbend, at={s + QUAD_L + DRIFT_L + BEND_L / 2}, "
+            f"l={BEND_L}, angle={ANGLE}"
+            + "".join(f", {name}={value}" for name, value in bend)
+            + ";"
+        )
+        body.append(
+            f"qd{i}: quadrupole, "
+            f"at={s + QUAD_L + 2 * DRIFT_L + BEND_L + QUAD_L / 2}, "
+            f"l={QUAD_L}, k1={-QUAD_K1};"
+        )
+    madx.input(
+        f"beam, particle=electron, pc={PC / 1e9};\n"
+        f"ring: sequence, l={CIRCUMFERENCE};\n" + "\n".join(body) + "\nendsequence;\n"
+        "use, sequence=ring;\n"
+        "select, flag=sectormap, full;\n"
+        "twiss, sectormap, sectortable=smap;"
+    )
+    table = madx.table.smap
+    maps = [
+        np.array([[table[f"r{i}{j}"][row] for j in range(1, 7)] for i in range(1, 7)])
+        for row in range(len(table["r11"]))
+    ]
+    total = np.eye(6)
+    for m in maps:
+        total = m @ total
+    return total, madx.table.summ
+
+
+BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+
+
+def bmad_ring_file(rf=False):
+    path = os.path.join(tempfile.mkdtemp(), "ring.bmad")
+    with open(path, "w") as handle:
+        handle.write(
+            "parameter[particle] = electron\n"
+            "parameter[geometry] = closed\n"
+            f"parameter[p0c] = {PC}\n"
+            f"qf: quadrupole, l = {QUAD_L}, k1 = {QUAD_K1}\n"
+            f"qd: quadrupole, l = {QUAD_L}, k1 = {-QUAD_K1}\n"
+            f"b: sbend, l = {BEND_L}, angle = {ANGLE!r}\n"
+            f"d: drift, l = {DRIFT_L}\n"
+            "rf: rfcavity, l = 0, voltage = 1e6, harmon = 40, phi0 = 0.5\n"
+            "cell: line = (qf, d, b, d, qd, d)\n"
+            f"lat: line = ({'rf, ' if rf else ''}{NCELL}*cell)\n"
+            "use, lat\n"
+        )
+    return path
+
+
+@cache
+def bmad_ring():
+    """Chromaticity by finite difference: the definition, not an analytic integral."""
+    pytest.importorskip("pytao")
+    if not os.path.exists(BMAD_SO):
+        pytest.skip("Bmad libtao not installed")
+    from pytao import Tao
+
+    tao = Tao(lattice_file=bmad_ring_file(), so_lib=BMAD_SO, noplot=True)
+
+    def tunes():
+        out = {}
+        for plane, attribute in (("x", "ele.a.phi"), ("y", "ele.b.phi")):
+            value = tao.cmd(f"pipe lat_list 1@0>>END|model {attribute}")[0]
+            out[plane] = float(str(value).strip()) / (2 * math.pi)
+        return out
+
+    delta = 1e-4
+    on = tunes()
+    tao.cmd(f"set particle_start pz = {delta}")
+    plus = tunes()
+    tao.cmd(f"set particle_start pz = {-delta}")
+    minus = tunes()
+    tao.cmd("set particle_start pz = 0")
+    return {
+        "tune_x_total": on["x"],
+        "tune_y_total": on["y"],
+        "chromaticity_x": (plus["x"] - minus["x"]) / (2 * delta),
+        "chromaticity_y": (plus["y"] - minus["y"]) / (2 * delta),
+    }
+
+
+@pytest.mark.parametrize("plane", ["x", "y"])
+def test_the_fractional_tune_agrees_across_codes(plane):
+    """Transverse blocks need no convention conversion."""
+    tunes = {
+        "xsuite": fractional_tune(xsuite_ring()[0], plane),
+        "ocelot": fractional_tune(ocelot_ring()[0], plane),
+        "madx": fractional_tune(madx_ring()[0], plane),
+    }
+    reference = tunes["xsuite"]
+    for name, value in tunes.items():
+        assert value == pytest.approx(reference, abs=1e-6), f"{name}: {tunes}"
+
+
+def test_the_ring_is_not_accidentally_on_a_trivial_tune():
+    """Agreement on 0.0 would prove nothing."""
+    tune = fractional_tune(xsuite_ring()[0], "x")
+    assert 0.05 < tune < 0.95
+
+
+def test_the_periodic_beta_agrees_across_codes():
+    betas = {
+        "xsuite": periodic_twiss(xsuite_ring()[0], "x")["beta"],
+        "ocelot": periodic_twiss(ocelot_ring()[0], "x")["beta"],
+        "madx": periodic_twiss(madx_ring()[0], "x")["beta"],
+    }
+    reference = betas["xsuite"]
+    for name, value in betas.items():
+        assert value == pytest.approx(reference, rel=1e-5), f"{name}: {betas}"
+
+
+def test_the_periodic_alpha_agrees_across_codes():
+    alphas = {
+        "xsuite": periodic_twiss(xsuite_ring()[0], "x")["alpha"],
+        "ocelot": periodic_twiss(ocelot_ring()[0], "x")["alpha"],
+        "madx": periodic_twiss(madx_ring()[0], "x")["alpha"],
+    }
+    reference = alphas["xsuite"]
+    for name, value in alphas.items():
+        assert value == pytest.approx(reference, abs=1e-5), f"{name}: {alphas}"
+
+
+def test_each_codes_own_tune_matches_the_map():
+    """Accumulated phase against the map's eigenvalues: independent routes."""
+    _, tw = xsuite_ring()
+    _, periodic, _ = ocelot_ring()
+    _, summ = madx_ring()
+    native = {
+        "xsuite": float(tw.qx) % 1.0,
+        "ocelot": (float(periodic[-1].mux) / (2 * math.pi)) % 1.0,
+        "madx": float(summ["q1"][-1]) % 1.0,
+    }
+    for name, value in native.items():
+        assert value == pytest.approx(
+            fractional_tune(xsuite_ring()[0], "x"), abs=1e-5
+        ), f"{name}: {native}"
+
+
+def test_the_codes_agree_on_the_integer_tune_too():
+    """The map cannot give it, so this is the only place it is checked."""
+    _, tw = xsuite_ring()
+    _, summ = madx_ring()
+    assert int(float(tw.qx)) == int(float(summ["q1"][-1]))
+
+
+def test_the_horizontal_chromaticity_agrees_across_three_codes():
+    """Xsuite, MAD-X and Bmad: -0.866684 to six digits."""
+    _, tw = xsuite_ring()
+    _, summ = madx_ring()
+    assert float(summ["dq1"][-1]) == pytest.approx(float(tw.dqx), rel=1e-5)
+    assert bmad_ring()["chromaticity_x"] == pytest.approx(float(tw.dqx), rel=1e-5)
+
+
+def test_madx_and_bmad_agree_on_vertical_chromaticity():
+    """-0.653642 to six digits."""
+    _, summ = madx_ring()
+    assert bmad_ring()["chromaticity_y"] == pytest.approx(
+        float(summ["dq2"][-1]), rel=1e-5
+    )
+
+
+def test_xsuite_is_the_vertical_chromaticity_outlier():
+    """A real model difference in the dipole's off-momentum vertical transport.
+
+    Each code's chromaticity matches its own finite-difference dQ/ddelta, and
+    the gap vanishes with the bend angle. MAD-X's vertical block is Xsuite's
+    without the 1/(1+delta) rigidity factor. Which is right is not asserted;
+    the values are pinned so a change anywhere shows up.
+    """
+    from ocelot.cpbd.chromaticity import chromaticity
+
+    _, tw = xsuite_ring()
+    _, periodic, lattice = ocelot_ring()
+    _, summ = madx_ring()
+    measured = {
+        "xsuite": float(tw.dqy),
+        "ocelot": float(chromaticity(lattice, periodic[0])[1]),
+        "madx": float(summ["dq2"][-1]),
+        "bmad": bmad_ring()["chromaticity_y"],
+    }
+    assert measured["xsuite"] == pytest.approx(-0.461311, rel=1e-4)
+    assert measured["ocelot"] == pytest.approx(-0.581475, rel=1e-4)
+    assert measured["madx"] == pytest.approx(-0.653642, rel=1e-4)
+    assert measured["bmad"] == pytest.approx(-0.653642, rel=1e-4)
+    spread = max(measured.values()) - min(measured.values())
+    assert spread > 0.1, f"codes now agree -- good news, update this: {measured}"
+
+
+def test_ocelot_horizontal_chromaticity_is_the_outlier():
+    """Ocelot integrates analytically where the others difference two momenta."""
+    from ocelot.cpbd.chromaticity import chromaticity
+
+    _, tw = xsuite_ring()
+    _, periodic, lattice = ocelot_ring()
+    ocelot_x = float(chromaticity(lattice, periodic[0])[0])
+    assert ocelot_x == pytest.approx(-1.16126, rel=1e-4)
+    assert abs(ocelot_x / float(tw.dqx) - 1) > 0.3
+
+
+COMBINED_FUNCTION = (("k1", -0.03), ("k2", 2.0), ("e1", 0.05), ("e2", 0.05))
+
+
+@pytest.mark.parametrize(
+    "bend, rel",
+    [
+        ((), 1e-5),
+        # Ocelot's default maps put xi_y 3 % out; without the exit edge's
+        # -k1 tan(e), 7e-4. What is left (8e-5) needs k2 and edges together.
+        # TRANSPORT for every element is right too, but loses ELEGANT on a ramp.
+        (COMBINED_FUNCTION, 2e-4),
+    ],
+)
+def test_simbas_ocelot_chromaticity_matches_madx(bend, rel):
+    """Differencing Ocelot's second-order one-turn map, not its analytic chromaticity()."""
+    import types
+
+    from simba.Codes.Ocelot.bendmaps import transport_bend_maps
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    transport_bend_maps()  # as ocelotLattice.writeElements does
+    _, summ = madx_ring(bend)
+    _, _, lattice = ocelot_ring(second_order=True, bend=bend)
+    ring = types.SimpleNamespace(
+        lat_obj=lattice, reference_p0c=PC, reference_energy=math.hypot(PC, MC2)
+    )
+    xi_x, xi_y = ocelotLattice.chromaticity(ring)
+    assert xi_x == pytest.approx(float(summ["dq1"][-1]), rel=rel)
+    assert xi_y == pytest.approx(float(summ["dq2"][-1]), rel=rel)
+
+
+def test_an_ocelot_cavity_is_at_least_a_drift_to_second_order():
+    """Its ``CavityTM`` has no ``T``; the booster's cavities put xi_x 6 % out."""
+    import ocelot.cpbd.elements as oc
+    from ocelot.cpbd.magnetic_lattice import MagneticLattice
+    from ocelot.cpbd.transformations.second_order import SecondTM
+
+    from simba.Codes.Ocelot.cavitymaps import turn_map_with_cavity_drifts
+
+    def lattice(gap):
+        return MagneticLattice(
+            [oc.Quadrupole(l=QUAD_L, k1=QUAD_K1), gap], method={"global": SecondTM}
+        )
+
+    cavity = turn_map_with_cavity_drifts(lattice(oc.Cavity(l=1.8, phi=90.0)), 1.0)
+    drift = lattice(oc.Drift(l=1.8)).transfer_maps(1.0)
+    for a, b in zip(cavity, drift):
+        np.testing.assert_allclose(a, b, atol=1e-12)
+
+
+def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
+    """`read_optics_summary` once raised NameError on `pi`, killing every Ocelot ring run."""
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    _, tw = xsuite_ring()
+    _, _, lattice = ocelot_ring()
+
+    class FakeOcelot:
+        read_optics_summary = ocelotLattice.read_optics_summary
+        _ocelot_periodic = ocelotLattice._ocelot_periodic
+        read_one_turn_map = ocelotLattice.read_one_turn_map
+        objectname = "ring"
+        lat_obj = lattice
+        _periodic = None
+        # the periodic solution is seeded with the reference energy, in eV
+        reference_energy = math.hypot(PC, MC2)
+
+    summary = FakeOcelot().read_optics_summary()
+    assert summary["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-4)
+    assert summary["tune_y_total"] == pytest.approx(float(tw.qy), rel=1e-4)
+
+
+def test_bmad_chromaticity_survives_a_live_cavity():
+    """With RF on, Tao's 6D closed orbit pins ``pz``, so the finite difference read zero."""
+    from pytao import Tao
+
+    from simba.Codes.Bmad.Bmad import bmadLattice
+
+    expected = bmad_ring()  # no cavity
+    path = bmad_ring_file(rf=True)
+
+    class FakeBmad:
+        read_optics_summary = bmadLattice.read_optics_summary
+        _tao_tunes = bmadLattice._tao_tunes
+        objectname = "ring"
+        lattice_file = path
+        chromaticity_delta = 1e-4
+        tao = Tao(lattice_file=path, so_lib=BMAD_SO, noplot=True)
+
+    lattice = FakeBmad()
+    summary = lattice.read_optics_summary()
+    for plane in ("x", "y"):
+        assert summary[f"chromaticity_{plane}"] == pytest.approx(
+            expected[f"chromaticity_{plane}"], rel=1e-3
+        )
+    # and the RF is left as it was found
+    assert "rf_on;LOGIC;T;T" in lattice.tao.cmd("pipe global")
+
+
+def test_bmad_agrees_on_the_tune_including_the_integer():
+    _, tw = xsuite_ring()
+    assert bmad_ring()["tune_x_total"] == pytest.approx(float(tw.qx), rel=1e-6)
+    assert bmad_ring()["tune_y_total"] == pytest.approx(float(tw.qy), rel=1e-6)
+
+
+def test_the_chromaticity_is_negative_and_substantial():
+    """Near zero would mean it is not being computed at all."""
+    _, tw = xsuite_ring()
+    assert float(tw.dqx) < -0.5
+    assert float(tw.dqy) < -0.3
+
+
+def test_the_momentum_compaction_agrees_across_codes():
+    """Longitudinal, so Ocelot's map needs the convention conversion."""
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    beta0 = math.sqrt(1 - 1 / GAMMA0**2)
+    ocelot_raw = ocelot_ring()[0].copy()
+    ratio = ocelotLattice.otm_longitudinal_sign * beta0 ** (
+        ocelotLattice.otm_longitudinal_scale
+    )
+    diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, 1.0])
+    ocelot_canonical = (diagonal[:, None] * ocelot_raw) / diagonal[None, :]
+
+    values = {
+        "xsuite": momentum_compaction(xsuite_ring()[0], CIRCUMFERENCE, GAMMA0),
+        "ocelot": momentum_compaction(ocelot_canonical, CIRCUMFERENCE, GAMMA0),
+    }
+    assert values["ocelot"] == pytest.approx(values["xsuite"], rel=1e-4), values
+
+
+def test_the_compaction_matches_what_the_codes_report():
+    _, tw = xsuite_ring()
+    _, summ = madx_ring()
+    derived = momentum_compaction(xsuite_ring()[0], CIRCUMFERENCE, GAMMA0)
+    assert derived == pytest.approx(float(tw.momentum_compaction_factor), rel=1e-6)
+    assert derived == pytest.approx(float(summ["alfa"][-1]), rel=2e-2)
