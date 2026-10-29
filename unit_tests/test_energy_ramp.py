@@ -121,6 +121,10 @@ def test_the_clock_is_xsuites():
     """So one knot per pass lands Xsuite on integer turns and it never
     interpolates the momentum."""
     xt = pytest.importorskip("xtrack")
+    from xtrack.track_flags import flag_mapping
+
+    if "XS_FLAG_USE_TIME_BASED_ZETA_UPDATE" not in flag_mapping:
+        pytest.skip("xtrack predates the analytic get_t_s_at_turn")
     length = 4.25
     read = ramp()
     clock = read.clock(10, length, ELECTRON)
