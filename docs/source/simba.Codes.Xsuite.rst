@@ -12,14 +12,6 @@ simba.Codes.Xsuite.Xsuite module
    :show-inheritance:
    :undoc-members:
 
-simba.Codes.Xsuite.xsuite\_conversion module
---------------------------------------------
-
-.. automodule:: simba.Codes.Xsuite.xsuite_conversion
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Module contents
 ---------------
 

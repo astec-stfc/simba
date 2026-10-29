@@ -1,19 +1,8 @@
 """
-SIMBA Cheetah Module
-
-Various objects and functions to handle Cheetah lattices and commands. See `Cheetah github`_ for more details.
+SIMBA Cheetah module: builds and tracks a Cheetah segment. See `Cheetah github`_.
 
     .. _Cheetah github: https://github.com/desy-ml/cheetah
-
-Classes:
-    - :class:`~simba.Codes.Cheetah.Cheetah.cheetahLattice`: The Cheetah lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
-    and for tracking through it.
-
 """
-from torch import Tensor
-
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
@@ -30,7 +19,6 @@ from laura.models.diagnostic import DiagnosticElement
 
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/cheetah_defaults.yaml",
-    "r",
 ) as infile:
     cheetahglobal = safe_load(infile)
 
@@ -56,55 +44,44 @@ twiss_keys = (
 )
 
 class cheetahLattice(frameworkLattice):
-    """
-    Class for defining the Cheetah lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject`s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a Cheetah lattice object,
-    and for tracking through it.
-    """
+    """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as a Cheetah segment."""
 
     screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
         ScatterGatherDescriptor
     )
-    """Function for converting all screen outputs from ELEGANT into the SIMBA generic 
-    :class:`~simba.Modules.Beams.beam` object and writing files"""
+    """Threaded conversion of Cheetah screen beams to openPMD"""
 
     code: str = "cheetah"
     """String indicating the lattice object type"""
+
+    electrons_only: ClassVar[bool] = True
+    """simba's Cheetah beam conversion assumes electrons."""
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
     segment: Any | None = None
-    """
-    Lattice elements arranged into a Cheetah `Segment`_
-    
+    """The lattice as a Cheetah `Segment`_
+
     .. _Segment: https://github.com/desy-ml/cheetah/blob/master/cheetah/accelerator/segment.py
     """
 
     pin: Any | None = None
-    """Initial particle distribution as a Cheetah `ParticleArray`_
+    """Initial particle distribution as a Cheetah `ParticleBeam`_
 
     .. _ParticleBeam: https://github.com/desy-ml/cheetah/blob/master/cheetah/particles/particle_beam.py"""
 
     pout: Any | None = None
-    """Final particle distribution as a Cheetah `ParticleArray`_"""
+    """Final particle distribution as a Cheetah `ParticleBeam`_"""
 
-    tws: tuple[Tensor, ...] | Tensor | None = None
-    """Tensor or tuple of Tensors containing Twiss parameters"""
+    tws: Any | None = None
+    """Twiss tensors along the segment (``Any`` so importing simba does not import torch)"""
 
     cheetahglobal: Dict = {}
-    """Global settings for Cheetah, read in from `cheetahLattice.settings["global"]["Cheetahsettings"]` and
-    `cheetah_defaults.yaml`"""
+    """``cheetah_defaults.yaml``, overridden by ``settings["global"]["CHEETAHsettings"]``"""
 
     particle_definition: str = None
     """Initial particle distribution as a string"""
-
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -116,41 +93,23 @@ class cheetahLattice(frameworkLattice):
                         self.cheetahglobal[k].update({k1: v1})
                 else:
                     self.cheetahglobal.update({k: v})
-        if (
-            "input" in self.file_block
-            and "particle_definition" in self.file_block["input"]
-        ):
-            if (
-                self.file_block["input"]["particle_definition"]
-                == "initial_distribution"
-            ):
-                self.particle_definition = "laser"
-            else:
-                self.particle_definition = self.file_block["input"][
-                    "particle_definition"
-                ]
-        else:
-            self.particle_definition = self.start
+        self.particle_definition = self.input_particle_definition
 
 
     def writeElements(self) -> bool:
         """
-        Create Cheetah objects for all the elements in the lattice and set the
-        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.segment`.
+        Build :attr:`segment` from the section.
 
         Returns
         -------
         bool
-            True if successful
+            Always True
         """
-        self.segment = self.section.to_cheetah(save=True)
+        self.segment = self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c))
         return True
 
     def write(self) -> None:
-        """
-        Create the lattice object via :func:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.writeElements`
-        and save it as a JSON file to `master_subdir`.
-        """
+        """Build :attr:`segment` and save it as JSON to `master_subdir`."""
         success = self.writeElements()
         if success:
             self.segment.to_lattice_json(
@@ -158,78 +117,70 @@ class cheetahLattice(frameworkLattice):
             )
 
     def preProcess(self) -> None:
-        """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
-        """
+        """Load the input beam and convert it via :meth:`hdf5_to_openpmd`."""
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.read_input_file(prefix, self.particle_definition)
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_openpmd()
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
         """
-        Convert the initial HDF5 particle distribution to OpenPMD format and set
-        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.pin` accordingly.
+        Rematch the input beam to the initial twiss, convert it to a Cheetah beam and set :attr:`pin`.
 
         Parameters
         ----------
         prefix: str
-            Prefix for particle file
+            Unused
         write: bool
-            Flag to indicate whether to save the file
+            Also save it as ``<particle_definition>.cheetah.hdf5``
         """
-        cheetahbeamfilename = self.particle_definition + ".openpmd.hdf5"
+        cheetahbeamfilename = f'{self.global_parameters["master_subdir"]}/{self.particle_definition}.cheetah.hdf5'
         self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
 
         self.pin = rbf.beam.write_cheetah_beam_file(
             self.global_parameters["beam"],
             cheetahbeamfilename,
-            write=write
+            write=write,
+            energy=self.reference_energy,
+            t0=self.reference_t0,
         )
 
     def run(self) -> None:
-        """
-        Run the code, and set :attr:`~tws` and :attr:`~pout`
-        """
-        # navi = self.navi_setup()
+        """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``)."""
         pin = deepcopy(self.pin)
-        # if self.sample_interval > 1:
-        #     pin = pin.thin_out(nth=self.sample_interval)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
-            # print("Twiss parameters:", self.tws)
 
     @lox.thread(40)
     def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
         """
-        Convert output from Cheetah ParticleBeam to HDF5 format
+        Write a Cheetah beam as openPMD; the end's also becomes the framework beam.
 
         Parameters
         ----------
-        scr: LAURA DiagnosticElement
-            Screen object
+        scr: cheetah.ParticleBeam
+            Beam read at the screen (despite the type hint)
         outname: str
-            Name of Cheetah beam file
+            openPMD file to write
         name: str
-            Name of element
+            Element name
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
-        s = 0
-        try:
-            s = self.elementObjects[name].physical.middle.z
-        except KeyError:
-            s = self.elementObjects[name.replace('_', "-")].physical.middle.z
-        # scr.tau -= self.startObject.physical.middle.z
+        if name == self.end:
+            zstart = self.endObject.physical.end.z
+        else:
+            try:
+                zstart = self.elementObjects[name].physical.start.z
+            except KeyError:
+                zstart = self.elementObjects[name.replace('_', "-")].physical.start.z
         rbf_cheetah.interpret_cheetah_ParticleBeam(
             beam,
             scr,
-            zstart=self.startObject.physical.start.z,
+            zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
         )
@@ -238,9 +189,7 @@ class cheetahLattice(frameworkLattice):
             self.global_parameters["beam"] = beam
 
     def postProcess(self) -> None:
-        """
-        Convert the outputs from Cheetah to HDF5 format and save them to `master_subdir`.
-        """
+        """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
         from cheetah.accelerator import Screen
         screens = {}
         for element in self.segment.elements:
@@ -252,7 +201,10 @@ class cheetahLattice(frameworkLattice):
         for name, scr in screens.items():
             if name.replace("_", "-") == self.start:
                 continue
-            outname = f'{self.global_parameters["master_subdir"]}/{name.replace("_", "-")}.openpmd.hdf5'
+            outname = (
+                f'{self.global_parameters["master_subdir"]}/'
+                f'{self.output_basename(name).replace("_", "-")}.openpmd.hdf5'
+            )
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1
         self.screen_threaded_function.gather()
@@ -264,12 +216,8 @@ class cheetahLattice(frameworkLattice):
                 for key, val in zip(twiss_keys, self.tws):
                     data = val.numpy()
                     if key == "s":
-                        # Cheetah's s is carried over from the incoming beam, so it
-                        # accumulates whatever the upstream sections tracked. Anchor it
-                        # to the lattice start instead, as Elegant/Ocelot/MAD-X do, so
-                        # every code reports the same s for the same element.
                         svals = data - data[0]
-                        data = svals + self.start_s
+                        data = svals + self.entrance_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
                     lat_s = np.array(self.getSValues(at_entrance=False))

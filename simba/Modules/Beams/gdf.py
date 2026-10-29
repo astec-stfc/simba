@@ -4,7 +4,6 @@ import numpy as np
 from ..gdf_beam import gdf_beam
 from .. import constants
 from ..units import UnitValue
-from warnings import warn
 
 
 def write_gdf_beam_file(
@@ -19,7 +18,7 @@ def write_gdf_beam_file(
 ):
     if filename is None:
         fn = os.path.splitext(self.filename)
-        filename = fn[0].strip(".ocelot").strip(".openpmd") + ".gdf"
+        filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".gdf"
     q = self._beam.particle_charge
     m = self._beam.particle_mass
 
@@ -74,7 +73,8 @@ def read_gdf_beam_file_object(file):
     Parameters
     ----------
     file: str or gdf_beam
-        Path to a GPT ``.gdf`` file, or an existing :class:`~gdf_beam`.
+        Path to a GPT ``.gdf`` file, or an existing
+        :class:`~simba.Modules.gdf_beam.gdf_beam`.
 
     Returns
     -------
@@ -87,12 +87,6 @@ def read_gdf_beam_file_object(file):
         gdfbeam = file
     else:
         raise Exception("file is not str or gdf_beam object!")
-    return gdfbeam
-
-
-def read_gdf_beam_file_info(self, file):
-    self.reset_dicts()
-    gdfbeam = gdf_beam(self, file)
     return gdfbeam
 
 
@@ -111,7 +105,7 @@ def read_gdf_beam_file(
     elif gdfbeam is None and filename is None:
         return None
 
-    if position is not None:  # and (time is not None or block is not None):
+    if position is not None:
         self.longitudinal_reference = "t"
         gdfbeamdata = gdfbeam.get_position(position)
         if gdfbeamdata is not None:
@@ -224,7 +218,7 @@ def read_gdf_beam_file(
             units="m",
         )
     else:
-        if hasattr(gdfbeamdata, "z"):  # and self.longitudinal_reference == "z":
+        if hasattr(gdfbeamdata, "z"):
             self._beam.z = UnitValue(gdfbeamdata.z, units="m")
             if hasattr(gdfbeamdata, "Bz"):
                 bz = gdfbeamdata.Bz
