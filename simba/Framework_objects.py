@@ -19,7 +19,6 @@ from warnings import warn, catch_warnings, simplefilter
 import shutil
 import tempfile
 from functools import reduce
-import h5py
 import stat
 import yaml
 from copy import deepcopy
@@ -1099,28 +1098,23 @@ class frameworkLattice(BaseModel):
     def finite_difference_tangents(self) -> None:
         """
         Carry gradients through a code that cannot differentiate (:attr:`finite_difference_step`),
-        by re-running the line in a scratch directory with its input beam, or one of its
-        :attr:`gradient_parameters`, nudged either side; the line end only.
+        by re-running the line in a scratch directory nudged either side along each column:
+        every input particle along its :attr:`incoming_tangents` for an upstream parameter, the
+        parameter itself for one of this line's :attr:`gradient_parameters`.
 
-        Each input coordinate is nudged twice: every particle the same way, and alternately up
-        and down, which leaves the beam's mean where it was. Between them they split each
-        particle's response into its ``own`` and the part ``through_mean`` coming from the
-        reference following the beam's mean, so that::
+        Each pair of runs gives its column at every beam file the line writes and along its
+        Twiss, through a reference that follows the beam and through collective effects.
 
-            t_out = own @ t_in + through_mean @ mean(t_in) + d out / d local parameters
-
-        which holds for tracking without collective effects. Makes 24 runs, only when
-        :attr:`incoming_tangents` arrived, plus 2 per local parameter.
-
-        The line-end tangent goes on to the next line and to
-        ``<line>_gradients.<code>.hdf5``; ``own`` and ``through_mean``, (n, 6, 6), go to
-        ``<line>_jacobian.<code>.hdf5``.
+        The tangents at each beam file go on to the line that reads it
+        next, and with the Twiss ones to ``<line>_gradients.<code>.hdf5``.
 
         Raises
         ------
         :class:`~simba.exceptions.GradientChainError`
-            If a run loses particles, or the line tracks more than one turn.
+            If a run loses particles or changes its Twiss sampling, or the line tracks more
+            than one turn.
         """
+        from .Modules import Twiss as rtf
         step = self.finite_difference_step
         local = self.gradient_parameters
         if step is None or self.supports_gradients or not (local or self.incoming_tangents):
@@ -1128,9 +1122,11 @@ class frameworkLattice(BaseModel):
         if self.turns > 1:
             raise exceptions.GradientChainError(self.objectname, "finite differences follow only one turn")
         subdir = self.global_parameters["master_subdir"]
-        end = self.output_beam_file(self.end)
-        out = self.lab_particles(end)
-        n = len(out)
+        names = [e.name for e in self.screens_and_markers_and_bpms if e.name not in (self.start, self.end)]
+        names = [name for name in names + [self.end] if os.path.isfile(self.output_beam_file(name))]
+        counts = {name: len(self.lab_particles(self.output_beam_file(name))) for name in names}
+        grid = rtf.load_directory(subdir, preglob=self.objectname)
+        grid = {k: np.asarray(getattr(grid, k).val) for k in ("s", "z")}
         scratch = tempfile.mkdtemp(dir=subdir)
 
         def rerun(shift=None, parameter=None, value=None):
@@ -1148,66 +1144,54 @@ class frameworkLattice(BaseModel):
                 line.write()
                 line.run()
                 line.postProcess()
-            particles = self.lab_particles(line.output_beam_file(line.end))
-            if len(particles) != n:
+            beams = {name: self.lab_particles(line.output_beam_file(name)) for name in names}
+            if any(len(beams[name]) != counts[name] for name in names):
                 raise exceptions.GradientChainError(self.objectname, "it loses particles")
-            return particles
+            twiss = rtf.load_directory(scratch, preglob=line.objectname)
+            twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
+            if np.shape(twiss["s"]) != np.shape(grid["s"]):
+                raise exceptions.GradientChainError(self.objectname, "its Twiss sampling moves")
+            return beams, {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi" and k not in grid}
 
         def derivative(h, **plus_minus):
             plus, minus = (rerun(**{k: v[i] for k, v in plus_minus.items()}) for i in (0, 1))
-            return (plus - minus) / (2 * h)
+            return [{k: (p[k] - m[k]) / (2 * h) for k in p} for p, m in zip(plus, minus)]
 
         try:
-            tangent = np.zeros((n, 6, 0))
+            columns = []
             if self.incoming_tangents is not None:
-                incoming = self.incoming_tangents["tangent"]
-                lab = self.lab_particles(
+                spread = np.std(self.lab_particles(
                     self.read_input_file(self.prefix, self.input_particle_definition, read_file=False)
-                )
-                if len(lab) != n:
-                    raise exceptions.GradientChainError(self.objectname, "it loses particles")
-                alternate = (-1.0) ** np.arange(n)
-                alternate -= alternate.mean()
-                own, through_mean = np.zeros((n, 6, 6)), np.zeros((n, 6, 6))
-                for k in range(6):
-                    h = step * np.std(lab[:, k])
-                    shift = np.zeros((n, 6))
-                    shift[:, k] = h
-                    uniform = derivative(h, shift=(shift, -shift))
-                    shift[:, k] = h * alternate
-                    own[:, :, k] = derivative(h, shift=(shift, -shift)) / alternate[:, None]
-                    through_mean[:, :, k] = uniform - own[:, :, k]
-                tangent = (
-                    np.einsum("nij,njp->nip", own, incoming)
-                    + np.einsum("nij,jp->nip", through_mean, incoming.mean(0))
-                )
-                with h5py.File(f"{subdir}/{self.objectname}_jacobian.{self.code}.hdf5", "w") as f:
-                    f.attrs.update(code=self.code, lattice=self.objectname, coordinates=list(lab_coordinates))
-                    f["own"], f["through_mean"] = own, through_mean
+                ), axis=0)
+                for direction in np.moveaxis(self.incoming_tangents["tangent"], -1, 0):
+                    # the largest nudge is step times its coordinate's spread
+                    scale = np.max(np.abs(direction) / spread)
+                    h = step / scale if scale else 1.0
+                    columns.append(derivative(h, shift=(h * direction, -h * direction)))
             values = []
-            local_tangent = np.zeros((n, 6, len(local)))
-            for j, parameter in enumerate(local):
+            for parameter in local:
                 name, key = parameter.split(":")
                 value = float(reduce(getattr, key.split("."), self.elements[name]))
                 h = step * max(abs(value), 1.0)
                 values.append(value)
-                local_tangent[..., j] = derivative(h, parameter=(parameter, parameter), value=(value + h, value - h))
+                columns.append(derivative(h, parameter=(parameter, parameter), value=(value + h, value - h)))
         finally:
             shutil.rmtree(scratch)
+        beams, twiss = ({k: np.stack([c[i][k] for c in columns], -1) for k in columns[0][i]} for i in (0, 1))
         incoming = self.incoming_tangents or {"parameters": [], "values": []}
-        handoff = {
-            "parameters": list(incoming["parameters"]) + local,
-            "values": list(incoming["values"]) + values,
-            "tangent": np.concatenate([tangent, local_tangent], -1),
-        }
-        # for the line that reads this file next; see check_incoming_tangents
-        self.global_parameters.get("tangents", {})[os.path.abspath(end)] = handoff
+        parameters = list(incoming["parameters"]) + local
+        values = list(incoming["values"]) + values
+        for name in names:
+            # for the line that reads this file next; see check_incoming_tangents
+            self.global_parameters.get("tangents", {})[os.path.abspath(self.output_beam_file(name))] = {
+                "parameters": parameters, "values": values, "tangent": beams[name],
+            }
         write_gradients(
             f"{subdir}/{self.objectname}_gradients.{self.code}.hdf5",
-            handoff["parameters"],
-            handoff["values"],
-            {},
-            {self.output_basename(self.end): handoff["tangent"]},
+            parameters,
+            values,
+            {**twiss, **grid},
+            {self.output_basename(name): beams[name] for name in names},
             code=self.code,
             lattice=self.objectname,
             coordinates=list(lab_coordinates),

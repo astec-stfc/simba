@@ -13,7 +13,8 @@ pytest.importorskip("cheetah")
 import simba.Framework as fw
 from simba import exceptions
 from simba.Codes.Generators.Generators import frameworkGenerator
-from simba.Modules.gradients import read_gradients
+from simba.Modules import Twiss as rtf
+from simba.Modules.gradients import lab_array, read_gradients
 from laura.models.element import Marker, RFCavity, Screen
 from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
 
@@ -60,10 +61,10 @@ def _value(framework, parameter):
     return reduce(getattr, key.split("."), framework.getElement(name))
 
 
-def _track(framework, line, changes={}):
+def _track(framework, line, changes={}, beams=("M3",)):
     """
-    Track with ``changes`` (ELEMENT:keyword -> value), then put them back; the end particles
-    and ``line``'s beta_x, if it is a Cheetah line.
+    Track with ``changes`` (ELEMENT:keyword -> value), then put them back; the particles at
+    each of ``beams``, and ``line``'s beta_x.
     """
     original = {parameter: _value(framework, parameter) for parameter in changes}
     for parameter, value in changes.items():
@@ -74,30 +75,30 @@ def _track(framework, line, changes={}):
     for parameter, value in original.items():
         framework.modifyElement(*parameter.split(":"), value)
     subdir = framework.subdirectory
-    beam = read_beam(subdir, "M3")
-    particles = np.stack([getattr(beam, c).val for c in COORDINATES], -1)
+    particles = {name: lab_array(read_beam(subdir, name)) for name in beams}
     twiss = os.path.join(subdir, f"{line}_twiss.cheetah.hdf5")
     if not os.path.isfile(twiss):
-        return particles, None
+        return particles, np.asarray(rtf.load_directory(subdir, preglob=line).beta_x.val)
     with h5py.File(twiss) as f:
         beta_x = f["Twiss"]["beta_x"][()]
     return particles, beta_x
 
 
-def _check_against_finite_differences(framework, line, grads, column, step=1e-4):
+def _check_against_finite_differences(framework, line, grads, column, step=1e-4, beams=("M3",)):
     parameter = grads["parameters"][column]
     value = _value(framework, parameter)
-    plus, beta_plus = _track(framework, line, {parameter: value + step})
-    minus, beta_minus = _track(framework, line, {parameter: value - step})
-    fd = (plus - minus) / (2 * step)
-    end = grads["Beams"]["M3"][..., column]
-    assert end.shape == fd.shape
-    for c in range(6):
-        # plus the round-off a finite difference sees in coordinates this large
-        noise = 1e-10 * np.abs(plus[:, c]).max() / step
-        np.testing.assert_allclose(end[:, c], fd[:, c], rtol=0, atol=1e-6 * np.abs(fd[:, c]).max() + noise)
-    if beta_plus is None:
-        return
+    plus, beta_plus = _track(framework, line, {parameter: value + step}, beams)
+    minus, beta_minus = _track(framework, line, {parameter: value - step}, beams)
+    for name in beams:
+        fd = (plus[name] - minus[name]) / (2 * step)
+        tangent = grads["Beams"][name][..., column]
+        assert tangent.shape == fd.shape
+        for c in range(6):
+            # plus the round-off a finite difference sees in coordinates this large
+            noise = 1e-10 * np.abs(plus[name][:, c]).max() / step
+            np.testing.assert_allclose(
+                tangent[:, c], fd[:, c], rtol=0, atol=1e-6 * np.abs(fd[:, c]).max() + noise,
+            )
     fd_beta = (beta_plus - beta_minus) / (2 * step)
     np.testing.assert_allclose(
         grads["Twiss"]["beta_x"][:, column], fd_beta, rtol=0, atol=1e-6 * np.abs(fd_beta).max(),
@@ -123,13 +124,20 @@ def test_cheetah_gradients_match_finite_differences(tmp_path):
 
 def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=()):
     """
-    The FODO cell as two lines, A (M1 to M2, holding QUAD1F) and B (M2 to M3, holding QUAD1D);
-    ``cavity`` puts an off-crest cavity in A, whose phase moves B's reference energy and time.
+    The FODO cell as two lines, A (M1 to M2, holding QUAD1F) and B (M2 to M3, holding the
+    screen SCR2 then QUAD1D); ``cavity`` puts an off-crest cavity in A, whose phase moves B's
+    reference energy and time.
     """
-    middle = [Marker(
-        name="M2", machine_area="FODO", hardware_class="Marker",
-        physical={"middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
-    )]
+    middle = [
+        Marker(
+            name="M2", machine_area="FODO", hardware_class="Marker",
+            physical={"middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+        ),
+        Screen(
+            name="SCR2", machine_area="FODO",
+            physical={"length": 0.1, "middle": {"x": 0.0, "y": 0.0, "z": 2.4}},
+        ),
+    ]
     parameters = ["QUAD1F:k1l", "QUAD1D:k1l"]
     if cavity:
         middle.insert(0, RFCavity(
@@ -172,18 +180,22 @@ def test_gradients_stop_at_a_code_that_cannot_differentiate(tmp_path):
         framework.track()
 
 
-@pytest.mark.parametrize("cavity", [False, True])
-def test_finite_differences_carry_gradients_through_ocelot(tmp_path, cavity):
-    skip_missing("ocelot")
-    framework = _split_fodo(tmp_path, code_b="ocelot", cavity=cavity, finite_difference=["B"])
+# MAD-X takes a minute a case, so only the cavity one
+@pytest.mark.parametrize("code, cavity", [
+    ("ocelot", False), ("ocelot", True), ("elegant", False), ("elegant", True), ("madx", True),
+])
+def test_finite_differences_carry_gradients_through_other_codes(tmp_path, code, cavity):
+    skip_missing(code)
+    framework = _split_fodo(tmp_path, code_b=code, cavity=cavity, finite_difference=["B"])
     _track(framework, "B")
 
-    grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
+    grads = read_gradients(os.path.join(framework.subdirectory, f"B_gradients.{code}.hdf5"))
     assert grads["parameters"] == (["CAV1:cavity.phase"] if cavity else ["QUAD1F:k1l"]) + ["QUAD1D:k1l"]
     assert grads["attrs"]["method"] == "finite_difference"
-    assert os.path.isfile(os.path.join(framework.subdirectory, "B_jacobian.ocelot.hdf5"))
-    _check_against_finite_differences(framework, "B", grads, 0, step=1e-3 if cavity else 1e-4)
-    _check_against_finite_differences(framework, "B", grads, 1)
+    assert grads["Twiss"]["beta_x"].shape == (len(grads["Twiss"]["s"]), 2)
+    beams = ("SCR2", "M3")
+    _check_against_finite_differences(framework, "B", grads, 0, step=1e-3 if cavity else 1e-4, beams=beams)
+    _check_against_finite_differences(framework, "B", grads, 1, beams=beams)
 
 
 def test_rematching_breaks_the_chain(tmp_path):
