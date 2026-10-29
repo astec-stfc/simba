@@ -119,6 +119,33 @@ is what an injection-mismatch study on a real ring needs:
 
     tracking: {turns: 1000, periodic: false}
 
+The periodic optics are each code's own: tunes and chromaticity from its periodic
+Twiss, and the momentum compaction from the one-turn map. Elegant's map cannot be
+converted (its longitudinal coordinate is path length), so it reports the
+``alphac`` of its Twiss output and the slip factor follows as
+:math:`\alpha_c - 1/\gamma^2`.
+
+.. note::
+   **MAD-X tracks a sliced line, but its optics are thick.** The periodic ``TWISS``
+   (tunes, chromaticity, one-turn map) runs on the thick sequence, misalignments
+   included, before ``MAKETHIN`` slices it for tracking. The tracked line keeps the
+   slicing error. The slice counts
+   are set in the ``tracking`` block, and SIMBA warns when a periodic run uses fewer
+   than 16:
+
+   .. code-block:: yaml
+
+       tracking: {periodic: true, nslice_quadrupole: 16, nslice_sbend: 16, nslice_sextupole: 16}
+
+.. note::
+   **Xsuite runs on the GPU if** ``cupy`` **imports.** Building the tracker then
+   compiles a CUDA kernel for the whole line, which for a ring of a few hundred
+   elements took minutes and more than 19 GB of memory. Ask for the CPU with
+   ``tracking: {context: cpu}`` (``auto``, ``cpu`` or ``gpu``), or for every run with
+   the environment variable ``SIMBA_XSUITE_CONTEXT``. If a cavity's phase leaves no
+   6D periodic solution (on the wrong side of transition, say) SIMBA warns and
+   falls back to the 4D solution, so the transverse optics are still reported.
+
 radiation
 ^^^^^^^^^^^^^
 
@@ -241,11 +268,12 @@ on turn 2 and two thirds on turn 3 — before the kicker has fired at all. ``hol
 ``linear`` and ``spline`` are all available; ``hold`` is what a step device wants,
 so it is the default and is said out loud here.
 
-Outside the listed turns the value is **clamped** to the first or last knot, which
-is what every code's own interpolation does too. A pulse that has to come back down
-therefore says so, with a final knot at zero; a slow bumper that stays on simply
-stops listing knots. A program whose last value is non-zero while the run continues
-past it warns, as does a run that ends part-way through a program.
+**Before the first knot the element keeps its lattice value** and steps to the first
+knot's value on that turn, as elegant's ``FIRE_ON_PASS`` does; simba makes the other
+codes do the same. After the last knot the value is **held**. A pulse that has to
+come back down therefore says so, with a final knot at zero; a slow bumper that stays
+on simply stops listing knots. A program whose last value is non-zero while the run
+continues past it warns, as does a run that ends part-way through a program.
 
 An optional ``parameter:`` names the code-native attribute to set directly. That
 turns off both the plane lookup and the sign conversion, and is the escape hatch
@@ -337,9 +365,10 @@ Where a code needs time rather than turn number, turn :math:`n` starts at
 .. math::
 
    t_1 = 0, \qquad
-   t_{n+1} = t_n + \frac{C}{c\,\tfrac12\left(\beta_0(n) + \beta_0(n+1)\right)}
+   t_{n+1} = t_n + \frac{C}{c}\,\frac{E_0(n) + E_0(n+1)}{p_0c(n) + p_0c(n+1)}
 
-with :math:`C` the length of one pass. The mid-point is Xsuite's own convention.
+with :math:`C` the length of one pass: exact for momentum linear in time across
+the pass, as Xsuite's own clock.
 Written with one knot per pass, it puts Xsuite on integer turns exactly. A
 :ref:`device program <device-programs>` in a ramped run is timed on the same
 clock.

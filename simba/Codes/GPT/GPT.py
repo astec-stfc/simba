@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import numpy as np
+from warnings import warn
 from laura.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
@@ -77,6 +78,10 @@ class gptLattice(frameworkLattice):
 
     crest_scan_particles: int = 10
     """Particles kept for :meth:`find_crest`; the crest is single-particle, so a handful will do."""
+
+    auto_phase: bool = True
+    """Phase the section's cavities with :func:`~autophase` before each run, as
+    ASTRA's ``Auto_Phase`` does; GPT itself tracks at whatever crest it is given."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -252,6 +257,12 @@ class gptLattice(frameworkLattice):
             rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
             scan_text, count=1, flags=re.MULTILINE,
         )
+        z_eval = float(self.elementObjects[name].physical.end.z)
+        z_start = float(self.startObject.physical.start.z)
+        scan_text += (
+            f'\nscreen("wcs","I",{z_eval});\n'
+            f'zminmax("wcs","I",{z_start - 0.01},{z_eval + 1e-3});\n'
+        )
 
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
@@ -276,7 +287,6 @@ class gptLattice(frameworkLattice):
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
-        z_eval = float(self.elementObjects[name].physical.end.z)
         phases, energies = scan(phase_range[0], phase_range[1], step)
         peak = phases[int(np.argmax(energies))]
         if refine:
@@ -319,8 +329,6 @@ class gptLattice(frameworkLattice):
             ``{name: crest}`` in phasing order
         """
         if names is None:
-            # elementObjects spans the whole machine; keep accelerating cavities in
-            # this section (an avgG scan says nothing about a deflector).
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
@@ -393,6 +401,8 @@ class gptLattice(frameworkLattice):
 
         Needs ``GPTLICENSE`` in :attr:`global_parameters`.
         """
+        if self.auto_phase and self.autophase():
+            self.write()
         main_command = (
             self.executables[self.code]
             + ["-o", self.objectname + "_out.gdf"]
@@ -552,10 +562,11 @@ class gptLattice(frameworkLattice):
             t0=self.headers["setfile"].time,
             sval=sval,
         )
-        # every screen reads the one shared _out.gdf, so delete it once at the end
         if self.global_parameters["delete_tracking_files"]:
             os.remove(
-                os.path.join(self.global_parameters["master_subdir"], self.objectname + "_out.gdf")
+                os.path.join(
+                    self.global_parameters["master_subdir"], self.objectname + "_out.gdf"
+                )
             )
 
     def hdf5_to_gdf(self, prefix: str="") -> None:
@@ -640,12 +651,17 @@ class gptLattice(frameworkLattice):
             s of the screen [m]
         """
         beam = rbf.beam()
-        rbf.gdf.read_gdf_beam_file(
-            beam,
-            os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
-            position=screen.physical.middle.z,
-            gdfbeam=gdf,
-        )
+        positions = getattr(self.section, "gpt_screen_positions", {})
+        try:
+            rbf.gdf.read_gdf_beam_file(
+                beam,
+                os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
+                position=positions.get(screen.name, screen.physical.middle.z),
+                gdfbeam=gdf,
+            )
+        except ValueError as exc:
+            warn(f"GPT screen {screen.name} not converted: {exc}")
+            return
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
         HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"

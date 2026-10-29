@@ -66,6 +66,25 @@ def test_a_wrong_species_is_still_a_value_error():
         raise exceptions.WrongSpeciesError("RING", "elegant", 938.272e6, 1)
 
 
+def test_lauras_per_bend_edge_order_warnings_become_one():
+    """84 on a booster, one per bend, read as noise."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with exceptions.one_edge_order_warning("RING"):
+            for bend in ("B1", "B2", "B3"):
+                warnings.warn(
+                    f"{bend}: edge_order = 1, but MAD-X always models the "
+                    "second-order edge terms, so it will not match the other codes."
+                )
+            warnings.warn("something else")
+    messages = [str(w.message) for w in caught]
+    assert messages == [
+        "something else",
+        "Line 'RING' has 3 bends with edge_order = 1 (e.g. B1), but MAD-X always "
+        "models the second-order edge terms, so they will not match the other codes.",
+    ]
+
+
 @pytest.mark.parametrize("value, shown", [("two", "'two'"), (0, "0"), (-3, "-3")])
 def test_a_bad_superperiod_count_says_why(value, shown):
     message = str(exceptions.BadSuperperiodsWarning("RING", value))

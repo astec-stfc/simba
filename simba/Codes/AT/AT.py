@@ -456,16 +456,20 @@ class atLattice(frameworkLattice):
             attribute = self.program_attribute(program, type(matches[0]).__name__ if matches else None)
             if attribute is None:
                 continue
-            value = program.value_at(turn)
             name, _, index = attribute.partition("[")
             for element in matches:
                 if index:
                     # magnets have no KickAngle until one is given
                     vector = np.array(getattr(element, name, np.zeros(2)), dtype=float)
-                    vector[int(index.rstrip("]"))] = value
+                    i = int(index.rstrip("]"))
+                    lattice = element.__dict__.setdefault(f"_simba_lattice_{attribute}", vector[i])
+                    vector[i] = program.value_at(turn, lattice)
                     setattr(element, name, vector)
                 else:
-                    setattr(element, name, value)
+                    lattice = element.__dict__.setdefault(
+                        f"_simba_lattice_{attribute}", getattr(element, name, 0.0)
+                    )
+                    setattr(element, name, program.value_at(turn, lattice))
 
     def _cavities(self, name: str) -> list:
         return [e for e in self.ring if e.FamName == name and type(e).__name__ == "RFCavity"]

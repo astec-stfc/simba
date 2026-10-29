@@ -121,6 +121,10 @@ def test_the_clock_is_xsuites():
     """So one knot per pass lands Xsuite on integer turns and it never
     interpolates the momentum."""
     xt = pytest.importorskip("xtrack")
+    from xtrack.track_flags import flag_mapping
+
+    if "XS_FLAG_USE_TIME_BASED_ZETA_UPDATE" not in flag_mapping:
+        pytest.skip("xtrack predates the analytic get_t_s_at_turn")
     length = 4.25
     read = ramp()
     clock = read.clock(10, length, ELECTRON)
@@ -400,3 +404,12 @@ def test_elegants_reference_follows_the_program(runs):
     p_central = np.array(data.parameterData[data.parameterName.index("pCentral")])
     expected = EnergyRamp.from_dict(RAMP).p0c_per_pass(TURNS, ELECTRON)[:TURNS] / ELECTRON
     assert np.allclose(p_central, expected, rtol=1e-6)
+
+
+def test_a_misspelt_interpolation_falls_back_to_the_ramps_default_not_hold():
+    """DeviceProgram falls back to ``hold``, which is right for a kicker and wrong
+    for a ramp: a typo must not turn a smooth ramp into a staircase."""
+    with pytest.warns(UserWarning, match="Using 'linear'"):
+        read = ramp(interpolation="linaer")
+    assert read.interpolation == "linear"
+    assert read.p0c_at(6, ELECTRON) == pytest.approx(5.5e6)

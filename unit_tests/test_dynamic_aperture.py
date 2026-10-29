@@ -208,6 +208,7 @@ def test_ocelot_single_particles_track_on_a_ring_with_rf():
         track_reference_particle = ocelotLattice.track_reference_particle
         _track_nturns = ocelotLattice._track_nturns
         _ocelot_periodic = ocelotLattice._ocelot_periodic
+        read_one_turn_map = ocelotLattice.read_one_turn_map
         read_closed_orbit = ocelotLattice.read_closed_orbit
         lat_obj = MagneticLattice(cells, method={"global": SecondTM})
         objectname, turns, nsuperperiods, da_settings = "ring", 20, 1, {}
@@ -418,6 +419,7 @@ class FakeMadxRing:
     stop_madx = madxLattice.stop_madx
     madx_beam_command = madxLattice.madx_beam_command
     makethin = madxLattice.makethin
+    slices = madxLattice.slices
     segment_name = madxLattice.segment_name
     input_segment = madxLattice.input_segment
     rigidity_name = madxLattice.rigidity_name
