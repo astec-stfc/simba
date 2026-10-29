@@ -84,7 +84,7 @@ def _track(framework, line, changes={}, beams=("M3",)):
     return particles, beta_x
 
 
-def _check_against_finite_differences(framework, line, grads, column, step=1e-4, beams=("M3",)):
+def _check_against_finite_differences(framework, line, grads, column, step=1e-4, beams=("M3",), tolerance=1e-6):
     parameter = grads["parameters"][column]
     value = _value(framework, parameter)
     plus, beta_plus = _track(framework, line, {parameter: value + step}, beams)
@@ -97,11 +97,11 @@ def _check_against_finite_differences(framework, line, grads, column, step=1e-4,
             # plus the round-off a finite difference sees in coordinates this large
             noise = 1e-10 * np.abs(plus[name][:, c]).max() / step
             np.testing.assert_allclose(
-                tangent[:, c], fd[:, c], rtol=0, atol=1e-6 * np.abs(fd[:, c]).max() + noise,
+                tangent[:, c], fd[:, c], rtol=0, atol=tolerance * np.abs(fd[:, c]).max() + noise,
             )
     fd_beta = (beta_plus - beta_minus) / (2 * step)
     np.testing.assert_allclose(
-        grads["Twiss"]["beta_x"][:, column], fd_beta, rtol=0, atol=1e-6 * np.abs(fd_beta).max(),
+        grads["Twiss"]["beta_x"][:, column], fd_beta, rtol=0, atol=tolerance * np.abs(fd_beta).max(),
     )
 
 
@@ -196,6 +196,20 @@ def test_finite_differences_carry_gradients_through_other_codes(tmp_path, code, 
     beams = ("SCR2", "M3")
     _check_against_finite_differences(framework, "B", grads, 0, step=1e-3 if cavity else 1e-4, beams=beams)
     _check_against_finite_differences(framework, "B", grads, 1, beams=beams)
+
+
+def test_finite_differences_follow_a_collective_effect(tmp_path):
+    """
+    Ocelot's LSC couples every particle through the current profile, and moves the tangents
+    here by up to 100% in t and cpz. Its binning is not quite smooth, hence the looser tolerance.
+    """
+    skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, code_b="ocelot", finite_difference=["B"])
+    framework.latticeObjects["B"].lsc_enable = True
+    _track(framework, "B")
+
+    grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
+    _check_against_finite_differences(framework, "B", grads, 0, beams=("SCR2", "M3"), tolerance=1e-3)
 
 
 def test_rematching_breaks_the_chain(tmp_path):
