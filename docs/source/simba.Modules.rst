@@ -8,14 +8,20 @@ Subpackages
    :maxdepth: 4
 
    simba.Modules.Beams
-   simba.Modules.Fields
    simba.Modules.Matrices
    simba.Modules.Twiss
-   simba.Modules.optimisation
    simba.Modules.plotting
 
 Submodules
 ----------
+
+simba.Modules.DeviceProgram module
+----------------------------------
+
+.. automodule:: simba.Modules.DeviceProgram
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
 simba.Modules.MathParser module
 -------------------------------
@@ -53,46 +59,6 @@ simba.Modules.gdf\_emit module
 ------------------------------
 
 .. automodule:: simba.Modules.gdf_emit
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.id\_number module
--------------------------------
-
-.. automodule:: simba.Modules.id_number
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.id\_number\_server module
----------------------------------------
-
-.. automodule:: simba.Modules.id_number_server
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.merge\_two\_dicts module
---------------------------------------
-
-.. automodule:: simba.Modules.merge_two_dicts
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.pmd\_units module
--------------------------------
-
-.. automodule:: simba.Modules.pmd_units
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-simba.Modules.symmlinks module
-------------------------------
-
-.. automodule:: simba.Modules.symmlinks
    :members:
    :show-inheritance:
    :undoc-members:

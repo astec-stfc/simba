@@ -61,6 +61,8 @@ for the CLARA :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.04
     layout: /path/to/laura-lattices/CLARA/layouts.yaml
     section: /path/to/laura-lattices/CLARA/sections.yaml
     element_list: /path/to/laura-lattices/CLARA/YAML/
+    functional_definitions: /path/to/laura-lattices/CLARA/functional_definitions.yaml
+    resolve_functional: false
 
 This lattice definition would produce several output files (called ``injector400.in``, ``Linac.lte``,
 and ``FEBE.py``) for running in the **ASTRA**, **Elegant** and **Ocelot** beam tracking codes.
@@ -71,8 +73,47 @@ As this simulation starts from the cathode, the ``input`` definition is required
 `injector400` ``file`` block. An alternative method for starting is to specify ``input/particle_definition`` to
 point to an existing beam file.
 
-For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the ``output: end_element`` definition 
+For `follow-on` lattice runs, it is sufficient to define the ``output: start_element``, which should match the ``output: end_element`` definition
 from the previous ``file`` block.
+
+.. _functional-parameters:
+
+Functional Parameters
+---------------------
+
+Certain element attributes in `LAURA <https://github.com/astec-stfc/laura/>`_ (for
+example magnet strengths, dipole bend and edge angles, cavity phases and field
+amplitudes) can be defined *functionally* — as a string naming a shared value —
+rather than as a fixed number. The definition file records the numeric values:
+
+.. code-block:: yaml
+
+    # functional_definitions.yaml
+    CLA-VBC-MAG-DIP-01_angle: 0.1305
+    linac1_phase: -21.0
+
+An element then refers to a definition by name (e.g. a dipole ``angle`` set to
+``"CLA-VBC-MAG-DIP-01_angle"``). This is convenient when several elements share a
+value, or when a parameter is driven by an external study or optimiser.
+
+Two settings control this behaviour in the ``.def`` file:
+
+* ``functional_definitions`` — a mapping of names to numeric values, or a path to
+  a ``YAML`` file holding such a mapping. It is passed through to the
+  :mod:`LAURA` ``MachineModel``/``SectionLattice`` and cascaded to the whole
+  machine. Any element that references an undefined name raises an error, naming
+  the missing parameter and the element that uses it.
+* ``resolve_functional`` — a boolean (default ``false``). When ``false``,
+  functional attributes are kept symbolic and exported as such to codes that
+  support them (the ELEGANT ``% <value> sto <name>`` rpn store and the Xsuite
+  ``Environment`` variables); codes that do not support symbolic parameters
+  always receive the resolved numbers. When ``true``, the values are resolved to
+  numbers everywhere (baked in).
+
+Both settings are optional and default to "no functional definitions" and
+``resolve_functional: false`` respectively, so existing lattices are unaffected.
+See the `LAURA documentation <https://github.com/astec-stfc/laura/>`_ for full
+details of the functional-parameter mechanism.
 
 
 Running SIMBA

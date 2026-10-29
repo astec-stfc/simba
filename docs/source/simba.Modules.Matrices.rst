@@ -12,14 +12,6 @@ simba.Modules.Matrices.elegant module
    :show-inheritance:
    :undoc-members:
 
-simba.Modules.Matrices.hdf5 module
-----------------------------------
-
-.. automodule:: simba.Modules.Matrices.hdf5
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Module contents
 ---------------
 

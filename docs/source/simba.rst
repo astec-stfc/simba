@@ -1,25 +1,19 @@
 simba package
 =============
 
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   simba.Codes
-   simba.Modules
+:mod:`simba.Framework`, :mod:`simba.Framework_objects` and
+:mod:`simba.Framework_elements` have pages of their own; what follows is the rest
+of the package.
 
 Submodules
 ----------
 
-simba.Framework module
-----------------------
+simba.exceptions module
+-----------------------
 
-.. automodule:: simba.Framework
+.. automodule:: simba.exceptions
    :members:
    :show-inheritance:
-   :undoc-members:
 
 simba.FrameworkHelperFunctions module
 -------------------------------------
@@ -45,14 +39,13 @@ simba.Framework\_lattices module
    :show-inheritance:
    :undoc-members:
 
-simba.Framework\_objects module
--------------------------------
+simba.yaml\_checker module
+--------------------------
 
-.. automodule:: simba.Framework_objects
+.. automodule:: simba.yaml_checker
    :members:
    :show-inheritance:
    :undoc-members:
-
 
 Module contents
 ---------------
