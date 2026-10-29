@@ -1103,7 +1103,9 @@ class frameworkLattice(BaseModel):
         parameter itself for one of this line's :attr:`gradient_parameters`.
 
         Each pair of runs gives its column at every beam file the line writes and along its
-        Twiss, through a reference that follows the beam and through collective effects.
+        Twiss, through a reference that follows the beam and through collective effects, so
+        long as the code's output is smooth. With the real run in the middle, each pair is also
+        checked for a jump or kink: the second difference must be small next to the first.
 
         The tangents at each beam file go on to the line that reads it
         next, and with the Twiss ones to ``<line>_gradients.<code>.hdf5``.
@@ -1113,6 +1115,11 @@ class frameworkLattice(BaseModel):
         :class:`~simba.exceptions.GradientChainError`
             If a run loses particles or changes its Twiss sampling, or the line tracks more
             than one turn.
+
+        Warns
+        -----
+        :class:`~simba.exceptions.GradientNotSmoothWarning`
+            For each column whose output is not smooth at this step.
         """
         from .Modules import Twiss as rtf
         step = self.finite_difference_step
@@ -1124,9 +1131,15 @@ class frameworkLattice(BaseModel):
         subdir = self.global_parameters["master_subdir"]
         names = [e.name for e in self.screens_and_markers_and_bpms if e.name not in (self.start, self.end)]
         names = [name for name in names + [self.end] if os.path.isfile(self.output_beam_file(name))]
-        counts = {name: len(self.lab_particles(self.output_beam_file(name))) for name in names}
-        grid = rtf.load_directory(subdir, preglob=self.objectname)
-        grid = {k: np.asarray(getattr(grid, k).val) for k in ("s", "z")}
+
+        def outputs(line, directory):
+            beams = {name: self.lab_particles(line.output_beam_file(name)) for name in names}
+            twiss = rtf.load_directory(directory, preglob=line.objectname)
+            twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
+            twiss = {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi"}
+            return beams, twiss, {k: twiss.pop(k, np.array([])) for k in ("s", "z")}
+
+        *real, grid = outputs(self, subdir)
         scratch = tempfile.mkdtemp(dir=subdir)
 
         def rerun(shift=None, parameter=None, value=None):
@@ -1144,17 +1157,24 @@ class frameworkLattice(BaseModel):
                 line.write()
                 line.run()
                 line.postProcess()
-            beams = {name: self.lab_particles(line.output_beam_file(name)) for name in names}
-            if any(len(beams[name]) != counts[name] for name in names):
+            beams, twiss, sampling = outputs(line, scratch)
+            if any(len(beams[name]) != len(real[0][name]) for name in names):
                 raise exceptions.GradientChainError(self.objectname, "it loses particles")
-            twiss = rtf.load_directory(scratch, preglob=line.objectname)
-            twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
-            if np.shape(twiss["s"]) != np.shape(grid["s"]):
+            if np.shape(sampling["s"]) != np.shape(grid["s"]):
                 raise exceptions.GradientChainError(self.objectname, "its Twiss sampling moves")
-            return beams, {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi" and k not in grid}
+            return beams, twiss
 
-        def derivative(h, **plus_minus):
+        def derivative(h, column, **plus_minus):
             plus, minus = (rerun(**{k: v[i] for k, v in plus_minus.items()}) for i in (0, 1))
+            rough = [
+                k for p, m, r in zip(plus, minus, real) for k in p
+                # smooth: f(h) - 2 f(0) + f(-h) ~ f'' h^2, well below f(h) - f(-h) ~ 2 f' h;
+                # the floor is round-off in values this large
+                if np.any(np.abs(p[k] - 2 * r[k] + m[k]).max(0)
+                          > 1e-2 * np.abs(p[k] - m[k]).max(0) + 1e-9 * np.abs(r[k]).max(0))
+            ]
+            if rough:
+                warn(exceptions.GradientNotSmoothWarning(self.objectname, column, rough))
             return [{k: (p[k] - m[k]) / (2 * h) for k in p} for p, m in zip(plus, minus)]
 
         try:
@@ -1163,18 +1183,20 @@ class frameworkLattice(BaseModel):
                 spread = np.std(self.lab_particles(
                     self.read_input_file(self.prefix, self.input_particle_definition, read_file=False)
                 ), axis=0)
-                for direction in np.moveaxis(self.incoming_tangents["tangent"], -1, 0):
+                for column, direction in zip(
+                    self.incoming_tangents["parameters"], np.moveaxis(self.incoming_tangents["tangent"], -1, 0)
+                ):
                     # the largest nudge is step times its coordinate's spread
                     scale = np.max(np.abs(direction) / spread)
                     h = step / scale if scale else 1.0
-                    columns.append(derivative(h, shift=(h * direction, -h * direction)))
+                    columns.append(derivative(h, column, shift=(h * direction, -h * direction)))
             values = []
             for parameter in local:
                 name, key = parameter.split(":")
                 value = float(reduce(getattr, key.split("."), self.elements[name]))
                 h = step * max(abs(value), 1.0)
                 values.append(value)
-                columns.append(derivative(h, parameter=(parameter, parameter), value=(value + h, value - h)))
+                columns.append(derivative(h, parameter, parameter=(parameter, parameter), value=(value + h, value - h)))
         finally:
             shutil.rmtree(scratch)
         beams, twiss = ({k: np.stack([c[i][k] for c in columns], -1) for k in columns[0][i]} for i in (0, 1))

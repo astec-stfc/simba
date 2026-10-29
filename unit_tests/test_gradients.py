@@ -84,6 +84,14 @@ def _track(framework, line, changes={}, beams=("M3",)):
     return particles, beta_x
 
 
+def _not_smooth(framework):
+    """Track; the :class:`~simba.exceptions.GradientNotSmoothWarning` s it raised."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        framework.track()
+    return [w for w in caught if isinstance(w.message, exceptions.GradientNotSmoothWarning)]
+
+
 def _check_against_finite_differences(framework, line, grads, column, step=1e-4, beams=("M3",), tolerance=1e-6):
     parameter = grads["parameters"][column]
     value = _value(framework, parameter)
@@ -187,7 +195,7 @@ def test_gradients_stop_at_a_code_that_cannot_differentiate(tmp_path):
 def test_finite_differences_carry_gradients_through_other_codes(tmp_path, code, cavity):
     skip_missing(code)
     framework = _split_fodo(tmp_path, code_b=code, cavity=cavity, finite_difference=["B"])
-    _track(framework, "B")
+    assert not _not_smooth(framework)
 
     grads = read_gradients(os.path.join(framework.subdirectory, f"B_gradients.{code}.hdf5"))
     assert grads["parameters"] == (["CAV1:cavity.phase"] if cavity else ["QUAD1F:k1l"]) + ["QUAD1D:k1l"]
@@ -206,10 +214,23 @@ def test_finite_differences_follow_a_collective_effect(tmp_path):
     skip_missing("ocelot")
     framework = _split_fodo(tmp_path, code_b="ocelot", finite_difference=["B"])
     framework.latticeObjects["B"].lsc_enable = True
-    _track(framework, "B")
+    assert not _not_smooth(framework)
 
     grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
     _check_against_finite_differences(framework, "B", grads, 0, beams=("SCR2", "M3"), tolerance=1e-3)
+
+
+def test_finite_differences_warn_where_the_output_jumps(tmp_path):
+    """
+    Ocelot's 3D space charge deposits charge on the nearest grid point, so its output jumps when
+    a particle changes cell; at this step some always do, where at 1e-4 they sometimes don't.
+    """
+    skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, code_b="ocelot", finite_difference=["B"])
+    line = framework.latticeObjects["B"]
+    line.file_block["charge"]["space_charge_mode"] = "3D"
+    line.file_block["gradients"]["finite_difference"] = {"step": 1e-2}
+    assert _not_smooth(framework)
 
 
 def test_rematching_breaks_the_chain(tmp_path):

@@ -159,6 +159,21 @@ class GradientsUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class GradientNotSmoothWarning(SettingWarning):
+    """Finite-difference gradients through output that jumps or kinks at the step taken."""
+
+    def __init__(self, line: str, parameter: str, outputs: list):
+        more = f" and {len(outputs) - 5} more" if len(outputs) > 5 else ""
+        super().__init__(
+            f"{_line(line)}: the finite-difference gradients for {parameter} are not smooth at "
+            f"{', '.join(outputs[:5])}{more}: the runs either side of the real one disagree on the slope. "
+            "The code's output jumps or kinks at this step (nearest-grid-point space charge "
+            "does), or the step is too large for its curvature, so treat these tangents as "
+            "unreliable; a smoother solver, or a different gradients: finite_difference: step, "
+            "may help."
+        )
+
+
 class ProgramOverrunWarning(SettingWarning):
     """A program with knots past the last turn tracked."""
 
