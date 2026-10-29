@@ -4,16 +4,20 @@ from ocelot.cpbd.physics_proc import PhysProc, SaveBeam, _logger
 class SaveBeamOpenPMD(SaveBeam):
 
     def __init__(self, filename: str, global_parameters: dict = {}, zstart: float = 0,
-                 sstart: float = None, ref_idx: int = 0, start: tuple = None):
+                 sstart: float = None, ref_idx: int = 0, beam_turn: int | None = None,
+                 t_reference: float | None = None, file_turn: int | None = None,
+                 start: tuple = None):
         PhysProc.__init__(self)
         self.energy = None
         self.global_parameters = global_parameters
         self.filename = filename
+        self.beam_turn = beam_turn
+        self.file_turn = file_turn
+        """The turn of a multi-turn file this is, or None for a single beam."""
         self.zstart = zstart
-        # zstart is a lab z (used for the particle z/t); s is measured along the
-        # reference trajectory, which is longer wherever anything upstream bends
         self.s = zstart if sstart is None else sstart
         self.ref_idx = ref_idx
+        self.t_reference = t_reference
         self.start = start
 
     def apply(self, p_array, dz):
@@ -25,10 +29,12 @@ class SaveBeamOpenPMD(SaveBeam):
             zstart=self.zstart,
             s=self.s,
             ref_index=self.ref_idx,
+            t_reference=self.t_reference,
             start=self.start,
         )
+        self.global_parameters["beam"].turn = self.beam_turn
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],
             self.filename,
+            turn=self.file_turn,
         )
-        # save_particle_array(filename=self.filename, p_array=p_array)

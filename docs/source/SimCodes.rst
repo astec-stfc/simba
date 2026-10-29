@@ -179,7 +179,5 @@ This will then allow :mod:`SIMBA` to call the correct version of ``ELEGANT``.
 Citing the codes used
 ---------------------
 
-Please consider citing the code(s) used if any work performed with :mod:`SIMBA` leads to a publication:
-
-.. bibliography::
-   :style: unsrt
+Please consider citing the code(s) used if any work performed with :mod:`SIMBA` leads to a
+publication. The citations above resolve against the :ref:`reference list <references>`.

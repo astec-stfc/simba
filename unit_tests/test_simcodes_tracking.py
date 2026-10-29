@@ -3,9 +3,9 @@ import numpy as np
 import pytest
 import simba.Framework as fw
 from simba.Codes.Generators import frameworkGenerator
-from laura.models.element import Quadrupole, Marker, Plasma, Wiggler
+from laura.models.element import Marker, Plasma, Wiggler
 from laura import LAURA
-from laura.Exporters.YAML import export_machine
+from laura.exporters.yaml_exporter import export_machine
 
 needs_container = pytest.mark.needs_container
 
@@ -71,27 +71,24 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
     return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
 
 
-def _fodo_elements():
-    return [
-        Quadrupole(name="QUAD1F", machine_area="FODO", magnetic={"length": 1.0, "k1l": -1}, physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 0.75}}),
-        Quadrupole(name="QUAD1D", machine_area="FODO", magnetic={"length": 1.0, "k1l": 1.0}, physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 3.25}}),
-    ]
-
-
 @pytest.mark.parametrize("code,container_runtime", CODES)
-def test_code_tracks(tmp_path, code, container_runtime):
-    output_file = _track_lattice(tmp_path, code, container_runtime, _fodo_elements())
+def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elements):
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    output_file = _track_lattice(tmp_path, code, container_runtime, fodo_elements)
     assert os.path.isfile(output_file)
+    assert not any(cwd.iterdir())
 
 
 @pytest.mark.parametrize("code", ["ocelot", "xsuite", "cheetah"])
-def test_output_timestamps(tmp_path, code):
+def test_output_timestamps(tmp_path, code, fodo_elements):
     """The bunch arrives L/(beta c) after it set off: Ocelot added the start z on top,
     Xsuite and Cheetah divided by c alone and dropped the input time, and Cheetah put
     every output at the start. Ocelot and Cheetah also read total energy as momentum."""
     from scipy.constants import c
     from simba.Modules.Beams import load_file
-    output_file = _track_lattice(tmp_path, code, None, _fodo_elements())
+    output_file = _track_lattice(tmp_path, code, None, fodo_elements)
     beam_in = load_file(os.path.join(os.path.dirname(output_file), "M1.openpmd.hdf5"))
     beam = load_file(output_file)
     flight = np.mean(beam.t.val) - np.mean(beam_in.t.val)
