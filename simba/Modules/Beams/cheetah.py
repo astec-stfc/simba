@@ -2,7 +2,7 @@ import numpy as np
 from .. import constants
 from ..units import UnitValue
 from ...FrameworkHelperFunctions import reference_time
-from torch import tensor, ones, get_default_device, float64, as_tensor
+from torch import tensor, get_default_device, float64, as_tensor
 
 
 def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index=None):
@@ -32,6 +32,20 @@ def cheetah_lab_coordinates(parray, E0_eV):
     cpz = sqrt(parray.energies**2 - E0_eV**2 - cpx**2 - cpy**2)
     t = (parray.s + parray.tau) / constants.speed_of_light
     return stack([parray.x, cpx, parray.y, cpy, t, cpz], dim=-1)
+
+
+def cheetah_particles(lab, E0_eV, p0c, t0):
+    """
+    Cheetah's (n, 7) particles from an (n, 6) tensor of :data:`lab_coordinates`, about a
+    reference ``p0c`` (eV) and ``t0`` (s): the inverse of :func:`cheetah_lab_coordinates`,
+    kept in torch so it differentiates.
+    """
+    from torch import ones_like, sqrt, stack
+    x, cpx, y, cpy, t, cpz = lab.unbind(-1)
+    energy = sqrt(cpx**2 + cpy**2 + cpz**2 + E0_eV**2)
+    p = (energy - sqrt(p0c**2 + E0_eV**2)) / p0c
+    tau = (t - t0) * constants.speed_of_light
+    return stack([x, cpx / p0c, y, cpy / p0c, tau, p, ones_like(x)], dim=-1)
 
 
 def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
@@ -66,26 +80,17 @@ def write_cheetah_beam_file(self, filename=None, write=True, energy=None, t0=Non
     ``energy`` (eV) and ``t0`` (s) are the reference energy and the time tau
     is measured from; the beam's own means if not given.
     """
-    # {x, xp, y, yp, t, p, particleID}
     from cheetah import ParticleBeam
     from cheetah.particles.species import Species
     E = self.energy.mean().val if energy is None else energy
     if t0 is None:
         t0 = np.mean(self.t.val)
-    p0c = np.sqrt(E**2 - self.E0_eV**2)
-    x = self.x.val
-    y = self.y.val
-    # p_x / p0c, not the slope p_x / p_z; see interpret_cheetah_ParticleBeam
-    xp = self.cpx.val / p0c
-    yp = self.cpy.val / p0c
-    p = (self.energy.val - E) / p0c
-    tau = (self.t.val - t0) * constants.speed_of_light
+    E0_eV = as_tensor(np.asarray(self.E0_eV), dtype=float64)
+    p0c = as_tensor(np.sqrt(E**2 - np.asarray(self.E0_eV) ** 2), dtype=float64)
     s = self.s if self.s is not None else 0.0
-
-    rparticles = np.array([x, xp, y, yp, tau, p])
-    num_particles = len(x)
-    particles = ones((num_particles, 7), dtype=float64)
-    particles[:, :6] = tensor(rparticles.transpose(), dtype=float64)
+    x = self.x.val
+    lab = as_tensor(np.stack([getattr(self, c).val for c in lab_coordinates], -1), dtype=float64)
+    particles = cheetah_particles(lab, E0_eV, p0c, t0)
     q_array = np.array([np.abs(float(self.Q.val / len(x))) for _ in x])
     particle_charges = tensor(q_array, dtype=float64)
     particle_beam = ParticleBeam(

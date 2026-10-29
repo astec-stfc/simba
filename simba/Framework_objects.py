@@ -446,6 +446,10 @@ class frameworkLattice(BaseModel):
     ref_idx: int | None = None
     """Index of the incoming beam's reference particle; see :meth:`load_input_beam`."""
 
+    incoming_tangents: Dict | None = None
+    """``parameters``, ``values`` and the (n, 6, P) ``tangent`` an upstream line left with
+    the input beam file; see :meth:`check_incoming_tangents`."""
+
     native_time: ClassVar[tuple[str, str]] = ("t", "s")
     """The code's own longitudinal time coordinate, as ``(name, units)``; see :meth:`native_time_scale`."""
 
@@ -1029,6 +1033,41 @@ class frameworkLattice(BaseModel):
             self.objectname, self.code, self.gradient_parameters,
             self.codes_that_can("supports_gradients"),
         ))
+
+    def check_incoming_tangents(self, n_particles: int) -> None:
+        """
+        Drop :attr:`incoming_tangents`, with a warning, where this code cannot carry them on,
+        and refuse the input steps they cannot follow.
+
+        Parameters
+        ----------
+        n_particles: int
+            Particles in the input beam file, which the tangents must match row for row.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            On sampling, rematching, or a tangent that does not match the beam.
+        """
+        if self.incoming_tangents is None:
+            return
+        if not self.supports_gradients:
+            warn(exceptions.GradientsUnsupportedWarning(
+                self.objectname, self.code, self.incoming_tangents["parameters"],
+                self.codes_that_can("supports_gradients"),
+            ))
+            self.incoming_tangents = None
+            return
+        if int(self.sample_interval) > 1:
+            raise exceptions.GradientChainError(self.objectname, "it samples the beam (sample_interval)")
+        if any(v for plane in self.initial_twiss.values() for v in plane.values()):
+            raise exceptions.GradientChainError(self.objectname, "it rematches the beam to input: twiss")
+        if len(self.incoming_tangents["tangent"]) != n_particles:
+            raise exceptions.GradientChainError(
+                self.objectname,
+                f"its {n_particles} particles do not match the {len(self.incoming_tangents['tangent'])} "
+                "the tangents were computed for",
+            )
 
     def check_programs_fit(self) -> None:
         """Warn about knots past the last turn, or a non-zero last knot held for the rest of the run."""
@@ -2414,6 +2453,8 @@ class frameworkLattice(BaseModel):
             if index is not None and 0 <= index < len(full.t.val)
             else None
         )
+        self.incoming_tangents = self.global_parameters.get("tangents", {}).get(os.path.abspath(filepath))
+        self.check_incoming_tangents(len(full.x.val))
         if int(self.sample_interval) > 1:
             self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])
         self.check_species()

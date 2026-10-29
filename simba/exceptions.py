@@ -152,8 +152,8 @@ class GradientsUnsupportedWarning(UnsupportedWarning):
 
     def __init__(self, line: str, code: str, parameters: list, alternatives: str):
         super().__init__(
-            f"{_line(line)} has gradient parameters {', '.join(parameters)}, but "
-            f"{code} cannot differentiate its tracking, so none are computed. "
+            f"{_line(line)} carries gradients for {', '.join(parameters)}, but "
+            f"{code} cannot differentiate its tracking, so they stop here. "
             f"{alternatives}"
         )
 
@@ -597,6 +597,16 @@ class NeutralSpeciesError(SimbaError, ValueError):
             f"{line} is tracked by {code}, but the species it is given to track is "
             f"{species}, which has no charge: no tracking code steers it. Set "
             "``input: species`` to a charged species; photons are carried alongside."
+        )
+
+
+class GradientChainError(SimbaError, ValueError):
+    """Gradients from upstream reaching a line that changes the beam in a way they cannot follow."""
+
+    def __init__(self, line: str, reason: str):
+        super().__init__(
+            f"{_line(line)} receives gradients from upstream, but {reason}, which "
+            "breaks the chain. Remove it, or start the gradients after this line."
         )
 
 
