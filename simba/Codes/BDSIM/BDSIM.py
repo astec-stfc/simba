@@ -24,7 +24,6 @@ from typing import Any, ClassVar
 from warnings import warn
 from pybdsim.Run import Bdsim, RebdsimOptics
 from pybdsim.Beam import Beam
-from pybdsim.Options import Options
 
 BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 """BDSIM particle names, keyed by the SIMBA particle index returned by
@@ -142,11 +141,10 @@ class bdsimLattice(frameworkLattice):
             integrator_set=self.integrator_set,
             Brho=self.rigidity(self.reference_p0c),
         )
-        options = {"integratorSet": f'"{self.integrator_set}"'}  # pybdsim writes values verbatim
+        # LAURA has already set integratorSet and buildPoleFaceGeometry
         if self.circular:
             self.close_ring()
-            options.update(circular=1, nturns=self.turns)
-        self.lattice.AddOptions(Options(**options))
+            self.lattice.options.update(circular=1, nturns=self.turns)
         self.lattice.Write(
             os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
         )

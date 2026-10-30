@@ -555,8 +555,23 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - no
      - no
+   * - BDSIM
+     - yes (circular mode)
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
 
 ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
+
+BDSIM's turns run inside one Geant4 process, so nothing can change between them.
+It has no reference-momentum ramp, and its field modulators (a sinusoid, or one
+top-hat or linear window in time) cannot express a knotted program, so programs
+and ramps are left unsupported rather than approximated.
 
 .. _native-turns:
 
