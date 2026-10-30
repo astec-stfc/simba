@@ -7,6 +7,7 @@ Classes:
 """
 
 import gc
+import glob
 import os
 import pickle
 import yaml
@@ -15,6 +16,7 @@ from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
+from functools import reduce
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement
 from laura.models.element_list import flatten_occurrence, split_occurrence
@@ -270,6 +272,7 @@ class Framework(BaseModel):
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
             "tangents": {},
+            "resume_tangents": {},
         }
         if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
             warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
@@ -1614,6 +1617,20 @@ class Framework(BaseModel):
             names.add(end)
         return names
 
+    def _feeder_lines(self, lattice_name: str) -> list:
+        """The lines upstream of ``lattice_name``, nearest first: the one that writes its input beam, then that one's, and so on."""
+        chain, latt = [], self.latticeObjects[lattice_name]
+        while True:
+            feeder = next((
+                name for name in self.lines
+                if name != lattice_name and name not in chain
+                and latt.input_particle_definition in self._line_output_names(name)
+            ), None)
+            if feeder is None:
+                return chain
+            chain.append(feeder)
+            latt = self.latticeObjects[feeder]
+
     def _mark_colliding_outputs(self, files: list) -> None:
         """Tell each line which of its outputs another line also writes, as beam files are named by element alone.
 
@@ -1707,6 +1724,21 @@ class Framework(BaseModel):
             index = files.index(endfile)
             files = files[: index + 1]
         self._mark_colliding_outputs(files)
+        # the first line may pick its gradients up from its input beam's run; see load_input_beam.
+        # Updated in place: each lattice holds a shallow copy of global_parameters
+        parameters = (self.settings["global"].get("gradients") or {}).get("parameters") or []
+        self.global_parameters["resume_tangents"].clear()
+        if files[0] != "generator" and parameters:
+            self.global_parameters["resume_tangents"].update(
+                values={
+                    p: float(reduce(getattr, p.split(":")[1].split("."), self.elementObjects[p.split(":")[0]]))
+                    for p in parameters if p.split(":")[0] in self.elementObjects
+                },
+                upstream=[
+                    p for name in self._feeder_lines(files[0])
+                    for p in self.latticeObjects[name].gradient_parameters
+                ],
+            )
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)
@@ -1746,6 +1778,9 @@ class Framework(BaseModel):
                     pbar.set_description(
                         base_description + ": track        "
                     )  # noqa E701
+                # its beams are about to change, so its old gradients no longer describe them
+                for old in glob.glob(f'{self.global_parameters["master_subdir"]}/{lattice_name}_gradients.*.hdf5'):
+                    os.remove(old)
                 latt.run()
                 self.progress = base_percentage + 0.75 * percentage_step
             if self.verbose:

@@ -159,6 +159,30 @@ class GradientsUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class StaleGradientsWarning(SettingWarning):
+    """Gradients resumed from a saved input beam tracked with other parameter values."""
+
+    def __init__(self, line: str, filename: str, changed: dict):
+        values = ", ".join(f"{p} = {saved:g} (now {now:g})" for p, (saved, now) in changed.items())
+        super().__init__(
+            f"{_line(line)} picks its gradients up from {filename}, whose beam was tracked with "
+            f"{values}. The gradients are right for that beam, not for the lattice as it is now; "
+            "track from further upstream for those."
+        )
+
+
+class GradientsNotResumedWarning(SettingWarning):
+    """Gradients resumed from a saved input beam, without some of the parameters upstream."""
+
+    def __init__(self, line: str, filename: str | None, parameters: list):
+        saved = f"the gradients saved with it in {filename} lack" if filename else "no gradients were saved with it, so it lacks"
+        super().__init__(
+            f"{_line(line)} starts from a saved beam, but {saved} {', '.join(parameters)}, "
+            "upstream of it: they were added since that beam was tracked, or a line between them "
+            "could not carry gradients then. Track from further upstream to include them."
+        )
+
+
 class GradientNotSmoothWarning(SettingWarning):
     """Finite-difference gradients through output that jumps or kinks at the step taken."""
 

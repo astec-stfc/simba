@@ -48,7 +48,7 @@ from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
-from .Modules.gradients import lab_array, lab_coordinates, write_gradients
+from .Modules.gradients import lab_array, lab_coordinates, saved_tangent, write_gradients
 from .Modules.units import UnitValue
 from .Codes import Executables as exes
 from .Modules import constants
@@ -1094,6 +1094,41 @@ class frameworkLattice(BaseModel):
                 f"its {n_particles} particles do not match the {len(self.incoming_tangents['tangent'])} "
                 "the tangents were computed for",
             )
+
+    def resume_tangents(self, filepath: str, values: dict, upstream: list) -> Dict | None:
+        """
+        The tangent saved with the input beam by the run that wrote it, for the first line
+        :meth:`~simba.Framework.Framework.track` runs; see :func:`~simba.Modules.gradients.saved_tangent`.
+
+        Parameters
+        ----------
+        filepath: str
+            The input beam file.
+        values: dict
+            ``ELEMENT:keyword`` -> value now, for every gradient parameter in the machine.
+        upstream: list
+            The gradient parameters in the lines that feed this one, which the saved tangent should carry.
+
+        Warns
+        -----
+        :class:`~simba.exceptions.GradientsNotResumedWarning`
+            If the saved tangent lacks some of ``upstream``, or there is none.
+        :class:`~simba.exceptions.StaleGradientsWarning`
+            If the beam was tracked with other values.
+        """
+        saved = saved_tangent(filepath)
+        missing = [p for p in upstream if saved is None or p not in saved["parameters"]]
+        if missing:
+            warn(exceptions.GradientsNotResumedWarning(self.objectname, saved and saved["file"], missing))
+        if saved is None:
+            return None
+        changed = {
+            p: (old, values[p]) for p, old in zip(saved["parameters"], saved["values"])
+            if p in values and not np.isclose(old, values[p], rtol=1e-12, atol=0)
+        }
+        if changed:
+            warn(exceptions.StaleGradientsWarning(self.objectname, saved["file"], changed))
+        return saved
 
     def finite_difference_tangents(self) -> None:
         """
@@ -2617,6 +2652,10 @@ class frameworkLattice(BaseModel):
             else None
         )
         self.incoming_tangents = self.global_parameters.get("tangents", {}).get(os.path.abspath(filepath))
+        resume = dict(self.global_parameters.get("resume_tangents", {}))
+        self.global_parameters.get("resume_tangents", {}).clear()  # only the first line resumes
+        if self.incoming_tangents is None and resume:
+            self.incoming_tangents = self.resume_tangents(filepath, **resume)
         self.check_incoming_tangents(len(full.x.val))
         if int(self.sample_interval) > 1:
             self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])

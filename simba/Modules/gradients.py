@@ -9,6 +9,9 @@ that can differentiate (``supports_gradients``) to ``<line>_gradients.<code>.hdf
                                         line end; columns are the ``coordinates`` attribute
 """
 
+import glob
+import os
+
 import h5py
 import numpy as np
 
@@ -74,3 +77,28 @@ def read_gradients(filename: str) -> dict:
             "Beams": {k: v[()] for k, v in f["Beams"].items()},
             "attrs": dict(f.attrs),
         }
+
+
+def saved_tangent(beam_file: str) -> dict | None:
+    """
+    The tangent a gradients file next to ``beam_file`` holds for it (``Beams/<stem>``), the
+    newest if more than one does, or None.
+
+    Returns
+    -------
+    dict or None
+        ``parameters``, ``values`` and ``tangent`` (n, 6, P), as handed from line to line,
+        plus ``file``, the gradients file it came from.
+    """
+    stem = os.path.basename(beam_file).removesuffix(".hdf5").removesuffix(".openpmd")
+    files = sorted(glob.glob(os.path.join(os.path.dirname(beam_file), "*_gradients.*.hdf5")), key=os.path.getmtime)
+    for filename in reversed(files):
+        with h5py.File(filename, "r") as f:
+            if stem in f.get("Beams", {}):
+                return {
+                    "parameters": f["parameters"].asstr()[()].tolist(),
+                    "values": f["parameter_values"][()].tolist(),
+                    "tangent": f["Beams"][stem][()],
+                    "file": filename,
+                }
+    return None

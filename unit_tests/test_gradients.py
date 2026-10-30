@@ -233,6 +233,54 @@ def test_finite_differences_warn_where_the_output_jumps(tmp_path):
     assert _not_smooth(framework)
 
 
+@pytest.mark.parametrize("code", ["cheetah", "ocelot"])
+def test_a_resumed_run_picks_its_gradients_up_from_disk(tmp_path, code):
+    skip_missing(code)
+    framework = _split_fodo(tmp_path, code_b=code, finite_difference=["B"] if code != "cheetah" else ())
+    _track(framework, "B")
+    filename = os.path.join(framework.subdirectory, f"B_gradients.{code}.hdf5")
+    full = read_gradients(filename)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", exceptions.StaleGradientsWarning)
+        warnings.simplefilter("error", exceptions.GradientsNotResumedWarning)
+        framework.track(startfile="B")
+    resumed = read_gradients(filename)
+    assert resumed["parameters"] == full["parameters"] == ["QUAD1F:k1l", "QUAD1D:k1l"]
+    for group in ("Beams", "Twiss"):
+        for key, val in full[group].items():
+            np.testing.assert_allclose(resumed[group][key], val, rtol=1e-12, atol=0)
+
+    # A tracked again without gradients takes its old ones with it, so B starts afresh
+    gradients = framework.settings["global"]["gradients"]
+    gradients["parameters"] = []
+    framework.track(endfile="A")
+    assert not os.path.exists(os.path.join(framework.subdirectory, "A_gradients.cheetah.hdf5"))
+    gradients["parameters"] = ["QUAD1F:k1l", "QUAD1D:k1l"]
+    with pytest.warns(exceptions.GradientsNotResumedWarning, match="no gradients were saved .* QUAD1F:k1l"):
+        framework.track(startfile="B")
+    assert read_gradients(filename)["parameters"] == ["QUAD1D:k1l"]
+
+
+def test_resuming_warns_of_an_upstream_parameter_added_since(tmp_path):
+    framework = _split_fodo(tmp_path, cavity=True)
+    _track(framework, "B")
+    framework.settings["global"]["gradients"]["parameters"].append("QUAD1F:k1l")
+    with pytest.warns(exceptions.GradientsNotResumedWarning, match="A_gradients.cheetah.hdf5 lack QUAD1F:k1l"):
+        framework.track(startfile="B")
+    grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.cheetah.hdf5"))
+    assert grads["parameters"] == ["CAV1:cavity.phase", "QUAD1D:k1l"]
+
+
+def test_resuming_from_a_beam_tracked_with_other_values_warns(tmp_path):
+    framework = _split_fodo(tmp_path)
+    _track(framework, "B")
+    framework.modifyElement("QUAD1F", "k1l", -1.1)
+    with pytest.warns(exceptions.StaleGradientsWarning, match=r"QUAD1F:k1l = -1 \(now -1.1\)"):
+        framework.track(startfile="B")
+    # still the gradients of the beam B was given
+    assert read_gradients(os.path.join(framework.subdirectory, "B_gradients.cheetah.hdf5"))["parameters"][0] == "QUAD1F:k1l"
+
+
 def test_rematching_breaks_the_chain(tmp_path):
     framework = _split_fodo(tmp_path)
     framework.latticeObjects["B"].file_block["input"]["twiss"] = {"beta_x": 5.0, "alpha_x": 0.0}
