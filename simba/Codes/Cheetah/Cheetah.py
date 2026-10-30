@@ -92,6 +92,9 @@ class cheetahLattice(frameworkLattice):
     tangents: Dict | None = None
     """Derivatives from :meth:`track_tangents`, if :attr:`gradient_parameters`"""
 
+    _lab_in: Any = None
+    """The (n, 6) input particles as tracked, for :meth:`track_tangents` and :meth:`backward`."""
+
     cheetahglobal: Dict = {}
     """``cheetah_defaults.yaml``, overridden by ``settings["global"]["CHEETAHsettings"]``"""
 
@@ -176,8 +179,10 @@ class cheetahLattice(frameworkLattice):
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
+        self._lab_in = lab_array(self.global_parameters["beam"])
         self.tangents = (
-            self.track_tangents() if self.gradient_parameters or self.incoming_tangents else None
+            self.track_tangents()
+            if self.forward_tangents and (self.gradient_parameters or self.incoming_tangents) else None
         )
 
     def cheetah_derivatives(self, parameter: str) -> Dict[str, Any]:
@@ -201,15 +206,19 @@ class cheetahLattice(frameworkLattice):
         element = self.elements[name]
         value = reduce(getattr, key.split("."), element)
         step = 1e-6 * max(abs(value), 1.0)
+        index = [i for i, e in enumerate(self.segment.elements) if e.name == name]
+        faces = self._faces(element)
         buffers = []
         try:
             for v in (value + step, value - step):
                 set_deep_attr(element, key, v)
-                segment = self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c))
-                buffers.append(dict(segment.named_buffers()))
+                buffers.append(self._rebuilt_buffers(name, index, faces))
         finally:
             set_deep_attr(element, key, value)
         up, down = buffers
+        if up.keys() != down.keys():  # one side rebuilt the whole segment
+            unchanged = dict(self.segment.named_buffers())
+            up, down = {**unchanged, **up}, {**unchanged, **down}
         derivatives = {k: (up[k] - down[k]) / (2 * step) for k in up if not equal(up[k], down[k])}
         if not derivatives:
             warn(exceptions.SettingWarning(
@@ -217,6 +226,35 @@ class cheetahLattice(frameworkLattice):
                 "Cheetah lattice, so its derivatives are zero."
             ))
         return derivatives
+
+    @staticmethod
+    def _faces(element) -> tuple:
+        """Where ``element`` starts and ends: all of it the drifts either side depend on."""
+        return element.physical.start.array.tolist(), element.physical.end.array.tolist()
+
+    def _rebuilt_buffers(self, name: str, index: list, faces: tuple) -> Dict[str, Any]:
+        """
+        :attr:`segment`'s buffers that a change to element ``name`` moves, as
+        ``section.to_cheetah`` would build them. If that is only ``name``'s own Cheetah
+        element (it is the one element of that name, at ``index``, and its ends have not
+        moved from ``faces``), just that element's buffers are rebuilt and
+        returned. Otherwise the whole segment is rebuilt and all of its buffers returned.
+        """
+        from laura.translator.converters.magnet import SolenoidTranslator
+        Brho = self.rigidity(self.reference_p0c)
+        element = self.section._beamline().get(name)
+        if len(index) == 1 and element is not None and self._faces(self.elements[name]) == faces:
+            translated = self.section._translate([element])
+            self.section._apply_tw_focusing(translated)
+            built = []
+            for t in translated.values():
+                elem = t.to_cheetah(Brho=Brho) if isinstance(t, SolenoidTranslator) else t.to_cheetah()
+                if elem is not None:
+                    self.section._cheetah_misalignment(t, elem)
+                    built.append(elem)
+            if len(built) == 1 and built[0].name == name:
+                return {f"elements.{index[0]}.{k}": b for k, b in built[0].named_buffers()}
+        return dict(self.section.to_cheetah(Brho=Brho).named_buffers())
 
     def reference_from(self, lab) -> tuple:
         """
@@ -242,29 +280,25 @@ class cheetahLattice(frameworkLattice):
         t0 = lab[:, 4].mean() if not self.fixed_reference else as_tensor(self.reference_t0, dtype=float64)
         return p0c, t0
 
-    def track_tangents(self) -> Dict:
+    def tracking_function(self):
         """
-        Forward-mode derivatives (``torch.func.jvp``) of the twiss along :attr:`segment` and of
-        the beam at each screen and the line end. One pass per column: first the parameters
-        whose :attr:`incoming_tangents` an upstream line left, then this line's
-        :attr:`gradient_parameters`.
+        This line's tracking as a pure torch function, for :meth:`track_tangents` and :meth:`backward`.
 
         Returns
         -------
-        Dict
-            ``parameters`` and their ``values``; ``twiss``: key -> (n_s, P) array, with the
-            ``s`` -> (n_s,) it is sampled at; ``beams``: element name -> (n, 6, P) array of
-            :data:`~simba.Modules.gradients.lab_coordinates`
+        callable
+            ``track(t, lab) -> (twiss, beams)``: ``t`` (P,) offsets to :attr:`gradient_parameters`,
+            ``lab`` (n, 6) incoming :data:`~simba.Modules.gradients.lab_coordinates`; ``twiss``:
+            key -> (n_s,) along :attr:`segment`; ``beams``: element name -> (n, 6) at each screen
+            and the line end
         """
-        from torch import as_tensor, eye, float64, sqrt, stack, zeros, zeros_like
-        from torch.func import jvp
+        from torch import sqrt, stack
         from cheetah.accelerator import Screen
         from ...Modules.Beams.cheetah import cheetah_lab_coordinates, cheetah_particles
 
         E0 = self.rest_energy
         end_is_screen = isinstance(self.segment.elements[-1], Screen)
         local = [self.cheetah_derivatives(p) for p in self.gradient_parameters]
-        lab = as_tensor(lab_array(self.global_parameters["beam"]), dtype=float64)
 
         def track(t, lab):
             segment = deepcopy(self.segment)
@@ -290,15 +324,35 @@ class cheetahLattice(frameworkLattice):
                 beams[self.end] = cheetah_lab_coordinates(beam, E0, start)
             return {k: stack(v) for k, v in twiss.items()}, beams
 
+        return track
+
+    def track_tangents(self) -> Dict:
+        """
+        Forward-mode derivatives (``torch.func.jvp``) of the twiss along :attr:`segment` and of
+        the beam at each screen and the line end. One pass per column: first the parameters
+        whose :attr:`incoming_tangents` an upstream line left, then this line's
+        :attr:`gradient_parameters`.
+
+        Returns
+        -------
+        Dict
+            ``parameters`` and their ``values``; ``twiss``: key -> (n_s, P) array, with the
+            ``s`` -> (n_s,) it is sampled at; ``beams``: element name -> (n, 6, P) array of
+            :data:`~simba.Modules.gradients.lab_coordinates`
+        """
+        from torch import as_tensor, cat, eye, float64, zeros
+        from torch.func import jvp, vmap
+
+        track = self.tracking_function()
+        lab = as_tensor(self._lab_in, dtype=float64)
+        P = len(self.gradient_parameters)
         incoming = self.incoming_tangents or {"parameters": [], "values": [], "tangent": np.zeros((len(lab), 6, 0))}
-        upstream = as_tensor(incoming["tangent"], dtype=float64)
-        none = zeros(len(local), dtype=float64)
-        columns = [(none, upstream[..., j]) for j in range(upstream.shape[-1])]
-        columns += [(eye(len(local), dtype=float64)[p], zeros_like(lab)) for p in range(len(local))]
-        tangents = []
-        for column in columns:
-            (twiss, _), tangent = jvp(track, (none, lab), column)
-            tangents.append(tangent)
+        upstream = as_tensor(incoming["tangent"], dtype=float64).movedim(-1, 0)
+        U = len(upstream)
+        none = zeros(P, dtype=float64)
+        d_t = cat([zeros(U, P, dtype=float64), eye(P, dtype=float64)])
+        d_lab = cat([upstream, zeros(P, *lab.shape, dtype=float64)])
+        (twiss, _), (d_twiss, d_beams) = vmap(lambda a, b: jvp(track, (none, lab), (a, b)))(d_t, d_lab)
         return {
             "parameters": incoming["parameters"] + self.gradient_parameters,
             "values": incoming["values"] + [
@@ -306,11 +360,40 @@ class cheetahLattice(frameworkLattice):
                 for p in self.gradient_parameters
             ],
             "twiss": {
-                "s": twiss["s"].numpy(),
-                **{k: stack([t[0][k] for t in tangents], -1).numpy() for k in twiss_keys if k != "s"},
+                "s": twiss["s"][0].numpy(),
+                **{k: d_twiss[k].movedim(0, -1).numpy() for k in twiss_keys if k != "s"},
             },
-            "beams": {n: stack([t[1][n] for t in tangents], -1).numpy() for n in tangents[0][1]},
+            "beams": {n: d.movedim(0, -1).numpy() for n, d in d_beams.items()},
         }
+
+    def backward(self, cotangents: Dict) -> tuple:
+        """
+        One reverse-mode step (``torch.func.vjp``) back through this line.
+
+        Parameters
+        ----------
+        cotangents: Dict
+            Beam file path -> (n, 6) d objective / d particle, for this line's outputs.
+
+        Returns
+        -------
+        tuple
+            d objective / d input particle as an (n, 6) array, and
+            :attr:`gradient_parameters` -> d objective / d parameter.
+        """
+        from torch import as_tensor, float64, zeros
+        from torch.func import vjp
+
+        def cotangent(name, beam):
+            c = cotangents.get(os.path.abspath(self.output_beam_file(name)))
+            return zeros(beam.shape, dtype=float64) if c is None else as_tensor(c, dtype=float64)
+
+        track = self.tracking_function()
+        lab = as_tensor(self._lab_in, dtype=float64)
+        t = zeros(len(self.gradient_parameters), dtype=float64)
+        beams, pullback = vjp(lambda t, lab: track(t, lab)[1], t, lab)
+        d_t, d_lab = pullback({name: cotangent(name, beam) for name, beam in beams.items()})
+        return d_lab.numpy(), dict(zip(self.gradient_parameters, d_t.tolist()))
 
     def s_and_z(self, s: np.ndarray) -> tuple:
         """Cheetah's ``s`` along :attr:`segment` as the lattice's ``(s, z)``."""
@@ -368,8 +451,8 @@ class cheetahLattice(frameworkLattice):
         for name, scr in screens.items():
             if name == self.start:
                 continue
-            basename = self.output_basename(name)
-            outname = f'{self.global_parameters["master_subdir"]}/{basename}.openpmd.hdf5'
+            outname = self.output_beam_file(name)
+            basename = os.path.basename(outname).removesuffix(".openpmd.hdf5")
             self.screen_threaded_function.scatter(scr, outname, name)
             if self.tangents is not None:
                 # track_tangents keys a screen by Cheetah's (sanitized) element name, the line end by its own

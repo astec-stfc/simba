@@ -218,6 +218,9 @@ class Framework(BaseModel):
     _original_elements: Dict | bytes = PrivateAttr(default_factory=dict)
     """Backing store for :attr:`original_elementObjects`; pickled until first read."""
 
+    _tracked: list = PrivateAttr(default_factory=list)
+    """The lines the last :meth:`track` ran, in order; see :meth:`gradient`."""
+
     progress: int | float = 0
     """Current progress of tracking."""
 
@@ -1617,6 +1620,127 @@ class Framework(BaseModel):
             names.add(end)
         return names
 
+    def _parameter_value(self, parameter: str) -> float:
+        """The value of an ``ELEMENT:keyword`` gradient parameter; the keyword may be dotted."""
+        name, key = parameter.split(":")
+        return float(reduce(getattr, key.split("."), self.elementObjects[name]))
+
+    def gradient(self, objective) -> tuple:
+        """
+        Reverse-mode gradients of a figure of merit computed from the last :meth:`track`, for
+        every ``global: gradients: parameters``.
+
+        The objective is evaluated on the beam files the run wrote, and its derivatives
+        swept back through the lines in reverse: through a Cheetah line by
+        :meth:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.backward`, which re-tracks it; at
+        a finite-difference line, or a line resumed from a saved beam, by contracting with
+        the forward tangents saved there. Set ``gradients: mode: reverse`` to skip the
+        forward tangents Cheetah lines don't need for this::
+
+            global:
+              gradients:
+                parameters: [QUAD1F:k1l, QUAD1D:k1l]
+                mode: reverse
+
+        Parameters
+        ----------
+        objective: callable
+            ``objective(beams) -> scalar`` in torch; ``beams`` maps each beam file the run
+            wrote, by its stem (e.g. ``"M3"``), to its (n, 6) particles as a float64 tensor of
+            :data:`~simba.Modules.gradients.lab_coordinates` (m, eV/c, s).
+
+        Returns
+        -------
+        tuple
+            The objective's value, and parameter -> d objective / d parameter.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            If the objective depends on a line that cannot carry gradients, or the sweep
+            meets an input step it cannot follow back.
+        """
+        import torch
+
+        writer = {
+            os.path.abspath(latt.output_beam_file(name)): latt
+            for latt in (self.latticeObjects[n] for n in self._tracked)
+            for name in self._line_output_names(latt.objectname) if latt.writes_output(name)
+        }
+        writer = {path: latt for path, latt in writer.items() if os.path.isfile(path)}
+        beams = {
+            path: torch.tensor(latt.lab_particles(path), dtype=torch.float64, requires_grad=True)
+            for path, latt in writer.items()
+        }
+        value = objective({os.path.basename(path).removesuffix(".openpmd.hdf5"): b for path, b in beams.items()})
+        derivatives = torch.autograd.grad(value, list(beams.values()), allow_unused=True)
+        cotangents = {path: d.numpy() for path, d in zip(beams, derivatives) if d is not None}
+
+        result = dict.fromkeys((self.settings["global"].get("gradients") or {}).get("parameters") or [], 0.0)
+
+        def add(parameters, derivatives):
+            for p, d in zip(parameters, derivatives):
+                result[p] = result.get(p, 0.0) + float(d)
+
+        for name in reversed(self._tracked):
+            latt = self.latticeObjects[name]
+            own = {path: cotangents.pop(path) for path in list(cotangents) if writer[path] is latt}
+            if not own:
+                continue
+            d_input, d_parameters = latt.backward(own)
+            add(d_parameters, d_parameters.values())
+            source = latt._input_file
+            if d_input is None or (source not in writer and latt.incoming_tangents is None):
+                continue  # nothing upstream of it moves with a parameter
+            latt.check_follows_input()
+            if source in writer:
+                cotangents[source] = cotangents.get(source, 0) + d_input
+            else:  # resumed from a saved beam
+                tangents = latt.incoming_tangents
+                add(tangents["parameters"], np.einsum("ij,ijp->p", d_input, tangents["tangent"]))
+        return float(value), result
+
+    def optimise(self, objective, bounds: dict | None = None, **options):
+        """
+        Minimise ``objective`` over the ``global: gradients: parameters`` with
+        ``scipy.optimize.minimize``, tracking and taking :meth:`gradient` at each step. The
+        lattice, and the run's files, are left at the result.
+
+        Parameters
+        ----------
+        objective: callable
+            As for :meth:`gradient`.
+        bounds: dict or None
+            Parameter -> ``(low, high)``; either may be None.
+        options:
+            Passed to ``minimize``, e.g. ``method`` (default ``"L-BFGS-B"``), ``tol``,
+            ``options={"maxiter": 20}``.
+
+        Returns
+        -------
+        scipy.optimize.OptimizeResult
+        """
+        from scipy.optimize import minimize
+
+        parameters = (self.settings["global"].get("gradients") or {}).get("parameters") or []
+
+        def evaluate(x):
+            for parameter, v in zip(parameters, x):
+                self.modifyElement(*parameter.split(":"), float(v))
+            self.track()
+            value, gradients = self.gradient(objective)
+            return value, np.array([gradients[p] for p in parameters])
+
+        result = minimize(
+            evaluate,
+            [self._parameter_value(p) for p in parameters],
+            jac=True,
+            bounds=[(bounds or {}).get(p, (None, None)) for p in parameters],
+            **{"method": "L-BFGS-B", **options},
+        )
+        evaluate(result.x)  # the last step taken need not be the result
+        return result
+
     def _feeder_lines(self, lattice_name: str) -> list:
         """The lines upstream of ``lattice_name``, nearest first: the one that writes its input beam, then that one's, and so on."""
         chain, latt = [], self.latticeObjects[lattice_name]
@@ -1726,19 +1850,30 @@ class Framework(BaseModel):
         self._mark_colliding_outputs(files)
         # the first line may pick its gradients up from its input beam's run; see load_input_beam.
         # Updated in place: each lattice holds a shallow copy of global_parameters
-        parameters = (self.settings["global"].get("gradients") or {}).get("parameters") or []
+        gradients = self.settings["global"].get("gradients") or {}
+        parameters = gradients.get("parameters") or []
         self.global_parameters["resume_tangents"].clear()
         if files[0] != "generator" and parameters:
             self.global_parameters["resume_tangents"].update(
-                values={
-                    p: float(reduce(getattr, p.split(":")[1].split("."), self.elementObjects[p.split(":")[0]]))
-                    for p in parameters if p.split(":")[0] in self.elementObjects
-                },
+                values={p: self._parameter_value(p) for p in parameters if p.split(":")[0] in self.elementObjects},
                 upstream=[
                     p for name in self._feeder_lines(files[0])
                     for p in self.latticeObjects[name].gradient_parameters
                 ],
             )
+        self._tracked = [name for name in files if name != "generator"]
+        mode = gradients.get("mode", "forward")
+        if mode not in ("forward", "reverse"):
+            raise ValueError(f"global: gradients: mode is 'forward' or 'reverse', not {mode!r}")
+        # reverse mode: forward tangents only where a finite-difference line downstream needs them
+        finite_difference = [
+            name for name in self._tracked
+            if not self.latticeObjects[name].supports_gradients
+            and self.latticeObjects[name].finite_difference_step is not None
+        ]
+        feeding = {feeder for name in finite_difference for feeder in self._feeder_lines(name)}
+        for name in self._tracked:
+            self.latticeObjects[name].forward_tangents = mode == "forward" or name in feeding
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)

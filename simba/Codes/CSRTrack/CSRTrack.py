@@ -8,7 +8,7 @@ from pydantic import Field
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
-from typing import Dict, List, Any
+from typing import ClassVar, Dict, List, Any
 from laura.translator.converters.codes.csrtrack import (
     CsrTrackParticles,
     CsrTrackForces,
@@ -22,6 +22,9 @@ class csrtrackLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a CSRTrack input file."""
 
     code: str = "csrtrack"
+
+    twiss_grid: ClassVar[str | None] = None
+    """CSRTrack writes only the end beam."""
     """String indicating the lattice object type"""
 
     particle_definition: str = ""

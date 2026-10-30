@@ -130,11 +130,11 @@ def test_cheetah_gradients_match_finite_differences(tmp_path):
     _check_against_finite_differences(framework, "FODO", grads, 0)
 
 
-def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=()):
+def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=(), lines=None):
     """
     The FODO cell as two lines, A (M1 to M2, holding QUAD1F) and B (M2 to M3, holding the
-    screen SCR2 then QUAD1D); ``cavity`` puts an off-crest cavity in A, whose phase moves B's
-    reference energy and time.
+    screen SCR2 then QUAD1D), or as ``lines``; ``cavity`` puts an off-crest cavity in A, whose
+    phase moves B's reference energy and time.
     """
     middle = [
         Marker(
@@ -155,7 +155,7 @@ def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=()):
             simulation={"field_amplitude": 1e6},
         ))
         parameters = ["CAV1:cavity.phase", "QUAD1D:k1l"]
-    lines = {"A": ("cheetah", "M1", "M2"), "B": (code_b, "M2", "M3")}
+    lines = lines or {"A": ("cheetah", "M1", "M2"), "B": (code_b, "M2", "M3")}
     return _framework(tmp_path, middle, lines, parameters, finite_difference)
 
 
@@ -179,6 +179,21 @@ def test_an_upstream_cavity_moves_the_next_lines_reference(tmp_path):
     assert grads["parameters"] == ["CAV1:cavity.phase", "QUAD1D:k1l"]
     assert np.abs(grads["Twiss"]["energy"][:, 0]).max() > 0
     _check_against_finite_differences(framework, "B", grads, 0, step=1e-3)
+
+
+@pytest.mark.parametrize("parameter", ["QUAD1F:k1l", "CAV1:cavity.phase", "QUAD1F:physical.length"])
+def test_rebuilding_one_element_moves_the_same_buffers_as_the_whole_segment(tmp_path, monkeypatch, parameter):
+    framework = _split_fodo(tmp_path, cavity=True)
+    _track(framework, "B")
+    line = framework.latticeObjects["A"]
+    one = line.cheetah_derivatives(parameter)
+    # a length moves the drifts either side, so that one rebuilds the whole segment
+    monkeypatch.setattr(type(line), "_rebuilt_buffers", lambda self, name, index, faces: dict(
+        self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c)).named_buffers()))
+    whole = line.cheetah_derivatives(parameter)
+    assert one.keys() == whole.keys() and one
+    for k in one:
+        assert (one[k] == whole[k]).all()
 
 
 def test_gradients_stop_at_a_code_that_cannot_differentiate(tmp_path):
@@ -218,6 +233,18 @@ def test_finite_differences_follow_a_collective_effect(tmp_path):
 
     grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
     _check_against_finite_differences(framework, "B", grads, 0, beams=("SCR2", "M3"), tolerance=1e-3)
+
+
+def test_a_time_stepped_codes_twiss_gets_no_gradients(tmp_path, monkeypatch):
+    """As ASTRA's and OPAL's Twiss rows follow the bunch, only the beam tangents are taken."""
+    skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, code_b="ocelot", finite_difference=["B"])
+    monkeypatch.setattr(type(framework.latticeObjects["B"]), "twiss_grid", "time")
+    with pytest.warns(exceptions.TwissGradientsUnsupportedWarning, match="fixed time steps"):
+        framework.track()
+    grads = read_gradients(os.path.join(framework.subdirectory, "B_gradients.ocelot.hdf5"))
+    assert grads["Twiss"] == {}
+    assert grads["Beams"]["M3"].shape[-1] == 2
 
 
 def test_finite_differences_warn_where_the_output_jumps(tmp_path):
@@ -279,6 +306,102 @@ def test_resuming_from_a_beam_tracked_with_other_values_warns(tmp_path):
         framework.track(startfile="B")
     # still the gradients of the beam B was given
     assert read_gradients(os.path.join(framework.subdirectory, "B_gradients.cheetah.hdf5"))["parameters"][0] == "QUAD1F:k1l"
+
+
+def _downstream(beams):
+    """A figure of merit at SCR2 and M3: a size, a divergence and a bunch length."""
+    return (beams["M3"][:, 0].std() / 1e-4) ** 2 + beams["SCR2"][:, 3].std() / 1e3 + beams["M3"][:, 4].std() / 1e-12
+
+
+def _objective(beams):
+    """:func:`_downstream`, plus a size at M2, where line A hands over."""
+    return _downstream(beams) + beams["M2"][:, 2].std() / 1e-4
+
+
+def _check_reverse(framework, step=1e-4, tolerance=1e-6):
+    """:meth:`gradient` of :func:`_objective` against its finite differences over the whole run."""
+    import torch
+    value, gradients = framework.gradient(_objective)
+    for parameter, derivative in gradients.items():
+        x = _value(framework, parameter)
+        plus, minus = (
+            _objective({k: torch.tensor(v) for k, v in _track(framework, "B", {parameter: x + h}, ("M2", "SCR2", "M3"))[0].items()})
+            for h in (step, -step)
+        )
+        fd = float(plus - minus) / (2 * step)
+        np.testing.assert_allclose(derivative, fd, rtol=tolerance, atol=1e-9 * abs(value) / step)
+    return gradients
+
+
+REVERSE_LAYOUTS = {
+    "cheetah": dict(),
+    "into-finite-differences": dict(code_b="ocelot", finite_difference=["B"]),
+    "through-finite-differences": dict(
+        lines={"A": ("cheetah", "M1", "M2"), "B": ("ocelot", "M2", "SCR2"), "C": ("cheetah", "SCR2", "M3")},
+        finite_difference=["B"],
+    ),
+}
+
+
+@pytest.mark.parametrize("layout", REVERSE_LAYOUTS)
+def test_reverse_mode_matches_finite_differences(tmp_path, layout):
+    """Cheetah lines swept back by vjp; a finite-difference line contracted with its forward tangents."""
+    if layout != "cheetah":
+        skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, **REVERSE_LAYOUTS[layout])
+    framework.settings["global"]["gradients"]["mode"] = "reverse"
+    _track(framework, "B")
+    subdir = framework.subdirectory
+    # forward tangents only where the finite-difference line needs them
+    assert os.path.exists(os.path.join(subdir, "A_gradients.cheetah.hdf5")) == (layout != "cheetah")
+    assert not any(os.path.exists(os.path.join(subdir, f"{line}_gradients.cheetah.hdf5")) for line in "BC")
+    gradients = _check_reverse(framework, tolerance=1e-6 if layout == "cheetah" else 1e-4)
+    assert set(gradients) == {"QUAD1F:k1l", "QUAD1D:k1l"}
+
+
+def test_reverse_mode_through_a_cavity(tmp_path):
+    framework = _split_fodo(tmp_path, cavity=True)
+    _track(framework, "B")
+    _check_reverse(framework, step=1e-3, tolerance=1e-4)
+
+
+def test_reverse_mode_resumes_from_a_saved_beam(tmp_path):
+    """QUAD1F's gradient comes from the forward tangent saved with M2 by the full run."""
+    framework = _split_fodo(tmp_path)
+    _track(framework, "B")
+    _, full = framework.gradient(_downstream)
+    framework.settings["global"]["gradients"]["mode"] = "reverse"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        framework.track(startfile="B")
+    _, resumed = framework.gradient(_downstream)
+    assert abs(full["QUAD1F:k1l"]) > 0
+    for parameter, derivative in full.items():
+        np.testing.assert_allclose(resumed[parameter], derivative, rtol=1e-10)
+
+
+def test_reverse_mode_stops_at_a_code_that_cannot_differentiate(tmp_path):
+    skip_missing("ocelot")
+    framework = _split_fodo(tmp_path, code_b="ocelot")
+    _track(framework, "B")
+    with pytest.raises(exceptions.GradientChainError, match="cannot differentiate"):
+        framework.gradient(_objective)
+
+
+def test_optimise_brings_the_objective_down(tmp_path):
+    framework = _split_fodo(tmp_path)
+    framework.settings["global"]["gradients"]["mode"] = "reverse"
+
+    def objective(beams):  # a round beam at M3
+        return ((beams["M3"][:, 0].std() - beams["M3"][:, 2].std()) / 1e-4) ** 2
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        framework.track()
+        start, _ = framework.gradient(objective)
+        result = framework.optimise(objective, bounds={"QUAD1F:k1l": (-5, 5), "QUAD1D:k1l": (-5, 5)})
+    assert result.fun < 1e-3 * start
+    np.testing.assert_allclose([_value(framework, p) for p in ("QUAD1F:k1l", "QUAD1D:k1l")], result.x)
 
 
 def test_rematching_breaks_the_chain(tmp_path):

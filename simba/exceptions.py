@@ -183,6 +183,16 @@ class GradientsNotResumedWarning(SettingWarning):
         )
 
 
+class TwissGradientsUnsupportedWarning(UnsupportedWarning):
+    """Finite-difference gradients of a line's beams, but not of its Twiss."""
+
+    def __init__(self, line: str, reason: str):
+        super().__init__(
+            f"{_line(line)} carries gradients for its beams but not its Twiss: {reason}, so a row "
+            "in one run is not at the same place as in the next."
+        )
+
+
 class GradientNotSmoothWarning(SettingWarning):
     """Finite-difference gradients through output that jumps or kinks at the step taken."""
 

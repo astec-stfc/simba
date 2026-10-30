@@ -48,7 +48,7 @@ from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
 from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
-from .Modules.gradients import lab_array, lab_coordinates, saved_tangent, write_gradients
+from .Modules.gradients import lab_array, lab_coordinates, read_gradients, saved_tangent, write_gradients
 from .Modules.units import UnitValue
 from .Codes import Executables as exes
 from .Modules import constants
@@ -455,6 +455,13 @@ class frameworkLattice(BaseModel):
     """``parameters``, ``values`` and the (n, 6, P) ``tangent`` an upstream line left with
     the input beam file; see :meth:`check_incoming_tangents`."""
 
+    _input_file: str | None = None
+    """Absolute path of the input beam file; see :meth:`load_input_beam`."""
+
+    forward_tangents: bool = True
+    """Whether a code that differentiates computes forward tangents; with ``gradients: mode: reverse``,
+    :meth:`~simba.Framework.Framework.track` keeps them only where a finite-difference line downstream needs them."""
+
     native_time: ClassVar[tuple[str, str]] = ("t", "s")
     """The code's own longitudinal time coordinate, as ``(name, units)``; see :meth:`native_time_scale`."""
 
@@ -530,6 +537,14 @@ class frameworkLattice(BaseModel):
 
     supports_gradients: ClassVar[bool] = False
     """Whether this code can differentiate its tracking; see :attr:`gradient_parameters`."""
+
+    twiss_grid: ClassVar[str | None] = "lattice"
+    """Where this code's Twiss rows sit, which decides whether :meth:`finite_difference_tangents`
+    can differentiate them: ``"lattice"``, at fixed positions (element ends, slices, screens);
+    ``"time"``, wherever the bunch is at fixed time steps, which moves with the beam; None, no Twiss."""
+
+    twiss_preglob: ClassVar[str] = "{name}"
+    """``Twiss.load_directory``'s ``preglob`` for this line's own Twiss file."""
 
     electrons_only: ClassVar[bool] = False
     """Whether this code tracks only electrons; other beams are refused by :meth:`check_species`."""
@@ -1084,16 +1099,66 @@ class frameworkLattice(BaseModel):
             ))
             self.incoming_tangents = None
             return
-        if int(self.sample_interval) > 1:
-            raise exceptions.GradientChainError(self.objectname, "it samples the beam (sample_interval)")
-        if any(v for plane in self.initial_twiss.values() for v in plane.values()):
-            raise exceptions.GradientChainError(self.objectname, "it rematches the beam to input: twiss")
+        self.check_follows_input()
         if len(self.incoming_tangents["tangent"]) != n_particles:
             raise exceptions.GradientChainError(
                 self.objectname,
                 f"its {n_particles} particles do not match the {len(self.incoming_tangents['tangent'])} "
                 "the tangents were computed for",
             )
+
+    def check_follows_input(self) -> None:
+        """
+        Refuse the input steps gradients cannot follow back to the particles in the input file.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            On sampling or rematching.
+        """
+        if int(self.sample_interval) > 1:
+            raise exceptions.GradientChainError(self.objectname, "it samples the beam (sample_interval)")
+        if any(v for plane in self.initial_twiss.values() for v in plane.values()):
+            raise exceptions.GradientChainError(self.objectname, "it rematches the beam to input: twiss")
+
+    def backward(self, cotangents: Dict) -> tuple:
+        """
+        One reverse-mode step back through this line, from the forward tangents
+        :meth:`finite_difference_tangents` saved: d objective / d parameter is the sum of
+        cotangent · tangent over its outputs. Those tangents already carry every parameter
+        upstream, so nothing goes further back.
+
+        Parameters
+        ----------
+        cotangents: Dict
+            Beam file path -> (n, 6) d objective / d particle, for this line's outputs.
+
+        Returns
+        -------
+        tuple
+            None for the input particles, and parameter -> d objective / d parameter.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            If this line cannot carry gradients.
+        """
+        if not self.carries_gradients:
+            raise exceptions.GradientChainError(
+                self.objectname,
+                f"the objective depends on its output, and {self.code} cannot differentiate its "
+                "tracking (set gradients: finite_difference: true on it)",
+            )
+        filename = f'{self.global_parameters["master_subdir"]}/{self.objectname}_gradients.{self.code}.hdf5'
+        if not os.path.isfile(filename):
+            return None, {}  # no parameter reached it
+        saved = read_gradients(filename)
+        total = sum(
+            (np.einsum("ij,ijp->p", c, saved["Beams"][os.path.basename(path).removesuffix(".openpmd.hdf5")])
+             for path, c in cotangents.items()),
+            np.zeros(len(saved["parameters"])),
+        )
+        return None, dict(zip(saved["parameters"], total.tolist()))
 
     def resume_tangents(self, filepath: str, values: dict, upstream: list) -> Dict | None:
         """
@@ -1145,16 +1210,20 @@ class frameworkLattice(BaseModel):
         The tangents at each beam file go on to the line that reads it
         next, and with the Twiss ones to ``<line>_gradients.<code>.hdf5``.
 
+        Twiss tangents need rows at the same places in every run (:attr:`twiss_grid` ``"lattice"``).
+
         Raises
         ------
         :class:`~simba.exceptions.GradientChainError`
-            If a run loses particles or changes its Twiss sampling, or the line tracks more
-            than one turn.
+            If a run loses particles, or the line tracks more than one turn.
 
         Warns
         -----
         :class:`~simba.exceptions.GradientNotSmoothWarning`
             For each column whose output is not smooth at this step.
+        :class:`~simba.exceptions.TwissGradientsUnsupportedWarning`
+            If this code's Twiss rows follow the bunch in time, or move between runs; the
+            beam tangents are still taken.
         """
         from .Modules import Twiss as rtf
         step = self.finite_difference_step
@@ -1166,16 +1235,23 @@ class frameworkLattice(BaseModel):
         subdir = self.global_parameters["master_subdir"]
         names = [e.name for e in self.screens_and_markers_and_bpms if e.name not in (self.start, self.end)]
         names = [name for name in names + [self.end] if os.path.isfile(self.output_beam_file(name))]
+        if self.twiss_grid == "time":
+            warn(exceptions.TwissGradientsUnsupportedWarning(
+                self.objectname, f"{self.code} writes its Twiss at fixed time steps, wherever the bunch is then",
+            ))
 
         def outputs(line, directory):
             beams = {name: self.lab_particles(line.output_beam_file(name)) for name in names}
-            twiss = rtf.load_directory(directory, preglob=line.objectname)
-            twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
-            twiss = {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi"}
+            twiss = {}
+            if self.twiss_grid == "lattice":
+                twiss = rtf.load_directory(directory, preglob=self.twiss_preglob.format(name=line.objectname))
+                twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
+                twiss = {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi"}
             return beams, twiss, {k: twiss.pop(k, np.array([])) for k in ("s", "z")}
 
         *real, grid = outputs(self, subdir)
         scratch = tempfile.mkdtemp(dir=subdir)
+        moved = []  # runs whose Twiss rows were not where the real run's were
 
         def rerun(shift=None, parameter=None, value=None):
             line = deepcopy(self)
@@ -1195,14 +1271,15 @@ class frameworkLattice(BaseModel):
             beams, twiss, sampling = outputs(line, scratch)
             if any(len(beams[name]) != len(real[0][name]) for name in names):
                 raise exceptions.GradientChainError(self.objectname, "it loses particles")
-            if np.shape(sampling["s"]) != np.shape(grid["s"]):
-                raise exceptions.GradientChainError(self.objectname, "its Twiss sampling moves")
+            if np.shape(sampling["s"]) != np.shape(grid["s"]) or not np.allclose(sampling["s"], grid["s"], rtol=1e-12, atol=1e-9):
+                moved.append(True)
+                twiss = {}
             return beams, twiss
 
         def derivative(h, column, **plus_minus):
             plus, minus = (rerun(**{k: v[i] for k, v in plus_minus.items()}) for i in (0, 1))
             rough = [
-                k for p, m, r in zip(plus, minus, real) for k in p
+                k for p, m, r in zip(plus, minus, real) for k in p.keys() & m.keys()
                 # smooth: f(h) - 2 f(0) + f(-h) ~ f'' h^2, well below f(h) - f(-h) ~ 2 f' h;
                 # the floor is round-off in values this large
                 if np.any(np.abs(p[k] - 2 * r[k] + m[k]).max(0)
@@ -1210,7 +1287,7 @@ class frameworkLattice(BaseModel):
             ]
             if rough:
                 warn(exceptions.GradientNotSmoothWarning(self.objectname, column, rough))
-            return [{k: (p[k] - m[k]) / (2 * h) for k in p} for p, m in zip(plus, minus)]
+            return [{k: (p[k] - m[k]) / (2 * h) for k in p.keys() & m.keys()} for p, m in zip(plus, minus)]
 
         try:
             columns = []
@@ -1234,6 +1311,10 @@ class frameworkLattice(BaseModel):
                 columns.append(derivative(h, parameter, parameter=(parameter, parameter), value=(value + h, value - h)))
         finally:
             shutil.rmtree(scratch)
+        if moved:
+            warn(exceptions.TwissGradientsUnsupportedWarning(self.objectname, "its Twiss rows moved between runs"))
+            for c in columns:
+                c[1] = {}
         beams, twiss = ({k: np.stack([c[i][k] for c in columns], -1) for k in columns[0][i]} for i in (0, 1))
         incoming = self.incoming_tangents or {"parameters": [], "values": []}
         parameters = list(incoming["parameters"]) + local
@@ -1247,7 +1328,7 @@ class frameworkLattice(BaseModel):
             f"{subdir}/{self.objectname}_gradients.{self.code}.hdf5",
             parameters,
             values,
-            {**twiss, **grid},
+            {**twiss, **grid} if twiss else {},
             {self.output_basename(name): beams[name] for name in names},
             code=self.code,
             lattice=self.objectname,
@@ -2651,7 +2732,8 @@ class frameworkLattice(BaseModel):
             if index is not None and 0 <= index < len(full.t.val)
             else None
         )
-        self.incoming_tangents = self.global_parameters.get("tangents", {}).get(os.path.abspath(filepath))
+        self._input_file = os.path.abspath(filepath)
+        self.incoming_tangents = self.global_parameters.get("tangents", {}).get(self._input_file)
         resume = dict(self.global_parameters.get("resume_tangents", {}))
         self.global_parameters.get("resume_tangents", {}).clear()  # only the first line resumes
         if self.incoming_tangents is None and resume:

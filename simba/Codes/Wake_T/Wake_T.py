@@ -11,7 +11,7 @@ from ...Modules.Beams.wake_t import (
     beam_to_particle_bunch,
 )
 from copy import deepcopy
-from typing import List, Any
+from typing import ClassVar, List, Any
 
 def all_subclasses(cls):
     subclasses = cls.__subclasses__()
@@ -24,6 +24,9 @@ class waketLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as a Wake-T beamline."""
 
     code: str = "waket"
+
+    twiss_grid: ClassVar[str | None] = None
+    """Wake-T writes only the end bunch."""
     """String indicating the lattice object type"""
 
     trackBeam: bool = True

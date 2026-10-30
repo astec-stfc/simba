@@ -6,7 +6,7 @@ import subprocess
 import h5py
 import numpy as np
 import yaml
-from typing import Any, Dict, Literal
+from typing import Any, ClassVar, Dict, Literal
 
 from ...Framework_objects import (
     frameworkLattice,
@@ -166,6 +166,9 @@ class opalLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as an OPAL input file."""
 
     code: str = "opal"
+
+    twiss_grid: ClassVar[str | None] = "time"
+    """OPAL's ``.stat`` rows come every ``STATDUMPFREQ`` fixed time steps."""
     """String indicating the lattice object type"""
 
     headers: Dict = {}

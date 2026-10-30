@@ -84,7 +84,7 @@ def read_gdf_twiss_files(self, filename=None, gdfbeam=None, reset=True):
             sigma_x=gdfbeamdata.stdx,
             sigma_y=gdfbeamdata.stdy,
             sigma_xp=gdfbeamdata.stdBx / gdfbeamdata.avgBz,
-            sigma_yp=gdfbeamdata.stdx / gdfbeamdata.avgBz,
+            sigma_yp=gdfbeamdata.stdBy / gdfbeamdata.avgBz,
             mean_x=gdfbeamdata.avgx,
             mean_y=gdfbeamdata.avgy,
             sigma_t=sigma_t,

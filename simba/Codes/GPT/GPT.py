@@ -49,6 +49,9 @@ class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
     code: str = "gpt"
+
+    twiss_preglob: ClassVar[str] = "{name}_"
+    """GPT's Twiss is ``<line>_emit.gdf``, averaged at its screens."""
     """String indicating the lattice object type"""
 
     tracks_multiple_species: ClassVar[bool] = True

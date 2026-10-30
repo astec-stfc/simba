@@ -57,6 +57,9 @@ class astraLattice(frameworkLattice):
     """Threaded conversion of ASTRA screen outputs to openPMD"""
 
     code: str = "astra"
+
+    twiss_grid: ClassVar[str | None] = "time"
+    """ASTRA writes its emittance files as the bunch centre crosses each ``zstep`` while it time-steps."""
     """String indicating the lattice object type"""
 
     tracks_multiple_species: ClassVar[bool] = True
