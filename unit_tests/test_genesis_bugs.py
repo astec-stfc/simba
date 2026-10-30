@@ -2,7 +2,11 @@ from types import SimpleNamespace as NS
 
 from simba.Codes.Genesis.Genesis import (
     genesis_alter_beam_command,
+    genesis_profile_file_command,
+    genesis_profile_polynom_command,
     genesis_setup_command,
+    genesis_sort_command,
+    genesis_sponrad_command,
     genesis_track_command,
     genesisLattice,
 )
@@ -32,3 +36,12 @@ def test_setup_seed_per_instance_and_bunchharm_one():
     assert len(seeds) > 1
     assert "seed = 7" in genesis_setup_command(seed=7, **kw).write_Genesis()
     assert genesis_track_command(bunchharm=1).bunchharm == 1
+
+
+def test_camelcase_and_profile_keywords_are_written():
+    out = genesis_sponrad_command(doLoss=True).write_Genesis()
+    assert "doLoss = 1" in out and "doSpread = 0" in out
+    out = genesis_profile_file_command(label="p", xdata="f/x", ydata="f/y", isTime=True).write_Genesis()
+    assert "isTime = 1" in out and "reverse = 0" in out
+    assert "c3 = 2.0" in genesis_profile_polynom_command(label="p", c0=1.0, c3=2.0).write_Genesis()
+    assert genesis_sort_command().write_Genesis() == "&sort\n&end\n"

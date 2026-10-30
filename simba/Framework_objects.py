@@ -3407,7 +3407,8 @@ class frameworkCommand(frameworkObject):
                 and key != "objecttype"
                 and hasattr(self, key)
             ):
-                val = getattr(self, key.lower())
+                # Genesis keys are case-sensitive (isTime, doLoss), and so are the fields
+                val = getattr(self, key)
                 val = int(val) if isinstance(val, bool) else val
                 if val is not None:
                     string += "\t" + key + " = " + str(val) + "\n"
