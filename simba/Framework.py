@@ -1,36 +1,25 @@
 """
-SIMBA Framework Module
-
-The main class for handling the tracking of a particle distribution through a lattice.
-
-Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files.
-This creates :class:`~simba.Framework_objects.frameworkLattice` objects.
-
-These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
-
-Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
-
-Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
+SIMBA Framework: load lattice settings and track a particle distribution through them.
 
 Classes:
-    - :class:`~simba.Framework.Framework`: Top-level class for loading and modifying lattice settings and tracking through them
-
-    - :class:`~simba.Framework.frameworkDirectory`: Class to load a tracking run from a directory and reading the Beam and Twiss files and making them available.
+    - :class:`~simba.Framework.Framework`: load, modify and track through lattice settings.
+    - :class:`~simba.Framework.frameworkDirectory`: load the Beam and Twiss files of a finished run.
 """
 
+import gc
 import os
+import pickle
 import yaml
 import inspect
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
 from laura import LAURA
-from laura.models.element import PhysicalBaseElement, Dipole
-from laura.Exporters.YAML import export_machine, export_elements
+from laura.models.element import PhysicalBaseElement
+from laura.models.element_list import flatten_occurrence, split_occurrence
+from laura.exporters.yaml_exporter import export_machine, export_elements
 
-from .Modules.merge_two_dicts import merge_two_dicts
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
 from .Modules import Wavefronts as rwf
@@ -39,7 +28,6 @@ from .Codes import Executables as exes
 from .Codes.Generators import (
     ASTRAGenerator,
     GPTGenerator,
-    OPALGenerator,
     frameworkGenerator,
 )
 from .Framework_objects import runSetup
@@ -56,6 +44,7 @@ from .FrameworkHelperFunctions import (
 from pydantic import (
     BaseModel,
     ConfigDict,
+    PrivateAttr,
 )
 from warnings import warn
 
@@ -93,10 +82,8 @@ def dict_representer(dumper, data):
 def dict_constructor(loader, node):
     return dict(loader.construct_pairs(node))
 
-
 def numpy_array_representer(dumper, data):
     return dumper.represent_list(data.tolist())
-
 
 def numpy_scalar_representer(dumper, data):
     if np.issubdtype(type(data), np.floating):
@@ -106,17 +93,12 @@ def numpy_scalar_representer(dumper, data):
     else:
         return dumper.represent_str(str(data))
 
-
-# Register custom representers for SafeDumper
 yaml.SafeDumper.add_representer(np.ndarray, numpy_array_representer)
 yaml.SafeDumper.add_representer(np.generic, numpy_scalar_representer)
-
 
 class NumpySafeDumper(yaml.SafeDumper):
     pass
 
-
-# --- Register handlers for all numpy types ---
 NumpySafeDumper.add_representer(np.ndarray, numpy_array_representer)
 NumpySafeDumper.add_representer(np.generic, numpy_scalar_representer)
 NumpySafeDumper.add_representer(np.float64, numpy_scalar_representer)
@@ -129,13 +111,10 @@ yaml.add_representer(dict, dict_representer)
 yaml.add_constructor(_mapping_tag, dict_constructor)
 
 latticeClasses = [
-    [obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])]
+    obj[1] for obj in inspect.getmembers(frameworkLattices) if inspect.isclass(obj[1])
 ]
 
-with open(
-    os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml",
-    "r",
-) as infile:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/hosts.yaml") as infile:
     hosts = yaml.safe_load(infile)
 
 disallowed = [
@@ -162,27 +141,16 @@ disallowed_changes = [
 ]
 
 
-supported_codes = [
-    code.split("Lattice")[0]
-    for code in dir(frameworkLattices)
-    if "lattice" in code.lower()
-]
-
+supported_codes = [code.split("Lattice")[0] for code in dir(frameworkLattices) if "lattice" in code.lower()]
 
 class Framework(BaseModel):
     """
-    The main class for handling the tracking of a particle distribution through a lattice.
+    The main class for tracking a particle distribution through a lattice.
 
-    Settings files can be loaded in, consisting of one or more :ref:`LAURA` YAML files. This creates
-    :class:`~simba.Framework_objects.frameworkLattice` objects, each of which contains
-    :class:`~laura.models.element.Element` objects.
-
-    These objects can be modified directly through the :class:`~simba.Framework.Framework` class.
-
-    Based on the tracking code(s) provided to the framework, the particle distribution is tracked through the lattice
-    sequentially, and output beam distributions are generated and converted to the standard OpenPMD HDF5 format.
-
-    Summary files containing Twiss parameters, and a summary of the beam files, are generated after tracking.
+    Settings files of one or more `LAURA <https://github.com/astec-stfc/laura/>`_ YAML files
+    become :class:`~simba.Framework_objects.frameworkLattice` objects of
+    :class:`~laura.models.element.Element` objects. Each lattice is tracked by its code in turn;
+    output beams are converted to OpenPMD HDF5, and Twiss and beam summaries are written afterwards.
     """
 
     model_config = ConfigDict(
@@ -192,116 +160,125 @@ class Framework(BaseModel):
     )
 
     directory: str
-    """The directory into which simulation files will be placed"""
+    """Directory for simulation files."""
 
     master_lattice: str | None = None
-    """Location of the master lattice files. If the package is installed, 
-    this will be configured automatically"""
+    """Location of the master lattice files; found automatically if the package is installed."""
 
     simcodes: str | None = None
-    """Location of the simulation codes directory. If the package is installed, 
-    this will be configured autonatically"""
+    """Location of the simulation codes; found automatically if the package is installed."""
 
     overwrite: bool | None = None
-    """Flag to indicate whether existing files are to be overwritten
-    #TODO deprecated?"""
+    """Whether existing files are overwritten. #TODO deprecated?"""
 
     runname: str = "CLARA_240"
-    """Name of the run for this setup
-    #TODO deprecated?"""
+    """Name of the run. #TODO deprecated?"""
 
     clean: bool = False
-    """Flag to indicate whether all files in the existing directory are to be removed"""
+    """Remove all files already in :attr:`directory`."""
 
     verbose: bool = True
-    """Flag to indicate whether status updates should be printed during tracking"""
+    """Print status updates during tracking."""
 
     sddsindex: int = 0
-    """Index for SDDS files"""
+    """Index for SDDS files."""
 
     delete_output_files: bool = False
-    """Flag to indicate whether output files are to be deleted after tracking"""
+    """Delete code output files after tracking."""
+
+    conversion_workers: int = 1
+    """Processes for converting screen outputs to openPMD (elegant only, for now); 1 converts them one by one."""
 
     global_parameters: Dict = {}
-    """Dictionary containing global parameters accessible to all classes"""
+    """Global parameters shared with all lattices and elements."""
 
     elementObjects: Dict = {}
-    """Dictionary containing all :class:`~laura.models.element.Element` objects"""
+    """All :class:`~laura.models.element.Element` objects, by name."""
 
     latticeObjects: Dict = {}
-    """Dictionary containing all :class:`~simba.Framework_objects.frameworkLattice` objects"""
+    """All :class:`~simba.Framework_objects.frameworkLattice` objects, by name."""
 
     commandObjects: Dict = {}
-    """Dictionary containing all :class:`~simba.Framework_objects.frameworkCommand` objects"""
+    """All :class:`~simba.Framework_objects.frameworkCommand` objects."""
 
     groupObjects: Dict = {}
-    """Dictionary containing all :class:`~simba.Framework_objects.frameworkGroup` objects"""
+    """All :class:`~simba.Framework_objects.frameworkGroup` objects, by name."""
 
     fileSettings: Dict = {}
-    """Dictionary containing all file settings"""
+    """File settings."""
 
     globalSettings: Dict = {}
-    """Dictionary containing all global settings"""
+    """Global settings."""
 
     generatorSettings: Dict = {}
-    """Dictionary containing all generator settings"""
+    """Generator settings."""
 
-    original_elementObjects: Dict = {}
-    """Dictionary containing all :class:`~laura.models.element.Element` objects
-    before changes are made"""
+    _original_elements: Dict | bytes = PrivateAttr(default_factory=dict)
+    """Backing store for :attr:`original_elementObjects`; pickled until first read."""
 
     progress: int | float = 0
-    """Current progress of tracking"""
+    """Current progress of tracking."""
 
     tracking: bool = False
-    """Flag to indicate whether the Framework is tracking"""
+    """Whether the Framework is tracking."""
 
     generator: frameworkGenerator | None = None
-    """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator` object"""
+    """The :class:`~simba.Codes.Generators.Generators.frameworkGenerator`."""
 
     settings: FrameworkSettings | None = None
-    """Settings for the lattice"""
+    """Settings for the lattice."""
 
     settingsFilename: str | None = None
-    """Filename containing lattice settings"""
+    """Lattice settings filename."""
 
     machine: LAURA = None
-    """LAURA model of lattice"""
+    """LAURA model of the lattice."""
 
     generator_defaults: str | None = None
-    """File pointing to defaults for constructing the
-    :class:`~simba.Codes.Generators.Generators.frameworkGenerator`"""
+    """Defaults file for the :class:`~simba.Codes.Generators.Generators.frameworkGenerator`."""
 
     generator_keywords: Dict = {}
-    """Default keywords for the
-    :class:`~simba.Codes.Generators.Generators.frameworkGenerator` loaded
-    from :attr:`~generator_defaults` in `master_lattice`/Generators"""
+    """Generator keywords loaded from :attr:`generator_defaults` in ``master_lattice``/Generators."""
 
     username: str = ""
-    """Username for remote execution"""
+    """Username for remote execution."""
 
     password: str = ""
-    """Password for remote execution"""
+    """Password for remote execution."""
 
     eager_mode: bool = False
-    """Bypass lazy loading for LAURA"""
+    """Bypass lazy loading for LAURA."""
+
+    container_runtime: Literal["docker", "apptainer"] | None = None
+    """Container runtime for the codes; if None, executables are looked for locally."""
+
+    executables: exes.Executables | None = None
+    """Commands for running the simulation codes."""
+
+    executables_ready: bool = False
+    """Whether :attr:`executables` are ready."""
 
     def model_post_init(self, __context):
-        gptlicense = os.environ["GPTLICENSE"] if "GPTLICENSE" in os.environ else ""
-        astra_use_wsl = os.environ["WSL_ASTRA"] if "WSL_ASTRA" in os.environ else 1
+        gptlicense = os.environ.get("GPTLICENSE", "")
+        astra_use_wsl = os.environ.get("WSL_ASTRA", 1)
         self.global_parameters = {
             "beam": rbf.beam(sddsindex=self.sddsindex),
             "GPTLICENSE": gptlicense,
             "delete_tracking_files": self.delete_output_files,
+            "conversion_workers": self.conversion_workers,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
+            "container_runtime": self.container_runtime,
         }
+        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
+            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
+                 "Cannot run simulations without either of these - please set one or the other")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
         self.setupGeneratorDefaults(self.generator_defaults)
 
-        self.executables = self.prepare_executables()
+        self.executables = self.prepare_executables(location=self.container_runtime)
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
@@ -309,32 +286,25 @@ class Framework(BaseModel):
     def __repr__(self) -> repr:
         return repr(
             {
-                "master_lattice": self.global_parameters["master_lattice"],
+                "master_lattice": self.global_parameters[
+                    "master_lattice"
+                ],
                 "subdirectory": self.subdirectory,
                 "settingsFilename": self.settingsFilename,
             }
         )
 
     def setupLAURA(self) -> None:
-        """
-        Sets up the `LAURA` machine
-        """
+        """Set up the LAURA :attr:`machine`."""
         try:
-            self.machine = LAURA(
-                layout=self.layout,
-                section=self.section,
-                element_list=self.element_list,
-                eager_mode=self.eager_mode,
-            )
+            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
         except Exception:
-            self.machine = LAURA(
-                layout=self.layout, section=self.section, element_list=self.element_list
-            )
+            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
 
     def prepare_executables(
-        self,
-        location: str = None,
-        ncpu: int = 1,
+            self,
+            location: str=None,
+            ncpu: int = 1,
     ):
         executables = exes.Executables(self.global_parameters)
         executables.define_astra_command(
@@ -361,40 +331,37 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_tao_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_bdsim_command(
             override_location=location,
             ncpu=ncpu,
         )
-        executables.define_ASTRAgenerator_command()
+        executables.define_ASTRAgenerator_command(override_location=location)
+        self.executables_ready = True
         return executables
 
     def clear(self) -> None:
-        """
-        Clear out :attr:`~elementObjects`, :attr:`~latticeObjects`, :attr:`~commandObjects`, :attr:`~groupObjects`
-        """
-        self.elementObjects = dict()
-        self.latticeObjects = dict()
-        self.commandObjects = dict()
-        self.groupObjects = dict()
+        """Clear :attr:`elementObjects`, :attr:`latticeObjects`, :attr:`commandObjects` and :attr:`groupObjects`."""
+        self.elementObjects = {}
+        self.latticeObjects = {}
+        self.commandObjects = {}
+        self.groupObjects = {}
 
     def change_subdirectory(self, *args, **kwargs) -> None:
-        """
-        Change the subdirectory and `master_subdir` in :attr:`~global_parameters` to which lattice and
-        beam files will be written.
-        """
+        """Alias of :meth:`setSubDirectory`."""
         self.setSubDirectory(*args, **kwargs)
 
     def setSubDirectory(self, direc: str) -> None:
         """
-        Change the subdirectory and `master_subdir` in :attr:`~global_parameters` to which lattice and
-        beam files will be written.
-
-        If :attr:`~clean`, then all existing files in the directory are removed.
+        Set the directory (and ``master_subdir``) for lattice and beam files, emptying it if :attr:`clean`.
 
         Parameters
         ----------
         direc: str
-            Directory to which files will be written. If directory does not exist, create it.
+            Output directory; created if missing.
         """
         self.subdirectory = os.path.abspath(direc)
         self.global_parameters["master_subdir"] = self.subdirectory
@@ -413,245 +380,114 @@ class Framework(BaseModel):
                 obj.global_parameters = self.global_parameters
                 obj.globalSettings = self.globalSettings
 
+    def _resolve_package_location(
+            self,
+            explicit: str | None,
+            cached: str | None,
+            candidates: list[str],
+            label: str,
+            kwarg_name: str,
+    ) -> str | None:
+        """
+        Resolve a package directory: ``explicit``, else ``cached``, else the first existing ``candidates`` entry.
+
+        Parameters
+        ----------
+        explicit: str, optional
+            Path given by the caller; used as-is.
+        cached: str, optional
+            Location from an earlier ``Framework`` or an installed package.
+        candidates: list[str]
+            Paths relative to this file, in priority order.
+        label: str
+            Package name for verbose messages.
+        kwarg_name: str
+            Keyword argument to suggest if nothing is found.
+
+        Returns
+        -------
+        str or None
+            Absolute location ending in a slash, or None if not found.
+        """
+        if explicit is not None:
+            return os.path.join(os.path.abspath(explicit), "./")
+        if cached is not None:
+            resolved = cached.replace("\\", "/")
+            if self.verbose:
+                print(f"Found {label} Package =", resolved)
+            return resolved
+        here = os.path.dirname(os.path.abspath(__file__))
+        for candidate in candidates:
+            path = os.path.abspath(os.path.join(here, candidate)) + "/"
+            if os.path.isdir(path):
+                resolved = path.replace("\\", "/")
+                if self.verbose:
+                    print(f"Found {label} Directory at '{candidate}' =", resolved)
+                return resolved
+        if self.verbose:
+            print(f"{label} not available - specify using {kwarg_name}=<location>")
+        return None
+
     def setMasterLatticeLocation(self, master_lattice: str | None = None) -> None:
         """
-        Set the location of the ``LAURA`` package.
-
-        This then also sets the `master_lattice` in :attr:`~global_parameters`.
+        Set the MasterLattice location, as ``master_lattice`` in :attr:`global_parameters`.
 
         Parameters
         ----------
         master_lattice: str
-            The full path to the ``LAURA`` master lattice folder
+            Path to the MasterLattice folder.
         """
         global MasterLatticeLocation
-        if master_lattice is None:
-            if MasterLatticeLocation is not None:
-                self.global_parameters["master_lattice"] = (
-                    MasterLatticeLocation.replace("\\", "/")
-                )
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Package =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 2-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../MasterLattice/MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../MasterLattice/MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                )
-                + "/"
-            ):
-                self.global_parameters["master_lattice"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../MasterLattice"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found MasterLattice Directory 1-up =",
-                        self.global_parameters["master_lattice"],
-                    )
-            else:
-                if self.verbose:
-                    print(
-                        "Master Lattice not available - specify using master_lattice=<location>"
-                    )
-                    self.global_parameters["master_lattice"] = "."
-        else:
-            self.global_parameters["master_lattice"] = os.path.join(
-                os.path.abspath(master_lattice), "./"
-            )
+        location = self._resolve_package_location(
+            master_lattice,
+            MasterLatticeLocation,
+            ["../../MasterLattice/MasterLattice", "../MasterLattice/MasterLattice", "../MasterLattice"],
+            "MasterLattice",
+            "master_lattice",
+        )
+        self.global_parameters["master_lattice"] = "." if location is None else location
         MasterLatticeLocation = self.global_parameters["master_lattice"]
         self.updateGlobalParameters()
 
     def setSimCodesLocation(self, simcodes: str | None = None) -> None:
         """
-        Set the location of the :ref:`SimCodes` package.
-
-        This then also sets the `simcodes_location` in :attr:`~global_parameters`.
+        Set the :ref:`SimCodes` location, as ``simcodes_location`` in :attr:`global_parameters`.
 
         Parameters
         ----------
         simcodes: str
-            The full path to the SimCodes folder
+            Path to the SimCodes folder.
         """
         global SimCodesLocation
-        if simcodes is None:
-            if SimCodesLocation is not None:
-                self.global_parameters["simcodes_location"] = SimCodesLocation.replace(
-                    "\\", "/"
-                )
-                if self.verbose:
-                    print(
-                        "Found SimCodes Package =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__))
-                    + "/../../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 2-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes/SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__))
-                        + "/../SimCodes/SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            elif os.path.isdir(
-                os.path.abspath(
-                    os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                )
-                + "/"
-            ):
-                self.global_parameters["simcodes_location"] = (
-                    os.path.abspath(
-                        os.path.dirname(os.path.abspath(__file__)) + "/../SimCodes"
-                    )
-                    + "/"
-                ).replace("\\", "/")
-                if self.verbose:
-                    print(
-                        "Found SimCodes Directory 1-up =",
-                        self.global_parameters["simcodes_location"],
-                    )
-            else:
-                if self.verbose:
-                    print("SimCodes not available - specify using simcodes=<location>")
-                self.global_parameters["simcodes_location"] = None
-        else:
-            self.global_parameters["simcodes_location"] = os.path.join(
-                os.path.abspath(simcodes), "./"
-            )
+        self.global_parameters["simcodes_location"] = self._resolve_package_location(
+            simcodes,
+            SimCodesLocation,
+            ["../../SimCodes/SimCodes", "../SimCodes/SimCodes", "../SimCodes"],
+            "SimCodes",
+            "simcodes",
+        )
         SimCodesLocation = self.global_parameters["simcodes_location"]
         self.updateGlobalParameters()
 
     def setupGeneratorDefaults(self, generator_defaults: str | None):
-        with open(
-            os.path.dirname(os.path.abspath(__file__))
-            + "/Codes/Generators/keywords.yaml",
-            "r",
-        ) as infile:
+        with open(os.path.dirname(os.path.abspath(__file__)) + "/Codes/Generators/keywords.yaml") as infile:
             self.generator_keywords = {"keywords": yaml.safe_load(infile)}
 
         if not generator_defaults:
             return self.generator_keywords
-        if os.path.isfile(
-            self.global_parameters["master_lattice"]
-            + f"Generators/{generator_defaults}"
-        ):
-            defaults = (
-                self.global_parameters["master_lattice"]
-                + f"Generators/{generator_defaults}"
-            )
+        if os.path.isfile(self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"):
+            defaults = self.global_parameters["master_lattice"] + f"Generators/{generator_defaults}"
         elif os.path.isfile(generator_defaults):
             defaults = generator_defaults
         else:
-            raise FileNotFoundError(
-                f"Could not find generator file {generator_defaults}"
-            )
-        with open(
-            defaults,
-            "r",
-        ) as infile:
+            raise FileNotFoundError(f"Could not find generator file {generator_defaults}")
+        with open(defaults) as infile:
             fi = yaml.safe_load(infile)
             defaults = fi["defaults"]
             self.generator_keywords.update({"defaults": defaults})
             for k, v in fi.items():
                 if k != "defaults":
-                    self.generator_keywords.update({k: merge_two_dicts(v, defaults)})
-
-    def load_Elements_File(self, inp: str | list | tuple | dict) -> None:
-        """
-        Load a YAML file or list of YAML files with element definitions.
-        The `elements` entry in this file(s) are then parsed and read into :attr:`~elementObjects`
-        in order to build up the :class:`~simba.Framework_objects.frameworkLattice` object.
-
-        Parameters
-        ----------
-        inp: str or list or tuple or dict
-            Input file or dict containing the lattice `elements`
-        """
-        if isinstance(inp, (list, tuple)):
-            filename = inp
-        else:
-            filename = [inp]
-        for f in filename:
-            if os.path.isfile(f):
-                with open(f, "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            elif os.path.isfile(os.path.join(self.subdirectory, f)):
-                with open(os.path.join(self.subdirectory, f), "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            else:
-                with open(self.global_parameters["master_lattice"] + f, "r") as stream:
-                    elements = yaml.safe_load(stream)["elements"]
-            for name, elem in list(elements.items()):
-                self.read_Element(name, elem)
+                    self.generator_keywords.update({k: defaults | (v or {})})
 
     def loadSettings(
         self,
@@ -659,16 +495,27 @@ class Framework(BaseModel):
         settings: FrameworkSettings | None = None,
     ) -> None:
         """
-        Load Lattice Settings from file or dictionary. These settings contain the lattice lines and
-        their respective settings, YAML files and global parameters.
+        Load lattice settings (lines, their settings, YAML files and global parameters).
 
         Parameters
         ----------
         filename: str or None
-            Name of .def file containing lattice definitions
+            Settings (.def) file, looked for as given, then in the subdirectory, then in the master lattice.
         settings: FrameworkSettings or None
-            Settings for the lattice
+            Settings to use if no ``filename`` is given.
         """
+        gc_was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            self._load_settings(filename, settings)
+        finally:
+            if gc_was_enabled:
+                gc.enable()
+
+    def _load_settings(
+        self, filename: str | None, settings: FrameworkSettings | None
+    ) -> None:
+        """Body of :meth:`loadSettings`, run with GC off."""
         if isinstance(filename, str):
             self.settingsFilename = filename
             self.settings = FrameworkSettings()
@@ -676,16 +523,12 @@ class Framework(BaseModel):
                 self.settings.loadSettings(filename)
             elif os.path.isfile(os.path.join(self.subdirectory, filename)):
                 self.settings.loadSettings(os.path.join(self.subdirectory, filename))
-            elif os.path.isfile(
-                os.path.join(self.global_parameters["master_lattice"], filename)
-            ):
+            elif os.path.isfile(os.path.join(self.global_parameters["master_lattice"], filename)):
                 self.settings.loadSettings(
                     os.path.join(self.global_parameters["master_lattice"], filename)
                 )
             else:
-                raise FileNotFoundError(
-                    f"Could not find settings file with name {filename}"
-                )
+                raise FileNotFoundError(f"Could not find settings file with name {filename}")
         elif isinstance(settings, FrameworkSettings):
             self.settingsFilename = settings.settingsFilename
             self.settings = settings
@@ -696,8 +539,7 @@ class Framework(BaseModel):
         if "generator" in self.settings and len(self.settings["generator"]) > 0:
             self.generatorSettings = self.settings["generator"]
             self.add_Generator(**self.generatorSettings)
-        self.fileSettings = self.settings["files"] if "files" in self.settings else {}
-        elements = self.settings["elements"]
+        self.fileSettings = self.settings.get("files", {})
         groups = (
             self.settings["groups"]
             if "groups" in self.settings and self.settings["groups"] is not None
@@ -713,28 +555,22 @@ class Framework(BaseModel):
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=[
-                        "controls",
-                        "electrical",
-                        "manufacturer",
-                        "reference",
-                    ],
+                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                     eager_mode=self.eager_mode,
                 )
             except Exception:
                 self.machine = LAURA(
                     layout=self.settings["layout"],
                     section=self.settings["section"],
+                    functional_definitions=self.settings["functional_definitions"],
+                    resolve_functional=self.settings["resolve_functional"],
                     element_list=self.settings["element_list"],
                     master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=[
-                        "controls",
-                        "electrical",
-                        "manufacturer",
-                        "reference",
-                    ],
+                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                 )
 
             for k in list(self.machine.elements.keys()):
@@ -742,9 +578,6 @@ class Framework(BaseModel):
 
             self.elementObjects = dict(self.machine.elements)
 
-            # for name, elem in list(elements.items()):
-            #     self.read_Element(name, elem)
-            #
             for name, group in list(groups.items()):
                 if "type" in group:
                     group_object = getattr(frameworkElements, group["type"])(
@@ -756,13 +589,25 @@ class Framework(BaseModel):
                 self.read_Lattice(name, lattice)
 
             self.apply_changes(changes)
-
-            self.original_elementObjects = {}
-            for e in self.elementObjects:
-                self.original_elementObjects[e] = deepcopy(self.elementObjects[e])
-            self.original_elementObjects["generator"] = deepcopy(self.generator)
-
+            snapshot = {**self.elementObjects, "generator": self.generator}
+            try:
+                self._original_elements = pickle.dumps(
+                    snapshot, protocol=pickle.HIGHEST_PROTOCOL
+                )
+            except (pickle.PicklingError, TypeError, AttributeError):
+                self._original_elements = deepcopy(snapshot)
             self.updateGlobalParameters()
+
+    @property
+    def original_elementObjects(self) -> Dict:
+        """All :class:`~laura.models.element.Element` objects as loaded, before changes."""
+        if isinstance(self._original_elements, bytes):
+            self._original_elements = pickle.loads(self._original_elements)
+        return self._original_elements
+
+    @original_elementObjects.setter
+    def original_elementObjects(self, value: Dict) -> None:
+        self._original_elements = value
 
     def save_settings(
         self,
@@ -771,21 +616,17 @@ class Framework(BaseModel):
         elements: dict | None = None,
     ) -> None:
         """
-        Save Lattice Settings to a file.
+        Save lattice settings to a file.
 
         Parameters
         ----------
         filename: str or None
-            Filename to which the settings will be saved; defaults to `settings.def`
+            Defaults to ``settings.def``.
         directory: str
-            Directory to which the settings will be saved
+            Output directory.
         elements: dict or None
-            Dictionary of :class:`~laura.models.element.Element` objects to save
+            Replaces the ``elements`` entry of the saved settings.
         """
-        # if filename is None:
-        #     pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
-        # else:
-        #     pre, ext = os.path.splitext(os.path.basename(filename))
         if filename is None:
             filename = "settings.def"
         settings = self.settings.copy()
@@ -798,16 +639,14 @@ class Framework(BaseModel):
 
     def read_Lattice(self, name: str, lattice: dict) -> None:
         """
-        Create an instance of a <code>Lattice class;
-        see :class:`~simba.Framework_objects.frameworkLattice` and its child classes.
-        This instance is then added to the :attr:`~latticeObjects` dictionary.
+        Create a ``<code>Lattice`` (see :class:`~simba.Framework_objects.frameworkLattice`) in :attr:`latticeObjects`.
 
         Parameters
         ----------
         name: str
-            The name of the lattice line
+            Name of the lattice line.
         lattice: dict
-            Dictionary containing settings for the lattice line
+            Settings for the lattice line.
         """
         if "code" not in lattice:
             raise KeyError(f"code must be provided for {lattice}")
@@ -844,19 +683,19 @@ class Framework(BaseModel):
         elements: list | None = None,
     ) -> dict:
         """
-        Detect lattice changes from the original loaded lattice and return a dictionary of changes.
+        Detect changes from the lattice as loaded.
 
         Parameters
         ----------
         elementtype: str or None
-            Element type to check; check all if None
+            Element type to check; all if None.
         elements: list or None
-            Elements to check; check all if None
+            Elements to check; all if None.
 
         Returns
         -------
         dict
-            Dictionary containing changes in the lattice, with element names and changed parameters
+            Changed parameters, by element name.
         """
         changedict = {}
         if elementtype is not None:
@@ -905,11 +744,7 @@ class Framework(BaseModel):
                     cond = False
                     new = element
                     orig = self.original_elementObjects[e]
-                    kval = [
-                        k
-                        for k in new.model_dump().keys()
-                        if k not in disallowed_changes
-                    ]
+                    kval = [k for k in new.model_dump() if k not in disallowed_changes]
                     new_model_fields = {
                         k: v
                         for k, v in new.model_dump().items()
@@ -921,32 +756,17 @@ class Framework(BaseModel):
                         if k not in disallowed_changes
                     }
                     for k in kval:
-                        if k not in list(orig_model_fields.keys()):
-                            cond = True
-                        elif new_model_fields[k] != orig_model_fields[k]:
+                        if k not in orig_model_fields or new_model_fields[k] != orig_model_fields[k]:
                             cond = True
                     if cond:
                         orig = self.original_elementObjects[e]
                         new = element
-                        # try:
                         changedict[e] = {
-                            k[0]: convert_numpy_types(getattr(new, k[0]))
-                            for k in new
-                            if k[0] in orig
-                            and not getattr(new, k[0]) == getattr(orig, k[0])
-                            and k[0] not in disallowed_changes
+                            k: convert_numpy_types(getattr(new, k))
+                            for k in kval
+                            if k not in orig_model_fields
+                               or new_model_fields[k] != orig_model_fields[k]
                         }
-                        changedict[e].update(
-                            {
-                                k[0]: convert_numpy_types(getattr(new, k[0]))
-                                for k in new
-                                if k[0] not in orig and k[0] not in disallowed_changes
-                            }
-                        )
-
-                # except Exception:
-                #     print("##### ERROR IN CHANGE ELEMS: ")  # , e, new)
-                #     pass
         return changedict
 
     def save_changes_file(
@@ -957,23 +777,23 @@ class Framework(BaseModel):
         dictionary: bool = False,
     ) -> dict | None:
         """
-        Save a file, or returns a dictionary, of detected changes in the lattice from the loaded version.
+        Save, or return, the changes from the lattice as loaded; see :meth:`detect_changes`.
 
         Parameters
         ----------
         filename: str or None
-            Name of file containing changes; defaults to `changes.yaml`
+            Defaults to ``<settings file stem>_changes.yaml``.
         typ: str or None
-            Element types to check; if `None`, check all
+            Element type to check; all if None.
         elements: dict or None
-            Dictionary containing elements and parameters to check; if `None`, check all
+            Elements to check; all if None.
         dictionary: bool
-            Flag to return changes as dictionary; if False, save a YAML file
+            Return the changes instead of saving them.
 
         Returns
         -------
         dict or None
-            If `dictionary`, return a dict; otherwise, save a file and return `None`
+            The changes if ``dictionary``, otherwise None.
         """
         changedict = self.detect_changes(elementtype=typ, elements=elements)
         if dictionary:
@@ -983,9 +803,7 @@ class Framework(BaseModel):
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
             else:
-                raise ValueError(
-                    "settingsFilename not set; cannot determine changes filename"
-                )
+                raise ValueError("settingsFilename not set; cannot determine changes filename")
         with open(filename, "w") as yaml_file:
             yaml.default_flow_style = True
             yaml.dump(changedict, yaml_file, Dumper=NumpySafeDumper)
@@ -997,25 +815,23 @@ class Framework(BaseModel):
         directory: str = ".",
     ) -> dict | None:
         """
-        Save lattice to a file, or return a dictionary containing the lattice elements
+        Export the machine, or one lattice line's elements, to LAURA YAML.
 
         Parameters
         ----------
         lattice: str or None
-            Name of lattice file; if `None`, sets to the name of the lattice
+            Lattice line to export; if None, the whole machine.
         filename: str or None
-            Name of the file to be saved; if `None`, sets to the name of the lattice + '_lattice.yaml'
+            Its stem names the output, with ``_<lattice>_lattice`` appended for a line;
+            defaults to the settings filename.
         directory: str
-            Directory to which the file will be saved
-
+            Output directory.
         """
         if filename is None:
             if self.settingsFilename is not None:
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
             else:
-                raise ValueError(
-                    "settingsFilename not set; cannot determine lattice filename"
-                )
+                raise ValueError("settingsFilename not set; cannot determine lattice filename")
         else:
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
@@ -1038,49 +854,45 @@ class Framework(BaseModel):
         verbose: bool = False,
     ) -> dict | list | None:
         """
-        Loads a saved changes file and applies the settings to the current lattice.
-        Returns a list of changes.
-        See :func:`~apply_changes`.
+        Load a changes file and, by default, apply it; see :meth:`apply_changes`.
 
         Parameters
         ----------
         filename: str or list or tuple or None
-            Changes filename to save; if `None`, base it on the settings filename
+            Changes file(s); defaults to ``<settings file stem>_changes.yaml``.
         apply: bool
-            Flag to apply the changes
+            Apply the changes.
         verbose: bool
-            Flag to print the changes applied
+            Print the changes applied.
 
         Returns
         -------
-        dict or list
-            If `filename` is a `list` or `tuple`, call this function again
-            If `filename` is `None` or a `str`, return the dictionary of changes.
+        dict or list or None
+            None if applied, otherwise the changes; a list of results for a list of files.
         """
         if isinstance(filename, (tuple, list)):
-            return [self.load_changes_file(c) for c in filename]
+            return [self.load_changes_file(c, apply, verbose) for c in filename]
         else:
             if filename is None:
                 pre, ext = os.path.splitext(os.path.basename(self.settingsFilename))
                 filename = pre + "_changes.yaml"
-            with open(filename, "r") as infile:
+            with open(filename) as infile:
                 changes = dict(yaml.safe_load(infile))
             if apply:
                 self.apply_changes(changes, verbose=verbose)
-                return
+                return None
             return changes
 
     def apply_changes(self, changes: dict, verbose: bool = False) -> None:
         """
-        Applies a dictionary of changes to the current lattice.
+        Apply changes to the current lattice.
 
         Parameters
         ----------
         changes: dict
-            Dictionary of changes to elements, keyed by element name and containing parameters and values
-            to change
+            Parameters and values to change, by element or group name.
         verbose: bool
-            Flag to indicate which elements are being modified
+            Print each change.
         """
         for e, d in list(changes.items()):
             if e in self.elementObjects or e == "generator":
@@ -1091,11 +903,8 @@ class Framework(BaseModel):
                         if verbose:
                             print("modifying ", e, "[", param[0], "]", " = ", param[1])
                     except AttributeError as ex:
-                        print(
-                            f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}"
-                        )
+                        print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
             if e in self.groupObjects:
-                # print ('change group exists!')
                 for k, v in list(d.items()):
                     self.groupObjects[e].change_Parameter(k, v)
                     if verbose:
@@ -1103,111 +912,86 @@ class Framework(BaseModel):
 
     def check_lattice(self, decimals: int = 4) -> bool:
         """
-        Checks that there are no positioning errors in the lattice.
+        Check the lattice for positioning errors, printing any found.
 
         Parameters
         ----------
         decimals: int
-            Number of decimals to check errors
+            Tolerance, as ``10 ** -decimals``.
 
         Returns
         -------
         bool
-            True if errors are detected
+            True if no errors are detected.
         """
         noerror = True
         for elem in self.elementObjects.values():
-            if isinstance(elem, PhysicalBaseElement):
-                middle = np.array(
-                    [
-                        elem.physical.middle.x,
-                        elem.physical.middle.y,
-                        elem.physical.middle.z,
-                    ]
-                )
-                end = np.array(
-                    [elem.physical.end.x, elem.physical.end.y, elem.physical.end.z]
-                )
-                length = elem.physical.length
-                physical_angle = elem.physical.physical_angle
+            if not isinstance(elem, PhysicalBaseElement):
+                continue
+            physical = elem.physical
+            middle = np.array(physical.middle.array)
+            end = np.array(physical.end.array)
+            angle = physical._physical_angle
 
-                # Calculate local offset from middle to end
-                if abs(physical_angle) > 1e-9:
-                    # Bent element - correct arc geometry
-                    ex_local = (
-                        length * (1 - np.cos(physical_angle)) / (2 * physical_angle)
-                    )
-                    ey_local = 0
-                    ez_local = length * np.sin(physical_angle) / (2 * physical_angle)
-                else:
-                    # Straight element
-                    ex_local = 0
-                    ey_local = 0
-                    ez_local = length / 2.0
+            cend = middle + physical.offset_from_middle("end")
+            diff = cend - end
+            if not np.allclose(diff, 0, atol=10 ** (-decimals)):
+                noerror = False
+                print(f"check_lattice error: {elem.name}")
+                print(f"  Middle: {middle}")
+                print(f"  Calculated end: {cend}")
+                print(f"  Actual end: {end}")
+                print(f"  Difference: {diff}")
+                print(f"  Physical angle: {angle}")
+                print(
+                    f"  Global rotation: [{physical.global_rotation.phi}, {physical.global_rotation.psi}, {physical.global_rotation.theta}]")
 
-                local_offset = np.array([ex_local, ey_local, ez_local])
-
-                # Apply the full 3D rotation matrix
-                rotated_offset = elem.physical.rotated_position(local_offset.tolist())
-
-                # Calculate expected end position
-                cend = middle + np.array(rotated_offset)
-
-                # Check if calculated end matches actual end
-                diff = cend - end
-                if not np.allclose(diff, 0, atol=10 ** (-decimals)):
-                    noerror = False
-                    print(f"check_lattice error: {elem.name}")
-                    print(f"  Middle: {middle}")
-                    print(f"  Calculated end: {cend}")
-                    print(f"  Actual end: {end}")
-                    print(f"  Difference: {diff}")
-                    print(f"  Physical angle: {physical_angle}")
-                    print(
-                        f"  Global rotation: [{elem.physical.global_rotation.phi}, {elem.physical.global_rotation.psi}, {elem.physical.global_rotation.theta}]"
-                    )
+            magnet_angle = physical.magnet_angle
+            if magnet_angle is not None and not np.isclose(
+                    abs(angle), abs(magnet_angle), atol=10 ** (-decimals)):
+                noerror = False
+                print(f"check_lattice error: {elem.name}")
+                print(f"  Layout angle: {angle}")
+                print(f"  Magnet angle: {magnet_angle}")
 
         return noerror
 
     def change_Lattice_Code(
-        self,
-        latticename: str,
-        code: str,
-        exclude: str | list | tuple | None = None,
-        nowarn: bool = False,
+            self,
+            latticename: str,
+            code: str,
+            exclude: str | list | tuple | None = None,
+            nowarn: bool = False,
     ) -> None:
         """
-        Changes the tracking code for a given lattice.
+        Change the tracking code for a lattice line.
 
         Parameters
         ----------
         latticename: str
-            Name of the lattice line defined in the :attr:`~latticeObjects`
+            Line in :attr:`latticeObjects`, a list of them, or ``All``.
         code: str
-            Simulation code to use for `latticename`; can be `All`
+            Simulation code.
         exclude: str or list or tuple, optional
-            Exclude certain lines from this function
+            Lines to leave unchanged.
         nowarn: bool
-            If True, disable warning about resetting the execution location
+            Suppress the warning that remote execution is reset.
         """
         if latticename == "All":
-            [self.change_Lattice_Code(lo, code, exclude) for lo in self.latticeObjects]
+            [self.change_Lattice_Code(lo, code, exclude, nowarn) for lo in self.latticeObjects]
         elif isinstance(latticename, (tuple, list)):
-            [self.change_Lattice_Code(ln, code, exclude) for ln in latticename]
+            [self.change_Lattice_Code(ln, code, exclude, nowarn) for ln in latticename]
         else:
-            if not latticename == "generator" and not (
+            if latticename != "generator" and not (
                 latticename == exclude
                 or (isinstance(exclude, (list, tuple)) and latticename in exclude)
             ):
                 if code.lower() not in supported_codes:
                     raise NotImplementedError(f"code {code} is not supported")
-                # print('Changing lattice ', name, ' to ', code.lower())
                 currentLattice = self.latticeObjects[latticename]
                 if currentLattice.remote_setup and not nowarn:
-                    warn(
-                        f"Resetting lattice {latticename} to local tracking;"
-                        f"call setup_remote_execution to run remotely"
-                    )
+                    warn(f"Resetting lattice {latticename} to local tracking;"
+                         f"call setup_remote_execution to run remotely")
                 self.latticeObjects[latticename] = getattr(
                     frameworkLattices, code.lower() + "Lattice"
                 )(
@@ -1221,6 +1005,7 @@ class Framework(BaseModel):
                     global_parameters=self.global_parameters,
                     machine=self.machine,
                     globalSettings=self.globalSettings,
+                    verbose=self.verbose,
                 )
 
     def getElement(
@@ -1229,20 +1014,19 @@ class Framework(BaseModel):
         param: str | None = None,
     ) -> dict | Any | PhysicalBaseElement:
         """
-        Returns the element object or a parameter of that element
+        Get an element, or one of its parameters.
 
         Parameters
         ----------
         element: str
-            Name of element to get
+            Element name.
         param: str or None
-            Parameter to retrieve; if `None`, return the entire element
+            Parameter to get; if None, the whole element.
 
         Returns
         -------
-        dict or Any or :class:`~laura.models.element.Element
-            Get the `param` associated with `element`, or the entire element, or an empty dictionary if
-            the element does not exist in the entire lattice
+        dict or Any or :class:`~laura.models.element.Element`
+            The parameter, or the element (also if it lacks ``param``), or ``{}`` if there is no such element.
         """
         if self.__getitem__(element) is not None:
             if param is not None:
@@ -1250,9 +1034,7 @@ class Framework(BaseModel):
                 try:
                     return getattr(self.__getitem__(element), param)
                 except AttributeError:
-                    warn(
-                        f"WARNING: Element {element} does not have parameter {param}; returning full element"
-                    )
+                    warn(f"WARNING: Element {element} does not have parameter {param}; returning full element")
                     return self.__getitem__(element)
             else:
                 return self.__getitem__(element)
@@ -1266,26 +1048,24 @@ class Framework(BaseModel):
         param: str | list | tuple | None = None,
     ) -> dict | list | Any:
         """
-        Gets all elements of the specified type, or the parameter of each of those elements
+        Get all elements of a hardware type, or one parameter of each.
 
         Parameters
         ----------
         typ: list or str or tuple
-            Type or list of types to get
-        param: str or None
-            Parameters to retrieve; if `None`, get the entire object
+            Type, or types.
+        param: str or list or tuple or None
+            Parameter(s) to get; if None, each element as a dict with its ``name``.
 
         Returns
         -------
         dict or list or Any
-            Get `param` for all elements, or all elements, or recall this function recursively if
-            `param` is a list or tuple
+            A list per type; for several ``param``, a zip of their lists.
         """
         if isinstance(typ, (list, tuple)):
             return [self.getElementType(t, param=param) for t in typ]
         if isinstance(param, (list, tuple)):
             return zip(*[self.getElementType(typ, param=p) for p in param])
-            # return [item for sublist in all_elements for item in sublist]
         return [
             (
                 {"name": element, **self.elementObjects[element].model_dump()}
@@ -1293,8 +1073,7 @@ class Framework(BaseModel):
                 else getattr(self.elementObjects[element], param)
             )
             for element in list(self.elementObjects.keys())
-            if isinstance(self.elementObjects[element], PhysicalBaseElement)
-            and self.elementObjects[element].hardware_type.lower() == typ.lower()
+            if isinstance(self.elementObjects[element], PhysicalBaseElement) and self.elementObjects[element].hardware_type.lower() == typ.lower()
         ]
 
     def setElementType(
@@ -1304,34 +1083,56 @@ class Framework(BaseModel):
         values: Any,
     ) -> None:
         """
-        Modifies the specified parameter of each element of a given type
+        Set a parameter on every element of a hardware type.
 
         Parameters
         ----------
         typ: str
-            All elements of a given type to set
+            Hardware type.
         setting: str
-            Parameter in those elements to set
+            Parameter to set.
         values: Any
-            Values to set on those elements
+            One value per element.
 
         Raises
         ------
         ValueError
-            If there is a mismatch between the length of `values` and the number of elements of that type
+            If ``values`` and the elements differ in number.
         """
         elems = self.getElementType(typ)
         if len(elems) == len(values):
             for e, v in zip(elems, values):
                 setattr(self[e["name"]], setting, v)
-                if (
-                    self[e["name"]].hardware_type.lower() == "dipole"
-                    and setting == "angle"
-                ):
+                if self[e["name"]].hardware_type.lower() == "dipole" and setting == "angle":
                     self[e["name"]].magnetic.multipoles.K0L.normal = v
 
         else:
             raise ValueError
+
+    def _default_layout(self):
+        """This machine's default beam path, or ``None`` if it has no machine."""
+        machine = getattr(self, "machine", None)
+        if machine is None:
+            return None
+        return machine.lattices.get(machine.default_path)
+
+    def _warn_if_shared_across_passes(self, element_name: str) -> None:
+        """Warn when a change reaches every pass through one device; per-pass values go in layout ``overrides``."""
+        layout = self._default_layout()
+        if layout is None or not getattr(layout, "is_multipass", False):
+            return
+        passes = [
+            name
+            for name in layout.elements
+            if split_occurrence(name)[0] == element_name
+        ]
+        if len(passes) > 1:
+            warn(
+                f"'{element_name}' is entered {len(passes)} times by beam path "
+                f"'{layout.name}' ({', '.join(passes)}) and is one device, so "
+                "this change applies to every pass. Use a per-pass "
+                "'overrides' entry in the layout if you meant only one."
+            )
 
     def modifyElement(
         self,
@@ -1340,16 +1141,16 @@ class Framework(BaseModel):
         value: Any = None,
     ) -> None:
         """
-        Modifies an element parameter
+        Modify an element (or group) parameter.
 
         Parameters
         ----------
         elementName: str
-            Name of element to modify
+            Element name.
         parameter: list or str or dict
-            Parameter to modify
-        value:
-            Value to set on that element
+            Parameter(s); a dict maps parameters to values when ``value`` is None.
+        value: Any
+            Value(s) to set.
         """
         if isinstance(parameter, dict) and value is None:
             for p, v in parameter.items():
@@ -1362,6 +1163,7 @@ class Framework(BaseModel):
         elif elementName in self.groupObjects:
             self.groupObjects[elementName].change_Parameter(parameter, value)
         elif elementName in self.elementObjects:
+            self._warn_if_shared_across_passes(elementName)
             if "." in parameter:
                 obj = self.elementObjects[elementName]
                 set_deep_attr(obj, parameter, value)
@@ -1379,16 +1181,16 @@ class Framework(BaseModel):
         value: Any = None,
     ) -> None:
         """
-        Modifies parameters for multiple elements
+        Modify parameters on several elements; see :meth:`modifyElement`.
 
         Parameters
         ----------
         elementNames: str or list
-            Name(s) of element to modify
+            Element name(s), or ``all``.
         parameter: list or str or dict
-            Parameter to modify
-        value:
-            Value to set on those elements
+            Parameter(s) to modify.
+        value: Any
+            Value(s) to set.
         """
         if isinstance(elementNames, str):
             if elementNames.lower() == "all":
@@ -1405,16 +1207,16 @@ class Framework(BaseModel):
         value: Any,
     ) -> None:
         """
-        Modifies an element or a list of elements of a given type
+        Set one value on every element of a hardware type.
 
         Parameters
         ----------
         elementType: str
-            Type of element to modify
+            Hardware type.
         parameter: str
-            Parameter of that element type to modify
+            Parameter to modify.
         value: Any
-            Value to set on that element(s)
+            Value to set.
         """
         elems = self.getElementType(elementType)
         for elementName in [e["name"] for e in elems]:
@@ -1427,22 +1229,22 @@ class Framework(BaseModel):
         value: Any = None,
     ) -> None:
         """
-        Modify a lattice definition,
+        Modify a lattice line's attributes.
 
         Parameters
         ----------
         latticeName: str
-            Name of lattice to modify
+            Lattice name.
         parameter: str or list or dict
-            Parameter(s) to update with their values
+            Parameter(s); a dict maps parameters to values when ``value`` is None.
         value: Any
-            Value to update
+            Value(s) to set.
         """
         if isinstance(parameter, dict) and value is None:
             for p, v in parameter.items():
                 self.modifyLattice(latticeName, p, v)
         elif isinstance(parameter, list) and isinstance(value, list):
-            for p, v in parameter:
+            for p, v in zip(parameter, value):
                 self.modifyLattice(latticeName, p, v)
         elif latticeName in self.latticeObjects:
             setattr(self.latticeObjects[latticeName], parameter, value)
@@ -1454,16 +1256,16 @@ class Framework(BaseModel):
         value: Any = None,
     ) -> None:
         """
-        Modify a lattice definition for a list of lattices
+        Modify several lattice lines; see :meth:`modifyLattice`.
 
         Parameters
         ----------
         latticeNames: str or list
-            Name of lattice(s) to modify
+            Lattice name(s), or ``all``.
         parameter: str or list or dict
-            Parameter(s) to update with their values
+            Parameter(s) to modify.
         value: Any
-            Value to update
+            Value(s) to set.
         """
         if isinstance(latticeNames, str):
             if latticeNames.lower() == "all":
@@ -1479,29 +1281,22 @@ class Framework(BaseModel):
         **kwargs,
     ) -> None:
         """
-        Add a file generator based on a keyword dictionary.
-        Sets :attr:`~generator` to the :class:`~simba.Codes.Generators.Generators.frameworkGenerator`.
-
-        Also sets the "generator" in :attr:`~latticeObjects` to this generator.
+        Set :attr:`generator` (and ``latticeObjects["generator"]``) from keyword arguments.
 
         Parameters
         ----------
         default: str or None
-            Name of generator code
+            Key in :attr:`generator_keywords` whose defaults override ``kwargs``.
         """
         if "code" in kwargs:
             if kwargs["code"].lower() == "gpt":
                 code = GPTGenerator
-            # elif kwargs["code"].lower() == "opal":
-            #     code = OPALGenerator
             elif kwargs["code"].lower() == "astra":
                 code = ASTRAGenerator
             elif kwargs["code"].lower() in ["generic", "framework", "simba"]:
                 code = frameworkGenerator
             else:
-                raise NotImplementedError(
-                    f"Generator {kwargs['code']} not supported; must be ASTRA or GPT"
-                )
+                raise NotImplementedError(f"Generator {kwargs['code']} not supported; must be ASTRA or GPT")
         else:
             warn("No generator code provided; defaulting to ASTRA")
             code = ASTRAGenerator
@@ -1520,25 +1315,36 @@ class Framework(BaseModel):
                 **kwargs,
             )
         self.latticeObjects["generator"] = self.generator
+        self._propagate_generator()
+
+    def _propagate_generator(self) -> None:
+        """
+        Hand the generator to any lattice with a ``generator`` field.
+
+        Codes that generate and track in one run (OPAL) describe the cathode from its settings.
+        """
+        for name, lattice in self.latticeObjects.items():
+            if name == "generator":
+                continue
+            if "generator" in getattr(type(lattice), "model_fields", {}):
+                lattice.generator = self.generator
 
     def change_generator(
         self,
         generator: str,
     ) -> None:
         """
-        Changes the generator from one type to another.
+        Change the generator's code, keeping its settings.
 
         Parameters
         ----------
         generator: str
-            The generator code to which the generator object should be changed.
+            New generator code.
         """
         old_kwargs = self.generator.model_dump()
         old_kwargs["code"] = generator
         if generator.lower() == "gpt":
             generator = GPTGenerator(**old_kwargs)
-        # elif generator.lower() == "opal":
-        #     generator = OPALGenerator(**old_kwargs)
         elif generator.lower() in ["generic", "framework", "simba"]:
             generator = frameworkGenerator(**old_kwargs)
         else:
@@ -1548,58 +1354,20 @@ class Framework(BaseModel):
         self.latticeObjects["generator"] = generator
         self.generator = generator
 
-    def loadParametersFile(self, file):
-        pass
-
-    def saveParametersFile(self, file: str, parameters: dict | list | tuple) -> None:
-        """Saves a list of parameters to a file"""
-        output = {}
-        if isinstance(parameters, dict):
-            try:
-                output.update(
-                    {
-                        parameters["name"]: {
-                            k1: v1
-                            for k1, v1 in parameters.items()
-                            if v1 not in disallowed
-                        }
-                    }
-                )
-            except KeyError:
-                warn("parameters dictionary must contain 'name' key")
-        elif isinstance(parameters, (list, tuple)):
-            try:
-                for k in parameters:
-                    output.update({k["name"]: {}})
-                    output[k["name"]].update(
-                        {subk: k[subk] for subk in k if subk not in disallowed}
-                    )
-            except TypeError:
-                warn(
-                    "parameters must be a dictionary or a list of dictionaries containing a 'name' key"
-                )
-        else:
-            warn("could not parse parameters; they should be a dict, list or tuple")
-        with open(file, "w") as yaml_file:
-            yaml.default_flow_style = True
-            yaml.dump(output, yaml_file, Dumper=NumpySafeDumper)
-
     def set_lattice_prefix(
         self,
         lattice: str,
         prefix: str,
     ) -> None:
         """
-        Sets the 'prefix' parameter for a lattice in :attr:`~latticeObjects`,
-        which determines where it looks for its starting beam distribution.
-
+        Set a lattice's prefix, which determines where it looks for its starting beam.
 
         Parameters
         ----------
         lattice: str
-            Name of lattice
+            Lattice name.
         prefix: str
-            Lattice prefix
+            Lattice prefix.
         """
         if lattice in self.latticeObjects:
             self.latticeObjects[lattice].set_prefix(prefix)
@@ -1614,15 +1382,14 @@ class Framework(BaseModel):
         interval: int,
     ) -> None:
         """
-        Sets the 'sample_interval' parameter for a lattice, which determines the sampling of the distribution.
-        See :attr:`~simba.Framework_objects.frameworkLattice.sample_interval`.
+        Set a lattice's :attr:`~simba.Framework_objects.frameworkLattice.sample_interval`.
 
         Parameters
         ----------
         lattice: str
-            Name of lattice
+            Lattice name.
         interval: int
-            Sampling interval in units of 2 ** (3 * interval)
+            Track every ``interval``-th particle.
         """
         if lattice in self.latticeObjects:
             self.latticeObjects[lattice].sample_interval = interval
@@ -1632,52 +1399,42 @@ class Framework(BaseModel):
             )
 
     def setup_remote_execution(
-        self,
-        lattice: str,
-        code: str,
-        server: str,
-        ncpu: int = 1,
-        ngpu: int = 1,
-        exclude: str | list | tuple | None = None,
-        username: str = None,
-        password: str = None,
+            self,
+            lattice: str,
+            code: str,
+            server: str,
+            ncpu: int = 1,
+            ngpu: int = 1,
+            exclude: str | list | tuple | None = None,
+            username: str = None,
+            password: str = None,
     ) -> None:
         """
-        Prepares the simulation of a given lattice line for remote execution on a server. This function
-        modifies the `remote_setup` and `executables` attributes of the given lattice object,
-        meaning that it can be run remotely using the `run` method of the lattice object.
-
-        The servers are defined in the `hosts` dictionary, each of which contain an address and the available
-        codes.
+        Set up a lattice line to run on a server in ``hosts.yaml``, via its ``remote_setup`` and ``executables``.
 
         Parameters
         ----------
         lattice: str
-            Name of the lattice line; if "All", sets up all lattice lines in the same way.
+            Lattice line, a list of them, or ``All``.
         code: str
-            Code to be used for the remote execution. If the current lattice line is not set up for this
-            code, then :func:`change_Lattice_Code` is called to change the code of the lattice line.
+            Code to run; the line is switched to it with :meth:`change_Lattice_Code` if needed.
         server: str
-            Name of server on which to execute the simulation. The server must be defined in the `hosts` dictionary.
+            Server name in ``hosts.yaml``.
         ncpu: int
-            Number of CPUs to use for the remote execution. Default is 1.
+            Number of CPUs.
         ngpu: int
-            Number of GPUs to use for the remote execution. Default is 1. Not currently implemented.
-        exclude: str | list | tuple | None (optional)
-            Lattice line(s) to exclude from the remote execution setup.
-        username: str | None (optional)
-            Username for SSH login to the server. Defaults to :attr:`username` of the Framework instance, if set.
-        password: str | None (optional)
-            Password for SSH login to the server. Defaults to :attr:`password` of the Framework instance, if set.
+            Number of GPUs; not yet implemented.
+        exclude: str | list | tuple | None, optional
+            Lattice line(s) to leave local.
+        username: str | None, optional
+            SSH username; defaults to :attr:`username`.
+        password: str | None, optional
+            SSH password; defaults to :attr:`password`.
 
         Raises
         ------
         ValueError
-            If `server` is not found in the defined hosts.
-        ValueError
-            If `code` is not available on the specified server.
-        ValueError
-            If `username` or `password` is not provided and not set in the Framework instance.
+            If ``server`` is unknown, ``code`` is not available on it, or there is no username or password.
         """
         if server not in list(hosts.keys()):
             raise ValueError(f"Server '{server}' not found in defined hosts.")
@@ -1692,17 +1449,11 @@ class Framework(BaseModel):
             else:
                 raise ValueError("Password must be provided for remote execution.")
         if lattice == "All":
-            [
-                self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude)
-                for lo in self.latticeObjects
-            ]
+            [self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude, username, password) for lo in self.latticeObjects]
         elif isinstance(lattice, (tuple, list)):
-            [
-                self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude)
-                for ln in lattice
-            ]
+            [self.setup_remote_execution(ln, code, server, ncpu, ngpu, exclude, username, password) for ln in lattice]
         else:
-            if not lattice == "generator" and not (
+            if lattice != "generator" and not (
                 lattice == exclude
                 or (isinstance(exclude, (list, tuple)) and lattice in exclude)
             ):
@@ -1716,12 +1467,10 @@ class Framework(BaseModel):
                     "password": password,
                 }
                 executables = self.prepare_executables(location=server, ncpu=ncpu)
-                setattr(self.latticeObjects[lattice], "remote_setup", remote_setup)
-                setattr(self.latticeObjects[lattice], "executables", executables)
+                self.latticeObjects[lattice].remote_setup = remote_setup
+                self.latticeObjects[lattice].executables = executables
                 if self.verbose:
-                    print(
-                        f"Setting up remote execution for {lattice} on {server} with {code}."
-                    )
+                    print(f"Setting up remote execution for {lattice} on {server} with {code}.")
 
     def __getitem__(self, key: str) -> Any:
         if key in list(self.elementObjects.keys()):
@@ -1738,79 +1487,63 @@ class Framework(BaseModel):
 
     @property
     def elements(self) -> list:
-        """
-        Returns a list of all element names from :attr:`~elementObjects`
-
-        Returns
-        -------
-        list
-            List of element names
-        """
+        """Names of all elements in :attr:`elementObjects`."""
         return list(self.elementObjects.keys())
 
     @property
     def groups(self) -> list:
-        """
-        Returns a list of all group names from :attr:`~groupObjects`
-
-        Returns
-        -------
-        list
-            List of group names
-        """
+        """Names of all groups in :attr:`groupObjects`."""
         return list(self.groupObjects.keys())
 
     @property
     def lines(self) -> list:
-        """
-        Returns a list of all lattice names
-
-        Returns
-        -------
-        list
-            List of lattice names
-        """
+        """Names of all lattice lines."""
         return list(self.latticeObjects.keys())
 
     @property
     def lattices(self) -> list:
-        """
-        Returns a list of all lattice names
-
-        Returns
-        -------
-        list
-            List of lattice names
-        """
+        """Alias of :attr:`lines`."""
         return self.lines
 
     @property
     def commands(self) -> list:
-        """
-        Returns a list of all command object names
-
-        Returns
-        -------
-        list
-            List of command object names
-        """
+        """Names of all command objects."""
         return list(self.commandObjects.keys())
+
+    def path_arc_lengths(self) -> dict:
+        """Each element's arc length along the beam path, from :meth:`~laura.models.element_list.MachineLayout.arc_lengths`.
+
+        Keys are converted from pass names (``NAME#N``) to the line's flattened names (``NAME.N``).
+        """
+        layout = self._default_layout()
+        if layout is None:
+            return {}
+        try:
+            return {
+                flatten_occurrence(name): s for name, s in layout.arc_lengths().items()
+            }
+        except Exception:
+            return {}
 
     def getSValues(self) -> list:
         """
-        Returns a list of S values for the current lattice from :attr:`~latticeObjects`;
-        see :func:`~simba.Framework_objects.frameworkLattice.getSValues`.
+        S values of every line (:meth:`~simba.Framework_objects.frameworkLattice.getSValues`) along the beam path.
+
+        Each line, which starts at zero itself, is offset by its start in :meth:`path_arc_lengths`,
+        or by the previous line's end if the layout cannot place it.
 
         Returns
         -------
         list
-            S values for all elements
+            S values for all elements.
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects.values():
             try:
-                latticeS = [a + s0 for a in lo.getSValues()]
+                start = offsets.get(flatten_occurrence(lo.start), s0)
+                latticeS = [a + start for a in lo.getSValues()]
                 allS = allS + latticeS
                 s0 = allS[-1]
             except Exception:
@@ -1819,20 +1552,22 @@ class Framework(BaseModel):
 
     def getSValuesElements(self) -> list:
         """
-        Returns a list of (name, element, s) tuples for the current machine from :attr:`~latticeObjects`;
-        see :func:`~simba.Framework_objects.frameworkLattice.getSNamesElems`.
+        (name, element, s) for every line; see :meth:`~simba.Framework_objects.frameworkLattice.getSNamesElems`.
 
         Returns
         -------
         list
-            Element names, element object and its S position
+            ``(name, element, s)`` tuples, offset as in :meth:`getSValues`.
         """
+        offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
         for lo in self.latticeObjects:
-            if not lo == "generator":
-                names, elems, svals = self.latticeObjects[lo].getSNamesElems()
-                latticeS = [a + s0 for a in svals]
+            if lo != "generator":
+                latt = self.latticeObjects[lo]
+                names, elems, svals = latt.getSNamesElems()
+                start = offsets.get(flatten_occurrence(latt.start), s0)
+                latticeS = [a + start for a in svals]
                 selems = list(zip(names, elems, latticeS))
                 allS = allS + selems
                 s0 = latticeS[-1]
@@ -1840,21 +1575,58 @@ class Framework(BaseModel):
 
     def getZValuesElements(self) -> list:
         """
-        Returns a list of (name, element, z) tuples for the current machine from :attr:`~latticeObjects`;
-        see :func:`~simba.Framework_objects.frameworkLattice.getZNamesElems`.
+        (name, element, z) for every line; see :meth:`~simba.Framework_objects.frameworkLattice.getZNamesElems`.
 
         Returns
         -------
         list
-            Element names, element object and its Z position
+            ``(name, element, z)`` tuples, sorted by the first z value.
         """
         allZ = []
         for lo in self.latticeObjects:
-            if not lo == "generator":
+            if lo != "generator":
                 names, elems, zvals = self.latticeObjects[lo].getZNamesElems()
                 zelems = list(zip(names, elems, zvals))
                 allZ = allZ + zelems
-        return list(sorted(allZ, key=lambda x: x[2][0]))
+        return sorted(allZ, key=lambda x: x[2][0])
+
+    def _line_output_names(self, lattice_name: str) -> set:
+        """Element names ``lattice_name`` writes an output beam for: screens, markers, BPMs and its end."""
+        latt = self.latticeObjects.get(lattice_name)
+        if latt is None:
+            return set()
+        names = {
+            element.name
+            for element in getattr(latt, "screens_and_markers_and_bpms", [])
+        }
+        end = getattr(latt, "end", None)
+        if isinstance(end, str):
+            names.add(end)
+        return names
+
+    def _mark_colliding_outputs(self, files: list) -> None:
+        """Tell each line which of its outputs another line also writes, as beam files are named by element alone.
+
+        A handoff element (one line's end, the next's start) is not marked: the downstream
+        line reads it by its plain name.
+        """
+        seen: Dict[str, int] = {}
+        per_line = {}
+        starts, ends = set(), set()
+        for lattice_name in files:
+            if lattice_name == "generator":
+                continue
+            latt = self.latticeObjects[lattice_name]
+            per_line[lattice_name] = self._line_output_names(lattice_name)
+            for side, names in ((latt.start, starts), (latt.end, ends)):
+                if isinstance(side, str):
+                    names.add(side)
+            for name in per_line[lattice_name]:
+                seen[name] = seen.get(name, 0) + 1
+        handoffs = {name for name in starts & ends if seen.get(name, 0) == 2}
+        shared = {name for name, count in seen.items() if count > 1} - handoffs
+        for lattice_name, names in per_line.items():
+            self.latticeObjects[lattice_name].colliding_outputs = names & shared
 
     def track(
         self,
@@ -1870,44 +1642,45 @@ class Framework(BaseModel):
         check_lattice: bool = True,
     ) -> Any | None:
         """
-        Tracks the current machine, or a subset based on the 'files' list.
-        The lattice is checked (:func:`~check_lattice`) and saved (:func:`~save_lattice`), the settings file
-        is saved (:func:`~save_settings`), and then each line in the lattice is tracked with
-        the code specified.
+        Track each line of the machine, or of ``files``, with its code.
+
+        Afterwards the lattice (:meth:`save_lattice`) and settings (:meth:`save_settings`) are saved.
 
         Parameters
         ----------
         files: list or None
-            List of files (lattice names) to track; if `None`, track all
+            Lattice names to track; all if None.
         startfile: str or None
-            Initial lattice name for tracking; if `None`, track all
+            First lattice to track.
         endfile: str or None
-            Final lattice name for tracking; if `None`, track all
+            Last lattice to track.
         preprocess: bool
-            Call :func:`~simba.Framework_objects.frameworkLattice.preProcess` before
-            tracking each line
+            Call :meth:`~simba.Framework_objects.frameworkLattice.preProcess` on each line.
         write: bool
-            Write each lattice file
+            Write each lattice file.
         track: bool
-            Track each lattice
+            Track each lattice.
         postprocess: bool
-            Call :func:`~simba.Framework_objects.frameworkLattice.postProcess` after
-            tracking each line
+            Call :meth:`~simba.Framework_objects.frameworkLattice.postProcess` on each line.
         save_summary: bool
-            Save beam and Twiss summary files
+            Save beam and Twiss summary files.
         frameworkDirec: bool
-            If True, return a :class:`~simba.Framework.frameworkDirectory` object
+            Return a :class:`~simba.Framework.frameworkDirectory`.
         check_lattice: bool
-            Call :func:`~check_lattice` before tracking
+            Call :meth:`check_lattice` first.
 
         Returns
         -------
         :class:`~simba.Framework.frameworkDirectory` or None
-            Framework directory object if `frameworkDirec` is True
+            The run's directory if ``frameworkDirec``.
         """
-        if check_lattice:
-            if not self.check_lattice():
-                raise Exception("Lattice Error - check definitions")
+        if check_lattice and not self.check_lattice():
+            raise Exception("Lattice Error - check definitions")
+        if not self.executables_ready:
+            raise Exception("Executables not ready - check setup and paths")
+        # Lattice objects are rebuilt by change_Lattice_Code after the generator
+        # is created, so hand it over here rather than only at construction.
+        self._propagate_generator()
         self.tracking = True
         self.progress = 0
         if files is None:
@@ -1922,6 +1695,7 @@ class Framework(BaseModel):
         if endfile is not None and endfile in files:
             index = files.index(endfile)
             files = files[: index + 1]
+        self._mark_colliding_outputs(files)
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)
@@ -2005,18 +1779,16 @@ class Framework(BaseModel):
         endfile: str | None = None,
     ) -> None:
         """
-        Post-processes the tracking files and converts them to HDF5.
-        See :func:`~simba.Framework_objects.frameworkLattice.postProcess` and the same function
-        in the child classes for specific codes.
+        Post-process tracking files and convert them to HDF5; see :meth:`~simba.Framework_objects.frameworkLattice.postProcess`.
 
         Parameters
         ----------
         files: list or None
-            List of lattice names; if `None`, process all
+            Lattice names; all if None.
         startfile: str or None
-            Starting lattice object; if `None`, process from the start
+            First lattice to process.
         endfile: str or None
-            End lattice object; if `None`, process to the end
+            Last lattice to process.
         """
         if files is None:
             files = (
@@ -2039,70 +1811,89 @@ class Framework(BaseModel):
 
     def save_summary_files(self, twiss: bool = True, beams: bool = True) -> None:
         """
-        Saves HDF5 summary files for the Twiss and/or Beam files using
-        :func:`~simba.Modules.Twiss.load_directory` and
-        :func:`~simba.Modules.Beams.save_HDF5_summary_file`
+        Save HDF5 summaries of the Twiss and beam files in the subdirectory.
 
         Parameters
         ----------
         twiss: bool
-            If True, save `Twiss_Summary.hdf5` in :attr:`~subdirectory`
+            Save ``Twiss_Summary.hdf5``, via :func:`~simba.Modules.Twiss.load_directory`.
         beams: bool
-            If True, save `Beam_Summary.hdf5` in :attr:`~subdirectory`
+            Save ``Beam_Summary.hdf5``, via :func:`~simba.Modules.Beams.save_HDF5_summary_file`.
         """
         if twiss:
             t = rtf.load_directory(self.subdirectory)
-            t.save_HDF5_twiss_file(
-                os.path.join(self.subdirectory, "Twiss_Summary.hdf5")
-            )
+            self.stamp_twiss_turns(t)
+            t.save_HDF5_twiss_file(os.path.join(self.subdirectory, "Twiss_Summary.hdf5"))
         if beams:
             rbf.save_HDF5_summary_file(
                 self.subdirectory, os.path.join(self.subdirectory, "Beam_Summary.hdf5")
             )
 
+    def stamp_twiss_turns(self, t: "rtf.twiss") -> None:
+        """
+        Fill the ``turn`` column (:attr:`~simba.Modules.Twiss.twiss.turn`) of a loaded twiss object.
+
+        Rows are matched to a line by ``lattice_name``, taken from the filename.
+
+        Parameters
+        ----------
+        t: :class:`~simba.Modules.Twiss.twiss`
+            Modified in place.
+        """
+        names = np.array(t.lattice_name.val, dtype=str)
+        if len(names) == 0:
+            return
+        turns = {
+            n: o.turns
+            for n, o in self.latticeObjects.items()
+            if not isinstance(o, frameworkGenerator)
+        }
+        t.turn.val = np.array(
+            [
+                turns.get(n, turns.get(n.removesuffix("_twiss"), 0))
+                for n in names
+            ],
+            dtype=int,
+        )
+
     def pushRunSettings(self) -> None:
-        """
-        Updates the 'Run Settings' in each of the lattices
-        """
-        for ln, latticeObject in self.latticeObjects.items():
+        """Push :attr:`runSetup` to each lattice."""
+        for latticeObject in self.latticeObjects.values():
             if isinstance(latticeObject, tuple(latticeClasses)):
                 latticeObject.updateRunSettings(self.runSetup)
 
     def setNRuns(self, nruns: int) -> None:
         """
-        Sets the number of simulation runs to a new value for all lattice objects.
-        See :func:`~simba.Framework.runSetup.setNRuns`.
+        Set the number of runs for all lattices; see :meth:`~simba.Framework_objects.runSetup.setNRuns`.
 
         Parameters
         ----------
         nruns: int
-            Number of runs to set up
+            Number of runs.
         """
         self.runSetup.setNRuns(nruns)
         self.pushRunSettings()
 
     def setSeedValue(self, seed: int) -> None:
         """
-        Sets the random number seed to a new value for all lattice objects
-
-        See :func:`~simba.Framework.runSetup.setSeedValue`.
+        Set the random seed for all lattices; see :meth:`~simba.Framework_objects.runSetup.setSeedValue`.
 
         Parameters
         ----------
         seed: int
-            Random number seed
+            Random number seed.
         """
         self.runSetup.setSeedValue(seed)
         self.pushRunSettings()
 
     def loadElementErrors(self, file: str) -> None:
         """
-        Load element errors file; see :func:`~simba.Framework.runSetup.loadElementErrors`
+        Load an element errors file; see :meth:`~simba.Framework_objects.runSetup.loadElementErrors`.
 
         Parameters
         ----------
         file: str
-            Errors file
+            Errors file.
         """
         self.runSetup.loadElementErrors(file)
         self.pushRunSettings()
@@ -2115,100 +1906,61 @@ class Framework(BaseModel):
         multiplicative: bool = False,
     ) -> None:
         """
-        Define a parameter scan for a single parameter of a given machine element.
-        See :class:`~simba.Framework.runSetup.setElementScan`
+        Scan one element parameter; see :meth:`~simba.Framework_objects.runSetup.setElementScan`.
 
         Parameters
         ----------
         name: str
-            Name of element to scan
+            Element name.
         item: str
-            Parameter of that element to scan
+            Parameter to scan.
         scanrange: list
-            List of values to set
+            ``(min, max)`` of the scan.
         multiplicative: bool
-            Flag to indicate whether settings are multiplicative or additive with respect to the original value
+            Values multiply the original rather than add to it.
         """
         self.runSetup.setElementScan(
             name=name, item=item, scanrange=scanrange, multiplicative=multiplicative
         )
         self.pushRunSettings()
 
-    def _addLists(self, list1: list, list2: list) -> list:
-        """Adds elements piecewise in two lists"""
-        return [a + b for a, b in zip(list1, list2)]
-
-    def offsetElements(
-        self, x: int | float = 0, y: int | float = 0, z: int | float = 0
-    ) -> None:
-        """
-        Moves all elements by the set amount in (x, y, z) space.
-        Updates :attr:`~elementObjects`.
-
-        Parameters
-        ----------
-        x: int | float
-            x offset
-        y: int | float
-            y offset
-        z: int | float
-            z offset
-        """
-        offset = [x, y, z]
-        for latt in self.lines:
-            if (
-                self.latticeObjects[latt].file_block is not None
-                and "output" in self.latticeObjects[latt].file_block
-                and "zstart" in self.latticeObjects[latt].file_block["output"]
-            ):
-                self.latticeObjects[latt].file_block["output"]["zstart"] += z
-        for elem in self.elements:
-            self.elementObjects[elem].centre = self._addLists(
-                self.elementObjects[elem].centre, offset
-            )
-            # self.elementObjects[elem].centre = self._addLists(
-            #     self.elementObjects[elem].centre, offset
-            # )
-
 
 class frameworkDirectory(BaseModel):
-    """
-    Class to load a tracking run from a directory and read the Beam and Twiss files and make them available
-    """
+    """Load the Beam and Twiss files of a finished tracking run."""
 
     directory: str | None = None
-    """Directory from which to load beam and Twiss files"""
+    """Directory of the run."""
 
     twiss: bool | rtf.twiss = True
-    """Flag to indicate whether to load Twiss files"""
+    """Load Twiss files; replaced by the loaded Twiss."""
 
     beams: bool | rbf.beamGroup | None = False
-    """Flag to indicate whether to load beam files"""
+    """Load beam files; replaced by the loaded beams."""
 
     wavefronts: bool | rwf.wavefrontGroup | None = False
-    """Flag to indicate whether to load wavefront files"""
+    """Load wavefront files; replaced by the loaded wavefronts."""
 
     verbose: bool = False
-    """Flag to print status updates"""
+    """Print status updates."""
 
     settings: str = "settings.def"
-    """Framework settings filename"""
+    """Framework settings filename."""
 
     changes: str = "changes.yaml"
-    """Lattice changes filename"""
+    """Lattice changes filename."""
 
     rest_mass: float | None = None
-    """Particle rest mass"""
+    """Particle rest mass; defaults to the beams' own, or the electron's."""
 
     framework: Framework | None = None
-    """:class:`~simba.Framework.Framework` instance"""
+    """The run's :class:`~simba.Framework.Framework`; built from :attr:`settings` if not given."""
 
     def __init__(
         self,
         *args,
         **kwargs,
     ) -> None:
-        super(frameworkDirectory, self).__init__(
+        super().__init__(
             *args,
             **kwargs,
         )
@@ -2252,15 +2004,11 @@ class frameworkDirectory(BaseModel):
     if use_matplotlib:
 
         def plot(self, *args, **kwargs):
-            """
-            Return a plot object; see :func:`~simba.Modules.plotting.plotting.plot`.
-            """
+            """See :func:`~simba.Modules.plotting.plotting.plot`."""
             return groupplot.plot(self, *args, **kwargs)
 
         def general_plot(self, *args, **kwargs):
-            """
-            Return a general_plot object; see :func:`~simba.Modules.plotting.plotting.general_plot`.
-            """
+            """See :func:`~simba.Modules.plotting.plotting.general_plot`."""
             return groupplot.general_plot(self, *args, **kwargs)
 
     def __repr__(self):
@@ -2270,37 +2018,34 @@ class frameworkDirectory(BaseModel):
 
     def save_summary_files(self, twiss: bool = True, beams: bool = True):
         """
-        Save summary files in framework directory;
-        see :func:`~simba.Framework.Framework.save_summary_files`.
+        Save summary files in the framework's subdirectory; see :meth:`Framework.save_summary_files`.
 
         Parameters
         ----------
         twiss: bool
-            If True, save `Twiss_Summary.hdf5` in :attr:`~directory`
+            Save ``Twiss_Summary.hdf5``.
         beams: bool
-            If True, save `Beam_Summary.hdf5` in :attr:`~directory`
+            Save ``Beam_Summary.hdf5``.
         """
         self.framework.save_summary_files(twiss=twiss, beams=beams)
 
     def getScreen(self, screen: str) -> rbf.beam | None:
         """
-        Get a beam object for the given screen;
-        see :func:`~simba.Modules.Beams.beamGroup.getScreen`
+        Get the beam at a screen; see :meth:`~simba.Modules.Beams.beamGroup.getScreen`.
 
         Parameters
         ----------
         screen: str
-            Name of screen
+            Screen name.
 
         Returns
         -------
         :class:`~simba.Modules.Beams.beam`
-            The beam object from `screen`
 
         Raises
         ------
         ValueError
-            If `beams` is not a :class:`~simba.Modules.Beams.beamGroup` object
+            If the beams have not been loaded.
         """
         if isinstance(self.beams, rbf.beamGroup):
             return self.beams.getScreen(screen)
@@ -2309,41 +2054,38 @@ class frameworkDirectory(BaseModel):
 
     def getScreenNames(self) -> dict:
         """
-        Get beam objects from all screens
+        Get the beams at all screens.
 
         Returns
         -------
-        Dict
-            The :class:`~simba.Modules.Beams.beam` objects from the screen keyed by name
+        dict
+            :class:`~simba.Modules.Beams.beam` objects by screen name.
 
         Raises
         ------
         ValueError
-            If `beams` is not a :class:`~simba.Modules.Beams.beamGroup` object
+            If the beams have not been loaded.
         """
         if isinstance(self.beams, rbf.beamGroup):
             return self.beams.getScreens()
         else:
             raise ValueError("Beam files have not been read in")
 
-    def element(
-        self, element: str, field: str | None = None
-    ) -> Any | PhysicalBaseElement:
+    def element(self, element: str, field: str | None = None) -> Any | PhysicalBaseElement:
         """
-        Get an element definition from the framework object.
+        Get an element, or one of its fields; with no field, also print the element.
 
         Parameters
         ----------
         element: str
-            Element to retrieve
+            Element name.
         field: str | None
-            Field of that element to retrieve
+            Field to get.
 
         Returns
         -------
-        Any or Element
-            Get the `field` of `element`, or the entire
-            :class:`~laura.models.element.Element` if not `field`
+        Any or :class:`~laura.models.element.Element`
+            The field, or the whole element.
         """
         elem = self.framework.getElement(element)
         if field:
@@ -2356,7 +2098,7 @@ class frameworkDirectory(BaseModel):
             pprint(
                 {
                     k.replace("object", ""): v
-                    for k, v in elem.items()
+                    for k, v in dict(elem).items()
                     if k not in disallowed
                 }
             )
@@ -2366,6 +2108,5 @@ class frameworkDirectory(BaseModel):
 def load_directory(
     directory: str = ".", twiss: bool = True, beams: bool = False, wavefronts: bool = False, **kwargs
 ) -> frameworkDirectory:
-    """Load a directory from a SIMBA tracking run and return a frameworkDirectory object"""
-    fw = frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)
-    return fw
+    """Load a SIMBA tracking run as a :class:`frameworkDirectory`."""
+    return frameworkDirectory(directory=directory, twiss=twiss, beams=beams, wavefronts=wavefronts, **kwargs)

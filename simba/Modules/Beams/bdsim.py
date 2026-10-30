@@ -5,7 +5,9 @@ import numpy as np
 from .. import constants
 from ..units import UnitValue
 
-BDSIM_DISTRIBUTION_FORMAT = "x[m]:xp[rad]:y[m]:yp[rad]:z[m]:E[eV]"
+BDSIM_DISTRIBUTION_FORMAT = "x[m]:xp[rad]:y[m]:yp[rad]:t[s]:E[eV]"
+"""Time, not ``z``, so every particle starts on the first element's face: in a closed
+ring a ``z`` behind it starts beyond the last element instead."""
 
 SAMPLER_VARIABLES = (
     "x",
@@ -19,6 +21,7 @@ SAMPLER_VARIABLES = (
     "partID",
     "parentID",
     "weight",
+    "turnNumber",
 )
 
 PDGID_MASSES = {
@@ -51,7 +54,8 @@ def write_bdsim_beam_file(beam, filename):
                     beam.xp.val,
                     beam.y.val,
                     beam.yp.val,
-                    beam.z.val - np.mean(beam.z.val),
+                    -(beam.z.val - np.mean(beam.z.val))
+                    / (beam.Bz.val * constants.speed_of_light),
                     beam.energy.val,
                 ]
             )
@@ -90,7 +94,7 @@ def read_bdsim_beam_file(
             f"{filename} has {data.shape[1]} columns; expected 6 "
             f"({BDSIM_DISTRIBUTION_FORMAT})"
         )
-    x, xp, y, yp, z, energy = data.T
+    x, xp, y, yp, t, energy = data.T
     self.filename = filename
     self.code = "BDSIM"
     _set_particles(
@@ -104,9 +108,9 @@ def read_bdsim_beam_file(
         charge=charge,
         s=s,
     )
-    self._beam.z = UnitValue(zstart + z, units="m")
-    self._beam.t = UnitValue(
-        -1 * z / (self._beam.Bz * constants.speed_of_light), units="s"
+    self._beam.t = UnitValue(t, units="s")
+    self._beam.z = UnitValue(
+        zstart - t * self._beam.Bz * constants.speed_of_light, units="m"
     )
     _set_reference_particle(self, ref_index)
 
@@ -227,6 +231,26 @@ def _as_hit_list(value, nhits):
         return [value] * nhits
 
 
+def select_turn(arrays, turn):
+    """
+    One sampler's hits by the primaries on ``turn`` (BDSIM's ``turnNumber``), one each.
+
+    A primary starting behind the first element of a closed ring crosses the last
+    sampler at once, so only its last crossing of the turn is kept.
+
+    Parameters
+    ----------
+    arrays: dict
+        ``{variable: ndarray}`` for a single sampler, see :func:`read_bdsim_sampler_arrays`.
+    turn: int
+        The turn, from 1.
+    """
+    hit = np.flatnonzero((arrays["turnNumber"] == turn) & (arrays["parentID"] == 0))
+    hit = hit[np.argsort(-arrays["T"][hit])]
+    _, last = np.unique(arrays["eventID"][hit], return_index=True)
+    return {k: v[np.sort(hit[last])] for k, v in arrays.items()}
+
+
 def interpret_bdsim_sampler(
     self,
     arrays,
@@ -234,6 +258,7 @@ def interpret_bdsim_sampler(
     zstart=0,
     ref_index=None,
     keep_secondaries=False,
+    ninjected=None,
 ):
     """
     Populate a :class:`~simba.Modules.Beams.beam` from one sampler's arrays as
@@ -251,6 +276,8 @@ def interpret_bdsim_sampler(
         Reference particle index.
     keep_secondaries: bool, optional
         Keep secondary particles produced in the machine. Off by default.
+    ninjected: int, optional
+        Number of particles tracked; by default one more than the last event seen.
     """
     mask = np.ones(len(arrays["x"]), dtype=bool)
     if not keep_secondaries:
@@ -260,7 +287,8 @@ def interpret_bdsim_sampler(
     dat = {k: v[mask] for k, v in arrays.items()}
 
     if charge is not None:
-        ninjected = int(np.max(arrays["eventID"])) + 1
+        if ninjected is None:
+            ninjected = int(np.max(arrays["eventID"])) + 1
         nprimaries = int(np.count_nonzero(arrays["parentID"] == 0))
         if nprimaries < ninjected:
             warn(

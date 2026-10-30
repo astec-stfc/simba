@@ -1,7 +1,6 @@
 import re
 from munch import Munch
 import easygdf
-import numpy as np
 
 
 class gdf_beam(Munch):
@@ -30,10 +29,7 @@ class gdf_beam(Munch):
         return self._positions
 
     def single_position_data(self) -> None:
-        [
-            setattr(self, k, self.screens_touts[k])
-            for k in ["x", "y", "z", "GBx", "GBy", "GBz", "m", "q", "nmacro"]
-        ]
+        [setattr(self, k, self.screens_touts[k]) for k in ["x", "y", "z", "GBx", "GBy", "GBz", "m", "q", "nmacro"]]
 
     def _create_times_dictionary(self) -> None:
         self._times = {s["time"]: s for s in self.touts}
@@ -63,12 +59,34 @@ class gdf_beam(Munch):
             self.screens_touts["touts"], dict_key="time"
         )
 
-    def get_position(self, position: float) -> dict | None:
-        if position in self._positions.keys():
+    def get_position(self, position: float, tolerance: float = 2e-3) -> dict | None:
+        """
+        Return the screen data at a longitudinal position.
+
+        Falls back to the nearest screen within ``tolerance``, as the translator
+        offsets GPT screens slightly off element boundaries.
+
+        Parameters
+        ----------
+        position: float
+            Longitudinal position [m].
+        tolerance: float
+            Largest accepted mismatch [m]; well below typical screen spacing.
+
+        Returns
+        -------
+        dict or None
+            The screen data, or None if nothing lies within tolerance.
+        """
+        if position in self._positions:
             return Munch(self._positions[position])
+        if self._positions:
+            nearest = min(self._positions.keys(), key=lambda p: abs(p - position))
+            if abs(nearest - position) <= tolerance:
+                return Munch(self._positions[nearest])
         return None
 
     def get_time(self, time: float) -> dict | None:
-        if time in self._times.keys():
+        if time in self._times:
             return Munch(self._times[time])
         return None

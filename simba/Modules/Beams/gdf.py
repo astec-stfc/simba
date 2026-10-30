@@ -4,7 +4,6 @@ import numpy as np
 from ..gdf_beam import gdf_beam
 from .. import constants
 from ..units import UnitValue
-from warnings import warn
 
 
 def write_gdf_beam_file(
@@ -19,7 +18,7 @@ def write_gdf_beam_file(
 ):
     if filename is None:
         fn = os.path.splitext(self.filename)
-        filename = fn[0].strip(".ocelot").strip(".openpmd") + ".gdf"
+        filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".gdf"
     q = self._beam.particle_charge
     m = self._beam.particle_mass
 
@@ -67,19 +66,27 @@ def write_gdf_beam_file(
     easygdf.save_initial_distribution(filename, **dataarray)
 
 
-def read_gdf_beam_file_object(self, file):
+def read_gdf_beam_file_object(file):
+    """
+    Open a GPT output file, or pass through an already-opened one.
+
+    Parameters
+    ----------
+    file: str or gdf_beam
+        Path to a GPT ``.gdf`` file, or an existing
+        :class:`~simba.Modules.gdf_beam.gdf_beam`.
+
+    Returns
+    -------
+    gdf_beam
+        The opened beam file.
+    """
     if isinstance(file, str):
         gdfbeam = gdf_beam(file)
     elif isinstance(file, gdf_beam):
         gdfbeam = file
     else:
         raise Exception("file is not str or gdf_beam object!")
-    return gdfbeam
-
-
-def read_gdf_beam_file_info(self, file):
-    self.reset_dicts()
-    gdfbeam = gdf_beam(self, file)
     return gdfbeam
 
 
@@ -94,11 +101,11 @@ def read_gdf_beam_file(
 ):
     self.reset_dicts()
     if gdfbeam is None and filename is not None:
-        gdfbeam = read_gdf_beam_file_object(self, filename)
+        gdfbeam = read_gdf_beam_file_object(filename)
     elif gdfbeam is None and filename is None:
         return None
 
-    if position is not None:  # and (time is not None or block is not None):
+    if position is not None:
         self.longitudinal_reference = "t"
         gdfbeamdata = gdfbeam.get_position(position)
         if gdfbeamdata is not None:
@@ -131,7 +138,9 @@ def read_gdf_beam_file(
         self._beam.particle_rest_energy / constants.elementary_charge,
         units="eV/c",
     )
-    self._beam.particle_charge = UnitValue(gdfbeamdata.q, units="C")
+    self._beam.particle_charge = UnitValue(
+        gdfbeamdata.q, units="C"
+    )
 
     self._beam.x = UnitValue(gdfbeamdata.x, units="m")
     self._beam.y = UnitValue(gdfbeamdata.y, units="m")
@@ -209,7 +218,7 @@ def read_gdf_beam_file(
             units="m",
         )
     else:
-        if hasattr(gdfbeamdata, "z"):  # and self.longitudinal_reference == "z":
+        if hasattr(gdfbeamdata, "z"):
             self._beam.z = UnitValue(gdfbeamdata.z, units="m")
             if hasattr(gdfbeamdata, "Bz"):
                 bz = gdfbeamdata.Bz
@@ -233,7 +242,7 @@ def read_gdf_beam_file(
                 units="m",
             )
 
-    self._beam.nmacro = UnitValue(gdfbeamdata.nmacro, units="C")
+    self._beam.nmacro = UnitValue(gdfbeamdata.nmacro, units='C')
     self._beam.set_total_charge(gdfbeamdata.nmacro * self._beam.particle_charge)
 
     self._beam.status = UnitValue(np.full(len(self.z), 5))

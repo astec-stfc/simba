@@ -1,0 +1,2077 @@
+"""
+MAD-X backend, driven in-process through `cpymad`_; see the `MAD-X manual`_.
+
+MAD-X fixes the reference momentum per ``BEAM``, so a linac is split into
+segments at each RF cavity and the beam is re-referenced between them (as
+ELEGANT's ``always_change_p0``). Particles are tracked with thin-lens
+``TRACK``, or in ``single_particle`` mode through a finite-difference linear
+map. A ``<lattice>_twiss.madx.hdf5`` summary is written for
+:func:`simba.Modules.Twiss.load_directory`.
+
+.. _cpymad: https://hibtc.github.io/cpymad/
+.. _MAD-X manual: https://madx.web.cern.ch/webguide/manual.html
+"""
+
+import contextlib
+import os
+import re
+from copy import deepcopy
+from warnings import warn
+
+import math
+
+import numpy as np
+from yaml import safe_load
+
+from ... import exceptions
+from ...Framework_objects import frameworkLattice
+from ...Modules import Beams as rbf
+from ...Modules import constants
+from ...Modules.Twiss.madx import save_madx_twiss_hdf
+from ...Modules.rf_focusing import tw1_focusing_matrix
+
+from laura.translator.converters.converter import translate_elements
+from laura.translator.converters.magnet import SolenoidTranslator
+from laura.translator.utils.functions import (
+    sanitize_string,
+    madx_functional_definitions,
+)
+
+from typing import Dict, List, Any, ClassVar
+
+with open(
+    os.path.dirname(os.path.abspath(__file__)) + "/madx_defaults.yaml",
+) as infile:
+    madxglobal = safe_load(infile)
+
+speed_of_light = constants.speed_of_light
+elementary_charge = constants.elementary_charge
+
+madx_accelerating_types = ("rfcavity", "twcavity")
+
+# MAD-X particle names for the species supported by the beam object
+madx_particle_names = {
+    "electron": "electron",
+    "positron": "positron",
+    "proton": "proton",
+    "antiproton": "antiproton",
+}
+
+class madxLattice(frameworkLattice):
+    """
+    A line written as MAD-X ``SEQUENCE`` segments and tracked with cpymad.
+    """
+
+    code: str = "madx"
+    """The lattice object type."""
+
+    supports_dynamic_aperture: ClassVar[bool] = True
+    """Via ``DYNAP``; ``dktrturns`` gives the turns each start survived."""
+
+    supports_frequency_map: ClassVar[bool] = True
+    """Via ``DYNAP``'s ``dynaptune`` table (``tunx``, ``tuny``, ``dtune``)."""
+
+    supports_periodic: ClassVar[bool] = True
+    """``TWISS`` with no initial conditions is MAD-X's periodic solution."""
+
+    supports_turns: ClassVar[bool] = True
+    """A turn is one sweep of :meth:`run_segments`."""
+
+    native_time: ClassVar[tuple[str, str]] = ("T", "m")
+    """``T = -c t``, measured from the reference: positive ahead of it."""
+
+    @classmethod
+    def native_time_scale(cls, beta0: float) -> float:
+        """``T = -c (t - reference_time)``."""
+        return -speed_of_light
+
+    supports_programs: ClassVar[bool] = True
+    """By tying each attribute to a variable before ``MAKETHIN`` (:meth:`bind_programs`) and setting that between turns (:meth:`apply_programs`)."""
+
+    supports_ramp: ClassVar[bool] = True
+    """MAD-X has no ramp, so ``BEAM`` is re-issued between turns (see :meth:`ring_reference`)."""
+
+    native_rf: ClassVar[str] = "synchronous"
+    """Under a ramp, cavities act as if phased to the reference every pass; see
+    :meth:`apply_rf_phases`."""
+
+    rf_phase_sign: ClassVar[float] = 1.0
+    """``LAG`` moved by this times a phase the reference sees."""
+
+    rf_phase_per_radian: ClassVar[float] = 1 / (2 * math.pi)
+    """``LAG`` is in turns."""
+
+    otm_convention: ClassVar[str] = "x, px, y, py, t, pt"
+    """One-turn map convention."""
+
+    otm_longitudinal_sign: ClassVar[int] = 1
+    """One-turn map longitudinal sign (i.e. R56)"""
+
+    otm_longitudinal_scale: ClassVar[int | None] = 2
+    """``zeta = beta0 * t`` and ``delta = pt / beta0``, so ``R56`` picks up
+    ``beta0**2`` and ``R16``/``R51`` one ``beta0`` each."""
+
+    trackBeam: bool = True
+    """Whether to track the beam."""
+
+    supports_nsuperperiods: ClassVar[bool] = True
+    """Superperiods are an inner loop of :meth:`run_segments`; only the last pass
+    of each turn records."""
+
+    supports_single_particle: ClassVar[bool] = True
+    """Tracks 13 probes and maps the distribution; cpymad's cost is per particle,
+    so this saves roughly ``n_macroparticles / 13``."""
+
+    particle_definition: str = None
+    """Name of the initial particle distribution."""
+
+    madxglobal: Dict = {}
+    """Global settings from ``madx_defaults.yaml`` and ``settings["global"]["MADXsettings"]``."""
+
+    nslice_quadrupole: int = 4
+    """MAKETHIN slices for quadrupoles."""
+
+    nslice_sbend: int = 8
+    """MAKETHIN slices for bends."""
+
+    nslice_sextupole: int = 4
+    """MAKETHIN slices for sextupoles."""
+
+    nslice_solenoid: int = 4
+    """MAKETHIN slices for solenoids."""
+
+    cavity_model: str = "rsmatrix"
+    """Transverse model for RF cavities: ``rsmatrix`` (Rosenzweig-Serafini
+    ``MATRIX`` plus a thin ``RFCAVITY`` kick, as Ocelot), ``sliced``
+    (:attr:`nslice_rfcavity` thin kicks; adiabatic damping only) or ``thin``
+    (one central kick)."""
+
+    nslice_rfcavity: int = 10
+    """Sub-cavities for ``sliced`` :attr:`cavity_model`, split at the sequence level
+    because MAKETHIN does not slice RF cavities."""
+
+    nslice_default: int = 1
+    """MAKETHIN slices for all other thick elements."""
+
+    makethin_style: str = "teapot"
+    """MAKETHIN slicing style."""
+
+    makedipedge: bool = True
+    """Generate DIPEDGE elements in MAKETHIN."""
+
+    maxaper: List = [100.0, 100.0, 100.0, 100.0, 1000.0, 1000.0]
+    """``RUN`` aperture limits on [x, px, y, py, t, pt]; large so MAD-X does not collimate."""
+
+    write_model_twiss: bool = True
+    """Include per-segment MAD-X ``TWISS`` optics in the Twiss output."""
+
+    fd_delta: float = 1e-6
+    """Finite-difference step for the ``single_particle`` linear map."""
+
+    native_turns: bool = True
+    """Let MAD-X run multiple turns with one ``RUN, TURNS=N`` where
+    :meth:`use_native_turns` allows; see :meth:`run_segments_native`."""
+
+    segments: List = []
+    """Element names per segment, each at constant reference momentum."""
+
+    seqstrings: List = []
+    """MAD-X ``SEQUENCE`` definition per segment."""
+
+    segment_alignment: Dict = {}
+    """``(name, centre, translator)`` of each misaligned element, by segment
+    name; see :meth:`apply_alignment`."""
+
+    model_twiss_orbit: Any = None
+    """Closed orbit at the start of the line; see :meth:`read_closed_orbit`."""
+
+    sector_maps: List = []
+    """Per-element 6x6 sector maps in sequence order; see :meth:`read_one_turn_map`."""
+
+    pin: Any = None
+    """Initial :class:`~simba.Modules.Beams.beam`."""
+
+    pout: Any = None
+    """Final :class:`~simba.Modules.Beams.beam`."""
+
+    tws: Dict = {}
+    """Collected Twiss/beam-statistics arrays along the lattice."""
+
+    beam_data: Dict = {}
+    """Beam statistics at each observation point."""
+
+    model_twiss: Dict = {}
+    """MAD-X model Twiss at each element, by name."""
+
+    segment_p0c: Dict = {}
+    """Reference momentum [eV/c] of each element's segment, by name; used by
+    :meth:`postProcess` to convert canonical Twiss to trace space."""
+
+    output_beams: Dict = {}
+    """Beam at each observation point, by name."""
+
+    _thin_sequences: set = None
+    """Segment sequences already defined and sliced in the running MAD-X."""
+
+    _alignment_text: Dict = None
+    """``EALIGN`` input by ``(segment name, thick)``, built once; see :meth:`apply_alignment`."""
+
+    _observation_points: Dict = None
+    """Cache of :meth:`observation_points` by segment; cleared by :meth:`segmentElements`."""
+
+    logfile: Any = None
+    """MAD-X log file handle."""
+
+    program_attributes: ClassVar[dict] = {
+        "hkicker": ("kick", "kick"),
+        "vkicker": ("kick", "kick"),
+        "kicker": ("hkick", "vkick"),
+        "tkicker": ("hkick", "vkick"),
+        "hacdipole": ("volt", "volt"),
+        "vacdipole": ("volt", "volt"),
+    }
+    """``(horizontal, vertical)`` attribute an unqualified program sets, per base
+    type; a ``kicker``'s plane comes from :meth:`program_is_vertical`."""
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        self.madxglobal = deepcopy(madxglobal)
+        if "MADXsettings" in list(self.settings["global"].keys()):
+            for k, v in self.settings["global"]["MADXsettings"].items():
+                self.madxglobal.update({k: v})
+        # settable configuration fields, from global settings or the lattice
+        # file block
+        for f in list(madxglobal.keys()) + ["trackBeam"]:
+            if f in self.madxglobal:
+                setattr(self, f, self.madxglobal[f])
+            if f in self.file_block:
+                setattr(self, f, self.file_block[f])
+        self.particle_definition = self.input_particle_definition
+        self.segments = []
+        self.seqstrings = []
+        self.sector_maps = []
+        self.beam_data = {}
+        self.model_twiss = {}
+        self.segment_p0c = {}
+        self.output_beams = {}
+        self._thin_sequences = set()
+        self._observation_points = {}
+        self.tws = {}
+
+    # ------------------------------------------------------------------
+    # Lattice generation
+    # ------------------------------------------------------------------
+    @property
+    def segment_at_cavities(self) -> bool:
+        """Whether RF cavities split the lattice into segments.
+
+        Only on a linac; with ``fixed_reference`` the cavity moves the beam, not
+        the reference (:meth:`ring_reference`).
+        """
+        return not self.fixed_reference
+
+    def segmentElements(self) -> List:
+        """
+        Split the lattice (with drifts) into constant-momentum segments after each
+        RF cavity; see :meth:`segment_at_cavities`.
+
+        Returns
+        -------
+        List
+            Element names per segment, in order.
+        """
+        elements_with_drifts = self.section.create_drifts()
+        self._elements_with_drifts = elements_with_drifts
+        self._elem_dict = translate_elements(
+            list(elements_with_drifts.values()),
+            master_lattice=self.global_parameters["master_lattice"],
+            directory=self.global_parameters["master_subdir"],
+        )
+        self._sval_in = self.section.get_s_values(as_dict=True, at_entrance=True)
+        self._sval_out = self.section.get_s_values(as_dict=True, at_entrance=False)
+        self._observation_points = {}  # the data they were derived from is new
+        split = self.segment_at_cavities
+        segments = []
+        current = []
+        for name, elem in self._elem_dict.items():
+            current.append(name)
+            if split and elem.hardware_type.lower() == "rfcavity":
+                segments.append(current)
+                current = []
+        if len(current) > 0:
+            segments.append(current)
+        self.segments = segments
+        return segments
+
+    def writeElements(self) -> str:
+        """
+        Build the ``SEQUENCE`` per segment (``refer=centre``, as MAKETHIN needs) and
+        set :attr:`seqstrings`.
+
+        Returns
+        -------
+        str
+            The full MAD-X lattice
+        """
+        with exceptions.one_edge_order_warning(self.objectname):
+            return self._write_elements()
+
+    def _write_elements(self) -> str:
+        self.segmentElements()
+        self.seqstrings = []
+        self.segment_alignment = {}
+        self._alignment_text = {}
+        self._design_energy = self.initial_energy()
+        fulltext = madx_functional_definitions(self.section.functional_definitions)
+        for iseg, segnames in enumerate(self.segments):
+            seqname = self.segment_name(iseg)
+            seg_s0 = self._sval_in[segnames[0]]
+            seg_s1 = self._sval_out[segnames[-1]]
+            seg_len = seg_s1 - seg_s0
+            # the written file's default; input_segment sets the tracked momentum's
+            design_p0c = np.sqrt(max(self._design_energy**2 - self.rest_energy**2, 0.0))
+            if design_p0c:
+                fulltext += f"{self.rigidity_name(iseg)} = {self.rigidity(design_p0c)};\n"
+            self.segment_alignment[seqname] = []
+            lines = [f"{seqname}: sequence, refer=centre, l = {seg_len};"]
+            for name in segnames:
+                d = self._elem_dict[name]
+                if getattr(d, "subelement", False):
+                    at = (
+                        d.physical.start.z
+                        - self.startObject.physical.start.z
+                        - seg_s0
+                        + d.physical.length / 2.0
+                    )
+                else:
+                    at = self._sval_in[name] - seg_s0 + d.physical.length / 2.0
+                if isinstance(d, SolenoidTranslator):
+                    estr = d.to_madx(at=at, Brho=self.rigidity_name(iseg)).strip()
+                else:
+                    estr = d.to_madx(at=at).strip()
+                if d.madx_alignment():
+                    self.segment_alignment[seqname].append(
+                        (sanitize_string(d.name).lower(), at, d)
+                    )
+                if d.hardware_type.lower() == "rfcavity":
+                    if d.cavity.structure_type == "StandingWave" or not self.tw_focusing:
+                        if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
+                            estr, self._design_energy = self.rs_matrix_cavity(
+                                estr, d.physical.length, at, self._design_energy
+                            )
+                        elif (
+                            self.cavity_model.lower() == "sliced"
+                            and self.nslice_rfcavity > 1
+                        ):
+                            estr = self.slice_cavity(estr, d.physical.length, at)
+                    elif d.cavity.structure_type == "TravellingWave":
+                        if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
+                            estr, self._design_energy = self.tw_matrix_cavity(
+                                estr, d.physical.length, at, self._design_energy,
+                                end1_focus=bool(d.simulation.end1_focus),
+                                end2_focus=bool(d.simulation.end2_focus),
+                            )
+                        elif (
+                            self.cavity_model.lower() == "sliced"
+                            and self.nslice_rfcavity > 1
+                        ):
+                            estr = self.slice_cavity(estr, d.physical.length, at)
+                lines.append(estr)
+            lines.append("endsequence;")
+            seqstr = "\n".join(lines)
+            self.seqstrings.append(seqstr)
+            fulltext += f"\n! ------------------ segment {iseg} ------------------\n"
+            fulltext += seqstr + "\n"
+        return fulltext
+
+    def segment_name(self, iseg: int) -> str:
+        """MAD-X compatible name for lattice segment `iseg`"""
+        return f"{sanitize_string(self.objectname)}_seg_{iseg}"
+
+    def rigidity_name(self, iseg: int) -> str:
+        """The MAD-X variable holding segment `iseg`'s rigidity, which its solenoids divide by."""
+        return f"brho_seg_{iseg}"
+
+    def input_segment(self, madx: Any, iseg: int, p0c: float) -> None:
+        """
+        Input segment `iseg`'s ``SEQUENCE``, its solenoids normalised at `p0c`
+        [eV/c]. MAD-X evaluates a solenoid's ``ks`` once, as it is defined.
+        """
+        madx.input(f"{self.rigidity_name(iseg)} = {self.rigidity(p0c)};")
+        madx.input(self.seqstrings[iseg])
+
+    def apply_alignment(self, madx: Any, seqname: str, thick: bool = False) -> None:
+        """
+        ``EALIGN`` each slice of a misaligned element at its body's offset
+        and roll there, since ``MAKETHIN`` and every ``USE`` drop alignment
+        errors. A thin slice cannot pitch, so that comes from the offsets
+        along it. With `thick`, each element of the unsliced sequence whole,
+        about its entrance, pitch included, for the optics before :meth:`makethin`.
+        """
+        key = (seqname, thick)
+        if key not in self._alignment_text:
+            nodes = [
+                (e.name, e.at)
+                for e in madx.sequence[seqname].elements
+                if e.base_type.name != "marker"
+            ]
+            text = ""
+            for name, centre, d in self.segment_alignment.get(seqname, []):
+                for node, at in nodes:
+                    if node == name or node.startswith(f"{name}.."):
+                        terms = d.madx_alignment() if thick else {
+                            k: v
+                            for k, v in d.madx_alignment(at - centre).items()
+                            if k in ("dx", "dy", "ds", "dpsi")
+                        }
+                        if terms:
+                            text += (
+                                "select, flag=error, clear;\n"
+                                f"select, flag=error, range={node};\n"
+                                f"ealign, {', '.join(f'{k} = {v}' for k, v in terms.items())};\n"
+                            )
+            self._alignment_text[key] = text
+        if self._alignment_text[key]:
+            madx.input(self._alignment_text[key])
+
+    def initial_energy(self) -> float:
+        """
+        Mean total energy [eV] of the input beam, or 0 if none is loaded.
+        """
+        for bm in [self.pin, self.global_parameters.get("beam", None)]:
+            try:
+                if bm is not None and len(bm.x.val) > 0:
+                    return float(np.mean(bm.energy.val))
+            except Exception:
+                continue
+        return 0.0
+
+    def parse_madx_element(self, estr: str) -> tuple:
+        """
+        Split a MAD-X element definition into name, type and attributes.
+
+        Parameters
+        ----------
+        estr: str
+            MAD-X element definition, e.g. ``name: rfcavity, volt = 1, ...;``
+
+        Returns
+        -------
+        tuple
+            (name, type, attributes)
+        """
+        head, _, body = estr.partition(":")
+        elemname = head.strip()
+        body = body.strip().rstrip(";")
+        parts = [p.strip() for p in body.split(",")]
+        etype = parts[0].strip().lower()
+        attrs = {}
+        for p in parts[1:]:
+            mm = re.match(r"^(\w+)\s*=\s*(.+)$", p)
+            if mm:
+                attrs[mm.group(1).lower()] = mm.group(2).strip()
+        return elemname, etype, attrs
+
+    def rs_matrix_cavity(
+        self,
+        cavstring: str,
+        length: float,
+        at: float,
+        energy: float,
+    ) -> tuple:
+        """
+        Replace a cavity with a Rosenzweig-Serafini ``MATRIX`` (as Ocelot, eta = 1)
+        plus a thin ``RFCAVITY`` for the energy gain.
+
+        Parameters
+        ----------
+        cavstring: str
+            MAD-X cavity definition
+        length: float
+            Cavity length [m]
+        at: float
+            Cavity centre within the segment [m]
+        energy: float
+            Design total energy at the cavity entrance [eV]
+
+        Returns
+        -------
+        tuple
+            (MAD-X definitions, exit energy [eV])
+        """
+        m0 = self.rest_energy
+        if ":=" in cavstring or energy <= m0:
+            if energy <= m0:
+                warn(
+                    "MADX: beam energy unknown when writing the lattice -- "
+                    "using a thin-kick cavity model. Call preProcess() "
+                    "before write() to enable the rsmatrix cavity model."
+                )
+            return cavstring, energy
+        elemname, etype, attrs = self.parse_madx_element(cavstring)
+        if etype not in madx_accelerating_types:
+            return cavstring, energy
+        try:
+            volt = float(attrs.get("volt", 0.0)) * 1e6  # MV -> eV
+            lag = float(attrs.get("lag", 0.0))
+            L = float(attrs.get("l", length))
+        except ValueError:
+            return cavstring, energy
+        de = volt * np.sin(2 * np.pi * lag)
+        if L <= 0 or abs(de) < 1e-9 * max(energy, 1.0):
+            return cavstring, energy + de
+        # Rosenzweig-Serafini matrix (pure pi-mode standing wave, eta = 1),
+        # as implemented in the Ocelot CavityAtom first-order map
+        cos_phi = np.sin(2 * np.pi * lag)  # = cos(phase) off-crest convention
+        Ei = energy / m0
+        Ef = (energy + de) / m0
+        Ep = (Ef - Ei) / L
+        alpha = np.sqrt(1.0 / 8.0) / cos_phi * np.log(Ef / Ei)
+        sin_a, cos_a = np.sin(alpha), np.cos(alpha)
+        r11 = cos_a - np.sqrt(2.0) * cos_phi * sin_a
+        r12 = np.sqrt(8.0) * Ei / Ep * cos_phi * sin_a if abs(Ep) > 1e-10 else L
+        r21 = -Ep / Ef * (cos_phi / np.sqrt(2.0) + np.sqrt(1.0 / 8.0) / cos_phi) * sin_a
+        r22 = Ei / Ef * (cos_a + np.sqrt(2.0) * cos_phi * sin_a)
+        Pi = np.sqrt(Ei**2 - 1.0)
+        Pf = np.sqrt(Ef**2 - 1.0)
+        m11, m12 = r11, r12
+        m21, m22 = r21 * Pf / Pi, r22 * Pf / Pi
+        matrixstr = (
+            f"{elemname}_RSM: matrix, l = {L}, "
+            f"rm11 = {m11}, rm12 = {m12}, rm21 = {m21}, rm22 = {m22}, "
+            f"rm33 = {m11}, rm34 = {m12}, rm43 = {m21}, rm44 = {m22}, "
+            f"at = {at};"
+        )
+        others = {k: v for k, v in attrs.items() if k not in ("l", "at")}
+        cavstr = (
+            f"{elemname}: rfcavity, l = 0, "
+            + ", ".join([f"{k} = {v}" for k, v in others.items()])
+            + f", at = {at + L / 2.0};"
+        )
+        return matrixstr + "\n" + cavstr, energy + de
+
+    def tw_matrix_cavity(
+        self,
+        cavstring: str,
+        length: float,
+        at: float,
+        energy: float,
+        end1_focus: bool = True,
+        end2_focus: bool = True,
+    ) -> tuple:
+        """
+        Convert a travelling-wave RF cavity definition into a first-order
+        MAD-X ``MATRIX`` element built from :func:`tw1_focusing_matrix`
+        (reproducing ELEGANT's ``BODY_FOCUS_MODEL=TW1`` plus its
+        ``END1_FOCUS``/``END2_FOCUS`` entrance/exit kicks), followed by a
+        thin ``RFCAVITY`` applying the energy gain and RF curvature -- the
+        travelling-wave counterpart of :meth:`~rs_matrix_cavity`.
+
+        Parameters
+        ----------
+        cavstring: str
+            The full MAD-X element definition for the cavity
+        length: float
+            Physical length of the cavity [m]
+        at: float
+            Position of the cavity centre within the segment [m]
+        energy: float
+            Total beam (design) energy at the entrance of the cavity [eV]
+        end1_focus: bool
+            Apply the entrance RF-focusing kick (matches the cavity's own
+            ``simulation.end1_focus``, as used for ELEGANT)
+        end2_focus: bool
+            Apply the exit RF-focusing kick (matches
+            ``simulation.end2_focus``)
+
+        Returns
+        -------
+        tuple
+            (MAD-X definitions string, energy at the exit of the cavity [eV])
+        """
+        m0 = self.rest_energy
+        if ":=" in cavstring or energy <= m0:
+            if energy <= m0:
+                warn(
+                    "MADX: beam energy unknown when writing the lattice -- "
+                    "using a thin-kick cavity model. Call preProcess() "
+                    "before write() to enable the tw1 cavity model."
+                )
+            return cavstring, energy
+        elemname, etype, attrs = self.parse_madx_element(cavstring)
+        if etype not in madx_accelerating_types:
+            return cavstring, energy
+        try:
+            volt = float(attrs.get("volt", 0.0)) * 1e6  # MV -> eV
+            lag = float(attrs.get("lag", 0.0))
+            freq = float(attrs.get("freq", 2998.5)) * 1e6  # MHz -> Hz
+            L = float(attrs.get("l", length))
+        except ValueError:
+            return cavstring, energy
+        de = volt * np.sin(2 * np.pi * lag)
+        if L <= 0 or abs(de) < 1e-9 * max(energy, 1.0):
+            return cavstring, energy + de
+        m11, m12, m21, m22, energy_out = tw1_focusing_matrix(
+            volt, freq, 2 * np.pi * lag, L, energy, m0, canonical_rescale=True,
+            end1_focus=end1_focus, end2_focus=end2_focus,
+        )
+        matrixstr = (
+            f"{elemname}_TWM: matrix, l = {L}, "
+            f"rm11 = {m11}, rm12 = {m12}, rm21 = {m21}, rm22 = {m22}, "
+            f"rm33 = {m11}, rm34 = {m12}, rm43 = {m21}, rm44 = {m22}, "
+            f"at = {at};"
+        )
+        others = {k: v for k, v in attrs.items() if k not in ("l", "at")}
+        cavstr = (
+            f"{elemname}: rfcavity, l = 0, "
+            + ", ".join([f"{k} = {v}" for k, v in others.items()])
+            + f", at = {at + L / 2.0};"
+        )
+        return matrixstr + "\n" + cavstr, energy_out
+
+    def slice_cavity(self, cavstring: str, length: float, at: float) -> str:
+        """
+        Split a cavity into :attr:`nslice_rfcavity` equal sub-cavities, so thin
+        tracking reproduces adiabatic damping.
+
+        Parameters
+        ----------
+        cavstring: str
+            MAD-X cavity definition
+        length: float
+            Cavity length [m]
+        at: float
+            Cavity centre within the segment [m]
+
+        Returns
+        -------
+        str
+            Sub-cavity definitions, or `cavstring` if it cannot be sliced safely
+        """
+        n = int(self.nslice_rfcavity)
+        if n <= 1 or length <= 0:
+            return cavstring
+        # deferred (":=") expressions cannot be rescaled safely
+        if ":=" in cavstring:
+            return cavstring
+        elemname, etype, attrs = self.parse_madx_element(cavstring)
+        if etype not in madx_accelerating_types:
+            return cavstring
+        try:
+            volt = float(attrs.get("volt", 0.0))
+            L = float(attrs.get("l", length))
+        except ValueError:
+            return cavstring
+        others = {
+            k: v for k, v in attrs.items() if k not in ("volt", "l", "at")
+        }
+        lines = []
+        for k in range(n):
+            slname = elemname if k == n - 1 else f"{elemname}_SL{k + 1}"
+            slat = at - L / 2.0 + (k + 0.5) * L / n
+            attrstr = ", ".join(
+                [f"volt = {volt / n}", f"l = {L / n}"]
+                + [f"{k2} = {v2}" for k2, v2 in others.items()]
+                + [f"at = {slat}"]
+            )
+            lines.append(f"{slname}: rfcavity, {attrstr};")
+        return "\n".join(lines)
+
+    def write(self) -> None:
+        """
+        Write :meth:`writeElements` to ``<name>.madx`` in `master_subdir`.
+        """
+        fulltext = self.writeElements()
+        latticefile = (
+            self.global_parameters["master_subdir"] + "/" + self.objectname + ".madx"
+        )
+        with open(latticefile, "w") as f:
+            f.write(fulltext)
+        self.files.append(latticefile)
+
+    def preProcess(self) -> None:
+        """
+        Load the input beam into :attr:`pin`.
+        """
+        super().preProcess()
+        prefix = self.get_prefix()
+        prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.load_input_beam(prefix, self.particle_definition)
+        self.pin = deepcopy(self.global_parameters["beam"])
+
+    def start_madx(self) -> Any:
+        """
+        Start cpymad MAD-X, logging to ``<name>.log`` in `master_subdir`.
+
+        Returns
+        -------
+        cpymad.madx.Madx
+            The MAD-X instance
+        """
+        from cpymad.madx import Madx
+
+        self.logfile = open(
+            os.path.join(
+                self.global_parameters["master_subdir"], self.objectname + ".log"
+            ),
+            "w",
+        )
+        madx = Madx(
+            stdout=self.logfile,
+            cwd=self.global_parameters["master_subdir"],
+        )
+        madx.option(echo=False, warn=True, info=False, twiss_print=False)
+        if self.section.functional_definitions:
+            madx.input(
+                madx_functional_definitions(self.section.functional_definitions)
+            )
+        return madx
+
+    def stop_madx(self, madx: Any) -> None:
+        """Exit a session from :meth:`start_madx` and close its log."""
+        with contextlib.suppress(Exception):
+            madx.exit()
+        if self.logfile is not None:
+            self.logfile.close()
+            self.logfile = None
+
+    def madx_beam_command(self, madx: Any, p0c: float, seqname: str) -> None:
+        """
+        Issue ``BEAM`` for a segment at reference momentum `p0c` [eV/c].
+        """
+        m0 = self.rest_energy
+        chargesign = int(self.reference_charge)
+        species = getattr(self.global_parameters["beam"], "species", "electron")
+        if species in madx_particle_names:
+            madx.input(
+                f"beam, particle={madx_particle_names[species]}, pc={p0c / 1e9}, "
+                f"sequence={seqname};"
+            )
+        else:
+            madx.input(
+                f"beam, mass={m0 / 1e9}, charge={chargesign}, pc={p0c / 1e9}, "
+                f"sequence={seqname};"
+            )
+
+    def slices(self, name: str) -> int:
+        """
+        ``MAKETHIN`` slices for one kind of element: ``tracking: {nslice_quadrupole: 16}``
+        (also ``nslice_sbend``, ``nslice_sextupole``, ``nslice_solenoid``), else the
+        class default.
+
+        Parameters
+        ----------
+        name: str
+            The attribute, such as ``nslice_quadrupole``
+
+        Returns
+        -------
+        int
+        """
+        return int((self.file_block.get("tracking") or {}).get(name, getattr(self, name)))
+
+    def warn_if_coarsely_sliced(self) -> None:
+        """
+        Warn that a coarsely sliced ring tracks with other tunes than its optics.
+
+        The periodic ``TWISS`` (tunes, chromaticity, one-turn map) runs on the thick
+        sequence, but tracking runs on the line :meth:`makethin` slices. On the
+        561.6 m Diamond-I ring the default of 4 slices per quadrupole and sextupole
+        and 8 per bend shifted a tune by 0.010 and the momentum compaction by
+        0.19 %; 16 slices left 5e-4 and 64 left 3e-5.
+        """
+        if not self.periodic:
+            return
+        counts = {k: self.slices(k) for k in ("nslice_quadrupole", "nslice_sbend", "nslice_sextupole")}
+        if min(counts.values()) >= 16:
+            return
+        warn(
+            f"Line '{self.objectname}': MAD-X tracks a line sliced {counts}, whose "
+            "tunes can differ from the thick periodic optics by 0.01. It falls as the "
+            "slice count rises; set e.g. tracking: {nslice_quadrupole: 16, "
+            "nslice_sbend: 16, nslice_sextupole: 16}."
+        )
+
+    def makethin(self, madx: Any, seqname: str) -> None:
+        """
+        ``MAKETHIN`` the segment sequence for thin tracking and re-``USE`` it.
+        """
+        madedge = "true" if self.makedipedge else "false"
+        madx.input(
+            f"""
+            select, flag=makethin, clear;
+            select, flag=makethin, class=matrix, slice=0;
+            select, flag=makethin, class=quadrupole, slice={self.slices('nslice_quadrupole')};
+            select, flag=makethin, class=sbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=rbend, slice={self.slices('nslice_sbend')};
+            select, flag=makethin, class=sextupole, slice={self.slices('nslice_sextupole')};
+            select, flag=makethin, class=solenoid, slice={self.slices('nslice_solenoid')};
+            select, flag=makethin, class=rfcavity, slice=1;
+            makethin, sequence={seqname}, style={self.makethin_style}, makedipedge={madedge};
+            use, sequence={seqname};
+            """
+        )
+        self.apply_alignment(madx, seqname)
+
+    def observation_points(self, segnames: List) -> List:
+        """
+        Zero-length screens, markers and BPMs in a segment.
+
+        Cached per segment: the turn loop asks every turn, and programs change
+        strengths, never the element set.
+
+        Parameters
+        ----------
+        segnames: List
+            Element names in the segment
+
+        Returns
+        -------
+        List
+            (name, s within segment) tuples
+        """
+        key = tuple(segnames)
+        if key in self._observation_points:
+            return self._observation_points[key]
+        diag_names = {e.name for e in self.screens_and_markers_and_bpms}
+        seg_s0 = self._sval_in[segnames[0]]
+        obs = [
+            (name, self._sval_in[name] - seg_s0)
+            for name in segnames
+            if name in diag_names and self._elem_dict[name].physical.length == 0
+        ]
+        self._observation_points[key] = obs
+        return obs
+
+    def run_track(
+        self,
+        madx: Any,
+        coords: Dict,
+        observe: List,
+        numbers: np.ndarray = None,
+        turns: int = 1,
+        ffile: int = 1,
+    ) -> Dict:
+        """
+        Thin-lens ``TRACK`` one segment and return the ``trackone`` table.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        coords: Dict
+            Canonical starting coordinates
+        observe: List
+            (name, s) observation points
+        numbers: np.ndarray, optional
+            Particle numbers (default 1..N)
+        turns: int
+            Turns per ``RUN``; :meth:`run_segments_native` passes the whole run.
+        ffile: int
+            Record only every ``ffile``-th turn.
+
+        Returns
+        -------
+        Dict
+            Arrays from the ``trackone`` table
+        """
+        npart = len(coords["x"])
+        madx.input("track, onepass, onetable;")
+        startlines = [
+            "start, x={:.15g}, px={:.15g}, y={:.15g}, py={:.15g}, "
+            "t={:.15g}, pt={:.15g};".format(
+                coords["x"][i],
+                coords["px"][i],
+                coords["y"][i],
+                coords["py"][i],
+                coords["t"][i],
+                coords["pt"][i],
+            )
+            for i in range(npart)
+        ]
+        # chunk the input to avoid very large single commands
+        for i in range(0, len(startlines), 4096):
+            madx.input("\n".join(startlines[i: i + 4096]))
+        for name, _ in observe:
+            madx.input(f"observe, place={sanitize_string(name)};")
+        maxaper = "{" + ",".join([str(v) for v in self.maxaper]) + "}"
+        madx.input(f"run, turns={turns}, ffile={ffile}, maxaper={maxaper};")
+        madx.input("endtrack;")
+        tbl = madx.table.trackone
+        return {
+            k: np.array(tbl[k])
+            for k in ["number", "turn", "x", "px", "y", "py", "t", "pt", "s"]
+        }
+
+    def extract_observation(
+        self, trackdata: Dict, s_target: float, turn: int | None = None
+    ) -> Dict:
+        """
+        Coordinates recorded at `s_target`, de-duplicated and ordered by particle number.
+
+        Parameters
+        ----------
+        trackdata: Dict
+            ``trackone`` table data
+        s_target: float
+            Observation point within the segment [m]
+        turn: int, optional
+            Turn to take from a multi-turn table (:meth:`run_segments_native`).
+
+        Returns
+        -------
+        Dict
+            Coordinate arrays, including the surviving ``number``
+        """
+        at_s = np.abs(trackdata["s"] - s_target) < 1e-8
+        if turn is not None:
+            mask = at_s & (trackdata["turn"] == turn)
+            out = {k: trackdata[k][mask] for k in trackdata}
+            order = np.argsort(out["number"], kind="stable")
+            out = {k: out[k][order] for k in out}
+            _, uidx = np.unique(out["number"], return_index=True)
+            return {k: out[k][uidx] for k in out}
+        mask = at_s & (trackdata["turn"] >= 1)
+        if not np.any(mask) and abs(s_target) < 1e-8:
+            # observation point at the very start of the segment -- use the
+            # starting coordinates (turn 0)
+            mask = at_s & (trackdata["turn"] == 0)
+        out = {k: trackdata[k][mask] for k in trackdata}
+        order = np.argsort(out["number"], kind="stable")
+        out = {k: out[k][order] for k in out}
+        _, uidx = np.unique(out["number"], return_index=True)
+        return {k: out[k][uidx] for k in out}
+
+    def _collect_sector_maps(self, madx: Any, table: str) -> None:
+        """
+        Append this segment's per-element sector maps to :attr:`sector_maps`.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        table: str
+            Name of the ``sectortable`` just written
+        """
+        try:
+            smap = madx.table[table]
+            rows = len(smap["r11"])
+        except (KeyError, AttributeError, TypeError) as e:
+            warn(f"MAD-X sectormap unavailable for {table}: {e}")
+            return
+        for row in range(rows):
+            self.sector_maps.append(
+                np.array(
+                    [[smap[f"r{i}{j}"][row] for j in range(1, 7)] for i in range(1, 7)]
+                )
+            )
+
+    def _collect_optics_summary(self, madx: Any) -> None:
+        """
+        Set :attr:`optics_summary` (tunes, chromaticities) from the ``summ`` table.
+        """
+        keys = {
+            "tune_x_total": "q1",
+            "tune_y_total": "q2",
+            "chromaticity_x": "dq1",
+            "chromaticity_y": "dq2",
+        }
+        try:
+            summ = madx.table.summ
+            self.optics_summary = {
+                name: float(summ[key][-1]) for name, key in keys.items() if key in summ
+            }
+        except (KeyError, AttributeError, TypeError, IndexError) as e:
+            warn(f"MAD-X summ table unavailable for {self.objectname}: {e}")
+
+    def _track_grid(self, track: str, action: str, points: list) -> Any:
+        """
+        Track starting points in a fresh MAD-X session on the sliced first segment.
+
+        Parameters
+        ----------
+        track: str
+            The ``TRACK`` command opening the block.
+        action: str
+            What tracks the grid: ``RUN`` or ``DYNAP``.
+        points: list
+            ``(x, y)`` starts.
+
+        Returns
+        -------
+        cpymad.madx.Madx | None
+            The session, with the action's tables filled.
+        """
+        if len(self.seqstrings) == 0:
+            self.writeElements()
+        if not self.seqstrings:
+            return None
+        madx = self.start_madx()
+        try:
+            self.input_segment(madx, 0, self.reference_p0c)
+            seqname = self.segment_name(0)
+            self.madx_beam_command(madx, self.reference_p0c, seqname)
+            madx.input(f"use, sequence={seqname};")
+            self.makethin(madx, seqname)
+            madx.input("twiss;")
+            starts = "".join(f"start, x={x}, y={y};\n" for x, y in points)
+            madx.input(f"{track}\n{starts}{action}\nendtrack;")
+        except Exception as error:
+            warn(f"MAD-X {action.split(',')[0]} failed for {self.objectname}: {error}")
+            self.stop_madx(madx)
+            return None
+        return madx
+
+    def run_dynamic_aperture(self) -> list:
+        """Turns survived per point of :meth:`da_rays`, from ``RUN``'s loss table."""
+        self.dynamic_aperture = self._turns_survived(self.da_rays())
+        return self.dynamic_aperture
+
+    def _turns_survived(self, starts: list) -> list:
+        """``(x, y, turns_survived)`` per ``(x, y)`` start, from ``RUN``'s loss table."""
+        madx = self._track_grid(
+            "track, onepass=false, aperture=true, recloss=true;",
+            f"run, turns={self.turns}, maxaper={{1, 1, 1, 1, 1, 1}};",
+            starts,
+        )
+        if madx is None:
+            return []
+        try:
+            survived = [self.turns] * len(starts)
+            if "trackloss" in madx.table:
+                loss = madx.table.trackloss
+                for number, turn in zip(loss["number"], loss["turn"]):
+                    # lost on turn `turn` (1-based), so that many minus one survived
+                    survived[int(number) - 1] = int(turn) - 1
+            return [(float(x), float(y), turn) for (x, y), turn in zip(starts, survived)]
+        except (KeyError, AttributeError, TypeError) as error:
+            warn(f"MAD-X loss table unreadable for {self.objectname}: {error}")
+            return []
+        finally:
+            self.stop_madx(madx)
+
+    def run_frequency_map(self) -> list:
+        """
+        Tune footprint from ``DYNAP``'s ``dynaptune`` table, over the points that survive ``RUN``.
+
+        ``fastune`` folds tunes into [0, 0.5]; each is unfolded to whichever of
+        ``q`` and ``1 - q`` is nearer the ring's fractional tune.
+        """
+        xs, ys = self.da_grid()
+        survivors = [
+            (x, y) for x, y, turn in self._turns_survived([(x, y) for y in ys for x in xs])
+            if turn >= self.turns - 1
+        ]
+        if not survivors:
+            self.frequency_map = []
+            return self.frequency_map
+        madx = self._track_grid(
+            "track, onepass=false;", f"dynap, turns={self.turns}, fastune=true;",
+            survivors,
+        )
+        if madx is None:
+            return []
+        try:
+            table = madx.table.dynaptune
+            summ = madx.table.summ
+            ring_qx, ring_qy = float(summ["q1"][0]) % 1.0, float(summ["q2"][0]) % 1.0
+
+            def unfold(q, ring_q):
+                return q if abs(q - ring_q) <= abs(1.0 - q - ring_q) else 1.0 - q
+
+            self.frequency_map = [
+                (
+                    float(x),
+                    float(y),
+                    unfold(float(qx), ring_qx),
+                    unfold(float(qy), ring_qy),
+                    math.log10(max(abs(float(dq)), 1e-16)),
+                )
+                for x, y, qx, qy, dq in zip(
+                    table["x"],
+                    table["y"],
+                    table["tunx"],
+                    table["tuny"],
+                    table["dtune"],
+                )
+                if math.isfinite(qx) and math.isfinite(qy)
+            ]
+        except (KeyError, AttributeError, TypeError) as error:
+            warn(f"MAD-X dynaptune table unreadable for {self.objectname}: {error}")
+            self.frequency_map = []
+        finally:
+            self.stop_madx(madx)
+        return self.frequency_map
+
+    def _collect_closed_orbit(self, madx: Any) -> None:
+        """
+        Set :attr:`model_twiss_orbit` from the first row of the periodic ``TWISS`` table, once.
+        """
+        if self.model_twiss_orbit is not None:
+            return
+        try:
+            tw = madx.table.twiss
+            self.model_twiss_orbit = [
+                float(tw[k][0]) for k in ("x", "px", "y", "py", "t", "pt")
+            ]
+        except (KeyError, AttributeError, TypeError, IndexError) as e:
+            warn(f"MAD-X closed orbit unavailable for {self.objectname}: {e}")
+
+    def read_closed_orbit(self):
+        """Closed orbit from the first row of the periodic ``TWISS`` table."""
+        orbit = self.model_twiss_orbit
+        return None if orbit is None else np.asarray(orbit, dtype=float)
+
+    def read_optics_summary(self) -> dict:
+        """What :meth:`_collect_optics_summary` gathered during the run."""
+        return self.optics_summary or {}
+
+    def read_one_turn_map(self):
+        """
+        Product ``R_n @ ... @ R_1`` of the sector maps from :meth:`_collect_sector_maps`.
+
+        Multiplying across segments assumes one reference momentum for the line.
+
+        Returns
+        -------
+        numpy.ndarray | None
+            The 6x6 map, or None if no sector maps were collected.
+        """
+        if not self.sector_maps:
+            return None
+        total = np.eye(6)
+        for matrix in self.sector_maps:
+            total = matrix @ total
+        return total
+
+    def model_twiss_segment(
+        self,
+        madx: Any,
+        seqname: str,
+        init: Dict,
+    ) -> Dict:
+        """
+        Run ``TWISS`` on a segment (periodic if :attr:`periodic`), adding per-element
+        data to :attr:`model_twiss`.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        seqname: str
+            Segment sequence name
+        init: Dict
+            Initial conditions (betx, alfx, bety, alfy, dx, dpx, dy, dpy, mux, muy)
+
+        Returns
+        -------
+        Dict
+            Initial conditions for the next segment
+        """
+        try:
+            if self.periodic:
+                table = f"smap_{seqname}"
+                madx.input(
+                    "select, flag=sectormap, full;\n"
+                    f"twiss, sequence={seqname}, sectormap, sectortable={table};"
+                )
+                self._collect_sector_maps(madx, table)
+                self._collect_optics_summary(madx)
+                self._collect_closed_orbit(madx)
+            else:
+                madx.input(
+                    f"twiss, sequence={seqname}, betx={init['betx']}, alfx={init['alfx']}, "
+                    f"bety={init['bety']}, alfy={init['alfy']}, dx={init['dx']}, "
+                    f"dpx={init['dpx']}, dy={init['dy']}, dpy={init['dpy']};"
+                )
+            tw = madx.table.twiss
+            names = [str(n).split(":")[0].lower() for n in tw["name"]]
+            if len(names) == 0 or not names[0].startswith(seqname.lower()):
+                raise ValueError(f"twiss table does not match segment {seqname}")
+            data = {
+                k: np.array(tw[k])
+                for k in ["s", "betx", "alfx", "bety", "alfy", "dx", "dpx", "dy", "dpy", "mux", "muy"]
+            }
+        except Exception as e:
+            warn(f"MAD-X twiss failed for {seqname}: {e}")
+            return init
+        for i, name in enumerate(names):
+            self.model_twiss[name] = {
+                "betx": data["betx"][i],
+                "alfx": data["alfx"][i],
+                "bety": data["bety"][i],
+                "alfy": data["alfy"][i],
+                "dx": data["dx"][i],
+                "dpx": data["dpx"][i],
+                "dy": data["dy"][i],
+                "dpy": data["dpy"][i],
+                "mux": data["mux"][i] + init["mux"],
+                "muy": data["muy"][i] + init["muy"],
+            }
+        return {
+            "betx": data["betx"][-1],
+            "alfx": data["alfx"][-1],
+            "bety": data["bety"][-1],
+            "alfy": data["alfy"][-1],
+            "dx": data["dx"][-1],
+            "dpx": data["dpx"][-1],
+            "dy": data["dy"][-1],
+            "dpy": data["dpy"][-1],
+            "mux": data["mux"][-1] + init["mux"],
+            "muy": data["muy"][-1] + init["muy"],
+        }
+
+    def initial_twiss_conditions(self, bm: rbf.beam) -> Dict:
+        """Initial Twiss conditions for the model Twiss, from the beam"""
+        try:
+            return {
+                "betx": float(bm.twiss.beta_x_corrected),
+                "alfx": float(bm.twiss.alpha_x_corrected),
+                "bety": float(bm.twiss.beta_y_corrected),
+                "alfy": float(bm.twiss.alpha_y_corrected),
+                "dx": 0.0,
+                "dpx": 0.0,
+                "dy": 0.0,
+                "dpy": 0.0,
+                "mux": 0.0,
+                "muy": 0.0,
+            }
+        except Exception:
+            return {
+                "betx": 1.0,
+                "alfx": 0.0,
+                "bety": 1.0,
+                "alfy": 0.0,
+                "dx": 0.0,
+                "dpx": 0.0,
+                "dy": 0.0,
+                "dpy": 0.0,
+                "mux": 0.0,
+                "muy": 0.0,
+            }
+
+    @staticmethod
+    def rescale_twiss_init(init: Dict, ratio: float) -> Dict:
+        """
+        Rescale canonical Twiss functions to a new reference momentum
+        (``ratio`` = p0c_new / p0c_old), as at each segment boundary.
+        """
+        if not np.isfinite(ratio) or ratio <= 0:
+            return init
+        out = dict(init)
+        for key in ("betx", "bety", "dx", "dy"):
+            out[key] = init[key] * ratio
+        return out
+
+    def store_beam_data(
+        self,
+        name: str,
+        bm: rbf.beam,
+        spos: float,
+        zpos: float,
+        turn: int | None = None,
+    ) -> None:
+        """
+        Store beam statistics at an observation point in :attr:`beam_data`.
+
+        Parameters
+        ----------
+        name: str
+            Element name
+        bm: :class:`~simba.Modules.Beams.beam`
+            The beam
+        spos: float
+            s-position [m]
+        zpos: float
+            z-position [m]
+        turn: int, optional
+            Turn number; keys each turn separately via :meth:`output_basename`
+        """
+        name = self.output_basename(name, turn=turn)
+        try:
+            eta_x = float(bm.twiss.eta_x)
+            eta_xp = float(bm.twiss.eta_xp)
+            eta_y = float(bm.twiss.eta_y)
+            eta_yp = float(bm.twiss.eta_yp)
+        except Exception:
+            eta_x = eta_xp = eta_y = eta_yp = 0.0
+        self.beam_data[name] = {
+            "s": spos,
+            "z": zpos,
+            "t": float(np.mean(bm.t.val)),
+            "cp": float(np.mean(bm.cp.val)),
+            "sigma_x": float(bm.sigmas.sigma_x),
+            "sigma_y": float(bm.sigmas.sigma_y),
+            "sigma_xp": float(bm.sigmas.sigma_xp) if hasattr(bm.sigmas, "sigma_xp") else float(np.std(bm.xp.val)),
+            "sigma_yp": float(bm.sigmas.sigma_yp) if hasattr(bm.sigmas, "sigma_yp") else float(np.std(bm.yp.val)),
+            "sigma_t": float(bm.sigmas.sigma_t),
+            "sigma_z": float(bm.sigmas.sigma_z),
+            "sigma_cp": float(bm.sigmas.sigma_cp_eV),
+            "mean_x": float(np.mean(bm.x.val)),
+            "mean_y": float(np.mean(bm.y.val)),
+            "ex": float(bm.emittance.ex),
+            "ey": float(bm.emittance.ey),
+            "enx": float(bm.emittance.enx),
+            "eny": float(bm.emittance.eny),
+            "ecnx": float(bm.emittance.ecnx),
+            "ecny": float(bm.emittance.ecny),
+            "beta_x_beam": float(bm.twiss.beta_x_corrected),
+            "alpha_x_beam": float(bm.twiss.alpha_x_corrected),
+            "beta_y_beam": float(bm.twiss.beta_y_corrected),
+            "alpha_y_beam": float(bm.twiss.alpha_y_corrected),
+            "eta_x_beam": eta_x,
+            "eta_xp_beam": eta_xp,
+            "eta_y_beam": eta_y,
+            "eta_yp_beam": eta_yp,
+        }
+
+    def write_output_beam(
+        self, name: str, bm: rbf.beam, turn: int | None = None
+    ) -> None:
+        """
+        Write a beam with :meth:`write_beam_file` and keep it in :attr:`output_beams`.
+
+        Parameters
+        ----------
+        name: str
+            Element name
+        bm: :class:`~simba.Modules.Beams.beam`
+            The beam
+        turn: int, optional
+            Turn number
+        """
+        if not self.writes_output(name):
+            return
+        bm.turn = self.beam_turn(turn)
+        self.write_beam_file(bm, name, turn)
+        self.output_beams[self.output_basename(name, turn=turn)] = bm
+
+    def run(self) -> None:
+        """
+        Track through all segments in a fresh MAD-X session; see :meth:`run_segments`.
+        """
+        if len(self.seqstrings) == 0:
+            self.writeElements()
+        self.beam_data = {}
+        self.model_twiss = {}
+        self.output_beams = {}
+        self.sector_maps = []
+        self.model_twiss_orbit = None
+        self._thin_sequences = set()
+        self.warn_if_coarsely_sliced()
+        madx = self.start_madx()
+        self._madx = madx
+        try:
+            self.run_segments(madx)
+        finally:
+            self.stop_madx(madx)
+            self._madx = None
+
+    @staticmethod
+    def program_variable(program) -> str:
+        """The MAD-X variable :meth:`bind_programs` ties a program's attribute to."""
+        return f"{sanitize_string(program.element).lower()}_simba_program"
+
+    def apply_programs(self, turn: int) -> None:
+        """
+        Set each program's :meth:`program_variable` for `turn`; see
+        :attr:`supports_programs`.
+
+        Parameters
+        ----------
+        turn: int
+            Turn number, 1-based
+        """
+        madx = getattr(self, "_madx", None)
+        if madx is None:
+            return
+        for program in self.programs:
+            variable = self.program_variable(program)
+            before = madx.globals.get(f"{variable}_lattice")
+            madx.input(f"{variable} = {float(program.value_at(turn, before))!r};")
+
+    def bind_programs(self, madx: Any, segnames: List) -> None:
+        """
+        Tie each programmed attribute of the segment just defined to its
+        :meth:`program_variable`, before ``MAKETHIN``.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        segnames: list
+            The segment's element names
+        """
+        here = {sanitize_string(name).lower() for name in segnames}
+        for program in self.programs:
+            name = sanitize_string(program.element).lower()
+            if name not in here:
+                continue
+            element = madx.elements.get(name)
+            etype = (
+                None if element is None
+                else getattr(element.base_type, "name", "").lower()
+            )
+            if etype == "multipole" and not program.parameter:
+                warn(
+                    f"{self.objectname} programs '{program.element}', a MAD-X "
+                    "multipole. MAD-X takes a multipole's KNL[0] and KSL[0] as "
+                    "the reference's own bend, so it kicks nothing, and the "
+                    "program is not applied. Use a kicker."
+                )
+                continue
+            attribute = self.program_attribute(program, etype)
+            if attribute is None:
+                continue
+            variable = self.program_variable(program)
+            if attribute.lower() in ("knl", "ksl"):
+                # the program is the dipole order; keep the rest as they are
+                lattice, *higher = list(getattr(element, attribute.lower())) or [0.0]
+                expression = "{" + ", ".join(
+                    [variable] + [repr(float(value)) for value in higher]
+                ) + "}"
+            else:
+                lattice = getattr(element, attribute.lower(), 0.0)
+                expression = variable
+            # apply_programs holds the element here until the first knot, but
+            # set turn 1 now: its apply_programs ran before this segment existed
+            madx.input(f"{variable}_lattice = {float(lattice)!r};")
+            madx.input(f"{variable} = {float(program.value_at(1, lattice))!r};")
+            madx.input(f"{name}, {attribute}:={expression};")
+
+    def check_programs_present(self) -> None:
+        """Warn for each program whose element is in no segment of this line."""
+        names = {
+            sanitize_string(name).lower()
+            for segnames in self.segments
+            for name in segnames
+        }
+        for program in self.programs:
+            if sanitize_string(program.element).lower() not in names:
+                self.program_attribute(program, None)
+
+    def cavity_phase(self, name: str) -> float | None:
+        """
+        A cavity's ``LAG`` [turns] once MAD-X is running; see :meth:`apply_rf_phases`.
+        """
+        madx = getattr(self, "_madx", None)
+        if madx is None:
+            return None
+        cavity = madx.elements.get(sanitize_string(name).lower())
+        return None if cavity is None else float(cavity.lag)
+
+    def set_cavity_phase(self, name: str, phase: float) -> None:
+        """Set a cavity's ``LAG``, in turns."""
+        self._madx.input(f"{sanitize_string(name).lower()}->lag = {float(phase)!r};")
+
+    @property
+    def use_native_turns(self) -> bool:
+        """
+        Whether the whole multi-turn run can be one MAD-X ``RUN``.
+
+        Not with more than one segment, programs, a ramp, RF phase corrections,
+        single-particle mode, or ``native_turns: false`` (in the ``tracking`` block,
+        else :attr:`native_turns`), all of which need Python between turns.
+
+        Returns
+        -------
+        bool
+            True if :meth:`run_segments_native` should be used
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return bool(
+            tracking.get("native_turns", self.native_turns)
+            and self.turns * self.passes_per_turn > 1
+            and len(self.segments) == 1
+            and not self.programs
+            and not self.ramped
+            and not self.single_particle
+            and not self.rf_phase_corrections()
+        )
+
+    def ring_reference(self, pass_index: int, s: float) -> tuple | None:
+        """
+        ``(p0c, tbar)`` from the reference clock for a segment starting at ``s``.
+
+        Parameters
+        ----------
+        pass_index: int
+            0-based pass
+        s: float
+            Segment start from the lattice entrance [m]
+
+        Returns
+        -------
+        tuple | None
+            ``(p0c, tbar)`` in eV/c and s, or None without a reference clock
+        """
+        if not self.uses_reference_clock:
+            return None
+        p0c = float(self.reference_clock[3][pass_index])
+        return p0c, self.reference_time(s, pass_index)
+
+    def run_segments(self, madx: Any) -> None:
+        """
+        Track through each segment, once per turn, or hand off to
+        :meth:`run_segments_native` if :attr:`use_native_turns`.
+        """
+        if self.use_native_turns:
+            return self.run_segments_native(madx)
+        self.check_programs_present()
+        sstart_lattice = self.entrance_s
+        current_beam = deepcopy(self.pin)
+        ref_idx = current_beam.reference_particle_index
+        charge_total = abs(np.sum(np.array(current_beam.charge.val)))
+        twiss_init = self.initial_twiss_conditions(current_beam)
+
+        # store the beam data at the entrance of the lattice
+        self.segment_p0c[self.start] = self.reference_p0c
+        self.store_beam_data(
+            self.start,
+            current_beam,
+            self._sval_in[self.segments[0][0]] + sstart_lattice,
+            self.startObject.physical.start.z,
+        )
+
+        # what one pass hands the next
+        state = [current_beam, charge_total, ref_idx, twiss_init, None]
+
+        def track_pass(turn, pass_index, name_turn, record):
+            state[:] = self.track_one_turn(
+                madx, *state, sstart_lattice,
+                name_turn=name_turn, record=record, turn=turn, pass_index=pass_index,
+            )
+
+        self.run_turns(track_pass)
+        current_beam, charge_total, ref_idx, twiss_init, p0c_prev = state
+
+        self.pout = current_beam
+        # store/write the final beam at the end of the line
+        endname = self.end
+        endelem = self._elements_with_drifts[self.segments[-1][-1]]
+        self.segment_p0c.setdefault(endname, p0c_prev)
+        self.store_beam_data(
+            endname,
+            current_beam,
+            self._sval_out[self.segments[-1][-1]] + sstart_lattice,
+            endelem.physical.end.z,
+        )
+        self.write_output_beam(endname, current_beam)
+
+    def run_segments_native(self, madx: Any) -> None:
+        """
+        Track the whole multi-turn run in one MAD-X ``RUN``.
+        """
+        sstart_lattice = self.entrance_s
+        current_beam = deepcopy(self.pin)
+        npart = len(current_beam.x.val)
+        ref_idx = current_beam.reference_particle_index
+        charge_total = abs(np.sum(np.array(current_beam.charge.val)))
+        charge_per_particle = charge_total / npart
+        if self.uses_reference_clock:
+            # the line's reference, as the segment loop's (`ring_reference`)
+            p0c = float(self.reference_clock[3][0])
+        else:
+            p0c = self.reference_p0c
+
+        segnames = self.segments[0]
+        seqname = self.segment_name(0)
+        seg_s0 = self._sval_in[segnames[0]]
+        seg_len = self._sval_out[segnames[-1]] - seg_s0
+        for nm in segnames:
+            self.segment_p0c[nm] = p0c
+        self.segment_p0c[self.start] = p0c
+
+        # store the beam data at the entrance of the lattice
+        self.store_beam_data(
+            self.start,
+            current_beam,
+            seg_s0 + sstart_lattice,
+            self.startObject.physical.start.z,
+        )
+
+        self.input_segment(madx, 0, p0c)
+        self.madx_beam_command(madx, p0c, seqname)
+        madx.use(sequence=seqname)
+        if self.write_model_twiss:
+            self.apply_alignment(madx, seqname, thick=True)
+            self.model_twiss_segment(
+                madx, seqname, self.initial_twiss_conditions(current_beam)
+            )
+        self.makethin(madx, seqname)
+        self._thin_sequences.add(seqname)
+
+        passes = self.passes_per_turn
+        total = self.turns * passes
+        clock = self.uses_reference_clock
+        coords = current_beam.beam_to_madx_coords(
+            p0c, self.reference_time(seg_s0) if clock else self.reference_t0
+        )
+        tbar0 = coords["tbar"]
+        observe = self.observation_points(segnames)
+        if getattr(self, "verbose", False):
+            print(
+                f"MADX [{self.objectname}] native: {total} turns in one RUN, "
+                f"p0c = {p0c / 1e6:.3f} MeV/c"
+            )
+        trackdata = self.run_track(
+            madx,
+            coords,
+            observe,
+            turns=total,
+            ffile=passes if self.write_turns else total,
+        )
+
+        endelem = self._elements_with_drifts[segnames[-1]]
+        for data_turn, name_turn in self.output_turns():
+            madx_turn = self.beam_turn(data_turn) * passes
+            if clock:
+                tbar = self.reference_time(seg_s0, madx_turn - 1)
+            else:
+                tbar = tbar0 + (madx_turn - 1) * seg_len / (
+                    coords["beta0"] * speed_of_light
+                )
+            for name, s_local in observe:
+                data = self.extract_observation(trackdata, s_local, turn=madx_turn)
+                if len(data["x"]) == 0:
+                    warn(f"MADX: no particles recorded at {name}")
+                    continue
+                elem = self._elements_with_drifts[name]
+                spos = seg_s0 + s_local + sstart_lattice
+                bm = self.pin.madx_coords_to_beam(
+                    data, p0c, tbar, s_local, elem.physical.middle.z, spos,
+                    charge_per_particle * len(data["x"]),
+                    ref_index=self.reference_index(data["number"], ref_idx),
+                )
+                self.store_beam_data(
+                    name, bm, spos, elem.physical.middle.z, turn=name_turn
+                )
+                # the end of the line is written once more below, from the
+                # last turn; see `track_segment_beam` for the same guard
+                if name != self.end or name_turn is not None:
+                    self.write_output_beam(name, bm, turn=name_turn)
+
+            data = self.extract_observation(trackdata, seg_len, turn=madx_turn)
+            if len(data["x"]) == 0:
+                warn(f"MADX: no particles recorded at the end of turn {madx_turn}")
+                continue
+            segend_s = self._sval_out[segnames[-1]] + sstart_lattice
+            bm = self.pin.madx_coords_to_beam(
+                data, p0c, tbar, seg_len, endelem.physical.end.z, segend_s,
+                charge_per_particle * len(data["x"]),
+                ref_index=self.reference_index(data["number"], ref_idx),
+            )
+            if self.output_basename(segnames[-1], turn=name_turn) not in self.beam_data:
+                self.store_beam_data(
+                    segnames[-1], bm, segend_s, endelem.physical.end.z,
+                    turn=name_turn,
+                )
+            current_beam = bm
+
+        nlost = npart - len(current_beam.x.val)
+        if nlost > 0:
+            warn(f"MADX: {nlost} particles lost over {total} turns")
+
+        self.pout = current_beam
+        endname = self.end
+        self.segment_p0c.setdefault(endname, p0c)
+        self.store_beam_data(
+            endname,
+            current_beam,
+            self._sval_out[segnames[-1]] + sstart_lattice,
+            endelem.physical.end.z,
+        )
+        self.write_output_beam(endname, current_beam)
+
+    def track_one_turn(
+        self,
+        madx: Any,
+        current_beam: rbf.beam,
+        charge_total: float,
+        ref_idx: int,
+        twiss_init: Any,
+        p0c_prev: float | None,
+        sstart_lattice: float,
+        name_turn: int | None = None,
+        record: bool = True,
+        turn: int = 1,
+        pass_index: int = 0,
+    ) -> tuple:
+        """
+        One sweep through every segment (one turn); the body of :meth:`run_segments`.
+
+        Parameters
+        ----------
+        madx: cpymad.madx.Madx
+            The MAD-X instance
+        current_beam: :class:`~simba.Modules.Beams.beam`
+            Beam entering the turn
+        charge_total: float
+            Beam charge [C]
+        ref_idx: int
+            Reference particle index
+        twiss_init: Any
+            Initial model Twiss conditions
+        p0c_prev: float, optional
+            Previous segment's reference momentum [eV/c]
+        sstart_lattice: float
+            Lattice entrance s [m]
+        name_turn: int, optional
+            Turn suffix for output names, from :meth:`output_turns`
+        record: bool
+            Whether to store and write this turn's diagnostics
+        turn: int
+            Turn number, 1-based
+        pass_index: int
+            0-based pass; see :meth:`ring_reference`
+
+        Returns
+        -------
+        tuple
+            ``(beam, charge_total, ref_idx, twiss_init, p0c)`` for the next turn
+        """
+        for iseg, segnames in enumerate(self.segments):
+            seqname = self.segment_name(iseg)
+            seg_s0 = self._sval_in[segnames[0]]
+            seg_s1 = self._sval_out[segnames[-1]]
+            seg_len = seg_s1 - seg_s0
+            reference = self.ring_reference(pass_index, seg_s0)
+            if reference is None and iseg == 0 and pass_index == 0:
+                p0c, tbar = self.reference_p0c, self.reference_t0
+            elif reference is None:
+                p0c, tbar = float(np.mean(current_beam.cp.val)), None
+            else:
+                p0c, tbar = reference
+            if p0c_prev is not None and p0c_prev > 0:
+                twiss_init = self.rescale_twiss_init(twiss_init, p0c / p0c_prev)
+            p0c_prev = p0c
+            for nm in segnames:
+                self.segment_p0c[nm] = p0c
+            if getattr(self, "verbose", False):
+                print(
+                    f"MADX [{self.objectname}] segment {iseg + 1}/{len(self.segments)}: "
+                    f"s = {seg_s0:.3f} -> {seg_s1:.3f} m, p0c = {p0c / 1e6:.3f} MeV/c"
+                )
+            if seqname in self._thin_sequences:
+                self.madx_beam_command(madx, p0c, seqname)
+                madx.use(sequence=seqname)
+                self.apply_alignment(madx, seqname)
+            else:
+                self.input_segment(madx, iseg, p0c)
+                self.bind_programs(madx, segnames)
+                self.madx_beam_command(madx, p0c, seqname)
+                madx.use(sequence=seqname)
+                # the first pass meets every segment unsliced
+                if self.write_model_twiss and pass_index == 0:
+                    self.apply_alignment(madx, seqname, thick=True)
+                    twiss_init = self.model_twiss_segment(madx, seqname, twiss_init)
+                self.makethin(madx, seqname)
+                self._thin_sequences.add(seqname)
+
+            if self.single_particle:
+                current_beam = self.track_segment_single_particle(
+                    madx, current_beam, p0c, seg_len, segnames,
+                    seg_s0, sstart_lattice, name_turn=name_turn, record=record,
+                    tbar=tbar,
+                )
+                endkey = self.output_basename(segnames[-1], turn=name_turn)
+                if record and endkey not in self.beam_data:
+                    endelem = self._elements_with_drifts[segnames[-1]]
+                    self.store_beam_data(
+                        segnames[-1],
+                        current_beam,
+                        seg_s1 + sstart_lattice,
+                        endelem.physical.end.z,
+                        turn=name_turn,
+                    )
+            else:
+                current_beam = self.track_segment_beam(
+                    madx,
+                    current_beam,
+                    p0c,
+                    segnames,
+                    seg_s0,
+                    seg_len,
+                    sstart_lattice,
+                    charge_total,
+                    ref_idx,
+                    name_turn=name_turn,
+                    record=record,
+                    tbar=tbar,
+                )
+                charge_total = abs(np.sum(np.array(current_beam.charge.val)))
+                ref_idx = current_beam.reference_particle_index
+
+        return current_beam, charge_total, ref_idx, twiss_init, p0c_prev
+
+    def track_segment_beam(
+        self,
+        madx: Any,
+        current_beam: rbf.beam,
+        p0c: float,
+        segnames: List,
+        seg_s0: float,
+        seg_len: float,
+        sstart_lattice: float,
+        charge_total: float,
+        ref_idx: int,
+        name_turn: int | None = None,
+        record: bool = True,
+        tbar: float | None = None,
+    ) -> rbf.beam:
+        """
+        Track every particle through one segment, recording each diagnostic.
+
+        ``name_turn``/``record`` are as :meth:`track_one_turn`; ``tbar`` is the
+        reference time from :meth:`ring_reference`, or the bunch mean if None.
+
+        Returns
+        -------
+        :class:`~simba.Modules.Beams.beam`
+            The beam at the end of the segment
+        """
+        npart = len(current_beam.x.val)
+        coords = current_beam.beam_to_madx_coords(p0c, tbar=tbar)
+        tbar0 = coords["tbar"]
+        observe = self.observation_points(segnames)
+        trackdata = self.run_track(madx, coords, observe)
+        charge_per_particle = charge_total / npart
+
+        for name, s_local in observe:
+            if not record:
+                continue
+            data = self.extract_observation(trackdata, s_local)
+            if len(data["x"]) == 0:
+                warn(f"MADX: no particles recorded at {name}")
+                continue
+            elem = self._elements_with_drifts[name]
+            spos = seg_s0 + s_local + sstart_lattice
+            bm = self.pin.madx_coords_to_beam(
+                data,
+                p0c,
+                tbar0,
+                s_local,
+                elem.physical.middle.z,
+                spos,
+                charge_per_particle * len(data["x"]),
+                ref_index=self.reference_index(data["number"], ref_idx),
+            )
+            self.store_beam_data(
+                name, bm, spos, elem.physical.middle.z, turn=name_turn
+            )
+            if name != self.end or name_turn is not None:
+                self.write_output_beam(name, bm, turn=name_turn)
+
+        data = self.extract_observation(trackdata, seg_len)
+        nlost = npart - len(data["x"])
+        if nlost > 0:
+            warn(f"MADX: {nlost} particles lost in segment")
+        endelem = self._elements_with_drifts[segnames[-1]]
+        newref = self.reference_index(data["number"], ref_idx)
+        segend_s = self._sval_out[segnames[-1]] + sstart_lattice
+        bm = self.pin.madx_coords_to_beam(
+            data,
+            p0c,
+            tbar0,
+            seg_len,
+            endelem.physical.end.z,
+            segend_s,
+            charge_per_particle * len(data["x"]),
+            ref_index=newref,
+        )
+        endkey = self.output_basename(segnames[-1], turn=name_turn)
+        if record and endkey not in self.beam_data:
+            self.store_beam_data(
+                segnames[-1], bm, segend_s, endelem.physical.end.z,
+                turn=name_turn,
+            )
+        return bm
+
+    def reference_index(self, numbers: np.ndarray, ref_idx: int) -> int:
+        """
+        Index of the reference particle among the survivors, by MAD-X ``number``.
+        """
+        if ref_idx is None:
+            return None
+        target = int(ref_idx) + 1  # MAD-X numbers particles from 1
+        idx = np.where(np.array(numbers).astype(int) == target)[0]
+        if len(idx) == 0:
+            return None
+        return int(idx[0])
+
+    def track_segment_single_particle(
+        self,
+        madx: Any,
+        current_beam: rbf.beam,
+        p0c: float,
+        seg_len: float,
+        segnames: List,
+        seg_s0: float,
+        sstart_lattice: float,
+        name_turn: int | None = None,
+        record: bool = True,
+        tbar: float | None = None,
+    ) -> rbf.beam:
+        """
+        Track the centroid and 12 probes through one segment and apply the
+        finite-difference map to the distribution.
+
+        Returns
+        -------
+        :class:`~simba.Modules.Beams.beam`
+            The (transformed) beam at the end of the segment
+        """
+        from ...Modules.Matrices import (
+            map_from_probes,
+            probe_grid,
+            transform_distribution,
+        )
+
+        keys = ["x", "px", "y", "py", "t", "pt"]
+        coords = current_beam.beam_to_madx_coords(p0c, tbar=tbar)
+        tbar0 = coords["tbar"]
+        zin = np.array([coords[k] for k in keys])
+        centroid = np.mean(zin, axis=1)
+        delta = abs(self.fd_delta)
+        probes = probe_grid(centroid, delta)
+        probecoords = {k: probes[i] for i, k in enumerate(keys)}
+        charge_total = abs(np.sum(np.array(current_beam.charge.val)))
+        ref_index = current_beam.reference_particle_index
+        observe = self.observation_points(segnames)
+        trackdata = self.run_track(madx, probecoords, observe)
+
+        def transformed_beam_at(s_local: float, zpos: float, spos: float):
+            """Distribution mapped to ``s_local``, or None if a probe was lost."""
+            data = self.extract_observation(trackdata, s_local)
+            if len(data["x"]) != 13:
+                return None
+            centroid_out, rmatrix = map_from_probes(
+                np.array([data[k] for k in keys]), delta
+            )
+            if rmatrix is None:
+                return None
+            transformed = transform_distribution(
+                zin, centroid, centroid_out, rmatrix
+            )
+            newcoords = {k: transformed[i] for i, k in enumerate(keys)}
+            return self.pin.madx_coords_to_beam(
+                newcoords, p0c, tbar0, s_local, zpos, spos, charge_total,
+                ref_index=ref_index,
+            )
+
+        for name, s_local in observe:
+            if not record:
+                continue
+            elem = self._elements_with_drifts[name]
+            spos = seg_s0 + s_local + sstart_lattice
+            bm = transformed_beam_at(s_local, elem.physical.middle.z, spos)
+            if bm is None:
+                warn(f"MADX single-particle: probe particles lost at {name}")
+                continue
+            self.store_beam_data(
+                name, bm, spos, elem.physical.middle.z, turn=name_turn
+            )
+            if name != self.end or name_turn is not None:
+                self.write_output_beam(name, bm, turn=name_turn)
+
+        endelem = self._elements_with_drifts[segnames[-1]]
+        bm_end = transformed_beam_at(
+            seg_len,
+            endelem.physical.end.z,
+            self._sval_out[segnames[-1]] + sstart_lattice,
+        )
+        if bm_end is None:
+            raise RuntimeError(
+                "MADX single-particle tracking lost probe particles at the "
+                "segment end"
+            )
+        return bm_end
+
+    def postProcess(self) -> None:
+        """
+        Write beam statistics and model Twiss to ``<name>_twiss.madx.hdf5``.
+        """
+        super().postProcess()
+        if len(self.beam_data) == 0:
+            warn("MADX: no tracking data to post-process")
+            return
+        m0 = self.rest_energy
+        rows = sorted(self.beam_data.items(), key=lambda kv: kv[1]["s"])
+        twsdat = {
+            "element_name": np.array([name for name, _ in rows], dtype="S"),
+            "lattice_name": np.array([self.objectname for _ in rows], dtype="S"),
+        }
+        for key in [
+            "s", "z", "t", "cp", "sigma_x", "sigma_y", "sigma_xp", "sigma_yp",
+            "sigma_t", "sigma_z", "sigma_cp", "mean_x", "mean_y", "enx", "eny",
+            "ex", "ey", "ecnx", "ecny", "beta_x_beam", "alpha_x_beam",
+            "beta_y_beam", "alpha_y_beam", "eta_x_beam", "eta_xp_beam",
+            "eta_y_beam", "eta_yp_beam",
+        ]:
+            twsdat[key] = np.array([d[key] for _, d in rows])
+        cp = twsdat["cp"]
+        E = np.sqrt(cp**2 + m0**2)
+        twsdat["kinetic_energy"] = E - m0
+        twsdat["gamma"] = E / m0
+        twsdat["p"] = cp * elementary_charge / speed_of_light
+        twsdat["mean_cp"] = cp
+        twsdat["sigma_p"] = twsdat["sigma_cp"] / cp
+        twsdat["enz"] = np.zeros(len(rows))
+        twsdat["ez"] = np.zeros(len(rows))
+        twsdat["beta_z"] = np.zeros(len(rows))
+        twsdat["alpha_z"] = np.zeros(len(rows))
+        twsdat["gamma_z"] = np.zeros(len(rows))
+        model_keys = {
+            "beta_x": ("betx", "beta_x_beam"),
+            "alpha_x": ("alfx", "alpha_x_beam"),
+            "beta_y": ("bety", "beta_y_beam"),
+            "alpha_y": ("alfy", "alpha_y_beam"),
+            "eta_x": ("dx", "eta_x_beam"),
+            "eta_xp": ("dpx", "eta_xp_beam"),
+            "eta_y": ("dy", "eta_y_beam"),
+            "eta_yp": ("dpy", "eta_yp_beam"),
+            "mux": ("mux", None),
+            "muy": ("muy", None),
+        }
+        scale = np.array(
+            [
+                d["cp"] / self.segment_p0c[name]
+                if self.segment_p0c.get(name, 0) > 0
+                else 1.0
+                for name, d in rows
+            ]
+        )
+        canonical_scaling = {"beta_x", "beta_y", "eta_x", "eta_y"}
+        for key, (mkey, fallback) in model_keys.items():
+            vals = []
+            for i, (name, d) in enumerate(rows):
+                mname = sanitize_string(name).lower()
+                if mname in self.model_twiss:
+                    val = self.model_twiss[mname][mkey]
+                    if key in canonical_scaling:
+                        val = val * scale[i]
+                    vals.append(val)
+                elif fallback is not None:
+                    vals.append(d[fallback])
+                else:
+                    vals.append(0.0)
+            twsdat[key] = np.array(vals)
+        twsdat["gamma_x"] = (1 + twsdat["alpha_x"] ** 2) / twsdat["beta_x"]
+        twsdat["gamma_y"] = (1 + twsdat["alpha_y"] ** 2) / twsdat["beta_y"]
+        self.tws = twsdat
+        save_madx_twiss_hdf(
+            self,
+            filename=(
+                f'{self.global_parameters["master_subdir"]}/'
+                f"{self.objectname}_twiss.madx.hdf5"
+            ),
+            twiss=twsdat,
+        )
+        endfile = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{self.output_basename(self.end)}.openpmd.hdf5",
+        )
+        if os.path.isfile(endfile):
+            rbf.openpmd.read_openpmd_beam_file(
+                self.global_parameters["beam"], endfile
+            )

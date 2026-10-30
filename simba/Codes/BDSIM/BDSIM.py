@@ -13,15 +13,18 @@ Classes:
 
 """
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 
+import math
 import os
 import numpy as np
-from typing import Any
+from typing import Any, ClassVar
 from warnings import warn
 from pybdsim.Run import Bdsim, RebdsimOptics
 from pybdsim.Beam import Beam
+from pybdsim.Options import Options
 
 BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 """BDSIM particle names, keyed by the SIMBA particle index returned by
@@ -29,6 +32,21 @@ BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 
 Index 4 is H-, which BDSIM has no built-in name for (it would need a PDG ion
 id), so it is deliberately absent rather than mapped to ``antiproton``."""
+
+TURN_PAD = 1e-6
+"""Length [m] of the drift that keeps the samplers off BDSIM's terminator; see
+:meth:`bdsimLattice.close_ring`."""
+
+BDSIM_INTEGRATOR_SETS = frozenset(
+    {"bdsimmatrix", "bdsimmatrixfringescaling", "bdsimone", "bdsimtwo", "geant4", "geant4dp"}
+)
+"""BDSIM's ``integratorSet`` names. LAURA negates quadrupole ``k1`` for a negative
+beam in the ``bdsim*`` sets only, whose quadrupole scales by ``|brho|``."""
+
+BDSIM_MATRIX_INTEGRATOR_SETS = frozenset({"bdsimmatrix", "bdsimmatrixfringescaling"})
+"""Sets whose bends leave path length out of the arrival time (measured with BDSIM
+1.7.7), so z does not change through dispersion; see
+:class:`~simba.exceptions.BunchLengthWarning`."""
 
 
 class bdsimLattice(frameworkLattice):
@@ -42,6 +60,10 @@ class bdsimLattice(frameworkLattice):
     code: str = "bdsim"
     """String indicating the lattice object type"""
 
+    supports_turns: ClassVar[bool] = True
+    """Via BDSIM's circular mode (``option, circular=1, nturns=N``), whose samplers
+    record every turn with its ``turnNumber``."""
+
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
 
@@ -54,12 +76,6 @@ class bdsimLattice(frameworkLattice):
 
     particle_definition: str = None
     """Initial particle distribution as a string"""
-
-    ref_s: float = None
-    """Reference s position"""
-
-    ref_idx: int = None
-    """Reference particle index"""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -120,41 +136,89 @@ class bdsimLattice(frameworkLattice):
         beam.SetDistrFileFormat(rbf.bdsim.BDSIM_DISTRIBUTION_FORMAT)
         beam.SetEnergy(self.global_parameters["beam"].centroids.mean_energy.val, unitsstring="eV")
         self.lattice = self.section.to_bdsim(
-            save=True, beam=beam, charge_sign=self.charge_sign
+            save=True,
+            beam=beam,
+            charge_sign=self.charge_sign,
+            integrator_set=self.integrator_set,
+            Brho=self.rigidity(self.reference_p0c),
         )
+        options = {"integratorSet": f'"{self.integrator_set}"'}  # pybdsim writes values verbatim
+        if self.circular:
+            self.close_ring()
+            options.update(circular=1, nturns=self.turns)
+        self.lattice.AddOptions(Options(**options))
+        self.lattice.Write(
+            os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
+        )
+        if self.integrator_set in BDSIM_MATRIX_INTEGRATOR_SETS and any(
+            getattr(e, "hardware_type", None) == "Dipole" for e in self.elements.values()
+        ):
+            warn(exceptions.BunchLengthWarning(self.objectname, self.integrator_set))
+
+    @property
+    def integrator_set(self) -> str:
+        """
+        BDSIM's ``integratorSet`` (see :data:`BDSIM_INTEGRATOR_SETS`); ``bdsimmatrix``,
+        BDSIM's default, unless the ``tracking`` block says::
+
+            files:
+              ARC:
+                code: bdsim
+                tracking: {integrator_set: bdsimtwo}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        name = str(tracking.get("integrator_set", "bdsimmatrix")).lower()
+        if name not in BDSIM_INTEGRATOR_SETS:
+            raise ValueError(
+                f"Unknown BDSIM integrator_set {name!r}; one of {sorted(BDSIM_INTEGRATOR_SETS)}"
+            )
+        return name
+
+    @property
+    def circular(self) -> bool:
+        """
+        Whether BDSIM runs in circular mode: for more than one turn, or for a line that
+        bends through a whole turn, which would otherwise loop for ever.
+        """
+        return self.turns > 1 or abs(self.net_bend_angle) >= 2 * math.pi - 1e-6
+
+    def close_ring(self) -> None:
+        """
+        Set up BDSIM's circular mode (``option, circular=1, nturns=N``).
+
+        BDSIM puts a terminator, which counts the turns, and a teleporter, which bridges
+        the gap back to the start, after the last element. The teleporter needs a gap of
+        more than 0.03 um, and less than 1 m, along the beam, so the line must close
+        geometrically.
+
+        A sampler next to the terminator makes it count each turn twice, so a
+        :data:`TURN_PAD` drift goes after the last element. The options themselves
+        are added in :meth:`write`.
+        """
+        drifts = [
+            name for name in self.lattice.sequence
+            if self.lattice.elements[name].category == "drift"
+        ]
+        if drifts:
+            last = self.lattice.elements[drifts[-1]]
+            last["l"] = float(last["l"]) - 2 * TURN_PAD
+        self.lattice.AddDrift("BDSIM_TURN_PAD", TURN_PAD)
 
     def preProcess(self) -> None:
         """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
+        Load the input beam (see :meth:`load_input_beam`) and write it for BDSIM.
         """
         super().preProcess()
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        self.read_input_file(prefix, self.particle_definition)
-        self.ref_s = self.global_parameters["beam"].s
-        self.ref_idx = self.global_parameters["beam"].reference_particle_index
+        self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_bdsim()
 
     def hdf5_to_bdsim(self) -> None:
         """
-        Convert the initial HDF5 particle distribution to BDSIM beam input format and set
-        :attr:`~simba.Codes.Cheetah.Cheetah.cheetahLattice.pin` accordingly.
-
-        Parameters
-        ----------
-        prefix: str
-            Prefix for particle file
-        write: bool
-            Flag to indicate whether to save the file
+        Write the input beam as ``<particle_definition>.bdsim`` in BDSIM's ``userfile`` format.
         """
         bdsimbeamfilename = os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim")
-        self.global_parameters["beam"].beam.rematchXPlane(
-            **self.initial_twiss["horizontal"]
-        )
-        self.global_parameters["beam"].beam.rematchYPlane(
-            **self.initial_twiss["vertical"]
-        )
-
         rbf.bdsim.write_bdsim_beam_file(
             beam=self.global_parameters["beam"],
             filename=bdsimbeamfilename,
@@ -191,9 +255,12 @@ class bdsimLattice(frameworkLattice):
                 f"{self.global_parameters['master_subdir']}/{self.gmadname}.optics.root",
             )
 
-    def screen_function(self, name: str, arrays: dict, outname: str) -> None:
+    def screen_function(
+        self, name: str, arrays: dict, data_turn: int | None, turn: int | None, ninjected: int
+    ) -> None:
         """
-        Convert one BDSIM sampler into a SIMBA beam and write it to HDF5.
+        Convert one turn of one BDSIM sampler into a SIMBA beam and write it
+        with :meth:`write_beam_file`.
 
         Parameters
         ----------
@@ -202,9 +269,14 @@ class bdsimLattice(frameworkLattice):
         arrays: dict
             Raw sampler arrays, see
             :func:`~simba.Modules.Beams.bdsim.read_bdsim_sampler_arrays`.
-        outname: str
-            Name of the openPMD file to write.
+        data_turn, turn: int or None
+            An :meth:`output_turns` pair; ``data_turn`` picks the hits, see
+            :func:`~simba.Modules.Beams.bdsim.select_turn`.
+        ninjected: int
+            Number of particles tracked, for scaling the charge by the losses.
         """
+        if self.circular:
+            arrays = rbf.bdsim.select_turn(arrays, data_turn or 1)
         beam = rbf.beam()
         rbf.bdsim.interpret_bdsim_sampler(
             beam,
@@ -212,9 +284,11 @@ class bdsimLattice(frameworkLattice):
             charge=self.global_parameters["beam"].total_charge,
             zstart=self.startObject.physical.start.z,
             ref_index=self.ref_idx,
+            ninjected=ninjected,
         )
-        rbf.openpmd.write_openpmd_beam_file(beam, outname)
-        if name == self.end:
+        beam.turn = self.beam_turn(turn)
+        self.write_beam_file(beam, name, turn)
+        if name == self.end and beam.turn == self.turns:
             self.global_parameters["beam"] = beam
 
     def postProcess(self) -> None:
@@ -232,8 +306,12 @@ class bdsimLattice(frameworkLattice):
             self.global_parameters["master_subdir"], self.gmadname + ".root"
         )
         if not os.path.isfile(rootfile):
+            hint = (
+                "; BDSIM tracks turns only round a line that closes geometrically"
+                if self.circular else ""
+            )
             raise FileNotFoundError(
-                f"BDSIM output file {rootfile} not found; the tracking run failed"
+                f"BDSIM output file {rootfile} not found; the tracking run failed{hint}"
             )
         available = rbf.bdsim.get_bdsim_sampler_names(rootfile)
         wanted = {
@@ -250,8 +328,7 @@ class bdsimLattice(frameworkLattice):
         arrays = rbf.bdsim.read_bdsim_sampler_arrays(
             rootfile, samplers=list(wanted.values())
         )
+        ninjected = len(self.global_parameters["beam"].x)
         for name, sampler in wanted.items():
-            outname = os.path.join(
-                self.global_parameters["master_subdir"], f"{name}.openpmd.hdf5"
-            )
-            self.screen_function(name, arrays[sampler], outname)
+            for data_turn, turn in self.output_turns():
+                self.screen_function(name, arrays[sampler], data_turn, turn, ninjected)

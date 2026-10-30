@@ -4,7 +4,7 @@ Installation
 ============
 
 .. note::
-   | **SIMBA** is compatible only with python `3.10` and above.
+   | **SIMBA** is compatible only with python `3.11` and above.
    | Contact `Alex Brynes <mailto:alexander.brynes@stfc.ac.uk>`_ in case of any issues during installation / testing / etc.
 
 Cloning from Github
@@ -19,7 +19,7 @@ Clone :mod:`SIMBA` from Github:
 Install via pip
 ---------------
 
-(It is recommended to activate a ``python3.10`` (or higher) virtual environment to run :mod:`SIMBA`.)
+(It is recommended to activate a ``python3.11`` (or higher) virtual environment to run :mod:`SIMBA`.)
 
 The package and its dependencies can be installed using the following command in the :mod:`SIMBA` directory:
 
