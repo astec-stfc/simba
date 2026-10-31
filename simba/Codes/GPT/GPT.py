@@ -152,7 +152,11 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
         ):
-            self.headers["csr1d"] = GptCsr1D()
+            if self.particle_definition == "laser":
+                # csr1d cannot handle a bunch that is still being emitted from the cathode
+                warn(f"{self.objectname}: GPT starts at the cathode, so csr1d (CSR) is left out")
+            else:
+                self.headers["csr1d"] = GptCsr1D()
         self.headers["setfile"].particle_definition = self.particle_definition
         self.check_pass_rigidity(self.global_parameters["beam"].Brho)
         section = self.deck_section
