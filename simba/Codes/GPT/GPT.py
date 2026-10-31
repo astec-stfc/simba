@@ -346,7 +346,6 @@ class gptLattice(frameworkLattice):
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
-            # this line's cavities only: elementObjects holds the whole machine
             for e in self.cavities:
                 if getattr(e, "crest", None) is None:
                     continue
