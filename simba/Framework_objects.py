@@ -975,15 +975,8 @@ class frameworkLattice(BaseModel):
 
     @property
     def cavities(self) -> list:
-        """
-        Property to get all cavity elements in the lattice.
-
-        Returns
-        -------
-        list
-            A list of cavity elements in the lattice.
-        """
-        return self.getElementType("cavity")
+        """All RF cavities in the lattice."""
+        return self.getElementType("RFCavity")
 
     @property
     def solenoids(self) -> list:

@@ -388,9 +388,9 @@ class gptLattice(frameworkLattice):
 
         rest_energy = electron_mass * speed_of_light**2 / elementary_charge
         gamma_max = float(self.global_parameters["beam"].beam.centroids.mean_gamma.val) + sum(
-            abs(float(getattr(e, "field_amplitude", 0.0) or 0.0)) * float(e.physical.length)
-            for e in self.elementObjects.values()
-            if getattr(e, "crest", None) is not None and float(e.physical.start.z) < z_eval
+            abs(float(getattr(c, "field_amplitude", 0.0) or 0.0)) * float(c.physical.length)
+            for c in self.cavities  # this line's only: elementObjects holds the whole machine
+            if z_start - 1e-6 <= float(c.physical.start.z) < z_eval
         ) / rest_energy
 
         phases, energies = scan(phase_range[0], phase_range[1], step)
@@ -452,14 +452,14 @@ class gptLattice(frameworkLattice):
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
-            for n, e in self.elementObjects.items():
+            for e in self.cavities:
                 if getattr(e, "crest", None) is None:
                     continue
                 if not float(getattr(e, "field_amplitude", 0.0) or 0.0):
                     continue
                 z = float(e.physical.start.z)
                 if z0 - 1e-6 <= z <= z1 + 1e-6:
-                    names.append(n)
+                    names.append(e.name)
         ordered = sorted(names, key=lambda n: float(self.elementObjects[n].physical.start.z))
         crests = {}
         for name in ordered:
