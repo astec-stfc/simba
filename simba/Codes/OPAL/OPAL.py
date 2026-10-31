@@ -234,9 +234,10 @@ class opalLattice(frameworkLattice):
         self.file_block["charge"]["space_charge_mode"] = mode
 
     def write(self):
-        self.section.opal_headers = self.headers
-        self.section.opal_version = self.version
-        output = self.section.to_opal(
+        section = self.deck_section
+        section.opal_headers = self.headers
+        section.opal_version = self.version
+        output = section.to_opal(
             energy=self.global_parameters["beam"].centroids.mean_cpz.val / 1e6,
             breakstr=self.breakstr,
         )
@@ -398,7 +399,7 @@ class opalLattice(frameworkLattice):
             DT=self.time_step_size,
             MAXSTEPS=self.maxsteps,
             LINE=self.objectname,
-            ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
+            ZSTOP=self.local_z(self.endObject.physical.end) - self.local_z(self.startObject.physical.start),
             ZSTOP_STAGES=bounds,
         )
         self.headers["run"] = OpalRun()
@@ -406,9 +407,9 @@ class opalLattice(frameworkLattice):
         self.write()
 
     def postProcess(self):
-        start_z = self.startObject.physical.start.z
+        start_z = self.local_z(self.startObject.physical.start)
         svals = {
-            s.name: s.physical.middle.z - start_z for s in self.screens_and_bpms
+            s.name: self.local_z(s.physical.middle) - start_z for s in self.screens_and_bpms
         }
         opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
         spositions = find_opal_s_positions(opalbeamname, svals, tolerance=0.05)
@@ -416,7 +417,7 @@ class opalLattice(frameworkLattice):
             if elem.name in spositions:
                 beam = rbf.beam()
                 beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
-                zpos = elem.physical.middle.z
+                zpos = self.local_z(elem.physical.middle)
                 beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
                 beam._beam.t = UnitValue(
                     beam._beam.t.val + (zpos / speed_of_light), "s"
@@ -428,7 +429,7 @@ class opalLattice(frameworkLattice):
                 )
         beam = rbf.beam()
         beam.read_opal_beam_file(filename=opalbeamname, step=-1)
-        zpos = self.endObject.physical.end.z
+        zpos = self.local_z(self.endObject.physical.end)
         beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
         beam._beam.t = UnitValue(beam._beam.t.val + (zpos / speed_of_light), "s")
         rbf.openpmd.write_openpmd_beam_file(
@@ -477,7 +478,7 @@ class opalLattice(frameworkLattice):
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + self.particle_definition + '.opal',
-            subz=self.startObject.physical.start.z,
+            subz=self.local_z(self.startObject.physical.start),
             emitted=emitted,
         )
 
