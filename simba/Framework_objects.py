@@ -555,6 +555,11 @@ class frameworkLattice(BaseModel):
     program_attributes: ClassVar[dict] = {}
     """``(horizontal, vertical)`` attribute an unqualified program sets, per code element type; see :meth:`program_attribute`."""
 
+    local_frame: bool | None = None
+    """Write the deck in the lattice's own frame (see :meth:`to_local`) rather than world
+    coordinates, for codes that place elements by position. None means
+    on when the line starts rotated; ``local_frame`` in the file block sets it."""
+
     def model_post_init(self, __context):
         for key, value in list(self.elementObjects.items()):
             setattr(self, key, value)
@@ -576,6 +581,8 @@ class frameworkLattice(BaseModel):
             self.file_block.update({"input": {}})
         if "tw_focusing" in self.file_block:
             self._tw_focusing = bool(self.file_block["tw_focusing"])
+        if "local_frame" in self.file_block:
+            self.local_frame = bool(self.file_block["local_frame"])
         self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
@@ -584,6 +591,67 @@ class frameworkLattice(BaseModel):
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
+
+    def _frame_rotation(self) -> float:
+        """Rotation about y [rad] that takes world directions into the deck's frame."""
+        return -float(self.startObject.physical.global_rotation.theta)
+
+    @property
+    def in_local_frame(self) -> bool:
+        """Whether the deck is written in the local frame: :attr:`local_frame`, else whether the line starts rotated."""
+        if self.local_frame is not None:
+            return self.local_frame
+        return abs(self._frame_rotation()) > 1e-9
+
+    def to_local(self, point) -> np.ndarray:
+        """
+        Map a world position into the deck's frame: origin at the first element's entrance, along +z.
+
+        Parameters
+        ----------
+        point: Position | Sequence[float]
+            LAURA ``Position`` or ``(x, y, z)``
+
+        Returns
+        -------
+        np.ndarray
+            ``(x, y, z)`` in the deck's frame; unchanged if not :attr:`in_local_frame`
+        """
+        p = np.asarray(getattr(point, "array", point), dtype=float)
+        if not self.in_local_frame:
+            return p
+        physical = self.startObject.physical
+        origin = np.asarray(physical.start.array, dtype=float)
+        local = physical.rotation_matrix.T @ (p - origin)
+        return np.round(local, 9)
+
+    def local_z(self, point) -> float:
+        """z of a world position in the deck's frame (see :meth:`to_local`)."""
+        return float(self.to_local(point)[2])
+
+    @property
+    def deck_section(self) -> SectionLatticeTranslator:
+        """
+        The section as written out; in the local frame, a deep copy moved into it.
+
+        Returns
+        -------
+        SectionLatticeTranslator
+        """
+        if not self.in_local_frame:
+            return self.section
+        section = self.section.model_copy(deep=True)
+        for element in section.elements.elements.values():
+            physical = getattr(element, "physical", None)
+            if physical is None or physical.middle is None:
+                continue
+            x, y, z = self.to_local(physical.middle)
+            # a rigid move keeps s (OPAL places by it); unguarded, LAURA re-projects it onto the world trajectory
+            physical._syncing = True
+            physical.middle = Position(x=x, y=y, z=z)
+            physical._syncing = False
+            physical.global_rotation.theta += self._frame_rotation()
+        return section
 
     def _apply_collective_settings(self) -> None:
         """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block; a ring defaults CSR off."""

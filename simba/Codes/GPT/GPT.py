@@ -154,14 +154,17 @@ class gptLattice(frameworkLattice):
         ):
             self.headers["csr1d"] = GptCsr1D()
         self.headers["setfile"].particle_definition = self.particle_definition
-        self.section.gpt_headers = self.headers
         self.check_pass_rigidity(self.global_parameters["beam"].Brho)
-        return self.section.to_gpt(
-            startz=self.startObject.physical.start.z,
-            endz=self.endObject.physical.end.z,
+        section = self.deck_section
+        section.gpt_headers = self.headers
+        text = section.to_gpt(
+            startz=self.local_z(self.startObject.physical.start),
+            endz=self.local_z(self.endObject.physical.end),
             Brho=self.global_parameters["beam"].Brho,
             dtmin=self.dtmin
         )
+        self.section.gpt_screen_positions = section.gpt_screen_positions
+        return text
 
     def write(self) -> None:
         """Write :meth:`writeElements` to ``<master_subdir>/<objectname>.in``."""
@@ -188,7 +191,7 @@ class gptLattice(frameworkLattice):
             e.g. ``phi119357``
         """
         element = self.elementObjects[name]
-        zpos = float(element.physical.start.z)
+        zpos = self.local_z(element.physical.start)
         pattern = re.compile(
             r'map1D_TM\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*([-\d.eE+]+)\s*,'
             r'[^)]*?,\s*(phi\w+)\s*,'
@@ -257,8 +260,8 @@ class gptLattice(frameworkLattice):
             rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
             scan_text, count=1, flags=re.MULTILINE,
         )
-        z_eval = float(self.elementObjects[name].physical.end.z)
-        z_start = float(self.startObject.physical.start.z)
+        z_eval = self.local_z(self.elementObjects[name].physical.end)
+        z_start = self.local_z(self.startObject.physical.start)
         scan_text += (
             f'\nscreen("wcs","I",{z_eval});\n'
             f'zminmax("wcs","I",{z_start - 0.01},{z_eval + 1e-3});\n'
@@ -618,7 +621,7 @@ class gptLattice(frameworkLattice):
         rbf.gdf.write_gdf_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + gdfbeamfilename,
-            normaliseX=self.startObject.physical.middle.x,
+            normaliseX=float(self.to_local(self.startObject.physical.middle)[0]),
             cathode=cathode,
         )
         self.Brho = self.global_parameters["beam"].Brho
@@ -656,7 +659,7 @@ class gptLattice(frameworkLattice):
             rbf.gdf.read_gdf_beam_file(
                 beam,
                 os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
-                position=positions.get(screen.name, screen.physical.middle.z),
+                position=positions.get(screen.name, self.local_z(screen.physical.middle)),
                 gdfbeam=gdf,
             )
         except ValueError as exc:

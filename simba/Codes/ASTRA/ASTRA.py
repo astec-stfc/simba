@@ -22,7 +22,7 @@ from ...FrameworkHelperFunctions import expand_substitution, saveFile
 from ...Modules import Beams as rbf
 from laura.models.diagnostic import DiagnosticElement
 from laura.models.element import Screen
-from laura.models.physical import PhysicalElement, Position
+from laura.models.physical import PhysicalElement
 from laura.translator.converters.codes.astra import (
     AstraNewRun,
     AstraCharge,
@@ -88,9 +88,6 @@ class astraLattice(frameworkLattice):
     astra_headers: Dict[str, Any] = Field(default_factory=dict)
     """Headers for ASTRA input file"""
 
-    local_frame: bool | None = None
-    """Write the deck in the lattice's own frame (see :meth:`to_local`) rather than world coordinates."""
-
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
         self.starting_offset = (
@@ -107,11 +104,6 @@ class astraLattice(frameworkLattice):
             if "starting_rotation" in self.file_block
             else self.starting_rotation
         )
-
-        if "local_frame" in self.file_block:
-            self.local_frame = bool(self.file_block["local_frame"])
-        elif self.local_frame is None:
-            self.local_frame = abs(self.starting_rotation[2]) > 1e-9
 
         # Create a "newrun" block
         if "input" not in self.file_block:
@@ -269,48 +261,9 @@ class astraLattice(frameworkLattice):
         self._toffset = toffset
         self.astra_headers["newrun"].toffset = 1e9 * toffset
 
-    def to_local(self, point) -> np.ndarray:
-        """
-        Map a world position into the deck's frame: origin at the first element's entrance, along +z.
-
-        Parameters
-        ----------
-        point: Position | Sequence[float]
-            LAURA ``Position`` or ``(x, y, z)``
-
-        Returns
-        -------
-        np.ndarray
-            ``(x, y, z)`` in the deck's frame; unchanged if not :attr:`local_frame`
-        """
-        p = np.asarray(getattr(point, "array", point), dtype=float)
-        if not self.local_frame:
-            return p
-        physical = self.startObject.physical
-        origin = np.asarray(physical.start.array, dtype=float)
-        local = physical.rotation_matrix.T @ (p - origin)
-        return np.round(local, 9)
-
-    @property
-    def deck_section(self):
-        """
-        The section as written out; with :attr:`local_frame`, a deep copy moved into that frame.
-
-        Returns
-        -------
-        SectionLatticeTranslator
-        """
-        if not self.local_frame:
-            return self.section
-        section = self.section.model_copy(deep=True)
-        for element in section.elements.elements.values():
-            physical = getattr(element, "physical", None)
-            if physical is None or physical.middle is None:
-                continue
-            x, y, z = self.to_local(physical.middle)
-            physical.middle = Position(x=x, y=y, z=z)
-            physical.global_rotation.theta += self.starting_rotation[2]
-        return section
+    def _frame_rotation(self) -> float:
+        """ASTRA's frame turns by ``starting_rotation``, which a file block may set."""
+        return float(self.starting_rotation[2])
 
     def write(self) -> None:
         """Write :attr:`deck_section` as ASTRA input to ``<master_subdir>/<objectname>.in``."""
@@ -488,7 +441,7 @@ class astraLattice(frameworkLattice):
                 ).strip('"'),
                 normaliseZ=False,
             )
-            if not self.local_frame:
+            if not self.in_local_frame:
                 rbf.hdf5.rotate_beamXZ(
                     beam,
                     -1 * self.starting_rotation[2],
