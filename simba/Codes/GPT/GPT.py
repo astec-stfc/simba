@@ -13,7 +13,7 @@ from warnings import warn
 from laura.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
-from ...FrameworkHelperFunctions import saveFile, gpt_license_argument
+from ...FrameworkHelperFunctions import saveFile, gpt_environment
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from ...Modules.units import UnitValue
@@ -270,13 +270,11 @@ class gptLattice(frameworkLattice):
             gpt = self.executables[self.code]
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
-            env = os.environ.copy()
-            env["OMP_WAIT_POLICY"] = "PASSIVE"
+            env = gpt_environment(self.global_parameters)
             subprocess.call(
                 mr + ["-o", self.objectname + "_crest_out.gdf",
                       self.objectname + "_crest.mr"]
-                + gpt + [self.objectname + "_crest.in",
-                         gpt_license_argument(self.global_parameters)],
+                + gpt + [self.objectname + "_crest.in"],
                 cwd=subdir, env=env,
             )
             subprocess.call(
@@ -406,16 +404,14 @@ class gptLattice(frameworkLattice):
         main_command = (
             self.executables[self.code]
             + ["-o", self.objectname + "_out.gdf"]
-            + [gpt_license_argument(self.global_parameters)]
             + [self.objectname + ".in"]
         )
-        my_env = os.environ.copy()
+        my_env = gpt_environment(self.global_parameters)
         my_env["LD_LIBRARY_PATH"] = (
             my_env["LD_LIBRARY_PATH"] + ":/opt/GPT3.3.6/lib/"
             if "LD_LIBRARY_PATH" in my_env
             else "/opt/GPT3.3.6/lib/"
         )
-        my_env["OMP_WAIT_POLICY"] = "PASSIVE"
         post_command = (
             [self.executables[self.code][0].replace("gpt", "gdfa")]
             + ["-o", self.objectname + "_emit.gdf"]
