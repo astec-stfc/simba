@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import pytest
 import simba.Framework as fw
@@ -15,6 +16,10 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
+    pytest.param(
+        "rftrack", None, id="rftrack",
+        marks=pytest.mark.skipif(importlib.util.find_spec("RF_Track") is None, reason="RF-Track is not installed"),
+    ),
     pytest.param("opal", "docker", id="opal", marks=needs_container),
     pytest.param(
         "gpt", None, id="gpt",
