@@ -42,6 +42,45 @@ def _select_turn(data: Dict, turn: int) -> Dict:
     return selected
 
 
+class _Wake:
+    """
+    An xwakes wake from a LAURA wake field map, sliced across the bunch the
+    first time the bunch reaches it.
+    """
+
+    iscollective = True
+    isthick = False
+    length = 0.0
+    _kinds = {"Wz": "longitudinal", "Wx": "dipolar_x", "Wy": "dipolar_y"}
+
+    def __init__(self, field, factor: float, num_slices: int):
+        import xwakes as xw
+
+        s = np.abs(np.asarray(field.z_values, dtype=float))
+        order = np.argsort(s)
+        table = {"time": s[order] / speed_of_light}
+        for key, kind in self._kinds.items():
+            component = getattr(field, key)
+            if component is not None and component.value is not None:
+                table[kind] = factor * np.asarray(component.value.val, dtype=float)[order]
+        self.wake = xw.WakeFromTable(table)
+        self.num_slices = num_slices
+        self.configured = False
+
+    def track(self, particles) -> None:
+        if not self.configured:
+            to_numpy = particles._context.nparray_from_context_array
+            zeta = to_numpy(particles.zeta)[to_numpy(particles.state) > 0]
+            if not zeta.size:
+                return
+            pad = 0.01 * np.ptp(zeta) + 1e-9
+            self.wake.configure_for_tracking(
+                zeta_range=(zeta.min() - pad, zeta.max() + pad), num_slices=self.num_slices
+            )
+            self.configured = True
+        self.wake.track(particles)
+
+
 class xsuiteLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as an Xsuite line."""
 
@@ -151,6 +190,9 @@ class xsuiteLattice(frameworkLattice):
     space_charge_sigmas: ClassVar[tuple] = (8.0, 8.0, 5.0)
     """Half-width of each space-charge grid in x, y and zeta, in rms beam
     sizes beyond the beam's centre"""
+
+    wake_slices: int = 1000
+    """Slices across the bunch for each wake, as Ocelot's ``wake_sampling``"""
 
     space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
     """``charge: space_charge_mode`` values that mean no space charge"""
@@ -290,6 +332,44 @@ class xsuiteLattice(frameworkLattice):
         if self.line.iscollective:
             return self.line._get_non_collective_line()
         return self.line
+
+    def install_wakes(self) -> None:
+        """
+        Put an xwakes wake at the exit of each element with an active wake. The
+        table is per cell, so it is scaled by ``n_cells``.
+        """
+        import xtrack as xt
+        from laura.translator.utils.fields import FieldMap
+
+        wakes = {
+            e.name: e
+            for e in self.wakefields_and_cavity_wakefields
+            if getattr(e.simulation, "wakefield_enable", True)
+            and e.name in self.line.element_dict
+        }
+        if not wakes:
+            return
+        try:
+            import xwakes  # noqa: F401
+        except ImportError:
+            warn(f"Line '{self.objectname}': Xsuite wakes need xwakes (pip install xwakes); they are dropped.")
+            return
+        placed = {}
+        for name, elem in wakes.items():
+            field = elem.simulation.wakefield_definition
+            if not isinstance(field, FieldMap):
+                warn(f"Line '{self.objectname}': {name}'s wake is a file name, not a field map; Xsuite drops it.")
+                continue
+            cells = getattr(elem.cavity, "n_cells", None) or 1
+            exit_s = self.line.get_s_position(name) + self.line[name].length
+            placed[f"{name}_wake"] = (exit_s, _Wake(field, cells, self.wake_slices))
+        env = self.line.env
+        for name in placed:
+            env.new(name, xt.Marker)
+        self.line.insert([env.place(name, at=s) for name, (s, _) in placed.items()])
+        for name, (_, wake) in placed.items():
+            self.line.element_dict[name] = wake
+        self.names = self.line.element_names
 
     def install_space_charge(self) -> None:
         """
@@ -672,6 +752,8 @@ class xsuiteLattice(frameworkLattice):
         self.bind_ramp()
         if self.space_charge:
             self.install_space_charge()
+        if self.wakefield_enable and self.trackBeam:
+            self.install_wakes()
         self.line.build_tracker(_context=self.context)
         if self.radiation not in (None, "off"):
             self.line.configure_radiation(model=self.radiation)
