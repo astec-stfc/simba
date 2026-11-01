@@ -42,7 +42,7 @@ def test_a_beam_survives_the_bunch6d_round_trip(seed_beam):
     assert np.allclose(back.E0_eV, beam.E0_eV, rtol=1e-12)
 
 
-def track(tmp_path, code, seed_beam):
+def track(tmp_path, code, seed_beam, cathode=False):
     skip_missing(code)
     screen = Screen(
         name="SCR1", machine_area="FODO",
@@ -55,7 +55,7 @@ def track(tmp_path, code, seed_beam):
         "FODO": {
             "code": code,
             "charge": {"space_charge_mode": "False"},
-            "input": {},
+            "input": {"particle_definition": "laser"} if cathode else {},
             "output": {"start_element": "M1", "end_element": "M3"},
         }
     }
@@ -64,7 +64,8 @@ def track(tmp_path, code, seed_beam):
     settings.element_list = f"{tmp_path}/lattice"
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
-    shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    name = "laser" if cathode else "M1"
+    shutil.copy(seed_beam, os.path.join(framework.subdirectory, f"{name}.openpmd.hdf5"))
     framework.track()
     return framework.subdirectory
 
@@ -78,3 +79,15 @@ def test_a_fodo_cell_matches_xsuite_with_a_screen_on_the_way(tmp_path, seed_beam
         want = getattr(expected, key).val
         assert np.abs(getattr(final, key).val - want).max() < 1e-5 * want.std(), key
     assert float(np.atleast_1d(screen.s)[0]) == pytest.approx(2.0)
+
+
+def test_a_beam_from_the_cathode_is_tracked_through_a_volume(tmp_path, seed_beam):
+    """A cathode beam is a plane crossing spread in time: through a Volume it ends as the
+    same beam does through the Lattice from that plane. Measured 3e-3 of the spread."""
+    expected = read_beam(track(tmp_path / "l", "rftrack", seed_beam), "M3")
+    final = read_beam(track(tmp_path / "v", "rftrack", seed_beam, cathode=True), "M3")
+    for key in ("x", "y", "cpx", "cpy", "cpz", "t"):
+        want, got = getattr(expected, key).val, getattr(final, key).val
+        if key == "t":  # the Volume's clock starts at the reference particle's emission
+            want, got = want - want.mean(), got - got.mean()
+        assert np.abs(got - want).max() < 5e-3 * want.std(), key
