@@ -629,7 +629,38 @@ class bmadLattice(frameworkLattice):
                 so_lib=self.libtao,
                 noplot=True,
             )
+            for name in self._saved_elements:
+                location = self._exit_location(name)
+                if location != name:
+                    self.tao.cmd(f"set beam add_saved_at = {location}")
             self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+
+    def _exit_location(self, element: str) -> str:
+        """
+        Where Tao holds the beam leaving ``element``.
+
+        The element itself, unless it was superimposed (on a quadrupole, say),
+        when it is a super-lord that is not tracked through: then its last
+        super-slave, as a ``branch>>index`` location.
+
+        Parameters
+        ----------
+        element: str
+            Element name in the Bmad lattice
+
+        Returns
+        -------
+        str
+            ``element``, or the location of its last slave
+        """
+        try:
+            rows = self.tao.ele_lord_slave(element)
+        except Exception:
+            return element
+        slaves = [row["location_name"] for row in rows if row.get("type") == "Slave"]
+        if not slaves:
+            return element
+        return max(slaves, key=lambda location: int(location.split(">>")[-1]))
 
     def _particles_at(self, element: str, zstart: float = 0) -> tuple:
         """
@@ -647,7 +678,7 @@ class bmadLattice(frameworkLattice):
         tuple[ParticleGroup, int | None]
             The particles, and the reference particle's index (None if it was lost).
         """
-        data = self.tao.bunch_data(element)
+        data = self.tao.bunch_data(self._exit_location(element))
         alive = np.asarray(data["status"]) == self._ALIVE
         ref_idx = (
             int(np.count_nonzero(alive[: self.ref_idx]))
