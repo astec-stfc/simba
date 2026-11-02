@@ -51,8 +51,10 @@ class fbpicLattice(frameworkLattice):
     allow_negative_drifts: bool = True
     """Allow drifts to be of negative length (could be necessary for plasma injection)"""
 
-    particle_definition: str = None
-    """Name of the initial object in the lattice"""
+    particle_definition: str | None = None
+    """Name of the input particle distribution. ``input: {particle_definition: null}``
+    in the settings file means there is no incoming beam: a laser-driven stage
+    whose only output is the electrons it injects."""
 
     diag_period: int = 50
     """Period of the diagnostics in number of timesteps"""
@@ -626,9 +628,9 @@ class fbpicLattice(frameworkLattice):
             )
         self.add_ionizable_species(plasmas)
 
-        self.pin = self.prepare_bunch()
+        self.pin = self.prepare_bunch() if self.particle_definition is not None else None
 
-        if self.track_bunch:
+        if self.track_bunch and self.pin is not None:
             self.pin.track(self.simulation.comm)
 
         if lasers is not None:
@@ -830,7 +832,8 @@ class fbpicLattice(frameworkLattice):
         mass = atom.mass * physical_constants["atomic mass constant"][0]
         level_start = plas.plasma.ionization_initial_level
         u_th = plas.plasma.thermal_momentum(mass=mass)
-        self.check_driver_ionization(element, level_start)
+        if self.particle_definition is not None:
+            self.check_driver_ionization(element, level_start)
 
         extent = self.plasma_extent(plas)
         extent["p_rmax"] = plas.simulation.p_rmax_ionizable
@@ -958,7 +961,9 @@ class fbpicLattice(frameworkLattice):
                 comm=self.simulation.comm,
                 write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
-            species = {"electrons": self.plasma_electrons, "bunch": self.pin}
+            species = {"electrons": self.plasma_electrons}
+            if self.pin is not None:
+                species["bunch"] = self.pin
             if self.ionizable_species is not None:
                 species["atoms"] = self.ionizable_species
                 species["injected"] = self.injected_electrons
@@ -968,6 +973,9 @@ class fbpicLattice(frameworkLattice):
                 comm=self.simulation.comm,
                 write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
+            diags = [fld, part]
+            if self.pin is None:
+                return diags
             btpart = BackTransformedParticleDiagnostic(
                 self.min_longitudinal_position,
                 self.max_longitudinal_position,
@@ -982,7 +990,7 @@ class fbpicLattice(frameworkLattice):
                 comm=self.simulation.comm,
                 write_dir=self.global_parameters["master_subdir"] + "/lab_diags/",
             )
-            diags = [fld, part, btpart]
+            diags.append(btpart)
             if self.lab_field_diagnostics:
                 diags.append(
                     BackTransformedFieldDiagnostic(
@@ -1010,6 +1018,9 @@ class fbpicLattice(frameworkLattice):
         FBPIC particles once :func:`~write` has built the :attr:`~simulation`.
         """
         super().preProcess()
+        if self.particle_definition is None:
+            self._zstart = float(self.startObject.physical.start.z)
+            return
         prefix = (
             self.file_block["input"]["prefix"]
             if "input" in self.file_block and "prefix" in self.file_block["input"]
@@ -1067,7 +1078,13 @@ class fbpicLattice(frameworkLattice):
         from ...Modules.Beams.fbpic import particles_to_beam, read_fbpic_beam_file
 
         super().postProcess()
-        if self.pin is None:
+        if self.pin is None and self.injected_electrons is None:
+            return
+        if self.pin is None and self.boosted:
+            warn(
+                f"{self.objectname} has no incoming beam and is boosted; boosted "
+                "output comes from the back-transformed bunch, so there is none."
+            )
             return
         outbeamname = os.path.join(
             self.global_parameters["master_subdir"],
@@ -1114,7 +1131,7 @@ class fbpicLattice(frameworkLattice):
                     "a little past the last snapshot to capture them."
                 )
         else:
-            species, uz_min = [self.pin], [None]
+            species, uz_min = ([self.pin], [None]) if self.pin is not None else ([], [])
             if self.injected_electrons is not None:
                 species.append(self.injected_electrons)
                 uz_min.append(self.injected_uz_min)
