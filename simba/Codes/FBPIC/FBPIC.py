@@ -136,6 +136,11 @@ class fbpicLattice(frameworkLattice):
     include_ions: bool = False
     """Whether to add a (mobile) hydrogen ion species alongside the plasma electrons"""
 
+    injected_uz_min: float = 2.0
+    """Electrons freed from the ionizable species are written to the output beam,
+    alongside the incoming bunch, only if their ``uz`` (gamma*beta) exceeds this
+    at the end of the run, i.e. if they were trapped and accelerated."""
+
     laser_injection_method: Literal["direct", "antenna"] = "direct"
     """How the laser pulse is introduced; see `fbpic.lpa_utils.laser.add_laser_pulse`"""
 
@@ -148,6 +153,7 @@ class fbpicLattice(frameworkLattice):
     _simulation: Any | None = None
     _plasma_electrons: Any | None = None
     _ionizable_species: Any | None = None
+    _injected_electrons: Any | None = None
     _v_window: float = c
     _v_comoving: float | None = None
     _zstart: float = 0.0
@@ -193,6 +199,13 @@ class fbpicLattice(frameworkLattice):
         """FBPIC `Particles` object holding the ionizable atoms, if the plasma
         element defines any; see :func:`~add_ionizable_species`"""
         return self._ionizable_species
+
+    @property
+    def injected_electrons(self) -> Any | None:
+        """FBPIC `Particles` object holding the electrons freed from
+        :attr:`~ionizable_species`, kept apart from the background plasma so
+        they can be written out; see :func:`~add_ionizable_species`"""
+        return self._injected_electrons
 
     @property
     def v_comoving(self) -> float | None:
@@ -539,6 +552,7 @@ class fbpicLattice(frameworkLattice):
         omega0 = 2*np.pi*c/(800e-9)
         lasers = None
         laser_z0 = None
+        laser_drives = False
         plasmas = self.plasma
         if plasmas is None:
             raise ValueError(f"No plasmas found in {self.name}; aborting")
@@ -554,21 +568,26 @@ class fbpicLattice(frameworkLattice):
         n_radial = plasmas.simulation.n_radial
         max_radial_position = plasmas.simulation.r_max
         time_step = self.zstep / n_longitudinal / c
+        laser_elements = [plasmas.laser] if plasmas.laser is not None else []
         if plasmas.laser is not None:
             lasers = plasmas.laser_to_fbpic()
-            omega0 = plasmas.laser.angular_frequency
-            laser_z0 = plasmas.laser.initial_position
         for element in beamline:
             if element.hardware_type.lower() == "laser":
                 lasers = element.to_fbpic()
-                omega0 = element.laser.angular_frequency
-                laser_z0 = element.laser.initial_position
+                laser_elements = [element.laser]
+        for laser in laser_elements:
+            laser_z0 = laser.initial_position
+            # An injector laser rides in a beam-driven wake: it sets neither
+            # the boost nor the moving window.
+            if str(laser.role) == "driver":
+                laser_drives = True
+                omega0 = laser.angular_frequency
 
-        if self.boost is True and lasers is None:
+        if self.boost is True and not laser_drives:
             warn(
                 f"{self.name} is beam-driven, but boost is True. The boosted-frame "
-                "set-up is worked out from the laser, so this stage runs in the lab "
-                "frame instead; set boost: False to silence this warning."
+                "set-up is worked out from the driving laser, so this stage runs in "
+                "the lab frame instead; set boost: False to silence this warning."
             )
             self.boost = False
         if self.boost is True:
@@ -580,8 +599,7 @@ class fbpicLattice(frameworkLattice):
             else:
                 warn("gamma_boost not set and boost is True; cannot configure BoostConverter")
 
-        from numba import cuda
-        use_cuda = True if cuda.is_available() and self.use_cuda else False
+        use_cuda = self.use_cuda and self.gpu_available()
 
         self._simulation = Simulation(
             n_longitudinal,
@@ -634,6 +652,37 @@ class fbpicLattice(frameworkLattice):
             self.simulation.set_moving_window(v=self.v_window)
 
         self.simulation.diags.extend(self.prepare_diagnostics())
+
+    @staticmethod
+    def gpu_available() -> bool:
+        """
+        Whether FBPIC can run on the GPU, warning with the reason if not.
+
+        FBPIC needs both a CUDA device visible to numba *and* the ``cupy``
+        package; without cupy it quietly falls back to the CPU, which for a
+        typical stage is hours rather than minutes.
+        """
+        reason = None
+        try:
+            from numba import cuda
+            if not cuda.is_available():
+                reason = "numba sees no CUDA device"
+        except Exception as exc:
+            reason = f"numba.cuda failed to load ({exc})"
+        if reason is None:
+            try:
+                import cupy  # noqa: F401
+            except Exception as exc:
+                reason = f"cupy is not importable ({exc})"
+        if reason is not None:
+            warn(
+                f"FBPIC will run on the CPU because {reason}. This is typically "
+                "orders of magnitude slower; install cupy matching your CUDA "
+                "(e.g. cupy-cuda12x / cupy-cuda13x), or set use_cuda=False to "
+                "silence this warning."
+            )
+            return False
+        return True
 
     def configure_checkpoints(self) -> None:
         """
@@ -781,7 +830,10 @@ class fbpicLattice(frameworkLattice):
         mass = atom.mass * physical_constants["atomic mass constant"][0]
         level_start = plas.plasma.ionization_initial_level
         u_th = plas.plasma.thermal_momentum(mass=mass)
+        self.check_driver_ionization(element, level_start)
 
+        extent = self.plasma_extent(plas)
+        extent["p_rmax"] = plas.simulation.p_rmax_ionizable
         self._ionizable_species = self.simulation.add_new_species(
             q=level_start * abs(plas.plasma.charge("hydrogen")),
             m=mass,
@@ -789,15 +841,76 @@ class fbpicLattice(frameworkLattice):
             ux_th=u_th,
             uy_th=u_th,
             uz_th=u_th,
-            **self.plasma_extent(plas),
+            **extent,
+        )
+        # The freed electrons go to their own (initially empty) species, so the
+        # injected bunch can be told apart from the background plasma.
+        self._injected_electrons = self.simulation.add_new_species(
+            q=plas.plasma.charge("electron"), m=plas.plasma.mass("electron"),
         )
         self._ionizable_species.make_ionizable(
             element,
-            target_species=self.plasma_electrons,
+            target_species=self.injected_electrons,
             level_start=level_start,
             level_max=plas.plasma.ionization_max_level,
         )
         return self._ionizable_species
+
+    def check_driver_ionization(self, element: str, level: int, margin: float = 0.5) -> float:
+        """
+        Warn if the incoming beam's own field could ionize the ionizable species.
+
+        For ionization injection by a laser (a plasma photocathode) the drive
+        beam must leave the dopant alone, or it ionizes it everywhere it goes
+        and the "injected" bunch becomes dark current. The peak radial field of
+        a round Gaussian slice is ``0.451 * lambda / (2*pi*epsilon_0*sigma_r)``;
+        this is compared with the barrier-suppression field of the first level
+        to be ionized, ``pi*epsilon_0*U**2 / (Z*e**3)``. ADK ionization becomes
+        appreciable well below barrier suppression, hence ``margin``. The wake's
+        own field, largest at the back of the bubble, is not checked.
+
+        Parameters
+        ----------
+        element: str
+            Atomic symbol of the ionizable species
+        level: int
+            Ionization level the atoms start at
+        margin: float
+            Fraction of the barrier-suppression field to warn above
+
+        Returns
+        -------
+        float
+            Estimated peak radial field of the beam [V/m]
+        """
+        from fbpic.particles.elementary_process.ionization.read_atomic_data import (
+            get_ionization_energies,
+        )
+        from scipy.constants import e, epsilon_0
+
+        beam = self.global_parameters["beam"]
+        z = np.asarray(beam.z.val, dtype=float)
+        q = np.abs(np.asarray(beam.Particles.charge.val, dtype=float))
+        r2 = np.asarray(beam.x.val, dtype=float) ** 2 + np.asarray(beam.y.val, dtype=float) ** 2
+        n_bins = max(int(np.sqrt(len(z))), 10)
+        charge, edges = np.histogram(z, bins=n_bins, weights=q)
+        peak = int(np.argmax(charge))
+        in_slice = (z >= edges[peak]) & (z <= edges[peak + 1])
+        line_density = charge[peak] / (edges[1] - edges[0])
+        sigma_r = np.sqrt(np.average(r2[in_slice], weights=q[in_slice]) / 2)
+        e_peak = 0.451 * line_density / (2 * np.pi * epsilon_0 * sigma_r)
+
+        energy = get_ionization_energies(element)[level]
+        e_bsi = np.pi * epsilon_0 * energy ** 2 / ((level + 1) * e ** 3)
+        if e_peak > margin * e_bsi:
+            warn(
+                f"The incoming beam's peak radial field, about {e_peak / 1e9:.0f} GV/m, "
+                f"is above {margin:.0%} of the {e_bsi / 1e9:.0f} GV/m barrier-suppression "
+                f"field of {element} level {level}, so the beam may ionize it itself "
+                "(dark current) rather than leaving it to the injection laser. "
+                "Lengthen or widen the drive bunch, or lower its charge."
+            )
+        return float(e_peak)
 
     def prepare_diagnostics(self) -> List:
         """
@@ -824,6 +937,7 @@ class fbpicLattice(frameworkLattice):
             species = {"electrons": self.plasma_electrons}
             if self.ionizable_species is not None:
                 species["atoms"] = self.ionizable_species
+                species["injected"] = self.injected_electrons
             if self.pin is not None:
                 species["bunch"] = self.pin
             part_diag = ParticleDiagnostic(
@@ -847,6 +961,7 @@ class fbpicLattice(frameworkLattice):
             species = {"electrons": self.plasma_electrons, "bunch": self.pin}
             if self.ionizable_species is not None:
                 species["atoms"] = self.ionizable_species
+                species["injected"] = self.injected_electrons
             part = ParticleDiagnostic(
                 dt_period=dt_boosted_diag_period,
                 species=species,
@@ -959,6 +1074,15 @@ class fbpicLattice(frameworkLattice):
             f"{self.output_basename(self.end)}.openpmd.hdf5",
         )
         if self.boosted:
+            if self.injected_electrons is not None:
+                # ponytail: boosted output is the back-transformed `bunch` only;
+                # add the injected species to that diagnostic if boosted
+                # ionization injection is ever needed.
+                warn(
+                    f"{self.objectname} is boosted, so its output is read from the "
+                    "back-transformed diagnostic, which holds the incoming bunch "
+                    "only; electrons injected by ionization are not included."
+                )
             snapshot = self.final_lab_diagnostic()
             if snapshot is None:
                 warn(
@@ -990,10 +1114,15 @@ class fbpicLattice(frameworkLattice):
                     "a little past the last snapshot to capture them."
                 )
         else:
+            species, uz_min = [self.pin], [None]
+            if self.injected_electrons is not None:
+                species.append(self.injected_electrons)
+                uz_min.append(self.injected_uz_min)
             particles_to_beam(
                 self.global_parameters["beam"],
-                self.pin,
+                species,
                 zpos=self.zstart,
+                uz_min=uz_min,
             )
         rbf.openpmd.write_openpmd_beam_file(
             self.global_parameters["beam"],

@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Dict, List
 from ..units import UnitValue
 from .. import constants
 import h5py
@@ -69,38 +70,56 @@ def beam_to_particles(
     )
     return bunch
 
-def particles_to_beam(self, species: "Particles", zpos: float = 0) -> None:
+def _species_arrays(species: "Particles", uz_min: float | None = None) -> Dict:
+    """Copy one species' particle arrays off the GPU, keeping uz > uz_min."""
+    on_gpu = getattr(species, "use_cuda", False)
+    if on_gpu:
+        species.receive_particles_from_gpu()
+    try:
+        arrays = {k: np.array(getattr(species, k), dtype=float)
+                  for k in ("x", "y", "z", "ux", "uy", "uz", "w")}
+    finally:
+        if on_gpu:
+            species.send_particles_to_gpu()
+    if uz_min is not None:
+        keep = arrays["uz"] > uz_min
+        arrays = {k: v[keep] for k, v in arrays.items()}
+    n = len(arrays["x"])
+    arrays["q"] = np.full(n, float(species.q))
+    arrays["m"] = np.full(n, float(species.m))
+    return arrays
+
+
+def particles_to_beam(
+    self,
+    species: "Particles | List[Particles]",
+    zpos: float = 0,
+    uz_min: "List[float | None] | None" = None,
+) -> None:
     """
-    Convert an FBPIC `Particles` object back into the internal beam representation.
+    Convert FBPIC `Particles` objects back into the internal beam representation.
 
     Parameters
     ----------
     self: :class:`~simba.Modules.Beams.beam`
         The beam object to populate
-    species: fbpic.particles.particles.Particles
-        The FBPIC species to read back
+    species: fbpic.particles.particles.Particles, or a list of them
+        The FBPIC species to read back; several are concatenated into one beam,
+        e.g. the incoming bunch and the electrons injected into the wake
     zpos: float
         Longitudinal position to add to the particle z co-ordinates
+    uz_min: list of float or None, optional
+        Per species, keep only particles with ``uz`` above this (None keeps
+        all), e.g. to drop injected electrons that were not trapped
     """
+    species = list(species) if isinstance(species, (list, tuple)) else [species]
+    uz_min = uz_min or [None] * len(species)
+    parts = [_species_arrays(sp, cut) for sp, cut in zip(species, uz_min)]
+    a = {k: np.concatenate([part[k] for part in parts]) for k in parts[0]}
+    x, y, z, ux, uy, uz, w, q, m = (a[k] for k in ("x", "y", "z", "ux", "uy", "uz", "w", "q", "m"))
+
     self.code = "fbpic"
     self._beam.particle_rest_energy_eV = self.E0_eV
-    on_gpu = getattr(species, "use_cuda", False)
-    if on_gpu:
-        species.receive_particles_from_gpu()
-    try:
-        x = np.asarray(species.x, dtype=float)
-        y = np.asarray(species.y, dtype=float)
-        z = np.asarray(species.z, dtype=float)
-        ux = np.asarray(species.ux, dtype=float)
-        uy = np.asarray(species.uy, dtype=float)
-        uz = np.asarray(species.uz, dtype=float)
-        w = np.asarray(species.w, dtype=float)
-        q = float(species.q)
-        m = float(species.m)
-    finally:
-        if on_gpu:
-            species.send_particles_to_gpu()
-
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")
     self._beam.z = UnitValue(z + zpos, "m")

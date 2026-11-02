@@ -1129,13 +1129,16 @@ class frameworkLattice(BaseModel):
         (Wake-T ``xi = 0``, FBPIC ``z = 0``), which plasma and laser positions
         are given relative to.
 
-        The incoming beam's reference particle if it has one, so that the box
-        does not move with the charge split between bunches in the file (a
-        drive and a witness bunch, say); otherwise its mean ``z``.
+        The incoming beam's reference particle if it has one; otherwise its
+        charge-weighted mean ``z``, so a light bunch carried by many
+        macroparticles (electrons injected in an earlier stage, say) does not
+        drag the box away from the driver.
         """
         if self._input_particle is not None:
             return self._input_particle["z"]
-        return self._input_mean("z")
+        beam = self.global_parameters["beam"]
+        charge = np.abs(np.asarray(beam.Particles.charge.val, dtype=float))
+        return float(np.average(np.asarray(beam.z.val, dtype=float), weights=charge))
 
     @property
     def design_p0c(self) -> float | None:

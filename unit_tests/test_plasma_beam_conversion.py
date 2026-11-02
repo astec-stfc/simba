@@ -59,3 +59,22 @@ def test_fbpic_bunch_keeps_per_macroparticle_charge():
     assert charge.sum() == pytest.approx(-550e-12, rel=1e-6)
     drive = species.z > -40e-6
     assert charge[drive].sum() == pytest.approx(-500e-12, rel=1e-6)
+
+
+def test_fbpic_output_merges_bunch_with_trapped_injected_electrons():
+    pytest.importorskip("fbpic")
+    from fbpic.main import Simulation
+    from scipy.constants import e, m_e
+    from simba.Modules.Beams.fbpic import beam_to_particles, particles_to_beam
+
+    beam, n = _two_bunch_beam()
+    sim = Simulation(32, 20e-6, 16, 50e-6, 1, 1e-15, zmin=-120e-6, use_cuda=False, verbose_level=0)
+    bunch = beam_to_particles(beam, simulation=sim, zstart=0.0)
+    injected = sim.add_new_species(q=-e, m=m_e, n=1e20, p_nz=1, p_nr=1, p_nt=4,
+                                   p_zmin=-10e-6, p_zmax=0, p_rmax=5e-6)
+    injected.uz[: injected.Ntot // 2] = 10.0     # "trapped"
+    out = rbf.beam()
+    particles_to_beam(out, [bunch, injected], uz_min=[None, 2.0])
+    trapped_charge = -e * injected.w[: injected.Ntot // 2].sum()
+    assert len(out.x.val) == 2 * n + injected.Ntot // 2
+    assert out.Particles.total_charge.val == pytest.approx(-550e-12 + trapped_charge, rel=1e-6)
