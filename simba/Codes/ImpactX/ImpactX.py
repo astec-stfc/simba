@@ -590,7 +590,7 @@ class impactxLattice(frameworkLattice):
 
         def coordinates():
             df = sim.beam.to_df(local=True)
-            values = pd.DataFrame(df[columns].to_numpy(), index=df["idcpu"].to_numpy()).reindex(ids).to_numpy().T
+            values = np.array(pd.DataFrame(df[columns].to_numpy(), index=df["idcpu"].to_numpy()).reindex(ids)).T
             lost = ~np.isfinite(values).all(axis=0) | (np.abs(values[[0, 2]]) > self.aperture_limit).any(axis=0)
             values[:, lost] = np.nan
             return values

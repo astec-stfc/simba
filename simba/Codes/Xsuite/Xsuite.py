@@ -495,7 +495,10 @@ class xsuiteLattice(frameworkLattice):
         write: bool
             Also save it as ``<particle_definition>.xsuite.json``
         """
-        xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
+        xsuitebeamfilename = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{os.path.basename(self.particle_definition)}.xsuite.json",
+        )
         self.pin = rbf.beam.write_xsuite_beam_file(
             self.global_parameters["beam"],
             xsuitebeamfilename,

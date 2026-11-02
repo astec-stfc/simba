@@ -138,7 +138,10 @@ class cheetahLattice(frameworkLattice):
         write: bool
             Also save it as ``<particle_definition>.cheetah.hdf5``
         """
-        cheetahbeamfilename = f'{self.global_parameters["master_subdir"]}/{self.particle_definition}.cheetah.hdf5'
+        cheetahbeamfilename = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{os.path.basename(self.particle_definition)}.cheetah.hdf5",
+        )
         self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
 
