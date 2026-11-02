@@ -72,6 +72,29 @@ def test_xsuite_ignores_a_nonsense_context_with_a_warning(cupy):
         assert XsuiteStub({"context": "tpu"}).use_gpu() is True
 
 
+# -- Cheetah: GPU when the Framework asks ------------------------------------------
+
+
+def test_cheetah_asked_for_a_missing_gpu_warns_and_tracks_on_the_cpu(monkeypatch):
+    torch = pytest.importorskip("torch")
+    cheetah = pytest.importorskip("cheetah")
+    from simba.Codes.Cheetah.Cheetah import cheetahLattice
+    from simba.Framework_objects import frameworkLattice
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    stub = types.SimpleNamespace(
+        code="cheetah",
+        global_parameters={"use_gpu": True},
+        cheetahglobal={"save_twiss": False},
+        segment=cheetah.Segment([cheetah.Drift(length=torch.tensor(1.0))]),
+        pin=cheetah.ParticleBeam.from_parameters(num_particles=10),
+    )
+    stub.use_gpu = types.MethodType(frameworkLattice.use_gpu, stub)
+    with pytest.warns(UserWarning, match="no GPU is available"):
+        cheetahLattice.run(stub)
+    assert stub.pout.x.device.type == "cpu"
+
+
 # -- Xsuite: periodic twiss when the RF has no 6D solution -------------------------
 
 

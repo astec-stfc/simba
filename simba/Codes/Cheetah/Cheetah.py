@@ -148,8 +148,15 @@ class cheetahLattice(frameworkLattice):
         )
 
     def run(self) -> None:
-        """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``)."""
+        """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``).
+
+        On the GPU only if the Framework's ``use_gpu`` is True; None leaves the tensors where torch made them."""
         pin = deepcopy(self.pin)
+        if (self.global_parameters or {}).get("use_gpu") is not None:
+            import torch
+            device = "cuda" if self.use_gpu(torch.cuda.is_available()) else "cpu"
+            self.segment.to(device)
+            pin = pin.to(device)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
@@ -169,6 +176,7 @@ class cheetahLattice(frameworkLattice):
             Element name
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
+        scr = scr.cpu()  # .numpy() below needs host tensors
         beam = rbf.beam()
         if name == self.end:
             zstart = self.endObject.physical.end.z
@@ -214,7 +222,7 @@ class cheetahLattice(frameworkLattice):
                 twsgrp = f.create_group("Twiss")
                 svals = None
                 for key, val in zip(twiss_keys, self.tws):
-                    data = val.numpy()
+                    data = val.cpu().numpy()
                     if key == "s":
                         svals = data - data[0]
                         data = svals + self.entrance_s
