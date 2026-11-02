@@ -144,6 +144,12 @@ class fbpicLattice(frameworkLattice):
     at the end of the run, i.e. if they were trapped and accelerated."""
 
     laser_injection_method: Literal["direct", "antenna"] = "direct"
+
+    antenna_offset: float | None = None
+    """For ``antenna`` injection, how far ahead of the laser centre the antenna
+    sits, in metres. The antenna only emits the part of the pulse that has not
+    yet passed it, so it must be ahead of the whole pulse; defaults to three
+    1/e field half-durations (``3*c*tau``)."""
     """How the laser pulse is introduced; see `fbpic.lpa_utils.laser.add_laser_pulse`"""
 
     pin: Any | None = None
@@ -585,6 +591,17 @@ class fbpicLattice(frameworkLattice):
                 laser_drives = True
                 omega0 = laser.angular_frequency
 
+        if laser_elements:
+            dz = self.zstep / n_longitudinal
+            wavelength = laser_elements[0].wavelength
+            if wavelength and dz > wavelength / 10:
+                warn(
+                    f"The FBPIC grid of {self.name} has dz = {dz * 1e9:.0f} nm, only "
+                    f"{wavelength / dz:.1f} cells per {wavelength * 1e9:.0f} nm laser "
+                    "wavelength; FBPIC resolves the laser itself (unlike envelope codes "
+                    "such as Wake-T) and wants ~20. Raise n_longitudinal."
+                )
+
         if self.boost is True and not laser_drives:
             warn(
                 f"{self.name} is beam-driven, but boost is True. The boosted-frame "
@@ -634,9 +651,17 @@ class fbpicLattice(frameworkLattice):
             self.pin.track(self.simulation.comm)
 
         if lasers is not None:
-            z0_antenna = (
-                laser_z0 if self.laser_injection_method == "antenna" else None
-            )
+            z0_antenna = None
+            if self.laser_injection_method == "antenna":
+                offset = self.antenna_offset
+                if offset is None:
+                    offset = 3 * c * laser_elements[0].pulse_duration_1e_field
+                z0_antenna = laser_z0 + offset
+                if not (self.min_longitudinal_position < z0_antenna < self.max_longitudinal_position):
+                    warn(
+                        f"The laser antenna of {self.name} is at z = {z0_antenna * 1e6:.1f} um, "
+                        "outside the simulation box; widen the box or set antenna_offset."
+                    )
             add_laser_pulse(
                 self.simulation,
                 lasers,
