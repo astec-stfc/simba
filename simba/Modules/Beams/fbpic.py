@@ -24,7 +24,7 @@ def beam_to_particles(
     boost: FBPIC `BoostConverter` class, optional
         Lorentz-boosted frame object
     zstart: float
-        Initial z-position (defaults to zero; other values not yet tested)
+        Lattice z that maps to z = 0 in the FBPIC box
 
     Returns
     -------
@@ -47,9 +47,11 @@ def beam_to_particles(
     xval = self._beam.x.val if isinstance(self._beam.x, UnitValue) else self._beam.x
     yval = self._beam.y.val if isinstance(self._beam.y, UnitValue) else self._beam.y
     zval = self._beam.z.val if isinstance(self._beam.z, UnitValue) else self._beam.z
-    zval = (zval - zstart)# * constants.speed_of_light
-    total_npart_actual = int(self._beam.total_charge.val / self._beam.particle_charge.val[0])
-    npart_actual = np.full(len(self._beam.x), abs(int(total_npart_actual / len(self._beam.x))))
+    zval = zval - zstart
+    # One weight (number of real particles) per macroparticle, so bunches of
+    # different charge per macroparticle -- a driver and a witness -- keep it.
+    charge = self._beam.charge.val if isinstance(self._beam.charge, UnitValue) else self._beam.charge
+    weights = np.abs(np.asarray(charge, dtype=float) / self._beam.particle_charge.val)
     if boost is False:
         boost = None
     bunch = add_particle_bunch_from_arrays(
@@ -62,7 +64,7 @@ def beam_to_particles(
         px,
         py,
         pz,
-        npart_actual,
+        weights,
         boost=boost,
     )
     return bunch
@@ -102,15 +104,25 @@ def particles_to_beam(self, species: "Particles", zpos: float = 0) -> None:
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")
     self._beam.z = UnitValue(z + zpos, "m")
-    self._beam.t = UnitValue((z + zpos) / constants.speed_of_light, "s")
+    self._beam.t = UnitValue(_arrival_time(z, ux, uy, uz), "s")
     self._beam.px = UnitValue(ux * m * constants.speed_of_light, "kg*m/s")
     self._beam.py = UnitValue(uy * m * constants.speed_of_light, "kg*m/s")
     self._beam.pz = UnitValue(uz * m * constants.speed_of_light, "kg*m/s")
-    self._beam.particle_mass = UnitValue(np.full(len(x), m), units="kg")
+    self.set_mass_and_charge(m, q, len(x))
     self._beam.charge = UnitValue(q * w, "C")
     self._beam.total_charge = UnitValue(float(np.sum(q * w)), "C")
     self._beam.nmacro = w
     self._beam.status = UnitValue(np.full(len(x), 5))
+
+
+def _arrival_time(z, ux, uy, uz) -> np.ndarray:
+    """
+    Arrival time of each particle relative to the bunch centroid, from a
+    snapshot at fixed time: the head (larger z) arrives first, matching the
+    ASTRA reader's ``t = -(z - zref)/(beta_z*c)``.
+    """
+    beta_z = uz / np.sqrt(1 + ux**2 + uy**2 + uz**2)
+    return -(z - np.mean(z)) / (beta_z * constants.speed_of_light)
 
 
 def _openpmd_record(group, path: str, npart: int) -> np.ndarray:
@@ -201,11 +213,12 @@ def read_fbpic_beam_file(self, filename, z_offset=0, charge=None, species=None):
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")
     self._beam.z = UnitValue(z + z_offset, "m")
-    self._beam.t = UnitValue((z + z_offset) / constants.speed_of_light, "s")
+    mc = m * constants.speed_of_light
+    self._beam.t = UnitValue(_arrival_time(z, px / mc, py / mc, pz / mc), "s")
     self._beam.px = UnitValue(px, "kg*m/s")
     self._beam.py = UnitValue(py, "kg*m/s")
     self._beam.pz = UnitValue(pz, "kg*m/s")
-    self._beam.particle_mass = UnitValue(m, units="kg")
+    self.set_mass_and_charge(m, q, npart)
     self._beam.nmacro = w
     self._beam.status = UnitValue(np.full(npart, 5))
     if charge is not None:

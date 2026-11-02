@@ -12,7 +12,6 @@ from ...Modules.Beams.wake_t import (
 )
 from copy import deepcopy
 from typing import List, Any
-from numpy import mean
 
 def all_subclasses(cls):
     subclasses = cls.__subclasses__()
@@ -48,6 +47,11 @@ class waketLattice(frameworkLattice):
 
     particle_definition: str = None
     """Name of the input particle distribution"""
+
+    bunch_z_position: float = 0
+    """Position in the Wake-T box (``xi``), in metres, at which
+    :attr:`~simba.Framework_objects.frameworkLattice.plasma_box_origin` -- the
+    incoming reference particle, or else the centroid -- is placed."""
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -86,7 +90,7 @@ class waketLattice(frameworkLattice):
         self.load_input_beam(prefix, self.particle_definition)
         self.pin = beam_to_particle_bunch(
             self.global_parameters["beam"],
-            zstart=mean(self.global_parameters["beam"].z.val),
+            zstart=self.plasma_box_origin - self.bunch_z_position,
         )
 
     def run(self) -> None:

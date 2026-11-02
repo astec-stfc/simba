@@ -81,7 +81,11 @@ class fbpicLattice(frameworkLattice):
     """
 
     boost: Any | bool = True
-    """Boosted frame converter; set to True if you want this set up during pre-processing"""
+    """Boosted frame converter; set to True if you want this set up during pre-processing.
+
+    Only laser-driven stages are boosted: the boost limits and the moving-window
+    velocity are worked out from the laser, so a beam-driven stage runs in the
+    lab frame, with a warning if this is True."""
 
     gamma_boost: float = 10.0
     """Boosted frame -- Lorentz factor"""
@@ -113,8 +117,9 @@ class fbpicLattice(frameworkLattice):
     lab frame"""
 
     bunch_z_position: float = 0
-    """Position in the FBPIC box, in metres, at which the incoming bunch centroid
-    is placed; 0 puts it at the box origin."""
+    """Position in the FBPIC box, in metres, at which
+    :attr:`~simba.Framework_objects.frameworkLattice.plasma_box_origin` -- the
+    incoming reference particle, or else the centroid -- is placed."""
 
     write_period: int = 50
     """Period of writing the cached, backtransformed lab frame diagnostics to disk"""
@@ -559,6 +564,13 @@ class fbpicLattice(frameworkLattice):
                 omega0 = element.laser.angular_frequency
                 laser_z0 = element.laser.initial_position
 
+        if self.boost is True and lasers is None:
+            warn(
+                f"{self.name} is beam-driven, but boost is True. The boosted-frame "
+                "set-up is worked out from the laser, so this stage runs in the lab "
+                "frame instead; set boost: False to silence this warning."
+            )
+            self.boost = False
         if self.boost is True:
             if self.gamma_boost > 0:
                 self.configure_boost(plas=plasmas, omega0=omega0)
@@ -636,8 +648,8 @@ class fbpicLattice(frameworkLattice):
             restart_from_checkpoint,
         )
 
-        checkpoint_dir = (
-            self.global_parameters["master_subdir"] + "/checkpoints/"
+        checkpoint_dir = os.path.join(
+            self.global_parameters["master_subdir"], "checkpoints", ""
         )
         if self.use_restart:
             if not os.path.isdir(os.path.join(checkpoint_dir, "proc0", "hdf5")):
@@ -706,9 +718,7 @@ class fbpicLattice(frameworkLattice):
         """
         return {
             "dens_func": (
-                plas._relative_density_profile
-                if plas.plasma.density_profile
-                else None
+                None if plas.plasma.is_uniform else plas._relative_density_profile
             ),
             "p_zmin": plas.simulation.p_zmin,
             "p_zmax": plas.simulation.p_zmax,
@@ -834,9 +844,12 @@ class fbpicLattice(frameworkLattice):
                 comm=self.simulation.comm,
                 write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
+            species = {"electrons": self.plasma_electrons, "bunch": self.pin}
+            if self.ionizable_species is not None:
+                species["atoms"] = self.ionizable_species
             part = ParticleDiagnostic(
                 dt_period=dt_boosted_diag_period,
-                species={"electrons": self.plasma_electrons, "bunch": self.pin},
+                species=species,
                 comm=self.simulation.comm,
                 write_dir=self.global_parameters["master_subdir"] + "/diags/",
             )
@@ -876,52 +889,33 @@ class fbpicLattice(frameworkLattice):
 
     def preProcess(self) -> None:
         """
-        Get the initial particle distribution defined in `file_block['input']['prefix']` if it exists.
+        Read the input beam, as every code does, via
+        :func:`~simba.Framework_objects.frameworkLattice.load_input_beam`, and
+        fix where it sits in the FBPIC box (:attr:`~zstart`). It is turned into
+        FBPIC particles once :func:`~write` has built the :attr:`~simulation`.
         """
         super().preProcess()
-        # os.chdir(self.global_parameters["master_subdir"])
+        prefix = (
+            self.file_block["input"]["prefix"]
+            if "input" in self.file_block and "prefix" in self.file_block["input"]
+            else self.get_prefix()
+        )
+        prefix = prefix if self.trackBeam else prefix + self.particle_definition
+        self.load_input_beam(prefix, self.particle_definition)
+        self._zstart = self.plasma_box_origin - self.bunch_z_position
 
-    def hdf5_to_particles(self, prefix="", write=True) -> "Particles":
+    def prepare_bunch(self) -> "Particles":
         """
-        Convert the initial HDF5 particle distribution to FBPIC format and set
-        :attr:`~pin` accordingly.
-
-        Parameters
-        ----------
-        prefix: str
-            Prefix for particle file
-        write: bool
-            Flag to indicate whether to save the file
+        Add the input beam read by :func:`~preProcess` to :attr:`~simulation`
+        as the FBPIC species :attr:`~pin`.
         """
         from ...Modules.Beams.fbpic import beam_to_particles
-        prefix = prefix if prefix else self.get_prefix()
-        self.read_input_file(prefix, self.particle_definition)
-        self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
-        self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
-        self._zstart = (
-            float(self.global_parameters["beam"].beam.centroids.mean_z.val)
-            - self.bunch_z_position
-        )
         return beam_to_particles(
             self.global_parameters["beam"],
             simulation=self.simulation,
             boost=self.boost,
             zstart=self.zstart,
         )
-
-    def prepare_bunch(self) -> "Particles":
-        """
-        Once :attr:`~simulation` has been prepared and the elements created, the
-        initial bunch distribution :attr:`~pin` can be read in.
-        See :func:`~hdf5_to_particles`.
-        """
-        prefix = (
-            self.file_block["input"]["prefix"]
-            if "input" in self.file_block and "prefix" in self.file_block["input"]
-            else ""
-        )
-        prefix = prefix if self.trackBeam else prefix + self.particle_definition
-        return self.hdf5_to_particles(prefix)
 
     def run(self) -> None:
         """
@@ -960,7 +954,10 @@ class fbpicLattice(frameworkLattice):
         super().postProcess()
         if self.pin is None:
             return
-        outbeamname = f'{self.global_parameters["master_subdir"]}/{self.end}.openpmd.hdf5'
+        outbeamname = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{self.output_basename(self.end)}.openpmd.hdf5",
+        )
         if self.boosted:
             snapshot = self.final_lab_diagnostic()
             if snapshot is None:

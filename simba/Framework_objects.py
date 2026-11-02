@@ -1123,6 +1123,21 @@ class frameworkLattice(BaseModel):
         return float(np.mean(getattr(beam, coord).val))
 
     @property
+    def plasma_box_origin(self) -> float:
+        """
+        Lattice ``z`` placed at the origin of a co-moving plasma-code box
+        (Wake-T ``xi = 0``, FBPIC ``z = 0``), which plasma and laser positions
+        are given relative to.
+
+        The incoming beam's reference particle if it has one, so that the box
+        does not move with the charge split between bunches in the file (a
+        drive and a witness bunch, say); otherwise its mean ``z``.
+        """
+        if self._input_particle is not None:
+            return self._input_particle["z"]
+        return self._input_mean("z")
+
+    @property
     def design_p0c(self) -> float | None:
         """
         A ring's design ``p0c`` in eV, from its section's ``reference_energy``.
@@ -2158,7 +2173,7 @@ class frameworkLattice(BaseModel):
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
         elif os.path.isfile(os.path.join(self.global_parameters["master_subdir"], HDF5filename)):
-            filepath = os.path.join(self.global_parameters["master_subdir"] + "/" + HDF5filename)
+            filepath = os.path.join(self.global_parameters["master_subdir"], HDF5filename)
         if os.path.isfile(filepath):
             if read_file:
                 rbf.hdf5.read_HDF5_beam_file(
