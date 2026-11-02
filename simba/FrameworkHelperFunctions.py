@@ -76,6 +76,19 @@ def copylink(source, destination):
         print("copylink error!", e)
 
 
+def gpt_environment(global_parameters):
+    """
+    The environment to run GPT in. GPT reads ``GPTLICENSE`` from it.
+    """
+    if not global_parameters.get("GPTLICENSE"):
+        raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
+    return {
+        **os.environ,
+        "GPTLICENSE": str(global_parameters["GPTLICENSE"]),
+        "OMP_WAIT_POLICY": "PASSIVE",
+    }
+
+
 _CONVERSION = None
 """``(convert, items)`` for the forked workers of :func:`convert_outputs`."""
 
