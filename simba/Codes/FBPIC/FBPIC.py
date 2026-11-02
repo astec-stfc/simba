@@ -472,9 +472,9 @@ class fbpicLattice(frameworkLattice):
         """
         Warn about lattice geometry that a boosted frame handles badly.
 
-        All three failures below produce a run that completes normally and
-        gives the wrong answer, which is why they are checked rather than left
-        to be noticed.
+        Both failures below produce a run that completes normally and gives
+        the wrong answer, which is why they are checked rather than left to be
+        noticed. The density profile needs no extending beyond the stage.
 
         *Missing ions.* In the lab frame the ions barely move over the
         interaction time and can be left out; in the boosted frame they stream
@@ -486,11 +486,6 @@ class fbpicLattice(frameworkLattice):
         roughly ``2*gamma**2*z0``. A Gaussian that far past its waist is weaker by
         ``1/sqrt(1 + (drift/z_rayleigh)**2)``, so the driver arrives with
         the wrong amplitude.
-
-        *A density profile that stops too soon.* The boosted particle injector
-        queries ``dens_func`` at lab positions well beyond the interaction
-        length, and a profile that has ended by then injects no plasma at all
-        where the laser is.
 
         Parameters
         ----------
@@ -528,20 +523,6 @@ class fbpicLattice(frameworkLattice):
                     "z0 ~ 0 (shift the whole lattice if need be), widen the waist, or "
                     "lower gamma_boost; 2*gamma_boost^2*z0 has to stay well inside the "
                     "Rayleigh length."
-                )
-
-        if plas.plasma.density_profile and self.interaction_length:
-            reach = self.gamma_boost ** 2 * self.interaction_length
-            if float(plas._relative_density_profile(reach)) < 0.01:
-                warn(
-                    f"The density profile is essentially zero at z = "
-                    f"{reach * 1e3:.2f} mm, which is gamma_boost^2 * L_interact "
-                    f"({self.gamma_boost}^2 * {self.interaction_length * 1e3:.2f} mm). "
-                    "The boosted particle injector asks for the density well beyond "
-                    "L_interact, and where the profile has ended it injects no plasma "
-                    "at all -- including where the laser is. Extend the profile "
-                    "(plateau and p_zmax) to cover that reach; it is analytic, so "
-                    "over-providing costs nothing."
                 )
 
     def configure_simulation(self, beamline: list) -> None:
