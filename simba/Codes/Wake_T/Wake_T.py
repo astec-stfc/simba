@@ -94,12 +94,20 @@ class waketLattice(frameworkLattice):
         )
 
     def run(self) -> None:
-        """Track :attr:`pin` and set :attr:`bunch_list`."""
+        """
+        Track :attr:`pin` and set :attr:`bunch_list`.
+
+        ``Beamline.track`` returns snapshots only for elements with outputs (a
+        drift built without ``n_out`` has none), so the bunch it tracked in
+        place -- the true final state -- is appended rather than relying on
+        the last snapshot.
+        """
         pin = deepcopy(self.pin)
-        self.bunch_list = self.beamline.track(
+        self.bunch_list = list(self.beamline.track(
             pin,
             show_progress_bar=False,
-        )
+        ))
+        self.bunch_list.append(pin)
 
     def postProcess(self) -> None:
         """Write the final bunch as openPMD to `master_subdir`."""
