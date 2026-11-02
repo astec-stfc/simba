@@ -141,8 +141,9 @@ converted (its longitudinal coordinate is path length), so it reports the
    **Xsuite runs on the GPU if** ``cupy`` **imports.** Building the tracker then
    compiles a CUDA kernel for the whole line, which for a ring of a few hundred
    elements took minutes and more than 19 GB of memory. Ask for the CPU with
-   ``tracking: {context: cpu}`` (``auto``, ``cpu`` or ``gpu``), or for every run with
-   the environment variable ``SIMBA_XSUITE_CONTEXT``. If a cavity's phase leaves no
+   ``tracking: {context: cpu}`` (``auto``, ``cpu`` or ``gpu``), for every code with
+   ``Framework(use_gpu=False)``, or for every Xsuite run with the environment variable
+   ``SIMBA_XSUITE_CONTEXT``. If a cavity's phase leaves no
    6D periodic solution (on the wrong side of transition, say) SIMBA warns and
    falls back to the 4D solution, so the transverse optics are still reported.
 

@@ -20,9 +20,11 @@ from simba.Codes.Xsuite.Xsuite import xsuiteLattice
 
 class XsuiteStub:
     use_gpu = xsuiteLattice.use_gpu
+    code = "xsuite"
 
-    def __init__(self, tracking=None):
+    def __init__(self, tracking=None, use_gpu=None):
         self.file_block = {"tracking": tracking} if tracking is not None else {}
+        self.global_parameters = {"use_gpu": use_gpu}
 
 
 @pytest.fixture
@@ -50,6 +52,19 @@ def test_xsuite_without_cupy_warns_when_asked_for_the_gpu(monkeypatch):
     monkeypatch.setattr(xsuite_module, "has_cupy", False)
     with pytest.warns(UserWarning, match="cupy is not installed"):
         assert XsuiteStub({"context": "gpu"}).use_gpu() is False
+
+
+def test_xsuite_follows_the_framework_use_gpu_flag(cupy, monkeypatch):
+    monkeypatch.setenv("SIMBA_XSUITE_CONTEXT", "gpu")
+    assert XsuiteStub(use_gpu=False).use_gpu() is False  # the flag beats the environment
+    assert XsuiteStub({"context": "gpu"}, use_gpu=False).use_gpu() is True  # the study beats the flag
+    assert XsuiteStub(use_gpu=True).use_gpu() is True
+
+
+def test_framework_use_gpu_warns_without_a_gpu(monkeypatch):
+    monkeypatch.setattr(xsuite_module, "has_cupy", False)
+    with pytest.warns(UserWarning, match="no GPU is available"):
+        assert XsuiteStub(use_gpu=True).use_gpu() is False
 
 
 def test_xsuite_ignores_a_nonsense_context_with_a_warning(cupy):

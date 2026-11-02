@@ -189,6 +189,11 @@ class Framework(BaseModel):
     conversion_workers: int = 1
     """Processes for converting screen outputs to openPMD (elegant only, for now); 1 converts them one by one."""
 
+    use_gpu: bool | None = None
+    """Track on the GPU in every code that can: True asks for it (warning where there is none), False holds
+    every code to the CPU, None leaves each code to its own default.
+    See :meth:`~simba.Framework_objects.frameworkLattice.use_gpu`."""
+
     global_parameters: Dict = {}
     """Global parameters shared with all lattices and elements."""
 
@@ -269,6 +274,7 @@ class Framework(BaseModel):
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
+            "use_gpu": self.use_gpu,
         }
         if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
             warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"

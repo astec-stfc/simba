@@ -183,17 +183,20 @@ class xsuiteLattice(frameworkLattice):
         """
         Whether to build the tracker on the GPU.
 
-        ``tracking: {context: auto | cpu | gpu}``, else the environment variable
-        ``SIMBA_XSUITE_CONTEXT``, else ``auto``: the GPU if ``cupy`` imports. A GPU
-        context compiles a CUDA kernel for the whole line, which for a ring of
-        a few hundred elements can take minutes and many GB of memory, so a CPU
-        run can be asked for.
+        ``tracking: {context: auto | cpu | gpu}``, else the Framework's ``use_gpu``
+        (see :meth:`~simba.Framework_objects.frameworkLattice.use_gpu`), else the
+        environment variable ``SIMBA_XSUITE_CONTEXT``, else ``auto``: the GPU if
+        ``cupy`` imports. A GPU context compiles a CUDA kernel for the whole line,
+        which for a ring of a few hundred elements can take minutes and many GB of
+        memory, so a CPU run can be asked for.
 
         Returns
         -------
         bool
         """
         tracking = (self.file_block or {}).get("tracking") or {}
+        if "context" not in tracking and (self.global_parameters or {}).get("use_gpu") is not None:
+            return frameworkLattice.use_gpu(self, has_cupy)
         choice = str(tracking.get("context", os.environ.get("SIMBA_XSUITE_CONTEXT", "auto"))).lower()
         if choice not in ("auto", "cpu", "gpu"):
             warn(f"Xsuite context '{choice}' is not one of auto, cpu, gpu; using auto.")

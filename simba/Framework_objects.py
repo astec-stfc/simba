@@ -690,6 +690,27 @@ class frameworkLattice(BaseModel):
             for elem in self.elementObjects.values()
         )
 
+    def use_gpu(self, available: bool) -> bool:
+        """
+        Whether this line tracks on the GPU, given whether the code has one ``available``.
+
+        Follows the Framework's ``use_gpu``: True takes the GPU (warning if there is none),
+        False holds the line to the CPU, None takes the GPU whenever it is ``available``.
+
+        Parameters
+        ----------
+        available: bool
+            Whether the code can reach a GPU (its GPU library imports, a device is visible, ...)
+
+        Returns
+        -------
+        bool
+        """
+        flag = (self.global_parameters or {}).get("use_gpu")
+        if flag and not available:
+            warn(f"{self.code}: use_gpu is set but no GPU is available; using the CPU.")
+        return available and flag is not False
+
     @property
     def wakefield_enable(self) -> bool:
         """Apply cavity structure wakefields; turning it off keeps their definitions."""
