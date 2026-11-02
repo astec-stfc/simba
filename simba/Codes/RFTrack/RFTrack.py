@@ -52,6 +52,7 @@ class rftrackLattice(frameworkLattice):
 
     space_charge_time_step: float = 1.0
     """``Volume`` time between space-charge kicks [mm/c], with ``space_charge_mode: 3D``."""
+    
     wake_time_step: float = 10.0
     """``Volume`` time between wake kicks [mm/c]; a ``Volume`` applies no wake without it."""
 
@@ -149,6 +150,7 @@ class rftrackLattice(frameworkLattice):
         if self.space_charge:
             rft.cvar.SC_engine = space_charge_engine(self.pin.size(), mirror_z=0.0)
             options.sc_dt_mm = self.space_charge_time_step
+            options.emission_nsteps = 100
         self.lattice.track(self.pin, options)
         self.pout = self.lattice.get_bunch_at_s1()
 
