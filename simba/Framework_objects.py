@@ -2110,7 +2110,10 @@ class frameworkLattice(BaseModel):
                     setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
                 except Exception:
                     pass
-        nb.set_total_charge(np.sum(np.array(bm.charge.val)))
+        charge = np.array(bm.charge.val)
+        kept = charge[idx]
+        nb.charge = UnitValue(kept * (np.sum(charge) / np.sum(kept)), units="C")
+        nb.total_charge = UnitValue(float(np.sum(charge)), units="C")
         newbeam.reference_particle_index = self.sampled_index(bm.reference_particle_index)
         return newbeam
 
