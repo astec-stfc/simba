@@ -2641,6 +2641,20 @@ class frameworkLattice(BaseModel):
         """The lattice's elements, by name."""
         return self.section.elements.elements
 
+    def output_s(self, name: str) -> float:
+        """
+        The ``s`` an output beam at element ``name`` is placed at.
+        The machine element's own ``s``, except for one pass of a multipass
+        element (``NAME.N`` in a line): that is
+        placed at its arc length along the beam path.
+        """
+        element = self.elementObjects.get(name)
+        if element is not None:
+            return element.physical.s
+        layout = self.machine.lattices.get(self.machine.default_path)
+        arc = {flatten_occurrence(k): s for k, s in layout.arc_lengths().items()} if layout else {}
+        return arc.get(name, self.elements[name].physical.s)
+
     def write(self):
         pass
 
