@@ -2653,7 +2653,7 @@ class frameworkLattice(BaseModel):
             return element.physical.s
         layout = self.machine.lattices.get(self.machine.default_path)
         arc = {flatten_occurrence(k): s for k, s in layout.arc_lengths().items()} if layout else {}
-        return arc.get(name, self.elements[name].physical.s)
+        return arc[name] if name in arc else self.elements[name].physical.s
 
     def write(self):
         pass

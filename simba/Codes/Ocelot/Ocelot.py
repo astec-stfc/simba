@@ -808,17 +808,12 @@ class ocelotLattice(frameworkLattice):
                 continue
             if not angle or not length:
                 continue
+            proc = SpontanRadEffects(type="dipole")
+            proc.radius = abs(length / angle)
+            proc.energy_loss = True
+            proc.quant_diff = model == "quantum"
             out.append(
-                (
-                    SpontanRadEffects(
-                        type="dipole",
-                        radius=abs(length / angle),
-                        energy_loss=True,
-                        quant_diff=(model == "quantum"),
-                    ),
-                    self.lat_obj.sequence[self.names.index(name)],
-                    abs(length / angle),
-                )
+                (proc, self.lat_obj.sequence[self.names.index(name)], abs(length / angle))
             )
         return out
 
