@@ -314,6 +314,16 @@ def test_bmad_warns_that_its_collective_effects_take_one_species(csr, space_char
     assert any(isinstance(w.message, exceptions.CollectiveSpeciesWarning) for w in caught) == warns
 
 
+@pytest.mark.parametrize("electrons_only", [False, True])
+def test_no_code_is_given_photons_to_track(electrons_only):
+    line = SimpleNamespace(
+        global_parameters={"beam": make_beam("photon", nmacro=1)},
+        objectname="LINE", code="xsuite", electrons_only=electrons_only,
+    )
+    with pytest.raises(exceptions.NeutralSpeciesError, match="photon"):
+        frameworkLattice.check_species(line)
+
+
 def test_a_single_species_code_merges_nothing():
     line = _line_given({"photon": make_beam("photon", nmacro=1)})
     assert frameworkLattice.merge_other_species(line) == []

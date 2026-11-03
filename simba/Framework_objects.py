@@ -1029,13 +1029,18 @@ class frameworkLattice(BaseModel):
 
     def check_species(self) -> None:
         """
-        Refuse a beam if :attr:`electrons_only`.
+        Refuse a neutral beam, and anything but electrons if :attr:`electrons_only`.
 
         Raises
         ------
+        :class:`~simba.exceptions.NeutralSpeciesError`
+            If the tracked species has no charge (photons, chosen by ``input: species``).
         :class:`~simba.exceptions.WrongSpeciesError`
             If the beam's rest energy or charge is not an electron's.
         """
+        species = self.global_parameters["beam"].species
+        if rbf.SPECIES.get(species, (None, 1))[1] == 0:
+            raise exceptions.NeutralSpeciesError(self.objectname, self.code, species)
         if not self.electrons_only:
             return
         electron = constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
@@ -3148,8 +3153,8 @@ class frameworkLattice(BaseModel):
         list
             The species that were added.
         """
-        # ponytail: carried unchanged, at the input positions; a straight-line
-        # drift for neutrals in global coordinates is the upgrade (scope doc §5.3)
+        # carried unchanged, at the input positions; a straight-line
+        # drift for neutrals in global coordinates is the upgrade
         carried = getattr(self, "_carried_species", None)
         if not carried:
             return []

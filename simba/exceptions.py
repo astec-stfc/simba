@@ -543,6 +543,17 @@ class CollectiveSpeciesWarning(PhysicsWarning):
         )
 
 
+class NeutralSpeciesError(SimbaError, ValueError):
+    """A neutral species (photons) chosen as the species a tracking code tracks."""
+
+    def __init__(self, line: str, code: str, species: str):
+        super().__init__(
+            f"{line} is tracked by {code}, but the species it is given to track is "
+            f"{species}, which has no charge: no tracking code steers it. Set "
+            "``input: species`` to a charged species; photons are carried alongside."
+        )
+
+
 class WrongSpeciesError(SimbaError, ValueError):
     """A beam that is not electrons, in a code that tracks only electrons."""
 
