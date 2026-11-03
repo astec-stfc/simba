@@ -579,9 +579,7 @@ class bmadLattice(frameworkLattice):
 
         ``bmad_com[csr_and_space_charge_on]`` alone computes nothing: each
         element also needs a ``csr_method`` / ``space_charge_method``. Set them
-        on every element by wildcard -- the drifts LAURA creates included, as
-        CSR carries on downstream of a bend -- from the same switches the other
-        codes use: :attr:`csr_enable` gives Bmad's 1D CSR, and
+        on every element by wildcard: :attr:`csr_enable` gives Bmad's 1D CSR, and
         ``charge: space_charge_mode: 3d`` its 3D space charge.
 
         Parameters
@@ -604,7 +602,6 @@ class bmadLattice(frameworkLattice):
             if "bmad_com[csr_and_space_charge_on] = T" not in lattice:
                 lines.append("bmad_com[csr_and_space_charge_on] = T")
         if lines and "space_charge_com[ds_track_step]" not in lattice:
-            # Bmad will not track CSR or space charge without a step.
             lines.append(f"space_charge_com[ds_track_step] = {self.collective_step}")
         return "".join(f"{line}\n" for line in lines)
 
