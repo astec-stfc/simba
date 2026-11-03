@@ -331,7 +331,7 @@ class genesisLattice(frameworkLattice):
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             HDF5filename,
-            pos=list(self.endObject.physical.start.model_dump().values()),
+            pos=[0.0, 0.0, self.endObject.physical.start.z],
         )
         self.commandFiles = {}
         outfields = sorted(
@@ -463,7 +463,7 @@ class genesisLattice(frameworkLattice):
             rbf.genesis.write_genesis_beam_distribution(
                 self.global_parameters["beam"],
                 genesisbeamfilename,
-                pos=[-v for v in self.startObject.physical.start.model_dump().values()],
+                pos=[0.0, 0.0, -self.startObject.physical.start.z],   # longitudinal only, as on output
             )
             self.commandFiles["importdistribution"] = genesis_importdistribution_command(
                 file=f"{self.start}.genesis.hdf5",
