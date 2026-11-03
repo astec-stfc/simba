@@ -80,6 +80,29 @@ def test_zeroing_puts_everything_back_on_the_axis():
         assert elements[name].physical.length == pytest.approx(LZ, abs=1e-12)
 
 
+@pytest.mark.parametrize("angle", [0.095, 0.13])
+def test_layout_closes_and_follows_lauras_frame_convention(angle):
+    """The layout a geometry-following code (Bmad) needs: closed, with signs as LAURA reads them.
+
+    In LAURA theta > 0 points the beam axis to -x and a positive bend turns it
+    to +x, so the frame after a +angle bend has theta = -angle; each bend is
+    placed by its entrance frame and has the sign of its own bend.
+    """
+    group, elements, _ = _build(0.0)
+    group.set_angle(angle)
+    d1, d2, d3, d4 = (elements[f"D{i}"].physical for i in range(1, 5))
+    assert d1.start.x == pytest.approx(0.0, abs=1e-12)
+    assert d4.end.x == pytest.approx(0.0, abs=1e-9)
+    assert d2.end.x == pytest.approx(d3.start.x, abs=1e-9)
+    assert [d.global_rotation.theta for d in (d1, d2, d3, d4)] == pytest.approx([0.0, -angle, 0.0, angle])
+    assert [float(d._physical_angle) for d in (d1, d2, d3, d4)] == pytest.approx([angle, -angle, -angle, angle])
+    for name in ("M1", "M2"):  # between dipoles 2 and 3: parallel to the axis
+        assert elements[name].physical.global_rotation.theta == pytest.approx(0.0, abs=1e-12)
+    # the end frame of each bend is the entrance frame of the next straight
+    assert np.asarray(d1.end_rotation_matrix) @ [0, 0, 1] == pytest.approx(
+        np.asarray(d2.rotation_matrix) @ [0, 0, 1], abs=1e-12)
+
+
 def test_r56_adds_the_drift_and_two_thirds_of_a_dipole():
     group, elements, _ = _build(0.0)
     group.set_angle(0.1)

@@ -134,6 +134,10 @@ class bmadLattice(frameworkLattice):
     tao: Any | None = None
     """PyTao instance"""
 
+    collective_step: float = 0.01
+    """Bmad ``space_charge_com[ds_track_step]`` [m] used when CSR or space charge
+    is on and the lattice does not set one."""
+
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
 
@@ -557,6 +561,7 @@ class bmadLattice(frameworkLattice):
             space_charge_n_bin=self.space_charge_n_bin,
             initial_twiss=self._bmad_initial_twiss(),
         )
+        lattice += self._collective_methods(lattice)
         path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.bmad"
         path.write_text(lattice, encoding="utf-8")
         self.lattice_file = str(path)
@@ -567,6 +572,41 @@ class bmadLattice(frameworkLattice):
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)
+
+    def _collective_methods(self, lattice: str) -> str:
+        """
+        Bmad attribute settings that switch on the collective effects asked for.
+
+        ``bmad_com[csr_and_space_charge_on]`` alone computes nothing: each
+        element also needs a ``csr_method`` / ``space_charge_method``. Set them
+        on every element by wildcard -- the drifts LAURA creates included, as
+        CSR carries on downstream of a bend -- from the same switches the other
+        codes use: :attr:`csr_enable` gives Bmad's 1D CSR, and
+        ``charge: space_charge_mode: 3d`` its 3D space charge.
+
+        Parameters
+        ----------
+        lattice: str
+            The lattice text, to check the global switch is on
+
+        Returns
+        -------
+        str
+            Lines to append to the lattice
+        """
+        charge = self.file_block.get("charge") or {}
+        space_charge = str(charge.get("space_charge_mode", "")).lower() == "3d"
+        lines = []
+        if self.csr_enable:
+            lines.append("*[csr_method] = 1_dim")
+        if space_charge:
+            lines.append("*[space_charge_method] = fft_3d")
+            if "bmad_com[csr_and_space_charge_on] = T" not in lattice:
+                lines.append("bmad_com[csr_and_space_charge_on] = T")
+        if lines and "space_charge_com[ds_track_step]" not in lattice:
+            # Bmad will not track CSR or space charge without a step.
+            lines.append(f"space_charge_com[ds_track_step] = {self.collective_step}")
+        return "".join(f"{line}\n" for line in lines)
 
     @property
     def _saved_elements(self) -> list[str]:

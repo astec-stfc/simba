@@ -3737,17 +3737,22 @@ class chicane(frameworkGroup):
                 lz = z_extents[dipole_number]
                 ang = a * self.ratios[dipole_number]
                 x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
+                s_entry = s_here - lz / 2.0
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
                     r = lz / (np.sin(p1) - np.sin(p0))
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
+                    pm = 0.5 * (p0 + p1)
+                    mid_u = x + r * (np.cos(p0) - np.cos(pm))
+                    mid_s = s_entry + r * (np.sin(pm) - np.sin(p0))
                 else:
                     dx, arc = 0.0, lz
-                e.physical.middle = to_global(x + dx / 2.0, s_here)
-                e.physical.global_rotation.theta = theta0
+                    mid_u, mid_s = x, s_here
+                e.physical.middle = to_global(mid_u, mid_s)
+                e.physical.global_rotation.theta = theta0 - p0
                 e.magnetic.angle = ang
-                e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
+                e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
                 x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
@@ -3755,7 +3760,7 @@ class chicane(frameworkGroup):
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
                 e.physical.middle = to_global(x_here, s_here)
-                e.physical.global_rotation.theta = theta0 + phi
+                e.physical.global_rotation.theta = theta0 - phi
 
     @property
     def _design_axis(self) -> tuple:
@@ -3766,11 +3771,26 @@ class chicane(frameworkGroup):
         """
         if not hasattr(self, "_axis"):
             d0 = self.allElementObjects[self.elements[0]].physical
-            self._axis = (
-                np.array(d0.rotation_matrix),
-                float(d0.global_rotation.theta),
-                np.asarray(d0.start.array, dtype=float),
-            )
+            rotation = np.array(d0.rotation_matrix)
+            along = rotation.T[2]
+            entrance = np.asarray(d0.start.array, dtype=float)
+            upstream = None
+            for element in self.allElementObjects.values():
+                if element.name in self.elements:
+                    continue
+                try:
+                    middle = np.asarray(element.physical.middle.array, dtype=float)
+                    theta = float(element.physical.global_rotation.theta)
+                except AttributeError:
+                    continue
+                gap = float(np.dot(entrance - middle, along))
+                if gap < 0 or abs(theta - float(d0.global_rotation.theta)) > 1e-9:
+                    continue
+                if upstream is None or gap < upstream[0]:
+                    upstream = (gap, middle)
+            if upstream is not None:
+                entrance = upstream[1] + upstream[0] * along
+            self._axis = (rotation, float(d0.global_rotation.theta), entrance)
         return self._axis
 
     def _z_extent(self, dipole, index: int) -> float:
