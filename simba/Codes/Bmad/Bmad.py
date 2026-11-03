@@ -554,13 +554,16 @@ class bmadLattice(frameworkLattice):
 
     def write(self) -> None:
         """Write the Bmad lattice and Tao init file to `master_subdir`."""
-        section = self.section
-        section.reference_energy = self._reference_energy()
-        lattice = section.to_bmad(
-            particle=self.global_parameters["beam"].species,
-            space_charge_n_bin=self.space_charge_n_bin,
-            initial_twiss=self._bmad_initial_twiss(),
-        )
+        if self.native_multipass:
+            lattice = self._native_multipass_lattice()
+        else:
+            section = self.section
+            section.reference_energy = self._reference_energy()
+            lattice = section.to_bmad(
+                particle=self.global_parameters["beam"].species,
+                space_charge_n_bin=self.space_charge_n_bin,
+                initial_twiss=self._bmad_initial_twiss(),
+            )
         lattice += self._collective_methods(lattice)
         path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.bmad"
         path.write_text(lattice, encoding="utf-8")
@@ -606,10 +609,60 @@ class bmadLattice(frameworkLattice):
         return "".join(f"{line}\n" for line in lines)
 
     @property
+    def native_multipass(self) -> bool:
+        """
+        Write a multipass path as Bmad multipass (``multipass: native`` on the
+        line): shared hardware defined once, a lord with one slave per pass,
+        rather than one copy per pass. The line has to run the whole path::
+
+            files:
+              ERL:
+                code: bmad
+                multipass: native
+        """
+        return str(self.file_block.get("multipass", "")).lower() == "native"
+
+    def _native_multipass_lattice(self) -> str:
+        """The whole beam path from LAURA's native Bmad multipass export."""
+        from laura.translator.converters.layout import MachineLayoutTranslator
+
+        layout = self.machine.lattices.get(self.machine.default_path)
+        if layout is None or not layout.is_multipass:
+            raise ValueError(f"Line '{self.objectname}' asks for native multipass, "
+                             "but its beam path is not multipass")
+        names = layout.elements
+        if (self.start, self.end) != (names[0], names[-1]):
+            raise ValueError(
+                f"Line '{self.objectname}' asks for native multipass, which writes the "
+                f"whole beam path: it has to run from {names[0]} to {names[-1]}, "
+                f"not {self.start} to {self.end}"
+            )
+        return MachineLayoutTranslator.from_layout(layout, multipass=True).to_bmad_multipass(
+            particle=self.global_parameters["beam"].species,
+            space_charge_n_bin=self.space_charge_n_bin,
+            initial_twiss=self._bmad_initial_twiss(),
+            reference_energy=self._reference_energy(),
+        )
+
+    def _tao_name(self, name: str) -> str:
+        """
+        Tao's name for one of this line's elements: one pass of a multipass
+        element (``NAME.N`` in the line) is the slave ``NAME\\N`` when written
+        natively.
+        """
+        if self.native_multipass:
+            base, _, number = name.rpartition(".")
+            if base and number.isdigit() and f"{base}#{number}" in self.machine.lattices[
+                self.machine.default_path
+            ].elements:
+                return f"{sanitize_string(base)}\\{number}"
+        return sanitize_string(name)
+
+    @property
     def _saved_elements(self) -> list[str]:
         return list(
             dict.fromkeys(
-                sanitize_string(element.name)
+                self._tao_name(element.name)
                 for element in self.screens_and_markers_and_bpms
             )
         )
@@ -694,7 +747,12 @@ class bmadLattice(frameworkLattice):
             rows = self.tao.ele_lord_slave(element)
         except Exception:
             return element
-        slaves = [row["location_name"] for row in rows if row.get("type") == "Slave"]
+        # super-slaves only: a multipass slave also lists its lord's other passes
+        slaves = [
+            row["location_name"]
+            for row in rows
+            if row.get("type") == "Slave" and row.get("status", "Super_Slave") == "Super_Slave"
+        ]
         if not slaves:
             return element
         return max(slaves, key=lambda location: int(location.split(">>")[-1]))
@@ -868,10 +926,11 @@ class bmadLattice(frameworkLattice):
             for name, value in self.getSValues(as_dict=True).items()
         }
         outputs = {
-            element.name: (sanitize_string(element.name), element.physical.start.z)
+            element.name: (self._tao_name(element.name), element.physical.start.z)
             for element in self.screens_and_markers_and_bpms
         }
-        outputs[self.end] = ("END", self.endObject.physical.end.z)
+        end = self.end_name
+        outputs[end] = ("END", self.endObject.physical.end.z)
         final_beam = None
         for output_name, (tao_element, zstart) in outputs.items():
             if not self.writes_output(output_name):
@@ -893,7 +952,7 @@ class bmadLattice(frameworkLattice):
                     / f"{self.output_basename(output_name)}.openpmd.hdf5"
                 ),
             )
-            if output_name == self.end:
+            if output_name == end:
                 final_beam = beam
         save_bmad_twiss_hdf(
             filename=str(

@@ -959,7 +959,8 @@ class madxLattice(frameworkLattice):
         Dict
             Coordinate arrays, including the surviving ``number``
         """
-        at_s = np.abs(trackdata["s"] - s_target) < 1e-8
+        # 1 um: MAD-X drops sub-micron drifts that SIMBA's s still counts
+        at_s = np.abs(trackdata["s"] - s_target) < 1e-6
         if turn is not None:
             mask = at_s & (trackdata["turn"] == turn)
             out = {k: trackdata[k][mask] for k in trackdata}
@@ -1684,7 +1685,7 @@ class madxLattice(frameworkLattice):
                 )
                 # the end of the line is written once more below, from the
                 # last turn; see `track_segment_beam` for the same guard
-                if name != self.end or name_turn is not None:
+                if name != self.end_name or name_turn is not None:
                     self.write_output_beam(name, bm, turn=name_turn)
 
             data = self.extract_observation(trackdata, seg_len, turn=madx_turn)
@@ -1895,7 +1896,7 @@ class madxLattice(frameworkLattice):
             self.store_beam_data(
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
-            if name != self.end or name_turn is not None:
+            if name != self.end_name or name_turn is not None:
                 self.write_output_beam(name, bm, turn=name_turn)
 
         data = self.extract_observation(trackdata, seg_len + self._madx_shift[segnames[-1]])
@@ -2009,7 +2010,7 @@ class madxLattice(frameworkLattice):
             self.store_beam_data(
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
-            if name != self.end or name_turn is not None:
+            if name != self.end_name or name_turn is not None:
                 self.write_output_beam(name, bm, turn=name_turn)
 
         endelem = self._elements_with_drifts[segnames[-1]]

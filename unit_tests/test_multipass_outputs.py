@@ -10,14 +10,27 @@ from unit_tests.test_path_arc_lengths import ERL, machine
 
 
 class Line:
-    """A lattice stub carrying only what `output_s` reads."""
+    """A lattice stub carrying only what `output_s` and the start/end names read."""
 
-    def __init__(self, machine):
+    def __init__(self, machine, start="INJ_Q", end="LIN_Q#2"):
         self.machine = machine
         self.elementObjects = dict(machine.elements)
-        self.elements = {}
+        self.elements = {"LIN_Q.2": machine.lattices["ERL"].element_on_pass("LIN_Q#2")}
+        self.start, self.end = start, end
 
     output_s = frameworkLattice.output_s
+    _named_element = frameworkLattice._named_element
+    start_name = frameworkLattice.start_name
+    end_name = frameworkLattice.end_name
+    startObject = frameworkLattice.startObject
+    endObject = frameworkLattice.endObject
+
+
+def test_a_line_ending_on_one_pass_names_it_as_the_line_does():
+    line = Line(machine(ERL))
+    assert (line.start_name, line.end_name) == ("INJ_Q", "LIN_Q.2")
+    assert line.endObject is line.elements["LIN_Q.2"]
+    assert line.startObject is line.elementObjects["INJ_Q"]
 
 
 def test_a_later_pass_is_placed_at_its_arc_length_along_the_path():

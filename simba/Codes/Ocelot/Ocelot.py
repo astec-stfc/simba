@@ -981,10 +981,10 @@ class ocelotLattice(frameworkLattice):
                     filename=self.output_beam_file(self.names[-1]),
                     global_parameters=self.global_parameters,
                     zstart=self.endObject.physical.end.z,
-                    sstart=self.entrance_s + sval_out[self.end],
+                    sstart=self.entrance_s + sval_out[self.end_name],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
-                    t_reference=t_reference(sval_out[self.end]),
+                    t_reference=t_reference(sval_out[self.end_name]),
                     file_turn=file_turn,
                     start=self.reference_start,
                 )

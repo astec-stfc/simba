@@ -579,7 +579,7 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = svals[self.end] - self.endObject.physical.length / 2 + self.entrance_s
+        sval = svals[self.end_name] - self.endObject.physical.length / 2 + self.entrance_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,

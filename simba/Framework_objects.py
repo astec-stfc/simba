@@ -2513,8 +2513,23 @@ class frameworkLattice(BaseModel):
 
     @property
     def startObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`start`."""
-        return self.elementObjects[self.start]
+        """The element named by :attr:`start` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.start)
+
+    def _named_element(self, name: str) -> "PhysicalBaseElement":
+        if name in self.elementObjects:
+            return self.elementObjects[name]
+        return self.elements[flatten_occurrence(name)]
+
+    @property
+    def start_name(self) -> str:
+        """:attr:`start` as this line names it: ``NAME.N`` for one pass (``NAME#N``) of a multipass element."""
+        return flatten_occurrence(self.start)
+
+    @property
+    def end_name(self) -> str:
+        """:attr:`end` as this line names it; see :attr:`start_name`."""
+        return flatten_occurrence(self.end)
 
     @property
     def end(self) -> str:
@@ -2547,8 +2562,8 @@ class frameworkLattice(BaseModel):
 
     @property
     def endObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`end`."""
-        return self.elementObjects[self.end]
+        """The element named by :attr:`end` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.end)
 
     @property
     def start_s(self) -> float:

@@ -1043,12 +1043,12 @@ class xsuiteLattice(frameworkLattice):
                 # the end of turn k is the start of the pass after it
                 payload = _select_turn(ends, turn * self.passes_per_turn)
             self._write_xsuite_beam(
-                payload, self.end, name_turn, turn,
-                self.endObject.physical.middle.z, svals[self.end],
+                payload, self.end_name, name_turn, turn,
+                self.endObject.physical.middle.z, svals[self.end_name],
             )
         for elem in self.screens_and_markers_and_bpms:
             # the end's is written above
-            if elem.name == self.end or elem.name not in self.line.element_dict:
+            if elem.name == self.end_name or elem.name not in self.line.element_dict:
                 continue
             if not self.writes_output(elem.name):
                 continue

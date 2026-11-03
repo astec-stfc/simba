@@ -359,9 +359,9 @@ class impactxLattice(frameworkLattice):
         points = {
             e.name: (e.physical.start.z, self.entrance_s + s_in[e.name])
             for e in self.screens_and_markers_and_bpms
-            if e.name in names and e.name != self.end and self.writes_output(e.name)
+            if e.name in names and e.name != self.end_name and self.writes_output(e.name)
         }
-        end = (self.endObject.physical.end.z, self.entrance_s + self.getSValues(as_dict=True)[self.end])
+        end = (self.endObject.physical.end.z, self.entrance_s + self.getSValues(as_dict=True)[self.end_name])
         last = self.last_pass(self.turns)
         now = {}
 
