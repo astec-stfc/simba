@@ -99,18 +99,21 @@ def test_several_species_and_no_primary_must_be_chosen(tmp_path):
         rbf.openpmd.read_openpmd_beam_file(rbf.beam(), filename)
 
 
-def test_append_keeps_the_existing_species_primary(tmp_path):
+def test_append_keeps_the_existing_species_primary_and_merges_a_species_already_there(tmp_path):
     filename = str(tmp_path / "end.openpmd.hdf5")
     make_beam("electron").write_openpmd_beam_file(filename)
-    added = rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3, seed=1)])
+    added = rbf.openpmd.append_species(filename, [make_beam("photon", n=50, nmacro=3, seed=1)])
     assert added == ["photon"]
-    with pytest.warns(UserWarning, match="already holds photon"):
-        assert rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3)]) == []
+    # photons the code made itself, and photons carried to it from upstream
+    assert rbf.openpmd.append_species(filename, [make_beam("photon", n=20, nmacro=5, seed=2)]) == ["photon"]
 
     back = rbf.beam()
     rbf.openpmd.read_openpmd_beam_file(back, filename)
     assert back.species == "electron"
     assert list(back.others) == ["photon"]
+    photons = back.others["photon"]
+    assert len(photons.x) == 70
+    np.testing.assert_allclose(photons.Particles.nmacro, [3.0] * 50 + [5.0] * 20)
 
 
 def _line_given(others, species=None, multiple=False):

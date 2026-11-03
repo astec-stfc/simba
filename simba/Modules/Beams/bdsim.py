@@ -24,13 +24,14 @@ SAMPLER_VARIABLES = (
     "turnNumber",
 )
 
-PDGID_MASSES = {
-    11: constants.m_e,
-    -11: constants.m_e,
-    2212: constants.m_p,
-    -2212: constants.m_p,
+PDGID_SPECIES = {
+    11: "electron",
+    -11: "positron",
+    22: "photon",
+    2212: "proton",
+    -2212: "antiproton",
 }
-"""Rest masses [kg] for the PDG IDs SIMBA tracks."""
+"""SIMBA species (:data:`~simba.Modules.Beams.SPECIES`) of the PDG IDs it reads from BDSIM."""
 
 
 def write_bdsim_beam_file(beam, filename):
@@ -257,51 +258,68 @@ def interpret_bdsim_sampler(
     charge=None,
     zstart=0,
     ref_index=None,
-    keep_secondaries=False,
+    secondaries=(),
     ninjected=None,
+    species="electron",
 ):
     """
     Populate a :class:`~simba.Modules.Beams.beam` from one sampler's arrays as
     returned by :func:`read_bdsim_sampler_arrays`.
+
+    Each particle keeps its own species (from its PDG ID, :data:`PDGID_SPECIES`), so a
+    beam with secondaries is several species, which the openPMD writer splits into
+    groups (see :meth:`~simba.Modules.Beams.beam.split_species`). Each hit stands for
+    ``|charge| / (e ninjected)`` real particles, times its BDSIM ``weight``.
 
     Parameters
     ----------
     arrays: dict
         ``{variable: ndarray}`` for a single sampler.
     charge: float, optional
-        Total bunch charge [C].
+        Total charge of the bunch injected [C]; without it, each hit is one particle.
     zstart: float, optional
         Longitudinal offset [m] added to the reconstructed `z`.
     ref_index: int, optional
-        Reference particle index.
-    keep_secondaries: bool, optional
-        Keep secondary particles produced in the machine. Off by default.
+        Index of the reference particle in the injected bunch, so its event.
+    secondaries: iterable of str, or "all"
+        Species of the secondaries to keep, e.g. ``("photon", "positron")``; none by default.
     ninjected: int, optional
         Number of particles tracked; by default one more than the last event seen.
+    species: str
+        The species injected: this beam's :attr:`species`, whose primaries come first.
     """
-    mask = np.ones(len(arrays["x"]), dtype=bool)
-    if not keep_secondaries:
-        mask &= arrays["parentID"] == 0
-    if not np.any(mask):
+    from . import SPECIES
+
+    if ninjected is None:
+        ninjected = int(np.max(arrays["eventID"])) + 1 if len(arrays["eventID"]) else 0
+    partid = arrays["partID"].astype(int)
+    names = np.array([PDGID_SPECIES.get(p) for p in partid], dtype=object)
+    primary = arrays["parentID"] == 0
+    keep_all = secondaries == "all"
+    wanted_secondary = ~primary & (names != None)  # noqa: E711 (elementwise)
+    if not keep_all:
+        wanted_secondary &= np.isin(names, list(secondaries))
+    if keep_all and np.any(~primary & (names == None)):  # noqa: E711
+        unknown = sorted(set(partid[~primary & (names == None)]))  # noqa: E711
+        warn(f"Secondaries with PDG IDs {unknown}, which SIMBA has no species for, are dropped")
+    nprimaries = int(np.count_nonzero(primary))
+    if nprimaries < ninjected:
+        warn(
+            f"{ninjected - nprimaries} of {ninjected} particles were lost before "
+            "this sampler; scaling the bunch charge accordingly"
+        )
+    # primaries first, so the injected species is the first group
+    keep = np.concatenate([np.flatnonzero(primary), np.flatnonzero(wanted_secondary)])
+    if not len(keep):
         raise ValueError("No particles found at this sampler")
-    dat = {k: v[mask] for k, v in arrays.items()}
+    dat = {k: v[keep] for k, v in arrays.items()}
+    kept = names[keep]
+    kept[: nprimaries] = species  # the primaries are what was injected
 
-    if charge is not None:
-        if ninjected is None:
-            ninjected = int(np.max(arrays["eventID"])) + 1
-        nprimaries = int(np.count_nonzero(arrays["parentID"] == 0))
-        if nprimaries < ninjected:
-            warn(
-                f"{ninjected - nprimaries} of {ninjected} particles were lost before "
-                "this sampler; scaling the bunch charge accordingly"
-            )
-        charge = charge * nprimaries / ninjected
-
-    partid = dat["partID"].astype(int)
-    unknown = set(np.unique(partid)) - set(PDGID_MASSES)
-    if unknown:
-        warn(f"Unknown PDG IDs {sorted(unknown)} in BDSIM output; assuming electrons")
-    mass = np.array([PDGID_MASSES.get(p, constants.m_e) for p in partid])
+    per_macroparticle = abs(float(charge)) / (constants.elementary_charge * ninjected) if charge is not None else 1.0
+    real = per_macroparticle * np.asarray(dat["weight"], dtype=float)
+    mass = np.array([SPECIES[n][0] for n in kept])
+    sign = np.array([SPECIES[n][1] for n in kept], dtype=float)
 
     self.code = "BDSIM"
     _set_particles(
@@ -312,17 +330,34 @@ def interpret_bdsim_sampler(
         yp=dat["yp"],
         energy=dat["energy"] * 1e9,
         mass=mass,
-        charge=charge,
+        charge=None,
         s=float(np.mean(dat["S"])),
         zp=dat["zp"],
+        particle_charge=sign * constants.elementary_charge,
     )
+    self._beam.nmacro = UnitValue(real)
+    self._beam.charge = UnitValue(sign * constants.elementary_charge * real, units="C")
+    self._beam.total_charge = UnitValue(float(np.sum(self._beam.charge)), units="C")
+    self.species = species
     self._beam.t = UnitValue(dat["T"] * 1e-9, units="s")
-    _set_reference_particle(self, ref_index, zstart=zstart)
+    # the reference particle is the primary from the reference's event, wherever losses
+    # have left it in the arrays
+    reference = None
+    if ref_index is not None:
+        found = np.flatnonzero(dat["eventID"][:nprimaries] == int(ref_index))
+        if found.size:
+            reference = int(found[0])
+        else:
+            warn("The reference particle was lost before this sampler; using the mean instead")
+    _set_reference_particle(self, reference, zstart=zstart)
 
 
-def _set_particles(self, x, y, xp, yp, energy, mass, charge, s, zp=None):
+def _set_particles(
+    self, x, y, xp, yp, energy, mass, charge, s, zp=None, particle_charge=-constants.elementary_charge
+):
     """
-    Fill the particle arrays shared by both BDSIM readers.
+    Fill the particle arrays shared by both BDSIM readers; ``particle_charge`` is
+    each physical particle's charge [C] (electrons' by default).
     """
     self.reset_dicts()
     nparticles = len(x)
@@ -334,7 +369,7 @@ def _set_particles(self, x, y, xp, yp, energy, mass, charge, s, zp=None):
         self._beam.particle_rest_energy / constants.elementary_charge, units="eV/c"
     )
     self._beam.particle_charge = UnitValue(
-        np.full(nparticles, constants.elementary_charge), units="C"
+        np.broadcast_to(np.asarray(particle_charge, dtype=float), (nparticles,)).copy(), units="C"
     )
     self._beam.x = UnitValue(x, units="m")
     self._beam.y = UnitValue(y, units="m")

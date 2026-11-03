@@ -200,6 +200,29 @@ class bdsimLattice(frameworkLattice):
         return str(tracking.get("physics_list") or "")
 
     @property
+    def secondaries(self):
+        """
+        Species of the secondaries BDSIM makes that are kept and passed on: none unless
+        the ``tracking`` block lists them, or says ``all`` (every species SIMBA has)::
+
+            tracking:
+              physics_list: em
+              secondaries: [photon, positron]
+
+        A secondary of the injected species (an electron knocked on by an electron
+        beam, say) joins the injected beam's group in the output.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        wanted = tracking.get("secondaries") or ()
+        if wanted == "all":
+            return "all"
+        wanted = (wanted,) if isinstance(wanted, str) else tuple(wanted)
+        unknown = [w for w in wanted if rbf.SPECIES_ALIASES.get(w, w) not in rbf.SPECIES]
+        if unknown:
+            raise ValueError(f"Unknown secondaries {unknown}; one of {sorted(rbf.SPECIES)} or 'all'")
+        return tuple(rbf.SPECIES_ALIASES.get(w, w) for w in wanted)
+
+    @property
     def bdsim_options(self) -> dict:
         """
         The BDSIM options this line adds: :attr:`physics_list`, and anything in the
@@ -303,7 +326,8 @@ class bdsimLattice(frameworkLattice):
             )
 
     def screen_function(
-        self, name: str, arrays: dict, data_turn: int | None, turn: int | None, ninjected: int
+        self, name: str, arrays: dict, data_turn: int | None, turn: int | None, ninjected: int,
+        injected=None,
     ) -> None:
         """
         Convert one turn of one BDSIM sampler into a SIMBA beam and write it
@@ -321,17 +345,23 @@ class bdsimLattice(frameworkLattice):
             :func:`~simba.Modules.Beams.bdsim.select_turn`.
         ninjected: int
             Number of particles tracked, for scaling the charge by the losses.
+        injected: :class:`~simba.Modules.Beams.beam`, optional
+            The beam tracked, for its charge and species; by default the line's beam.
         """
+        injected = injected if injected is not None else self.global_parameters["beam"]
         if self.circular:
+            # in circular mode only the primaries are kept, one per turn
             arrays = rbf.bdsim.select_turn(arrays, data_turn or 1)
         beam = rbf.beam()
         rbf.bdsim.interpret_bdsim_sampler(
             beam,
             arrays,
-            charge=self.global_parameters["beam"].total_charge,
+            charge=injected.total_charge,
             zstart=self.startObject.physical.start.z,
             ref_index=self.ref_idx,
             ninjected=ninjected,
+            species=injected.species,
+            secondaries=self.secondaries,
         )
         beam.turn = self.beam_turn(turn)
         self.write_beam_file(beam, name, turn)
@@ -375,7 +405,9 @@ class bdsimLattice(frameworkLattice):
         arrays = rbf.bdsim.read_bdsim_sampler_arrays(
             rootfile, samplers=list(wanted.values())
         )
-        ninjected = len(self.global_parameters["beam"].x)
+        # the end screen replaces the line's beam, so keep the one that was tracked
+        injected = self.global_parameters["beam"]
+        ninjected = len(injected.x)
         for name, sampler in wanted.items():
             for data_turn, turn in self.output_turns():
-                self.screen_function(name, arrays[sampler], data_turn, turn, ninjected)
+                self.screen_function(name, arrays[sampler], data_turn, turn, ninjected, injected)

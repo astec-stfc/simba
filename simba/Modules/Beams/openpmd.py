@@ -218,7 +218,8 @@ def append_species(filename, beams) -> list:
     Add ``beams`` to an existing openPMD beam file as extra species groups.
 
     The species already in the file stays the primary one. A species the file
-    already holds is not overwritten.
+    already holds (photons a code made itself, say, as well as those carried to it)
+    is merged into its group, the file's particles first.
 
     Parameters
     ----------
@@ -230,7 +231,7 @@ def append_species(filename, beams) -> list:
     Returns
     -------
     list
-        The species that were added.
+        The species that were added or merged.
     """
     added = []
     with File(os.path.expandvars(filename), "a") as h5file:
@@ -240,8 +241,11 @@ def append_species(filename, beams) -> list:
             bunch_data.attrs[PRIMARY_SPECIES_ATTR] = present[0]
         for other in beams:
             if other.species in present:
-                warn(f"{filename} already holds {other.species}; not adding another")
-                continue
+                merged = type(other)()
+                _read_species_group(merged, bunch_data, other.species)
+                merged.absorb([other])
+                del bunch_data[other.species]
+                other = merged
             _write_species(other, bunch_data, [0, 0, 0], 0)
             present.append(other.species)
             added.append(other.species)
