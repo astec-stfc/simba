@@ -36,8 +36,11 @@ def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, phy
     assert bdsimLattice.bdsim_options.fget(line) == options
 
 
-def _collimator_line(tmp_path, tracking, npart=400):
-    """A 0.5 mm-radius copper collimator in a round 1 mm beam, through Framework.track."""
+def _collimator_line(tmp_path, tracking, npart=400, element=None):
+    """
+    A 0.5 mm-radius copper collimator (or ``element``) at z = 0.5 m in a round 1 mm,
+    100 MeV electron beam, from M1 to M3, through Framework.track.
+    """
     from laura import LAURA
     from laura.exporters.yaml_exporter import export_machine
     from laura.models.element import Collimator, Marker
@@ -50,10 +53,11 @@ def _collimator_line(tmp_path, tracking, npart=400):
         return Marker(name=name, machine_area="LINE", hardware_class="Marker",
                       physical={"middle": {"x": 0.0, "y": 0.0, "z": z}})
 
-    col = Collimator(name="COL", machine_area="LINE", material="copper",
-                     aperture={"shape": "circular", "radius": 5e-4},
-                     physical={"length": 0.1, "middle": {"x": 0.0, "y": 0.0, "z": 0.5}})
-    elements = [marker("M1", 0.0), col, marker("M3", 1.0)]
+    if element is None:
+        element = Collimator(name="COL", machine_area="LINE", material="copper",
+                             aperture={"shape": "circular", "radius": 5e-4},
+                             physical={"length": 0.1, "middle": {"x": 0.0, "y": 0.0, "z": 0.5}})
+    elements = [marker("M1", 0.0), element, marker("M3", 1.0)]
     section = {"sections": {"LINE": {"elements": [e.name for e in elements]}}}
     machine = LAURA(element_list=elements, section=section,
                     layout={"default_layout": "l", "layouts": {"l": ["LINE"]}})
@@ -128,6 +132,68 @@ def test_the_secondaries_asked_for_come_out_as_their_own_species(tmp_path):
     assert "photon" in beam.others  # 10 cm of copper always showers
 
 
+def _counts(raw, nevents):
+    """Per-event numbers of secondary photons and positrons, and the photon energies [GeV]."""
+    secondary = raw["parentID"] != 0
+    per_event = {}
+    for pdg in (22, -11):
+        hits = raw["eventID"][secondary & (raw["partID"] == pdg)]
+        per_event[pdg] = np.bincount(hits.astype(int), minlength=nevents)
+    return per_event, raw["energy"][secondary & (raw["partID"] == 22)]
+
+
+@needs_bdsim
+def test_a_laura_target_showers_as_the_same_target_written_by_hand(tmp_path):
+    """D1-D3 together: a LAURA Target, tracked by simba with em physics, against
+    the same 1 mm tungsten target in a hand-written gmad."""
+    import subprocess
+
+    from laura.models.element import Target
+
+    from simba.Modules.Beams import bdsim
+
+    nevents = 300
+    target = Target(name="TGT", machine_area="LINE", material="tungsten",
+                    physical={"length": 1e-3, "middle": {"x": 0.0, "y": 0.0, "z": 0.5}})
+    beam, _ = _collimator_line(
+        tmp_path / "simba", {"physics_list": "em", "secondaries": ["photon", "positron"]},
+        npart=nevents, element=target,
+    )
+    gmad = tmp_path / "hand.gmad"
+    gmad.write_text(
+        "d1: drift, l=0.4995*m;\n"
+        't1: target, l=1*mm, material="tungsten";\n'
+        "d2: drift, l=0.4995*m;\n"
+        "s1: marker;\n"
+        "l1: line=(d1, t1, d2, s1);\n"
+        "use, l1;\n"
+        "sample, range=s1;\n"
+        'beam, particle="e-", energy=100*MeV;\n'
+        'option, physicsList="em";\n'
+    )
+    subprocess.run(
+        ["bdsim", f"--file={gmad}", f"--outfile={tmp_path / 'hand'}", "--batch", f"--ngenerate={nevents}"],
+        check=True, capture_output=True,
+    )
+    hand, hand_photon_energy = _counts(
+        bdsim.read_bdsim_sampler_arrays(str(tmp_path / "hand.root"), samplers=["s1"])["s1"], nevents
+    )
+    ours, our_photon_energy = _counts(
+        bdsim.read_bdsim_sampler_arrays(beam.root_file, samplers=["M3"])["M3"], nevents
+    )
+    # and simba's own photon and positron groups hold exactly BDSIM's hits
+    assert len(beam.others["photon"].x) == ours[22].sum()
+    if ours[-11].sum():
+        assert len(beam.others["positron"].x) == ours[-11].sum()
+    for pdg in (22, -11):
+        difference = ours[pdg].mean() - hand[pdg].mean()
+        error = np.hypot(ours[pdg].std(), hand[pdg].std()) / np.sqrt(nevents)
+        assert abs(difference) < 4 * error, (pdg, ours[pdg].mean(), hand[pdg].mean())
+    error = np.hypot(our_photon_energy.std() / np.sqrt(len(our_photon_energy)),
+                     hand_photon_energy.std() / np.sqrt(len(hand_photon_energy)))
+    assert abs(our_photon_energy.mean() - hand_photon_energy.mean()) < 4 * error
+
+
 def _sampler(*hits):
     """Sampler arrays from ``(eventID, parentID, partID, T)`` hits, at 100 MeV along z."""
     columns = np.array(hits, dtype=float).T
@@ -176,3 +242,41 @@ def test_unknown_secondaries_are_refused():
         bdsimLattice.secondaries.fget(line)
     line.file_block["tracking"]["secondaries"] = ["photons", "positron"]
     assert bdsimLattice.secondaries.fget(line) == ("photon", "positron")
+
+
+def test_samplers_name_elements_of_the_line():
+    line = SimpleNamespace(
+        objectname="LINE", elements={"TGT": None, "M3": None},
+        file_block={"tracking": {"samplers": "TGT"}},
+    )
+    assert bdsimLattice.samplers.fget(line) == ["TGT"]
+    line.file_block["tracking"]["samplers"] = ["TGT", "NOPE"]
+    with pytest.raises(ValueError, match="NOPE"):
+        bdsimLattice.samplers.fget(line)
+
+
+@needs_bdsim
+def test_a_sampler_on_the_target_records_the_shower_at_its_exit(tmp_path):
+    import simba.Modules.Beams as rbf
+    from laura.models.element import Target
+
+    target = Target(name="TGT", machine_area="LINE", material="tungsten",
+                    physical={"length": 1e-3, "middle": {"x": 0.0, "y": 0.0, "z": 0.5}})
+    end, _ = _collimator_line(
+        tmp_path, {"physics_list": "em", "secondaries": ["photon"], "samplers": ["TGT"]},
+        npart=100, element=target,
+    )
+    at_target = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(at_target, os.path.join(os.path.dirname(end.root_file), "TGT.openpmd.hdf5"))
+    assert at_target.species == "electron" and "photon" in at_target.others
+    # at the target's exit, half a metre upstream of M3
+    assert float(at_target.s) == pytest.approx(0.5005, abs=1e-6)
+    assert float(end.s) == pytest.approx(1.0, abs=1e-6)
+    # what BDSIM recorded on the target's own sampler (not the same as at M3: electrons
+    # scattered by the target shower again in BDSIM's default beam pipe on the way)
+    from simba.Modules.Beams import bdsim
+
+    raw = bdsim.read_bdsim_sampler_arrays(end.root_file, samplers=["TGT"])["TGT"]
+    secondary = raw["parentID"] != 0
+    assert len(at_target.x) == np.count_nonzero(~secondary)
+    assert len(at_target.others["photon"].x) == np.count_nonzero(secondary & (raw["partID"] == 22))

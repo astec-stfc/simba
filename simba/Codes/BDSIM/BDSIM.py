@@ -149,6 +149,10 @@ class bdsimLattice(frameworkLattice):
         )
         # LAURA has already set integratorSet and buildPoleFaceGeometry
         self.lattice.options.update(self.bdsim_options)
+        sampled = {s.name for s in self.lattice.samplers}
+        for name in self.samplers:
+            if name.replace("-", "_") not in sampled:
+                self.lattice.AddSampler(name.replace("-", "_"))
         material = list(dict.fromkeys(
             name for name in self.lattice.sequence
             if self.lattice.elements[name].category in MATERIAL_CATEGORIES
@@ -198,6 +202,24 @@ class bdsimLattice(frameworkLattice):
         """
         tracking = self.file_block.get("tracking") or {}
         return str(tracking.get("physics_list") or "")
+
+    @property
+    def samplers(self) -> list:
+        """
+        Elements to record the beam at the exit of, as well as the screens, markers and
+        BPMs, which always are; each gets ``<element>.openpmd.hdf5``::
+
+            tracking:
+              physics_list: em
+              samplers: [CLA-FEC1-TARGET-01]
+        """
+        tracking = self.file_block.get("tracking") or {}
+        names = tracking.get("samplers") or []
+        names = [names] if isinstance(names, str) else list(names)
+        unknown = [name for name in names if name not in self.elements]
+        if unknown:
+            raise ValueError(f"Line '{self.objectname}' has no elements {unknown} to sample at")
+        return names
 
     @property
     def secondaries(self):
@@ -391,10 +413,8 @@ class bdsimLattice(frameworkLattice):
                 f"BDSIM output file {rootfile} not found; the tracking run failed{hint}"
             )
         available = rbf.bdsim.get_bdsim_sampler_names(rootfile)
-        wanted = {
-            scr.name: scr.name.replace("-", "_")
-            for scr in self.screens_and_markers_and_bpms
-        }
+        names = [scr.name for scr in self.screens_and_markers_and_bpms] + self.samplers
+        wanted = {name: name.replace("-", "_") for name in names}
         missing = [n for n, s in wanted.items() if s not in available]
         for name in missing:
             warn(f"No BDSIM sampler found for {name}; no beam file will be written")
