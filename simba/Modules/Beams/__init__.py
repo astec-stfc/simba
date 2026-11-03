@@ -55,10 +55,27 @@ SPECIES = {
     "positron": (constants.m_e, 1),
     "proton": (constants.m_p, 1),
     "antiproton": (constants.m_p, -1),
+    "photon": (0.0, 0),
 }
 """Mass [kg] and charge sign of each species :meth:`beam.set_species` accepts."""
 
 SPECIES_ALIASES = {f"{name}s": name for name in SPECIES} | {"hydrogen": "proton"}
+
+
+def species_names(mass, charge) -> np.ndarray | None:
+    """
+    The :data:`SPECIES` name of each particle, from its mass [kg] (to 10%) and the sign of its charge.
+
+    Returns None if any particle matches no species.
+    """
+    mass = np.asarray(mass, dtype=float)
+    sign = np.sign(np.asarray(charge, dtype=float))
+    mass, sign = np.broadcast_arrays(mass, sign)
+    names = np.full(mass.shape, None, dtype=object)
+    for name, (m, s) in SPECIES.items():
+        close = (mass == 0) if m == 0 else np.isclose(mass, m, rtol=0.1, atol=0)
+        names[close & (sign == s)] = name
+    return None if any(n is None for n in names) else names
 
 
 def get_properties(obj):
@@ -279,6 +296,7 @@ class beam(BaseModel):
         super().__init__(*args, **kwargs)
         self._beam = Particles()
         self._parameters = parameters
+        self._others = {}
         self.filename = filename
         self.code = None
         if self.filename is not None:
@@ -294,16 +312,132 @@ class beam(BaseModel):
         name = SPECIES_ALIASES.get(value, value)
         if name not in SPECIES:
             raise ValueError(
-                "Species must be one of: electron(s), positron(s), proton(s), antiproton(s), hydrogen"
+                f"Species must be one of: {', '.join(SPECIES)} (plural or 'hydrogen' also accepted)"
             )
         mass, sign = SPECIES[name]
         self.species = name
         self.set_particle_mass(mass)
         self._beam.particle_charge = UnitValue(np.full(len(self.x), sign * constants.elementary_charge), units="C")
-        # unary minus, not sign * ...: UnitValue.__rmul__ drops the units
-        self._beam.charge = abs(self._beam.charge) if sign > 0 else -abs(self._beam.charge)
-        self._beam.total_charge = abs(self._beam.total_charge) if sign > 0 else -abs(self._beam.total_charge)
+        if sign == 0:
+            # neutral: the macroparticle size lives in nmacro, not charge
+            self._beam.charge = UnitValue(np.zeros(len(self.x)), units="C")
+            self._beam.total_charge = UnitValue(0.0, units="C")
+        else:
+            # unary minus, not sign * ...: UnitValue.__rmul__ drops the units
+            self._beam.charge = abs(self._beam.charge) if sign > 0 else -abs(self._beam.charge)
+            self._beam.total_charge = abs(self._beam.total_charge) if sign > 0 else -abs(self._beam.total_charge)
+        self._beam.particle_rest_energy = UnitValue(mass * constants.speed_of_light**2, units="J")
         self._beam.particle_rest_energy_eV = UnitValue(mass * constants.speed_of_light**2 / constants.elementary_charge, units="eV/c")
+
+    @property
+    def others(self) -> Dict[str, "beam"]:
+        """
+        The other species that travel with this beam, keyed by species name.
+
+        Read from, and written to, the same openPMD file as this beam, but not
+        tracked: a code that knows nothing about them carries them through
+        unchanged (see :meth:`~simba.Framework_objects.frameworkLattice.carry_other_species`).
+        """
+        return self._others
+
+    @property
+    def particle_species(self) -> np.ndarray | None:
+        """
+        Each particle's species name (:func:`species_names`), from its own mass and charge;
+        None if the per-particle arrays are missing or do not match a known species.
+        """
+        if self._beam.x is None:
+            return None
+        n = len(self._beam.x)
+        mass = getattr(self._beam.particle_mass, "val", self._beam.particle_mass)
+        charge = self._beam.particle_charge
+        if charge is None or np.size(charge) != n:
+            charge = self._beam.charge
+        charge = getattr(charge, "val", charge)
+        if mass is None or charge is None or np.size(mass) not in (1, n) or np.size(charge) not in (1, n):
+            return None
+        return species_names(np.broadcast_to(mass, (n,)), np.broadcast_to(charge, (n,)))
+
+    @property
+    def is_mixed(self) -> bool:
+        """Whether this beam's particles are of more than one species (see :meth:`absorb`)."""
+        mass, charge = self._beam.particle_mass, self._beam.particle_charge
+        if (
+            mass is not None and charge is not None
+            and np.ptp(np.asarray(mass, dtype=float)) == 0
+            and np.ptp(np.sign(np.asarray(charge, dtype=float))) == 0
+        ):
+            return False  # the common case, without matching every particle to a species
+        names = self.particle_species
+        return names is not None and len(set(names)) > 1
+
+    def split_species(self) -> Dict[str, "beam"]:
+        """
+        This beam's particles grouped by :attr:`particle_species`, one single-species beam each.
+
+        The reference particle stays with its own species. A beam of one species
+        (or whose species cannot be told) comes back as ``{self.species: self}``.
+        """
+        names = self.particle_species
+        if names is None or len(set(names)) < 2:
+            return {self.species: self}
+        others, self._others = self._others, {}
+        try:
+            groups = {}
+            ref = self.reference_particle_index
+            for name in dict.fromkeys(names):
+                mask = names == name
+                sub = copy.deepcopy(self)
+                sub._beam.apply_mask(mask)
+                sub._beam.total_charge = UnitValue(float(np.sum(sub._beam.charge)), units="C")
+                sub.set_species(name)
+                if ref is not None and 0 <= ref < len(mask) and mask[ref]:
+                    sub.reference_particle_index = int(np.count_nonzero(mask[:ref]))
+                else:
+                    sub.reference_particle_index = None
+                    sub.reference_particle = None
+                groups[name] = sub
+        finally:
+            self._others = others
+        return groups
+
+    def absorb(self, others) -> None:
+        """
+        Append the particles of the beams ``others`` to this one, each keeping its own mass and charge.
+
+        This beam's particles stay first, so its reference particle index still holds
+        and its :attr:`species` stays the primary one. :meth:`split_species` undoes it.
+        """
+        beams = [self, *others]
+        n_before = len(self.x)
+        defaults = {
+            "status": lambda b: np.ones(len(b.x)),
+            "nmacro": lambda b: np.abs(np.asarray(b._beam.charge, dtype=float)) / constants.elementary_charge,
+            "particle_rest_energy": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2,
+            "particle_rest_energy_eV": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2 / constants.elementary_charge,
+        }
+        columns = {
+            "x": "m", "y": "m", "z": "m", "t": "s",
+            "px": "kg*m/s", "py": "kg*m/s", "pz": "kg*m/s",
+            "charge": "C", "particle_mass": "kg", "particle_charge": "C",
+            "particle_rest_energy": "J", "particle_rest_energy_eV": "eV/c",
+            "status": "", "nmacro": "",
+        }
+
+        def column(b, key):
+            value = getattr(b._beam, key)
+            value = defaults[key](b) if value is None else getattr(value, "val", value)
+            return np.broadcast_to(np.asarray(value, dtype=float), (len(b.x),))
+
+        merged = {key: np.concatenate([column(b, key) for b in beams]) for key in columns}
+        # any other per-particle array would now be the wrong length
+        for key, value in self._beam:
+            if key not in columns and isinstance(value, np.ndarray) and value.shape[:1] == (n_before,):
+                setattr(self._beam, key, None)
+        for key, unit in columns.items():
+            setattr(self._beam, key, UnitValue(merged[key], units=unit))
+        self._beam.total_charge = UnitValue(float(np.sum(merged["charge"])), units="C")
+        self.particle_mass = self._beam.particle_mass
 
     @property
     def E0_eV(self) -> float:

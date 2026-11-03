@@ -479,6 +479,38 @@ class BadOneTurnMapWarning(PhysicsWarning):
         super().__init__(message)
 
 
+class SpeciesNotCarriedWarning(PhysicsWarning):
+    """Species a line did not track, with no end-of-line beam file to carry them in."""
+
+    def __init__(self, line: str, filename: str, species: list):
+        super().__init__(
+            f"{_line(line)} wrote no end-of-line beam file {filename}, so the "
+            f"species it did not track, {species}, do not reach the next line."
+        )
+
+
+class SpeciesDroppedWarning(SettingWarning):
+    """Charged species a line was told not to track, so are not carried on either."""
+
+    def __init__(self, line: str, tracked: str, dropped: list):
+        super().__init__(
+            f"{_line(line)} tracks only {tracked} (``input: species``), so the other "
+            f"charged species in its input, {dropped}, are dropped here."
+        )
+
+
+class MultipleSpeciesError(SimbaError, ValueError):
+    """A beam with more than one charged species, in a line that tracks one."""
+
+    def __init__(self, line: str, code: str, tracked: str, others: list):
+        super().__init__(
+            f"{line} is tracked by {code}, which in simba tracks one species, but its "
+            f"input holds {tracked} and also {others}. Carrying charged particles "
+            "through untracked would be wrong, so set ``input: species`` to the one "
+            "to track (the others are then dropped), or split the run."
+        )
+
+
 class WrongSpeciesError(SimbaError, ValueError):
     """A beam that is not electrons, in a code that tracks only electrons."""
 
