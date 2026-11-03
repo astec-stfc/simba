@@ -503,6 +503,81 @@ class BadOneTurnMapWarning(PhysicsWarning):
         super().__init__(message)
 
 
+class SpeciesNotCarriedWarning(PhysicsWarning):
+    """Species a line did not track, with no end-of-line beam file to carry them in."""
+
+    def __init__(self, line: str, filename: str, species: list):
+        super().__init__(
+            f"{_line(line)} wrote no end-of-line beam file {filename}, so the "
+            f"species it did not track, {species}, do not reach the next line."
+        )
+
+
+class SpeciesDroppedWarning(SettingWarning):
+    """Charged species a line was told not to track, so are not carried on either."""
+
+    def __init__(self, line: str, tracked: str, dropped: list):
+        super().__init__(
+            f"{_line(line)} tracks only {tracked} (``input: species``), so the other "
+            f"charged species in its input, {dropped}, are dropped here."
+        )
+
+
+class MultipleSpeciesError(SimbaError, ValueError):
+    """A beam with more than one charged species, in a line that tracks one."""
+
+    def __init__(self, line: str, code: str, tracked: str, others: list):
+        super().__init__(
+            f"{line} is tracked by {code}, which in simba tracks one species, but its "
+            f"input holds {tracked} and also {others}. Carrying charged particles "
+            "through untracked would be wrong, so set ``input: species`` to the one "
+            "to track (the others are then dropped), or split the run."
+        )
+
+
+class MixedMassError(SimbaError, ValueError):
+    """Species of another mass than the tracked one, in a code that cannot track them together."""
+
+    def __init__(self, line: str, code: str, tracked: str, others: list, reason: str):
+        super().__init__(
+            f"{line} is tracked by {code}, which can track several species only if they "
+            f"have the mass of the tracked one ({tracked}), but its input also holds "
+            f"{others}: {reason} Set ``input: species`` to the one to track, or track "
+            "the line with ASTRA, GPT or Xsuite."
+        )
+
+
+class NearAxisSpeciesWarning(PhysicsWarning):
+    """Particles of another species close enough to the reference orbit to be tracked as the reference."""
+
+    def __init__(self, line: str, count: int, tracked: str, where: str):
+        super().__init__(
+            f"{_line(line)}: {count} particles that are not {tracked} start within 1e-9 "
+            f"of the reference orbit, where {where}, so they are tracked as {tracked}."
+        )
+
+
+class CollectiveSpeciesWarning(PhysicsWarning):
+    """Collective effects computed as if a beam of several species were all one."""
+
+    def __init__(self, line: str, code: str, effects: str, how: str):
+        super().__init__(
+            f"{_line(line)} tracks several species with {effects} on, but {code} {how}, "
+            "so the collective fields are wrong wherever the species overlap."
+        )
+
+
+class NeutralSpeciesError(SimbaError, ValueError):
+    """A neutral species (photons) chosen as the species a tracking code tracks."""
+
+    def __init__(self, line: str, code: str, species: str):
+        super().__init__(
+            f"{line} is tracked by {code}, but the species it is given to track is "
+            f"{species}, which has no charge: no tracking code steers it. Set "
+            "``input: species`` to a charged species; photons are carried alongside."
+        )
+
+
 class WrongSpeciesError(SimbaError, ValueError):
     """A beam that is not electrons, in a code that tracks only electrons."""
 

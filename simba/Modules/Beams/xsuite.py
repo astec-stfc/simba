@@ -27,9 +27,13 @@ def read_xsuite_beam_file(
         try:
             return xp.Particles.from_dict(payload, _context=context)
         except ValueError:
-            return xp.Particles.from_dict(
-                payload, _context=context, mass0=float(self.E0_eV.val)
-            )
+            if self.is_mixed:
+                from . import SPECIES
+
+                mass0 = SPECIES[self.species][0] * constants.speed_of_light**2 / constants.elementary_charge
+            else:
+                mass0 = float(np.mean(self.E0_eV.val))
+            return xp.Particles.from_dict(payload, _context=context, mass0=mass0)
 
     if isinstance(filename, dict):
         particles = from_dict(filename)
@@ -83,9 +87,12 @@ def read_xsuite_beam_file(
         mass * constants.e / (constants.speed_of_light**2),
         units="kg",
     )
-    # q0 is in units of e
+    # q0 is in units of e; a particle of another species carries its own ratios to it
+    charge_ratio = alive("charge_ratio")
+    mass_ratio = alive("mass_ratio")
+    mixed = bool(np.any(charge_ratio != 1) or np.any(mass_ratio != 1))
     self._beam.particle_charge = UnitValue(
-        np.full(len(mass), particles.q0 * constants.elementary_charge),
+        np.ravel(particles.q0)[0] * charge_ratio * constants.elementary_charge,
         units="C",
     )
     self._beam.particle_rest_energy = UnitValue(
@@ -101,7 +108,8 @@ def read_xsuite_beam_file(
     if t_reference is None:
         t_reference = alive("s") / constants.speed_of_light
     self._beam.t = UnitValue(t_reference + lag, units="s")
-    p0c = alive("p0c")
+    # Xsuite's momenta are per unit mass_ratio
+    p0c = alive("p0c") * mass_ratio
     p_total = p0c * (1 + alive("delta"))
     cpx = alive("px") * p0c
     cpy = alive("py") * p0c
@@ -110,11 +118,17 @@ def read_xsuite_beam_file(
     # q0 is the charge *state* (-1 for an electron), not a charge
     q0 = float(np.ravel(particles.q0)[0])
     weights = alive("weight")
-    if np.any(weights != 1) or not macro_charge:
-        total = abs(np.sum(weights * q0)) * constants.elementary_charge
+    if mixed:
+        self._beam.charge = UnitValue(
+            weights * q0 * charge_ratio * constants.elementary_charge, units="C"
+        )
+        self._beam.total_charge = UnitValue(float(np.sum(self._beam.charge)), units="C")
     else:
-        total = macro_charge * len(keep)
-    self._beam.set_total_charge(np.sign(q0) * total)
+        if np.any(weights != 1) or not macro_charge:
+            total = abs(np.sum(weights * q0)) * constants.elementary_charge
+        else:
+            total = macro_charge * len(keep)
+        self._beam.set_total_charge(np.sign(q0) * total)
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1), units="")
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
     if ref_index is None:
@@ -136,8 +150,18 @@ def write_xsuite_beam_file(
     if filename is None:
         fn = os.path.splitext(self.filename)
         filename = fn[0].removesuffix(".xsuite") + ".xsuite.json"
-    mass0 = self._beam.particle_rest_energy_eV.val
-    q0 = self._beam.chargesign[0]
+    mixed = self.is_mixed
+    if mixed:
+        from . import SPECIES
+
+        mass_kg, q0 = SPECIES[self.species]
+        mass0 = mass_kg * constants.speed_of_light**2 / constants.elementary_charge
+        mass_ratio = np.asarray(self._beam.particle_rest_energy_eV, dtype=float) / mass0
+        charge_ratio = np.asarray(self._beam.particle_charge, dtype=float) / (q0 * constants.elementary_charge)
+    else:
+        mass0 = self._beam.particle_rest_energy_eV.val
+        q0 = self._beam.chargesign[0]
+        mass_ratio = 1.0
     if p0c is None:
         p0c = self._beam.centroids.mean_cp.val
     if t0 is None:
@@ -146,12 +170,17 @@ def write_xsuite_beam_file(
     y = self.y.val
     beta0 = p0c / np.sqrt(p0c**2 + mass0**2)
     zeta = -(self.t.val - t0) * beta0 * constants.speed_of_light
-    px = self.cpx.val / p0c
-    py = self.cpy.val / p0c
-    delta = self.cp.val / p0c - 1
-    total = getattr(self._beam, "total_charge", None)
-    total = 0.0 if total is None else abs(float(getattr(total, "val", total)))
-    weight = total / (len(x) * constants.elementary_charge) if total > 0 else 1.0
+    # Xsuite's momenta are per unit mass_ratio (energy = (energy0 + ptau p0c) mass_ratio)
+    px = self.cpx.val / (p0c * mass_ratio)
+    py = self.cpy.val / (p0c * mass_ratio)
+    delta = self.cp.val / (p0c * mass_ratio) - 1
+    if mixed:
+        weight = np.abs(np.asarray(self._beam.charge, dtype=float)) / constants.elementary_charge
+    else:
+        total = getattr(self._beam, "total_charge", None)
+        total = 0.0 if total is None else abs(float(getattr(total, "val", total)))
+        weight = np.full(len(x), total / (len(x) * constants.elementary_charge) if total > 0 else 1.0)
+    species = {"mass_ratio": mass_ratio, "charge_ratio": charge_ratio} if mixed else {}
 
     particles = xt.Particles(
         _context=context,
@@ -165,7 +194,8 @@ def write_xsuite_beam_file(
         zeta=zeta,
         delta=delta,
         s=s_start,
-        weight=np.full(len(x), weight),
+        weight=weight,
+        **species,
     )
     import json
     if write:
