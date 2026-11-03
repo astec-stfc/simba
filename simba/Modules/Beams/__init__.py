@@ -309,6 +309,7 @@ class beam(BaseModel):
         return full_dump
 
     def set_species(self, value):
+        value = str(value)  # not a numpy string, which h5py cannot store as an attribute
         name = SPECIES_ALIASES.get(value, value)
         if name not in SPECIES:
             raise ValueError(
@@ -604,6 +605,30 @@ class beam(BaseModel):
             self._beam.particle_rest_energy / constants.elementary_charge, units="eV/c"
         )
         self._beam.particle_charge = UnitValue(np.full(n, charge), units="C")
+
+    def set_particle_species(self, names, primary: str) -> None:
+        """
+        Give each particle its own species, for a code whose output does not say
+        (see :meth:`absorb`); the macroparticle charges keep their size and take
+        each particle's sign.
+
+        Parameters
+        ----------
+        names: array of str
+            :data:`SPECIES` name of each particle
+        primary: str
+            The tracked species, which becomes :attr:`species`
+        """
+        names = np.asarray(names, dtype=object)
+        mass = np.zeros(len(names))
+        sign = np.zeros(len(names))
+        for name in set(names):
+            mass[names == name], sign[names == name] = SPECIES[name]
+        self.set_mass_and_charge(mass, sign * constants.elementary_charge, len(names))
+        self._beam.charge = UnitValue(sign * np.abs(np.asarray(self._beam.charge, dtype=float)), units="C")
+        self._beam.total_charge = UnitValue(float(np.sum(self._beam.charge)), units="C")
+        self.particle_mass = self._beam.particle_mass
+        self.species = primary
 
     def set_momenta(self, cpx, cpy, cpz) -> None:
         """

@@ -27,9 +27,13 @@ def read_xsuite_beam_file(
         try:
             return xp.Particles.from_dict(payload, _context=context)
         except ValueError:
-            return xp.Particles.from_dict(
-                payload, _context=context, mass0=float(self.E0_eV.val)
-            )
+            if self.is_mixed:
+                from . import SPECIES
+
+                mass0 = SPECIES[self.species][0] * constants.speed_of_light**2 / constants.elementary_charge
+            else:
+                mass0 = float(np.mean(self.E0_eV.val))
+            return xp.Particles.from_dict(payload, _context=context, mass0=mass0)
 
     if isinstance(filename, dict):
         particles = from_dict(filename)

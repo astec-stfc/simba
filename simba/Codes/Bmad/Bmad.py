@@ -18,6 +18,7 @@ from laura.models.simulation import TwissMatchSimulationElement
 from laura.translator.converters.converter import translate_elements
 from laura.translator.utils.functions import sanitize_string
 
+from ... import exceptions
 from ...Framework_objects import frameworkLattice
 from ...Modules import Beams as rbf
 from ...Modules import constants
@@ -110,6 +111,10 @@ class bmadLattice(frameworkLattice):
     supports_programs: ClassVar[bool] = True
     """By ``set element`` inside the Tao turn loops; see :meth:`apply_programs`."""
 
+    tracks_multiple_species: ClassVar[bool] = True
+    """Each Bmad particle has its own ``species``; only those with the tracked one's mass,
+    though (see :meth:`check_other_species`)."""
+
     otm_convention: ClassVar[str] = "x, px, y, py, z, pz"
     """One-turn map convention."""
 
@@ -179,11 +184,61 @@ class bmadLattice(frameworkLattice):
         super().preProcess()
         self.space_charge_n_bin = space_charge_n_bin
         self.load_input_beam(self.get_prefix(), self.particle_definition)
+        beam = self.global_parameters["beam"]
+        self._input_species = beam.particle_species if beam.is_mixed else None
+        self._warn_collective_species()
         self.input_beam_file = str(
             Path(self.global_parameters["master_subdir"])
             / f"{self.objectname}.bmad.beam"
         )
         self._write_bmad_beam_file()
+
+    def _warn_collective_species(self) -> None:
+        """
+        Warn if a beam of several species meets Bmad's CSR or space charge.
+
+        Bmad bins the bunch by each particle's ``charge`` (a positive macroparticle
+        weight) and takes one species for the whole bunch, the first particle's
+        (``csr_and_space_charge_mod``: ``csr%species = bunch%particle(1)%species``),
+        so positrons add to an electron bunch's charge density rather than cancel it.
+        """
+        if getattr(self, "_input_species", None) is None:
+            return
+        space_charge = str((self.file_block.get("charge") or {}).get("space_charge_mode", "")).lower() == "3d"
+        effects = [name for name, on in (("CSR", self.csr_enable), ("space charge", space_charge)) if on]
+        if effects:
+            warn(exceptions.CollectiveSpeciesWarning(
+                self.objectname, "Bmad", " and ".join(effects),
+                "bins every particle by the size of its charge, as the first particle's species",
+            ))
+
+    def check_other_species(self) -> None:
+        """
+        As :meth:`~simba.Framework_objects.frameworkLattice.check_other_species`, but
+        refuse charged species of another mass than the tracked one.
+
+        Bmad scales a magnet's strength for such a particle by its charge-to-mass ratio
+        relative to the reference (``rel_tracking_charge_to_mass``), but takes its
+        velocity from its momentum, so no input gets both its steering and its timing
+        right.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.MixedMassError`
+        """
+        super().check_other_species()
+        tracked = self.global_parameters["beam"].species
+        mass = rbf.SPECIES[tracked][0]
+        others = [
+            name for name in (getattr(self, "_carried_species", None) or {})
+            if rbf.SPECIES[name][1] != 0 and rbf.SPECIES[name][0] != mass
+        ]
+        if others:
+            raise exceptions.MixedMassError(
+                self.objectname, "Bmad", tracked, others,
+                "Bmad steers a particle of another mass by its charge-to-mass ratio "
+                "but times it by its momentum, so cannot get both right.",
+            )
 
     def _reference_value(self, values, fallback: float = None) -> float:
         """The reference particle's value, if the beam has one; else
@@ -223,18 +278,48 @@ class bmadLattice(frameworkLattice):
                 beam.t.val,
             )
         )
-        np.savetxt(
-            self.input_beam_file,
-            particles,
-            header=(
-                f"# species = {beam.species}\n"
+        species = getattr(self, "_input_species", None)
+        if species is None:
+            np.savetxt(
+                self.input_beam_file,
+                particles,
+                header=(
+                    f"# species = {beam.species}\n"
+                    "# state = alive\n"
+                    f"# p0c = {p0c}\n"
+                    f"# charge_tot = {abs(float(beam.Q.val))}\n"
+                    "#! x px y py z pz charge time"
+                ),
+                comments="",
+            )
+            return
+        # several species: one per particle in a column (Bmad's names are simba's).
+        # charge_tot is the sum of the macroparticle sizes, not the net charge
+        self._warn_near_axis(particles, species, beam.species)
+        with open(self.input_beam_file, "w") as f:
+            f.write(
                 "# state = alive\n"
                 f"# p0c = {p0c}\n"
-                f"# charge_tot = {abs(float(beam.Q.val))}\n"
-                "#! x px y py z pz charge time"
-            ),
-            comments="",
-        )
+                f"# charge_tot = {float(np.sum(particles[:, 6]))}\n"
+                "#! x px y py z pz charge time species\n"
+            )
+            for row, name in zip(particles, species):
+                f.write(" ".join(f"{v:.18e}" for v in row) + f" {name}\n")
+
+    def _warn_near_axis(self, particles, species, tracked: str) -> None:
+        """
+        Warn of particles of another species that Bmad would track as the reference one.
+
+        Bmad's bend switches to the reference particle's linear map near the zero orbit
+        (``track_a_bend``: ``|x g|, |px|, |py|, |pz| < 1e-9``) without checking the
+        particle is of the reference species, so such a particle is bent as the reference.
+        """
+        near = np.all(np.abs(particles[:, [1, 3, 5]]) < 1e-9, axis=1) & (np.asarray(species) != tracked)
+        if np.any(near):
+            warn(exceptions.NearAxisSpeciesWarning(
+                self.objectname, int(np.count_nonzero(near)), tracked,
+                "Bmad's bends use the reference particle's map",
+            ))
 
     def _reference_energy(self) -> float:
         """
@@ -644,11 +729,18 @@ class bmadLattice(frameworkLattice):
 
         Returns
         -------
-        tuple[ParticleGroup, int | None]
-            The particles, and the reference particle's index (None if it was lost).
+        tuple[ParticleGroup, int | None, numpy.ndarray | None]
+            The particles, the reference particle's index (None if it was lost), and
+            for a beam of several species, each live particle's species (else None).
         """
         data = self.tao.bunch_data(element)
         alive = np.asarray(data["status"]) == self._ALIVE
+        species = getattr(self, "_input_species", None)
+        if species is not None:
+            # Tao names one species for the whole bunch, whichever it picks; all
+            # species here share the tracked one's mass
+            data["species"] = self.global_parameters["beam"].species
+            species = np.asarray(species)[alive]
         ref_idx = (
             int(np.count_nonzero(alive[: self.ref_idx]))
             if self.ref_idx is not None
@@ -670,7 +762,7 @@ class bmadLattice(frameworkLattice):
             * constants.speed_of_light
             * (particles.t - reference_time)
         )
-        return particles, ref_idx
+        return particles, ref_idx, species
 
     def _twiss_data(self) -> dict:
         """
@@ -809,13 +901,16 @@ class bmadLattice(frameworkLattice):
             if not self.writes_output(output_name):
                 continue
             beam = deepcopy(source_beam)
-            particles, ref_idx = self._particles_at(tao_element, zstart=zstart)
+            particles, ref_idx, species = self._particles_at(tao_element, zstart=zstart)
             rbf.openpmd.read_particle_group(
                 beam,
                 particles,
                 s=s_values[output_name],
                 reference_particle_index=ref_idx,
             )
+            if species is not None:
+                # the writer splits the species back out
+                beam.set_particle_species(species, primary=source_beam.species)
             # one pass, whatever `turns` says
             beam.turn = 1
             rbf.openpmd.write_openpmd_beam_file(

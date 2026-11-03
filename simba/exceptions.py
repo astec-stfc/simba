@@ -511,6 +511,38 @@ class MultipleSpeciesError(SimbaError, ValueError):
         )
 
 
+class MixedMassError(SimbaError, ValueError):
+    """Species of another mass than the tracked one, in a code that cannot track them together."""
+
+    def __init__(self, line: str, code: str, tracked: str, others: list, reason: str):
+        super().__init__(
+            f"{line} is tracked by {code}, which can track several species only if they "
+            f"have the mass of the tracked one ({tracked}), but its input also holds "
+            f"{others}: {reason} Set ``input: species`` to the one to track, or track "
+            "the line with ASTRA, GPT or Xsuite."
+        )
+
+
+class NearAxisSpeciesWarning(PhysicsWarning):
+    """Particles of another species close enough to the reference orbit to be tracked as the reference."""
+
+    def __init__(self, line: str, count: int, tracked: str, where: str):
+        super().__init__(
+            f"{_line(line)}: {count} particles that are not {tracked} start within 1e-9 "
+            f"of the reference orbit, where {where}, so they are tracked as {tracked}."
+        )
+
+
+class CollectiveSpeciesWarning(PhysicsWarning):
+    """Collective effects computed as if a beam of several species were all one."""
+
+    def __init__(self, line: str, code: str, effects: str, how: str):
+        super().__init__(
+            f"{_line(line)} tracks several species with {effects} on, but {code} {how}, "
+            "so the collective fields are wrong wherever the species overlap."
+        )
+
+
 class WrongSpeciesError(SimbaError, ValueError):
     """A beam that is not electrons, in a code that tracks only electrons."""
 

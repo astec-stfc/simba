@@ -207,7 +207,7 @@ def _write_particles(self, h5file_particles, pos, toffset):
         b for name, b in getattr(self, "others", {}).items() if name not in groups and name != primary
     ]
     if others:
-        h5file_particles.attrs[PRIMARY_SPECIES_ATTR] = primary
+        h5file_particles.attrs[PRIMARY_SPECIES_ATTR] = str(primary)
         for other in others:
             _write_species(other, h5file_particles, pos, toffset)
     return particles

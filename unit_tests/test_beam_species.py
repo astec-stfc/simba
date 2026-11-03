@@ -284,6 +284,36 @@ def test_xsuite_steers_and_times_each_species_as_its_own():
     assert np.isclose(lag, expected, rtol=1e-3)
 
 
+def test_bmad_warns_of_other_species_on_the_reference_orbit():
+    # Bmad's bend tracks particles within 1e-9 of the zero orbit with the reference's map
+    from simba.Codes.Bmad.Bmad import bmadLattice
+
+    line = SimpleNamespace(objectname="LINE")
+    rows = np.zeros((3, 8))
+    rows[2, 5] = 1e-6  # off the reference momentum: tracked properly
+    with pytest.warns(exceptions.NearAxisSpeciesWarning, match="1 particles that are not electron"):
+        bmadLattice._warn_near_axis(line, rows, ["electron", "positron", "positron"], "electron")
+
+
+@pytest.mark.parametrize(
+    "csr, space_charge, warns",
+    [(False, "False", False), (True, "False", True), (False, "3D", True)],
+)
+def test_bmad_warns_that_its_collective_effects_take_one_species(csr, space_charge, warns):
+    import warnings
+
+    from simba.Codes.Bmad.Bmad import bmadLattice
+
+    line = SimpleNamespace(
+        objectname="LINE", _input_species=np.array(["electron", "positron"], dtype=object),
+        csr_enable=csr, file_block={"charge": {"space_charge_mode": space_charge}},
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        bmadLattice._warn_collective_species(line)
+    assert any(isinstance(w.message, exceptions.CollectiveSpeciesWarning) for w in caught) == warns
+
+
 def test_a_single_species_code_merges_nothing():
     line = _line_given({"photon": make_beam("photon", nmacro=1)})
     assert frameworkLattice.merge_other_species(line) == []
