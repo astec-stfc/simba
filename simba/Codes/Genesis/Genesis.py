@@ -159,6 +159,12 @@ class genesisLattice(frameworkLattice):
     time_window: float = 99.8
     """Percentile range of the bunch the simulation window covers; see :meth:`beam_length`."""
 
+    slippage_window: bool = True
+    """For a time-dependent run from an imported distribution, extend the window
+    ahead of the bunch by the radiation's slippage through the undulators
+    so the radiation stays in the window to the end of
+    the line instead of leaving it once it has slipped past the bunch head."""
+
     steady_state: bool = True
     """Run steady-state; if False, run time-dependent over :meth:`beam_length`."""
 
@@ -395,9 +401,30 @@ class genesisLattice(frameworkLattice):
         edges = [50 - self.time_window / 2, 50 + self.time_window / 2]
         return float(np.ptp(np.percentile(t, edges))) * speed_of_light
 
+    @property
+    def _windows_slippage(self) -> bool:
+        """Whether this run sets its own window covering the slippage; see
+        :attr:`slippage_window`."""
+        return self.slippage_window and not self.steady_state and self.beam_type == "distribution"
+
+    def slippage_length(self) -> float:
+        """Slippage [m] of the radiation over the electrons through this line's
+        undulators: one ``lambda0`` per period."""
+        periods = sum(
+            int(w.magnetic.num_periods or round(w.magnetic.length / w.magnetic.period))
+            for w in self.wigglers
+            if w.magnetic.period
+        )
+        return periods * float(self.fundamental_wavelength or 0.0)
+
     def write_time(self) -> None:
+        slen = self.beam_length()
+        if self._windows_slippage:
+            t = np.asarray(self.global_parameters["beam"].t)
+            slen = float(np.ptp(t)) * speed_of_light + self.slippage_length()
         self.commandFiles["time"] = genesis_time_command(
-            slen=self.beam_length(),
+            s0=0.0,
+            slen=slen,
             time=True,
             sample=self.sample,
         )
@@ -443,7 +470,7 @@ class genesisLattice(frameworkLattice):
                 charge=abs(float(self.global_parameters["beam"].total_charge)),
                 slicewidth=self.slicewidth,
                 gamma0=float(self.global_parameters["beam"].beam.centroids.mean_gamma.val),
-                settimewindow=True,
+                settimewindow=not self._windows_slippage,
             )
             self.files.append(genesisbeamfilename)
         else:
