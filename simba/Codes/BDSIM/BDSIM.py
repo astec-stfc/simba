@@ -32,6 +32,12 @@ BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 Index 4 is H-, which BDSIM has no built-in name for (it would need a PDG ion
 id), so it is deliberately absent rather than mapped to ``antiproton``."""
 
+MATERIAL_CATEGORIES = frozenset(
+    {"ecol", "rcol", "jcol", "target", "degrader", "crystalcol", "wirescanner", "dump"}
+)
+"""BDSIM element types that put material in the beam, which does nothing without a
+physics list. (An aperture or collimator with no shape is built as a drift.)"""
+
 TURN_PAD = 1e-6
 """Length [m] of the drift that keeps the samplers off BDSIM's terminator; see
 :meth:`bdsimLattice.close_ring`."""
@@ -142,6 +148,13 @@ class bdsimLattice(frameworkLattice):
             Brho=self.rigidity(self.reference_p0c),
         )
         # LAURA has already set integratorSet and buildPoleFaceGeometry
+        self.lattice.options.update(self.bdsim_options)
+        material = list(dict.fromkeys(
+            name for name in self.lattice.sequence
+            if self.lattice.elements[name].category in MATERIAL_CATEGORIES
+        ))
+        if material and not self.physics_list:
+            warn(exceptions.MaterialWithoutPhysicsWarning(self.objectname, material))
         if self.circular:
             self.close_ring()
             self.lattice.options.update(circular=1, nturns=self.turns)
@@ -171,6 +184,42 @@ class bdsimLattice(frameworkLattice):
                 f"Unknown BDSIM integrator_set {name!r}; one of {sorted(BDSIM_INTEGRATOR_SETS)}"
             )
         return name
+
+    @property
+    def physics_list(self) -> str:
+        """
+        BDSIM's ``physicsList``. Empty, BDSIM's default, unless the ``tracking`` block
+        says otherwise. With no physics list, BDSIM only transports::
+
+            files:
+              TARGET:
+                code: bdsim
+                tracking: {physics_list: em}
+        """
+        tracking = self.file_block.get("tracking") or {}
+        return str(tracking.get("physics_list") or "")
+
+    @property
+    def bdsim_options(self) -> dict:
+        """
+        The BDSIM options this line adds: :attr:`physics_list`, and anything in the
+        ``tracking`` block's ``options``, by BDSIM's own names::
+
+            tracking:
+              physics_list: em
+              options: {defaultRangeCut: 1e-3, minimumKineticEnergy: 1e-3}
+
+        Strings are quoted for gmad. ``integratorSet`` comes from :attr:`integrator_set`,
+        and ``circular`` and ``nturns`` from the turn count, after these.
+        """
+        tracking = self.file_block.get("tracking") or {}
+        options = dict(tracking.get("options") or {})
+        if self.physics_list:
+            options["physicsList"] = self.physics_list
+        return {
+            key: f'"{value}"' if isinstance(value, str) else value
+            for key, value in options.items()
+        }
 
     @property
     def circular(self) -> bool:

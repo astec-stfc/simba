@@ -67,6 +67,18 @@ class NoRadiationWarning(PhysicsWarning):
         )
 
 
+class MaterialWithoutPhysicsWarning(PhysicsWarning):
+    """Material in a BDSIM line tracked with no physics list, where it does nothing."""
+
+    def __init__(self, line: str, elements: list):
+        super().__init__(
+            f"{_line(line)} has material in the beam ({', '.join(elements)}) but runs BDSIM "
+            "with no physics list, so particles pass through it untouched: no losses, "
+            "scattering or secondaries. Set tracking: {physics_list: em} (or another "
+            "BDSIM physics list)."
+        )
+
+
 class BunchLengthWarning(PhysicsWarning):
     """BDSIM's matrix integrators, which time every particle as the reference."""
 
