@@ -10,6 +10,11 @@ from scipy.special import erf
 
 pytest.importorskip("xtrack")
 
+from laura.translator.converters.aperture import ApertureTranslator  # noqa: E402
+
+if not hasattr(ApertureTranslator, "xsuite_limit"):
+    pytest.skip("needs a LAURA that writes Xsuite apertures", allow_module_level=True)
+
 
 def _through(tmp_path, aperture, npart=4000):
     """A round 1 mm, 100 MeV electron beam through a 0.1 m collimator at z = 0.5 m, in Xsuite."""
