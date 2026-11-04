@@ -82,7 +82,9 @@ class _Wake:
                 return
             pad = 0.01 * np.ptp(zeta) + 1e-9
             self.wake.configure_for_tracking(
-                zeta_range=(zeta.min() - pad, zeta.max() + pad), num_slices=self.num_slices
+                zeta_range=(zeta.min() - pad, zeta.max() + pad),
+                num_slices=self.num_slices,
+                _context=particles._context,
             )
             self.configured = True
         self.wake.track(particles)
@@ -347,6 +349,7 @@ class xsuiteLattice(frameworkLattice):
         """
         import xtrack as xt
         from laura.translator.utils.fields import FieldMap
+        from laura.translator.utils.functions import expand_substitution
 
         wakes = {
             e.name: e
@@ -364,10 +367,14 @@ class xsuiteLattice(frameworkLattice):
         placed = {}
         for name, elem in wakes.items():
             field = elem.simulation.wakefield_definition
-            if not isinstance(field, FieldMap):
-                warn(f"Line '{self.objectname}': {name}'s wake is a file name, not a field map; Xsuite drops it.")
-                continue
-            cells = getattr(elem.cavity, "n_cells", None) or 1
+            cells = getattr(getattr(elem, "cavity", None), "n_cells", None) or 1
+            if isinstance(field, str):
+                filename = expand_substitution(elem, field, self.global_parameters["master_lattice"])
+                try:
+                    field = FieldMap(filename=filename, n_cells=cells)
+                except Exception as exc:
+                    warn(f"Line '{self.objectname}': could not load {name}'s wake {filename} ({exc}); Xsuite drops it.")
+                    continue
             exit_s = self.line.get_s_position(name) + self.line[name].length
             placed[f"{name}_wake"] = (exit_s, _Wake(field, cells, self.wake_slices))
         env = self.line.env
