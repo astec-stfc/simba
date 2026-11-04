@@ -1104,9 +1104,7 @@ class xsuiteLattice(frameworkLattice):
         # Anchor s to the lattice entrance (not the incoming beam's accumulated s),
         # as every code does.
         df["s"] += self.entrance_s
-        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
-        df["z"] = np.interp(df["s"], svals, zvals)
+        df["z"] = self.getZAtS(df["s"])
         if self.beam_data:
             for k in next(iter(self.beam_data.values())):
                 df[k] = [x[k] for x in self.beam_data.values()]
