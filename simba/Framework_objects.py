@@ -335,6 +335,11 @@ class frameworkObject(BaseModel):
         return string
 
 
+def _charged_species(carried: dict | None) -> list:
+    """Names of the charged species in a ``{species: beam}`` dict."""
+    return [name for name, b in (carried or {}).items() if rbf.SPECIES[b.species][1] != 0]
+
+
 class frameworkLattice(BaseModel):
     """
     A line of elements and groups tracked by one code: writing, running and post-processing it.
@@ -506,6 +511,13 @@ class frameworkLattice(BaseModel):
 
     electrons_only: ClassVar[bool] = False
     """Whether this code tracks only electrons; other beams are refused by :meth:`check_species`."""
+
+    tracks_multiple_species: ClassVar[bool] = False
+    """Whether this code tracks several charged species in one run.
+
+    If so, :meth:`load_input_beam` merges the input's other charged species into the
+    tracked beam (:meth:`~simba.Modules.Beams.beam.absorb`), and the openPMD writer
+    splits them out again. If not, :meth:`check_other_species` refuses them."""
 
     native_rf: ClassVar[str | None] = None
     """How this code's cavities keep time left to themselves, ``fixed`` or ``synchronous``.
@@ -1056,8 +1068,10 @@ class frameworkLattice(BaseModel):
 
     @property
     def rest_energy(self) -> float:
-        """The beam's rest energy in eV."""
+        """The beam's rest energy in eV; for a beam of several species, the tracked (primary) one's."""
         beam = (self.global_parameters or {}).get("beam")
+        if beam is not None and getattr(beam, "is_mixed", False):
+            return rbf.SPECIES[beam.species][0] * constants.speed_of_light**2 / constants.elementary_charge
         for name, scale in (
             ("particle_rest_energy_eV", 1.0),
             ("particle_mass", constants.speed_of_light**2 / constants.elementary_charge),
@@ -1070,8 +1084,10 @@ class frameworkLattice(BaseModel):
 
     @property
     def reference_charge(self) -> int:
-        """The tracked species' charge, in units of e."""
+        """The tracked species' charge, in units of e; for a beam of several species, the primary one's."""
         beam = (self.global_parameters or {}).get("beam")
+        if beam is not None and getattr(beam, "is_mixed", False):
+            return rbf.SPECIES[beam.species][1]
         charge = getattr(getattr(beam, "particle_charge", None), "val", None)
         if charge is not None and np.size(charge):
             sign = int(np.sign(np.mean(charge)))
@@ -1085,13 +1101,18 @@ class frameworkLattice(BaseModel):
 
     def check_species(self) -> None:
         """
-        Refuse a beam if :attr:`electrons_only`.
+        Refuse a neutral beam, and anything but electrons if :attr:`electrons_only`.
 
         Raises
         ------
+        :class:`~simba.exceptions.NeutralSpeciesError`
+            If the tracked species has no charge (photons, chosen by ``input: species``).
         :class:`~simba.exceptions.WrongSpeciesError`
             If the beam's rest energy or charge is not an electron's.
         """
+        species = self.global_parameters["beam"].species
+        if rbf.SPECIES.get(species, (None, 1))[1] == 0:
+            raise exceptions.NeutralSpeciesError(self.objectname, self.code, species)
         if not self.electrons_only:
             return
         electron = constants.m_e * constants.speed_of_light**2 / constants.elementary_charge
@@ -1099,6 +1120,54 @@ class frameworkLattice(BaseModel):
             raise exceptions.WrongSpeciesError(
                 self.objectname, self.code, self.rest_energy, self.reference_charge
             )
+
+    def check_other_species(self) -> None:
+        """
+        Decide what happens to the other charged species in the input.
+
+        * ``input: species`` set: only that one is tracked, and the other charged
+          species are dropped (:class:`~simba.exceptions.SpeciesDroppedWarning`).
+        * otherwise, if :attr:`tracks_multiple_species`: they are kept, to be merged
+          into the tracked beam by :meth:`merge_other_species`.
+        * otherwise: refused, because carrying them through untracked
+          (:meth:`carry_other_species`) is fine for photons, but charged particles
+          would have been steered by the magnets.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.MultipleSpeciesError`
+            In the last case.
+        """
+        charged = _charged_species(getattr(self, "_carried_species", None))
+        if not charged:
+            return
+        tracked = self.global_parameters["beam"].species
+        if (self.file_block.get("input") or {}).get("species") is not None:
+            warn(exceptions.SpeciesDroppedWarning(self.objectname, tracked, charged))
+            self._carried_species = {
+                n: b for n, b in self._carried_species.items() if n not in charged
+            }
+        elif not self.tracks_multiple_species:
+            raise exceptions.MultipleSpeciesError(self.objectname, self.code, tracked, charged)
+
+    def merge_other_species(self) -> list:
+        """
+        Merge the carried charged species into the tracked beam, for a code that
+        :attr:`tracks_multiple_species`; they then leave the carried set.
+
+        Returns
+        -------
+        list
+            The species merged.
+        """
+        carried = getattr(self, "_carried_species", None)
+        charged = _charged_species(carried) if self.tracks_multiple_species else []
+        if not charged:
+            return []
+        beam = self.global_parameters["beam"]
+        beam.absorb([self._carried_species[n] for n in charged])
+        self._carried_species = {n: b for n, b in self._carried_species.items() if n not in charged}
+        return charged
 
     def ramp_p0c(self, turn: int) -> float | None:
         """
@@ -2204,6 +2273,8 @@ class frameworkLattice(BaseModel):
 
     def read_input_file(self, prefix, particle_definition, read_file=True):
         filepath = ""
+        if read_file:
+            self._carried_species = {}
         HDF5filename = prefix + particle_definition + ".openpmd.hdf5"
         if "$" in particle_definition:
             if os.path.isfile(expand_substitution(self, particle_definition + ".openpmd.hdf5")):
@@ -2216,10 +2287,16 @@ class frameworkLattice(BaseModel):
             filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
         if os.path.isfile(filepath):
             if read_file:
+                beam = self.global_parameters["beam"]
                 rbf.openpmd.read_openpmd_beam_file(
-                    self.global_parameters["beam"],
+                    beam,
                     os.path.abspath(filepath),
+                    species=(self.file_block.get("input") or {}).get("species"),
                 )
+                # the line now owns them: off the beam, so that no code writes them
+                # into its screen files, only carry_other_species into the end file
+                self._carried_species = dict(beam.others)
+                beam.others.clear()
                 self.getInitialTwiss()
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
@@ -2287,6 +2364,7 @@ class frameworkLattice(BaseModel):
         if int(self.sample_interval) > 1:
             self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])
         self.check_species()
+        self.check_other_species()
         beam = self.global_parameters["beam"]
         beam.beam.rematchXPlane(**self.initial_twiss["horizontal"])
         beam.beam.rematchYPlane(**self.initial_twiss["vertical"])
@@ -2294,6 +2372,7 @@ class frameworkLattice(BaseModel):
         self.check_design_energy()
         self.check_ramp_beam()
         self.reset_reference_clock()
+        self.merge_other_species()
         return filepath
 
     def update_groups(self) -> None:
@@ -3162,6 +3241,30 @@ class frameworkLattice(BaseModel):
             self.check_one_turn_map()
             self.optics_summary = self.read_optics_summary()
             self.closed_orbit = self.read_closed_orbit()
+
+    def carry_other_species(self) -> list:
+        """
+        Add the species this line did not track (the input file's
+        :attr:`~simba.Modules.Beams.beam.others`) to its end-of-line beam file,
+        so that the next line receives them.
+
+        Called after :meth:`postProcess`, because every code writes its own output files.
+
+        Returns
+        -------
+        list
+            The species that were added.
+        """
+        # carried unchanged, at the input positions; a straight-line
+        # drift for neutrals in global coordinates is the upgrade
+        carried = getattr(self, "_carried_species", None)
+        if not carried:
+            return []
+        filename = self.output_beam_file(self.end)
+        if not os.path.isfile(filename):
+            warn(exceptions.SpeciesNotCarriedWarning(self.objectname, filename, list(carried)))
+            return []
+        return rbf.openpmd.append_species(filename, carried.values())
 
     def __repr__(self):
         return self.__str__()

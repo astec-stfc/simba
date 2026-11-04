@@ -3,12 +3,11 @@ import os
 import re
 from shutil import copyfile
 import numpy as np
+from .Modules.constants import speed_of_light
 from deepdiff import DeepDiff
 
 from laura.models.element import Element
 from laura.translator.utils.fields import FieldMap
-
-from .Modules.constants import speed_of_light
 
 def saveFile(filename, lines=[], mode="w"):
     with open(filename, mode) as stream:
@@ -85,6 +84,19 @@ def copylink(source, destination):
         copyfile(source, destination)
     except Exception as e:
         print("copylink error!", e)
+
+
+def gpt_environment(global_parameters):
+    """
+    The environment to run GPT in. GPT reads ``GPTLICENSE`` from it.
+    """
+    if not global_parameters.get("GPTLICENSE"):
+        raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
+    return {
+        **os.environ,
+        "GPTLICENSE": str(global_parameters["GPTLICENSE"]),
+        "OMP_WAIT_POLICY": "PASSIVE",
+    }
 
 
 _CONVERSION = None

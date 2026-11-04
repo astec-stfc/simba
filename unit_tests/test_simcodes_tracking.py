@@ -1,8 +1,9 @@
 import os
-import numpy as np
 import warnings
+import numpy as np
 import pytest
 import simba.Framework as fw
+from laura.translator.converters.codes import cheetah as laura_cheetah
 from simba.Codes.Generators import frameworkGenerator
 from laura.models.element import Marker, Plasma, Wiggler
 from laura import LAURA
@@ -90,12 +91,15 @@ def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elemen
     assert not any(cwd.iterdir())
 
 
+@pytest.mark.skipif(
+    not hasattr(laura_cheetah, "choose_cheetah_tracking_method"), reason="needs a LAURA with cheetah_tracking_method"
+)
 @pytest.mark.parametrize("sigma_pz, settings, expected", [
     (1e3, None, "linear"),
     (2.5e5, None, "second_order"),
     (2.5e5, {"cheetah_tracking_method": "linear"}, "linear"),
 ])
-def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, sigma_pz, settings, expected, fodo_elements):
+def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, fodo_elements, sigma_pz, settings, expected):
     """With a 5% energy spread, linear tracking through the FODO misses its chromatic
     aberration, so "auto" switches to second order and warns; a setting overrides it."""
     with warnings.catch_warnings(record=True) as caught:
@@ -114,18 +118,24 @@ def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_pat
     assert methods == {"Drift": expected, "Quadrupole": expected}
 
 
-@pytest.mark.parametrize("code", ["ocelot", "xsuite", "cheetah"])
-def test_output_timestamps(tmp_path, code, fodo_elements):
+@pytest.mark.parametrize("code,container_runtime", [
+    ("ocelot", None), ("xsuite", None), ("cheetah", None),
+    pytest.param("astra", "docker", id="astra", marks=needs_container),
+])
+def test_output_timestamps(tmp_path, code, container_runtime, fodo_elements):
     """The bunch arrives L/(beta c) after it set off: Ocelot added the start z on top,
     Xsuite and Cheetah divided by c alone and dropped the input time, and Cheetah put
-    every output at the start. Ocelot and Cheetah also read total energy as momentum."""
+    every output at the start. Ocelot and Cheetah also read total energy as momentum.
+    ASTRA's output dropped its reference particle's clock."""
     from scipy.constants import c
     from simba.Modules.Beams import load_file
-    output_file = _track_lattice(tmp_path, code, None, fodo_elements)
+    output_file = _track_lattice(tmp_path, code, container_runtime, fodo_elements)
     beam_in = load_file(os.path.join(os.path.dirname(output_file), "M1.openpmd.hdf5"))
     beam = load_file(output_file)
     flight = np.mean(beam.t.val) - np.mean(beam_in.t.val)
-    assert flight == pytest.approx(4.25 / (np.mean(beam_in.Bz.val) * c), abs=1e-13)
+    # ASTRA gives each particle's t as (z - z_ref)/(beta c) from a snapshot: ~0.3 ps here
+    assert flight == pytest.approx(4.25 / (np.mean(beam_in.Bz.val) * c),
+                                   abs=1e-12 if code == "astra" else 1e-13)
     assert np.mean(beam.z.val) == pytest.approx(4.25, abs=1e-3)
     assert np.mean(beam.energy.val) == pytest.approx(np.mean(beam_in.energy.val), rel=1e-6)
 

@@ -390,7 +390,7 @@ class madxLattice(frameworkLattice):
                         (sanitize_string(d.name).lower(), at, d)
                     )
                 if d.hardware_type.lower() == "rfcavity":
-                    if d.cavity.structure_type == "StandingWave" or not self.tw_focusing:
+                    if d.structure_type == "StandingWave" or not self.tw_focusing:
                         if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
                             estr, self._design_energy = self.rs_matrix_cavity(
                                 estr, d.physical.length, at, self._design_energy
@@ -400,7 +400,7 @@ class madxLattice(frameworkLattice):
                             and self.nslice_rfcavity > 1
                         ):
                             estr = self.slice_cavity(estr, d.physical.length, at)
-                    elif d.cavity.structure_type == "TravellingWave":
+                    elif d.structure_type == "TravellingWave":
                         if self.cavity_model.lower() == "rsmatrix" and not self.fixed_reference:
                             estr, self._design_energy = self.tw_matrix_cavity(
                                 estr, d.physical.length, at, self._design_energy,
@@ -1978,9 +1978,7 @@ class madxLattice(frameworkLattice):
         trackdata = self.run_track(madx, probecoords, observe)
 
         def transformed_beam_at(s_local: float, zpos: float, spos: float, name: str):
-            """Beam obtained by applying the segment map (start -> ``s_local``,
-            built from the 13 probes) to the full input distribution, or
-            ``None`` if any probe was lost before ``s_local``."""
+            """Distribution mapped to ``s_local``, or None if a probe was lost."""
             data = self.extract_observation(trackdata, s_local + self._madx_shift[name])
             if len(data["x"]) != 13:
                 return None

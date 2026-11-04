@@ -202,3 +202,29 @@ def test_gpt_gaussian_tlen_from_sigma_z():
     gen = GPTGenerator(distribution_type_z="g", sigma_z=3e-4, sigma_t=0.0)
     assert f"tlen = {1e12 * 3e-4 / speed_of_light}e-12" in gen.generate_longitudinal_distribution()
     gen.distribution_type_z = "f"
+
+@pytest.mark.parametrize("license", [None, ""])
+def test_gpt_generator_without_a_licence_raises(gpt_generator, license):
+    """gpt rejects its command line without a licence but exits 0, so nothing failed
+    until its output was read."""
+    gpt_generator.executables = {"gpt": ["gpt"]}
+    if license is not None:
+        gpt_generator.global_parameters["GPTLICENSE"] = license
+    with pytest.raises(RuntimeError, match="GPTLICENSE"):
+        gpt_generator.run()
+
+
+def test_gpt_licence_goes_in_the_environment_not_the_command(gpt_generator, monkeypatch):
+    """GPT reads GPTLICENSE from its environment; on the command line the licence
+    reaches ``ps`` and the ``.bat`` files."""
+    calls = []
+    monkeypatch.setattr(
+        "simba.Codes.Generators.gpt.subprocess.call",
+        lambda command, **kwargs: calls.append((command, kwargs["env"])),
+    )
+    gpt_generator.executables = {"gpt": ["gpt"]}
+    gpt_generator.global_parameters["GPTLICENSE"] = "not-a-real-licence"
+    gpt_generator.run()
+    command, env = calls[0]
+    assert not any("not-a-real-licence" in c for c in command)
+    assert env["GPTLICENSE"] == "not-a-real-licence"

@@ -148,9 +148,12 @@ def test_a_ring_takes_its_reference_from_the_section(tmp_path, seed_beam):
 def test_the_beam_is_tracked_at_its_offset(tmp_path, seed_beam):
     """Xsuite's particles carry the offset as delta against the design."""
     design = _mean_cp(seed_beam) / (1 + OFFSET)
+    from simba.Codes.Xsuite.Xsuite import _to_cpu
+
     lattice, _ = _loaded(tmp_path, seed_beam, reference_energy=_energy(design))
-    assert lattice.pin.p0c[0] == pytest.approx(design, rel=1e-12)
-    assert np.mean(lattice.pin.delta) == pytest.approx(OFFSET, rel=1e-6)
+    pin = _to_cpu(lattice.pin)  # on the GPU when cupy is installed
+    assert pin.p0c[0] == pytest.approx(design, rel=1e-12)
+    assert np.mean(pin.delta) == pytest.approx(OFFSET, rel=1e-6)
 
 
 def test_a_ring_without_an_energy_uses_the_beam(tmp_path, seed_beam):

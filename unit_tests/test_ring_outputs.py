@@ -487,6 +487,19 @@ def test_xsuite_drops_its_lost_particles():
     assert np.shape(beam.z.val) == (3,)
 
 
+def test_xsuite_reads_a_monitor_with_zero_filled_lost_rows():
+    """A screen's monitor zero-fills particles lost upstream (gamma0 = 0): xtrack refused the whole beam."""
+    pytest.importorskip("xtrack")
+    payload = _xsuite_with_losses([]).to_dict()
+    for key, value in payload.items():
+        if np.ndim(value) == 1 and len(value) == 4:
+            payload[key] = np.asarray(value).copy()
+            payload[key][3] = 0
+    beam = rbf.beam()
+    rbf.xsuite.read_xsuite_beam_file(beam, payload)
+    np.testing.assert_array_equal(beam.x.val, [0.0, 1e-4, 2e-4])
+
+
 @pytest.mark.parametrize("lost, index, found", [([1], 2, 1), ([1], 1, None), ([], 2, 2)])
 def test_xsuite_finds_the_reference_by_its_id(lost, index, found):
     """Lost particles move to the end, so it is found by ``particle_id``; a

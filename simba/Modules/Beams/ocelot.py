@@ -37,7 +37,7 @@ def read_ocelot_beam_file(self, filename):
     self.code = "OCELOT"
     self._beam.particle_rest_energy_eV = self.E0_eV
     parray = load_particle_array(filename)
-    particle_array_to_beam(self, parray)
+    particle_array_to_beam(self, parray, s=parray.s)
 
 
 def write_ocelot_beam_file(self, filename, write=True):

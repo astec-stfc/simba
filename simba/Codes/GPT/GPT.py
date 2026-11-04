@@ -13,12 +13,12 @@ from warnings import warn
 from laura.models.diagnostic import DiagnosticElement
 
 from ...Framework_objects import frameworkLattice
-from ...FrameworkHelperFunctions import saveFile
+from ...FrameworkHelperFunctions import saveFile, gpt_environment
 from ...Modules import Beams as rbf
 from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import Dict, Literal, Any
+from typing import ClassVar, Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -31,11 +31,24 @@ from laura.translator.converters.codes.gpt import (
 gpt_defaults = {}
 
 
+def _without_spaces(path: str) -> str:
+    """``mr`` passes gpt's path to cmd unquoted, which stops at "Program Files": on Windows use the 8.3 name."""
+    if os.name != "nt" or " " not in path:
+        return path
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(260)
+    return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
+
+
 class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    tracks_multiple_species: ClassVar[bool] = True
+    """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
 
     allow_negative_drifts: bool = True
     """Flag to indicate whether negative drifts are allowed"""
@@ -274,16 +287,14 @@ class gptLattice(frameworkLattice):
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
             saveFile(base + "_crest.mr", f"crestscan {lo} {hi} {dx}\n")
-            gpt = self.executables[self.code]
+            gpt = [_without_spaces(self.executables[self.code][0]), *self.executables[self.code][1:]]
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
-            env = os.environ.copy()
-            env["OMP_WAIT_POLICY"] = "PASSIVE"
+            env = gpt_environment(self.global_parameters)
             subprocess.call(
                 mr + ["-o", self.objectname + "_crest_out.gdf",
                       self.objectname + "_crest.mr"]
-                + gpt + [self.objectname + "_crest.in",
-                         "GPTLICENSE=" + str(self.global_parameters["GPTLICENSE"])],
+                + gpt + [self.objectname + "_crest.in"],
                 cwd=subdir, env=env,
             )
             subprocess.call(
@@ -433,16 +444,14 @@ class gptLattice(frameworkLattice):
         main_command = (
             self.executables[self.code]
             + ["-o", self.objectname + "_out.gdf"]
-            + ["GPTLICENSE=" + self.global_parameters["GPTLICENSE"]]
             + [self.objectname + ".in"]
         )
-        my_env = os.environ.copy()
+        my_env = gpt_environment(self.global_parameters)
         my_env["LD_LIBRARY_PATH"] = (
             my_env["LD_LIBRARY_PATH"] + ":/opt/GPT3.3.6/lib/"
             if "LD_LIBRARY_PATH" in my_env
             else "/opt/GPT3.3.6/lib/"
         )
-        my_env["OMP_WAIT_POLICY"] = "PASSIVE"
         post_command = (
             [self.executables[self.code][0].replace("gpt", "gdfa")]
             + ["-o", self.objectname + "_emit.gdf"]
@@ -690,6 +699,9 @@ class gptLattice(frameworkLattice):
             return
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
+        # GDF holds no species name; the tracked one is the primary (the per-particle
+        # q and m say what each particle is, so a mixed beam is split on writing)
+        beam.species = self.global_parameters["beam"].species
         HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
