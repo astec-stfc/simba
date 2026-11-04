@@ -79,7 +79,13 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
     self._beam.nmacro = UnitValue(
         np.array(np.array(self._beam.charge) / self._beam.particle_charge)
     )
-    self.set_species(self._beam.species_name[index[0]])
+    if len(set(index)) == 1:
+        self.set_species(self._beam.species_name[index[0]])
+    else:
+        from . import SPECIES_ALIASES
+
+        name = self._beam.species_name[index[0]]
+        self.species = SPECIES_ALIASES.get(name, name)
 
 
 def convert_csrtrackfile_to_astrafile(self, csrtrackfile, astrafile):
@@ -173,6 +179,10 @@ def write_astra_beam_file(
         mean_vector = np.mean(norm_array, axis=0)
         """ find the index of the vector that is closest to the mean - if you read in an ASTRA file, this should actually return the reference particle! """
         nearest_idx = find_nearest_vector(self, norm_array, mean_vector)
+        if getattr(self, "is_mixed", False):
+            # the reference (row 0) must be of the tracked species: the reader takes it as the primary one
+            primary = np.flatnonzero(self.particle_species == self.species)
+            nearest_idx = int(primary[find_nearest_vector(self, norm_array[primary], mean_vector)])
         ref_particle = array[nearest_idx]
         self.reference_particle = ref_particle
         self.reference_particle_index = nearest_idx

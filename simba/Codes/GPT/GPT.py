@@ -15,10 +15,10 @@ from laura.models.diagnostic import DiagnosticElement
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile, gpt_environment
 from ...Modules import Beams as rbf
-from ...Modules.constants import speed_of_light
+from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import Dict, Literal, Any
+from typing import ClassVar, Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -31,11 +31,24 @@ from laura.translator.converters.codes.gpt import (
 gpt_defaults = {}
 
 
+def _without_spaces(path: str) -> str:
+    """``mr`` passes gpt's path to cmd unquoted, which stops at "Program Files": on Windows use the 8.3 name."""
+    if os.name != "nt" or " " not in path:
+        return path
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(260)
+    return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
+
+
 class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    tracks_multiple_species: ClassVar[bool] = True
+    """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
 
     allow_negative_drifts: bool = True
     """Flag to indicate whether negative drifts are allowed"""
@@ -267,7 +280,7 @@ class gptLattice(frameworkLattice):
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
             saveFile(base + "_crest.mr", f"crestscan {lo} {hi} {dx}\n")
-            gpt = self.executables[self.code]
+            gpt = [_without_spaces(self.executables[self.code][0]), *self.executables[self.code][1:]]
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
             env = gpt_environment(self.global_parameters)
@@ -285,12 +298,19 @@ class gptLattice(frameworkLattice):
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
+        rest_energy = electron_mass * speed_of_light**2 / elementary_charge
+        gamma_max = float(self.global_parameters["beam"].beam.centroids.mean_gamma.val) + sum(
+            abs(float(getattr(c, "field_amplitude", 0.0) or 0.0)) * float(c.physical.length)
+            for c in self.cavities  # this line's only: elementObjects holds the whole machine
+            if z_start - 1e-6 <= float(c.physical.start.z) < z_eval
+        ) / rest_energy
+
         phases, energies = scan(phase_range[0], phase_range[1], step)
-        peak = phases[int(np.argmax(energies))]
+        peak = self._crest_peak(phases, energies, gamma_max)
         if refine:
             fine_p, fine_e = scan(peak - step, peak + step, step / 10.0)
-            if len(fine_e):
-                peak = fine_p[int(np.argmax(fine_e))]
+            if (fine_e <= gamma_max).any():
+                peak = self._crest_peak(fine_p, fine_e, gamma_max)
 
         element = self.elementObjects[name]
         crest = (float(peak) - 90.0) % 360.0
@@ -330,14 +350,14 @@ class gptLattice(frameworkLattice):
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
-            for n, e in self.elementObjects.items():
+            for e in self.cavities:
                 if getattr(e, "crest", None) is None:
                     continue
                 if not float(getattr(e, "field_amplitude", 0.0) or 0.0):
                     continue
                 z = float(e.physical.start.z)
                 if z0 - 1e-6 <= z <= z1 + 1e-6:
-                    names.append(n)
+                    names.append(e.name)
         ordered = sorted(names, key=lambda n: float(self.elementObjects[n].physical.start.z))
         crests = {}
         for name in ordered:
@@ -345,6 +365,14 @@ class gptLattice(frameworkLattice):
                 name, phase_range=phase_range, step=step, refine=refine
             )
         return crests
+
+    @staticmethod
+    def _crest_peak(phases: np.ndarray, energies: np.ndarray, gamma_max: float) -> float:
+        """Phase of the highest ``avgG`` that is physically reachable (at most ``gamma_max``)."""
+        possible = energies <= gamma_max
+        if not possible.any():
+            raise ValueError(f"every crest-scan point is above the reachable gamma {gamma_max:.4g}")
+        return float(phases[possible][np.argmax(energies[possible])])
 
     @staticmethod
     def _read_crest_scan(filename: str, z_eval: float | None = None) -> tuple:
@@ -662,6 +690,9 @@ class gptLattice(frameworkLattice):
             return
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
+        # GDF holds no species name; the tracked one is the primary (the per-particle
+        # q and m say what each particle is, so a mixed beam is split on writing)
+        beam.species = self.global_parameters["beam"].species
         HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
