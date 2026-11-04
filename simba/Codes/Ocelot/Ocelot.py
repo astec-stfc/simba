@@ -12,6 +12,7 @@ from ...Modules.rf_focusing import tw1_focusing_matrix
 from .bendmaps import transport_bend_maps
 from .cavitymaps import stable_cavity_maps, turn_map_with_cavity_drifts
 from .latticefile import fast_lattice_files
+from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
 from inspect import signature
 import numpy as np
@@ -262,10 +263,40 @@ class ocelotLattice(frameworkLattice):
             self.lat_obj = self.section.to_ocelot(
                 save=True, Brho=self.rigidity(self.reference_p0c)
             )
+        self.replace_negative_drifts()
         if self.tw_focusing:
             self.add_tw1_focusing()
         self._periodic = None
         self.names = [str(x) for x in array([lat.id for lat in self.lat_obj.sequence])]
+
+    def replace_negative_drifts(self) -> None:
+        """
+        Ocelot's ``Navigator`` places physics processes (and saved beams) at the running sum
+        of element lengths, which steps back over a negative (overlap) drift. Replace each
+        with a short gap plus a zero-length inverse-drift ``Matrix`` of the same name.
+        """
+        from ocelot.cpbd.elements import Cavity, Drift, Matrix
+        from ocelot.cpbd.magnetic_lattice import MagneticLattice
+
+        if not any(isinstance(e, Drift) and e.l < 0 for e in self.lat_obj.sequence):
+            return
+        m0 = self.rest_energy
+        design_energy = float(self.pin.E) * 1e9  # GeV -> eV
+        new_sequence = []
+        for elem in self.lat_obj.sequence:
+            if isinstance(elem, Drift) and elem.l < 0:
+                L = elem.l - STEP_BACK_GAP
+                bg2 = (design_energy / m0) ** 2 - 1
+                new_sequence.append(Drift(l=STEP_BACK_GAP, eid=f"{elem.id}_gap"))
+                elem = Matrix(
+                    l=0.0, eid=elem.id,
+                    r11=1.0, r12=L, r22=1.0, r33=1.0, r34=L, r44=1.0,
+                    r55=1.0, r56=-L / bg2 if bg2 > 0 else 0.0, r66=1.0,
+                )
+            elif isinstance(elem, Cavity):
+                design_energy += elem.v * 1e9 * np.cos(elem.phi * np.pi / 180.0)
+            new_sequence.append(elem)
+        self.lat_obj = MagneticLattice(new_sequence, method=self.lat_obj.method)
 
     def add_tw1_focusing(self) -> None:
         """
@@ -345,6 +376,7 @@ class ocelotLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
+        self.reference_start = (self.reference_t0, self.entrance_s, self.reference_p0c)
         self.hdf5_to_npz(prefix)
 
     def hdf5_to_npz(self, prefix: str="", write: bool=True) -> None:
@@ -641,17 +673,20 @@ class ocelotLattice(frameworkLattice):
                 if k == "s":
                     v += self.entrance_s
                 twsdat[k].append(v)
-        svals = array(self.getSValues(at_entrance=False)) + twsdat["s"][0]
-        elems = self.create_drifts().values()
-        zvals = [e.physical.end.z for e in elems]
+        elements = list(self.create_drifts().values())
+        shift = np.cumsum([STEP_BACK_GAP - e.physical.length if e.physical.length < 0 else 0.0 for e in elements])
+        # Ocelot tracks a step back as a short forward drift, so its s runs ahead by shift
+        svals = array(self.getSValues(at_entrance=False)) + shift + twsdat["s"][0]
+        zvals = [e.physical.end.z for e in elements]
         twsdat['z'] = interp(twsdat["s"], svals, zvals)
-        elem_names = array([e.name for e in elems], dtype="U")
+        elem_names = array([e.name for e in elements], dtype="U")
         if len(elem_names):
             idx = clip(
                 searchsorted(svals, twsdat["s"], side="left"),
                 0,
                 len(elem_names) - 1,
             )
+            twsdat["s"] = list(array(twsdat["s"]) - shift[idx])
             twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,
@@ -936,6 +971,7 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_in[w.name]),
                     file_turn=file_turn,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
@@ -952,6 +988,7 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_out[self.end]),
                     file_turn=file_turn,
+                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
