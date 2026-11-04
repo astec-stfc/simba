@@ -566,6 +566,7 @@ class xsuiteLattice(frameworkLattice):
         prefix = self.get_prefix()
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
+        self.reference_start = (self.reference_t0, self.entrance_s, self.reference_p0c)
         self.hdf5_to_json(prefix)
         mode = self.space_charge_mode
         if mode not in self.space_charge_modes_off + ("3d",):
@@ -1186,7 +1187,7 @@ class xsuiteLattice(frameworkLattice):
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
             payload, zstart=zstart, s=s, ref_index=self.ref_idx,
-            t_reference=t_reference, context=xo.ContextCpu(),  # read with numpy
+            t_reference=t_reference, start=self.reference_start, context=xo.ContextCpu(),  # read with numpy
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)
@@ -1197,9 +1198,7 @@ class xsuiteLattice(frameworkLattice):
         # Anchor s to the lattice entrance (not the incoming beam's accumulated s),
         # as every code does.
         df["s"] += self.entrance_s
-        svals = np.array(self.getSValues(at_entrance=False)) + df["s"][0]
-        zvals = [a[-1] for a in self.getZValues()]
-        df["z"] = np.interp(df["s"], svals, zvals)
+        df["z"] = self.getZAtS(df["s"])
         if self.beam_data:
             for k in next(iter(self.beam_data.values())):
                 df[k] = [x[k] for x in self.beam_data.values()]

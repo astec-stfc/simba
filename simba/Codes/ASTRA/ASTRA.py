@@ -501,6 +501,7 @@ class astraLattice(frameworkLattice):
             rbf.openpmd.write_openpmd_beam_file(
                 beam,
                 self.global_parameters["master_subdir"] + "/" + HDF5filename,
+                toffset=float(beam._beam.toffset.val),
                 )
             if self.global_parameters["delete_tracking_files"]:
                 os.remove(
