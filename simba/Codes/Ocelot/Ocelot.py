@@ -35,6 +35,30 @@ if TYPE_CHECKING:
     from ocelot.cpbd.sc import LSC, SpaceCharge
 
 
+def ocelot_wake_file(subdir: str, loc: str) -> str:
+    """
+    The wake table LAURA wrote for Ocelot in `subdir`: ``<name>.ocelot`` (Ocelot's variant of the ASTRA table, which
+    starts with ``1 0``), or ``<name>.astra`` from a LAURA that writes one table for both codes.
+
+    Parameters
+    ----------
+    subdir: str
+        The directory the tables are written to
+    loc: str
+        The field map's file, or the table that was written for it
+
+    Returns
+    -------
+    str
+        The table that exists; ``<name>.astra`` if neither does
+    """
+    stem = os.path.join(subdir, os.path.splitext(os.path.basename(loc))[0])
+    for extension in (".ocelot", ".astra"):
+        if os.path.exists(stem + extension):
+            return stem + extension
+    return stem + ".astra"
+
+
 def _sw_focusing_matrix(
     volt: float, phi: float, length: float, energy: float, m0: float
 ) -> np.ndarray:
@@ -1130,9 +1154,8 @@ class ocelotLattice(frameworkLattice):
         """
         from ocelot.cpbd.wake3D import Wake, WakeTable
         if isinstance(loc, FieldMap):
-            loc = loc.write_field_file(code="astra")
-        subdir = self.global_parameters["master_subdir"]
-        fname = subdir + '/' + os.path.basename(loc).replace('.hdf5', '.astra')
+            loc = loc.write_field_file(code="ocelot")
+        fname = ocelot_wake_file(self.global_parameters["master_subdir"], loc)
         wake = Wake(
             step=100,
             w_sampling=self.wake_sampling,
