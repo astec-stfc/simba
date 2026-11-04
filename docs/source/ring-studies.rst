@@ -555,8 +555,23 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - no
      - no
+   * - BDSIM
+     - yes (circular mode)
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
 
 ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
+
+BDSIM's turns run inside one Geant4 process, so nothing can change between them.
+It has no reference-momentum ramp, and its field modulators (a sinusoid, or one
+top-hat or linear window in time) cannot express a knotted program, so programs
+and ramps are left unsupported rather than approximated.
 
 .. _native-turns:
 
@@ -606,6 +621,39 @@ holds them to it turn by turn. The override is what lets that test run both.
    **Ocelot.** ``ocelot.cpbd.track.track()`` takes no turn argument, and
    ``track_nturns``, despite the name, takes a list of single particles and is
    the dynamic-aperture tool, not a ``ParticleArray`` path.
+
+.. note::
+   **BDSIM** takes the count natively, in its circular mode
+   (``option, circular=1, nturns=N``).
+   BDSIM builds the line in 3D and adds a terminator, which counts the turns,
+   and a teleporter, which moves each particle back to the start. The
+   teleporter only bridges a gap of 0.03 µm to 1 m along the beam, so the line
+   must close *geometrically*, through its bends.
+   A ring that closes exactly fails too, so SIMBA takes 2 µm off the last
+   drift. 1 µm of that goes to a drift after the last element, because a
+   sampler next to the terminator counts every turn twice (seen with BDSIM
+   1.7.7).
+
+   A single pass round a closed ring also runs in circular mode, with
+   ``nturns=1``. Otherwise nothing stops the particles and the run never ends.
+
+   Read ``z`` from BDSIM with care. SIMBA rebuilds it from the arrival time,
+   and BDSIM's default ``bdsimmatrix`` integrators leave each particle's path
+   length through a bend out of that time. Through dispersion, ``z`` then keeps
+   its starting spread while MAD-X and elegant show the bunch lengthen, and
+   SIMBA warns (:class:`~simba.exceptions.BunchLengthWarning`). The
+   ``bdsimtwo`` and ``geant4`` sets get the time right; pick one in the
+   ``tracking`` block:
+
+   .. code-block:: yaml
+
+       tracking: {turns: 1000, integrator_set: bdsimtwo}
+
+   On a test ring all three sets agreed with MAD-X particle by particle,
+   ``bdsimtwo`` and ``geant4`` on the bunch length as well. LAURA writes a
+   quadrupole's ``k1`` negated for a negative beam in the ``bdsim*`` sets,
+   whose quadrupole sets the field for a positive particle, and as it is for
+   ``geant4``; every other strength follows the particle's charge in all sets.
 
 What a Ring Run Reports
 -----------------------

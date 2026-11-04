@@ -6,6 +6,7 @@ nt:
   csrtrack: [$simcodes$/CSRTrack/csrtrack.exe]
   gpt: ['C:\Program Files\General Particle Tracer\bin\gpt.exe','-j',$ncpu$]
   madx: [$simcodes$/MADX/madx.exe]
+  bdsim: [$simcodes$/BDSIM/bin/bdsim.exe]
 apclara1:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['mpirun','-np',$ncpu$,'/opt/ASTRA/astra_MPICH2.sh']
@@ -17,6 +18,7 @@ apclara1:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -27,6 +29,7 @@ apclara2:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara3:
   astragenerator: ['/opt/ASTRA/generator.sh']
   astra: ['salloc','-n',$ncpu$,'/usr/lib64/compat-openmpi16/bin/mpirun','/opt/ASTRA/astra_r62_Linux_x86_64_OpenMPI_sld6']
@@ -37,6 +40,7 @@ apclara3:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 posix:
   astragenerator: [$simcodes$/ASTRA/generator]
   astra: [$simcodes$/ASTRA/Astra]
@@ -48,6 +52,7 @@ posix:
   genesis: [$simcodes$/Genesis/genesis4]
   madx: [$simcodes$/MADX/madx]
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  bdsim: ["source", $simcodes$BDSIM/root/bin/thisroot.sh, ';', "source", "/usr/local/bin/geant4.sh", ';', "source", "/usr/local/bin/bdsim.sh", ';', "bdsim"]
 docker:
   image: ghcr.io/astec-stfc/simcodes-docker:master
   astragenerator: ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Astra-serial/generator','-v','$workdir$:/workdir','-w','/workdir','$image$']

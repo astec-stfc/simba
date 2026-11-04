@@ -67,6 +67,41 @@ class NoRadiationWarning(PhysicsWarning):
         )
 
 
+class MaterialWithoutPhysicsWarning(PhysicsWarning):
+    """Material in a BDSIM line tracked with no physics list, where it does nothing."""
+
+    def __init__(self, line: str, elements: list):
+        super().__init__(
+            f"{_line(line)} has material in the beam ({', '.join(elements)}) but runs BDSIM "
+            "with no physics list, so particles pass through it untouched: no losses, "
+            "scattering or secondaries. Set tracking: {physics_list: em} (or another "
+            "BDSIM physics list)."
+        )
+
+
+class CrystalWithoutChannellingWarning(PhysicsWarning):
+    """A crystal in a BDSIM line whose physics list does not channel."""
+
+    def __init__(self, line: str, crystals: list, physics_list: str):
+        super().__init__(
+            f"{_line(line)} has crystals ({', '.join(crystals)}) but BDSIM's physics list "
+            f"{physics_list!r} has no channelling, so they scatter as amorphous material. "
+            "Set tracking: {physics_list: completechannelling}."
+        )
+
+
+class BunchLengthWarning(PhysicsWarning):
+    """BDSIM's matrix integrators, which time every particle as the reference."""
+
+    def __init__(self, line: str, integrator_set: str):
+        super().__init__(
+            f"{_line(line)} runs BDSIM with its {integrator_set} integrators, which "
+            "leave each particle's path length through a bend out of its arrival "
+            "time, so z, and the bunch length, do not change through dispersion. "
+            "Set tracking: {integrator_set: bdsimtwo} (or geant4) to track them."
+        )
+
+
 class PeriodicUnsupportedWarning(UnsupportedWarning):
     """The periodic solution, in a code that has none."""
 
