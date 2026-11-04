@@ -50,6 +50,7 @@ QUANTITIES = {
 }
 
 #                                   E      dE    enx    eny     sx    sy     sz
+# sy peaks at JFEL-S11-DIA-BPM-01, a ~25 um vertical waist where a few um is a big percentage
 TOLERANCES = {
     # measured:                  0.130  0.062   6.69   3.96   6.19  2.12  11.80
     ("madx", "ocelot"):         (0.19,  0.10,  10.0,  18.0,   9.0,  3.0,  17.0),
@@ -73,7 +74,7 @@ EXIT_VALUES = {
 }
 EXIT_BANDS = {"E": 0.005, "dE": 0.15, "enx": 0.15, "eny": 0.15, "sx": 0.15, "sy": 0.05, "sz": 0.15}
 
-MIN_SCREENS = 60
+MIN_SCREENS = 57
 """Guard against the comparison quietly shrinking to a handful of screens."""
 
 

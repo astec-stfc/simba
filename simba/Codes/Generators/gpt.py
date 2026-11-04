@@ -6,6 +6,7 @@ from ...FrameworkHelperFunctions import (
     saveFile,
     copylink,
     expand_substitution,
+    gpt_environment,
 )
 from .Generators import (
     frameworkGenerator,
@@ -54,14 +55,12 @@ class GPTGenerator(frameworkGenerator):
         command = (
             self.executables[self.code]
             + ["-o", "generator.gdf"]
-            + [f"GPTLICENSE={self.global_parameters['GPTLICENSE']}"]
             + [f"{self.objectname}.in"]
         )
-        my_env = os.environ.copy()
+        my_env = gpt_environment(self.global_parameters)
         my_env["LD_LIBRARY_PATH"] = (
             f"{my_env.get('LD_LIBRARY_PATH', '')}:/opt/GPT3.3.6/lib/"
         )
-        my_env["OMP_WAIT_POLICY"] = "PASSIVE"
 
         log_path = os.path.join(
             self.global_parameters["master_subdir"], f"{self.objectname}.log"

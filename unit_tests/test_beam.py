@@ -287,6 +287,16 @@ def test_astra_beam(simple_beam):
     )
     os.remove("test.astra")
 
+def test_gdf_beam_keeps_its_charge(simple_beam, tmp_path):
+    filename = str(tmp_path / "charge.gdf")
+    simple_beam.write_gdf_beam_file(filename)
+    gdf_beam = rbf.beam()
+    rbf.gdf.read_gdf_beam_file(gdf_beam, filename, position=None)
+    assert np.ndim(gdf_beam.Particles.total_charge) == 0
+    assert np.isclose(float(gdf_beam.Particles.total_charge), 100e-12)
+    assert np.allclose(gdf_beam.Particles.charge.val, simple_beam.Particles.charge.val)
+
+
 def test_gdf_beam(simple_beam):
     simple_beam.write_gdf_beam_file("test.gdf")
     gdf_beam = rbf.beam("test.gdf")
