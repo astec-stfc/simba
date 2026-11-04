@@ -22,6 +22,13 @@ from typing import Dict, List, Any, ClassVar, Literal
 from warnings import warn
 
 
+def _to_cpu(obj):
+    """An xobject (particles, monitor) on the CPU, for numpy: copied there from a GPU context."""
+    import xobjects as xo
+
+    return obj if isinstance(obj._context, xo.ContextCpu) else obj.copy(_context=xo.ContextCpu())
+
+
 def _select_turn(data: Dict, turn: int) -> Dict:
     """One turn's rows out of a ``ParticlesMonitor``'s flattened dump.
 
@@ -501,14 +508,15 @@ class xsuiteLattice(frameworkLattice):
             for element, name in zip(self.line.elements, self.line.element_names):
                 if recentre:
                     # as run() does, one pass at a time
-                    particles.zeta -= np.mean(particles.zeta)
+                    particles.zeta -= particles.zeta.mean()
                 if name in kicks:
-                    alive = np.asarray(particles.state) > 0
+                    here = _to_cpu(particles)
+                    alive = np.asarray(here.state) > 0
                     if alive.any():
                         widths[name] = tuple(
                             abs(np.mean(values)) + sigmas * np.std(values)
                             for values, sigmas in zip(
-                                (np.asarray(getattr(particles, coord))[alive]
+                                (np.asarray(getattr(here, coord))[alive]
                                  for coord in ("x", "y", "zeta")),
                                 self.space_charge_sigmas,
                             )
@@ -765,28 +773,31 @@ class xsuiteLattice(frameworkLattice):
             self.line.enable_time_dependent_vars = True
         self.reference_at_start = self.line.particle_ref.copy()
         self._closed_orbit = None
-        pin = deepcopy(self.pin)
+        # Particles.copy(), not deepcopy: deepcopy also copies a GPU context, which the
+        # line's elements then refuse ("Incompatible context for argument `particles`")
+        pin = self.pin.copy()
 
         passes = self.turns * self.passes_per_turn
         if passes > 1:
             import xtrack as xt
             self.end_monitor = xt.ParticlesMonitor(
-                num_particles=len(pin.x), start_at_turn=0, stop_at_turn=passes
+                _context=self.context, num_particles=len(pin.x), start_at_turn=0, stop_at_turn=passes
             )
             self.line.track(pin, num_turns=passes, turn_by_turn_monitor=self.end_monitor)
-            self.pout = pin
-            self.check_space_charge_grids(pin)
-            self.collect_beam_data(deepcopy(pin))
+            self.end_monitor = _to_cpu(self.end_monitor)
+            self.pout = _to_cpu(pin)
+            self.check_space_charge_grids(self.pout)
+            self.collect_beam_data(pin.copy())  # tracks, so on the line's context
             self.tws = self._twiss()
             return
 
         for el, name in zip(self.line.elements, self.line.element_names):
-            pin.zeta -= np.mean(pin.zeta)  # Center zeta
+            pin.zeta -= pin.zeta.mean()  # Center zeta (numpy or cupy)
             self._track_element(el, pin)  # Track in-place
             self.beam_data.update({name: self.bunch_statistics(pin)})
         self.beam_data.update({"_end_point": self.bunch_statistics(pin)})
-        self.pout = pin
-        self.check_space_charge_grids(pin)
+        self.pout = _to_cpu(pin)
+        self.check_space_charge_grids(self.pout)
         self.tws = self._twiss()
 
     @staticmethod
@@ -811,6 +822,7 @@ class xsuiteLattice(frameworkLattice):
         dict
             One row of :attr:`beam_data`
         """
+        particles = _to_cpu(particles)
         # lost particles keep the coordinates where they were lost
         if np.any(np.asarray(particles.state) <= 0):
             particles = particles.filter(particles.state > 0)
@@ -1130,7 +1142,7 @@ class xsuiteLattice(frameworkLattice):
                 continue
             if not self.writes_output(elem.name):
                 continue
-            data = self.line[elem.name].data.to_dict()
+            data = _to_cpu(self.line[elem.name]).data.to_dict()
             for data_turn, name_turn in self.output_turns():
                 turn = self.beam_turn(data_turn)
                 self._write_xsuite_beam(
@@ -1174,7 +1186,7 @@ class xsuiteLattice(frameworkLattice):
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
             payload, zstart=zstart, s=s, ref_index=self.ref_idx,
-            t_reference=t_reference, context=self.context,
+            t_reference=t_reference, context=xo.ContextCpu(),  # read with numpy
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)

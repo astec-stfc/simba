@@ -1,11 +1,6 @@
 import os
 import numpy as np
 
-try:
-    import cupy as cp
-    has_cupy = True
-except ImportError:
-    has_cupy = False
 from .. import constants
 from ..units import UnitValue
 
@@ -15,13 +10,12 @@ def read_xsuite_beam_file(
     """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
     ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds.
 
-    ``context`` is the xobjects context to build the particles in; the lattice's,
-    so that a run held to the CPU does not make GPU particles. Default: the GPU if
-    ``cupy`` imports."""
+    ``context`` is the xobjects context to build the particles in. Default: the CPU,
+    since they are read with numpy."""
     import xobjects as xo
     import xpart as xp
     if context is None:
-        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+        context = xo.ContextCpu()
 
     def from_dict(payload):
         try:
@@ -57,7 +51,7 @@ def read_xsuite_beam_file(
         else:
             raise ValueError(f"File format not supported for xsuite beam file {filename}.")
     elif isinstance(filename, xp.Particles):
-        particles = filename
+        particles = filename if isinstance(filename._context, xo.ContextCpu) else filename.copy(_context=xo.ContextCpu())
     else:
         raise ValueError("Input must be a filename or an xpart.Particles instance.")
     self.filename = filename
@@ -127,11 +121,12 @@ def write_xsuite_beam_file(
     self, filename: str = None, write: bool = True, s_start: float = 0,
     p0c: float = None, t0: float = None, context=None,
 ):
-    """Save a json file for xsuite; ``context`` as for :func:`read_xsuite_beam_file`."""
+    """Save a json file for xsuite; ``context``: the xobjects context to build the
+    particles in, the CPU by default (a lattice passes its own)."""
     import xobjects as xo
     import xtrack as xt
     if context is None:
-        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+        context = xo.ContextCpu()
 
     if filename is None:
         fn = os.path.splitext(self.filename)
