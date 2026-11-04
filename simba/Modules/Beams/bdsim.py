@@ -5,9 +5,10 @@ import numpy as np
 from .. import constants
 from ..units import UnitValue
 
-BDSIM_DISTRIBUTION_FORMAT = "x[m]:xp[rad]:y[m]:yp[rad]:t[s]:E[eV]"
+BDSIM_DISTRIBUTION_FORMAT = "x[m]:xp[rad]:y[m]:yp[rad]:t[s]:E[eV]:w"
 """Time, not ``z``, so every particle starts on the first element's face: in a closed
-ring a ``z`` behind it starts beyond the last element instead."""
+ring a ``z`` behind it starts beyond the last element instead. ``w`` is each
+particle's weight relative to mean, which BDSIM gives the primary and its secondaries."""
 
 SAMPLER_VARIABLES = (
     "x",
@@ -46,6 +47,9 @@ def write_bdsim_beam_file(beam, filename):
     filename: str
         Name of the file to write.
     """
+    from .openpmd import _weight
+
+    weight = np.asarray(_weight(beam), dtype=float)
     np.savetxt(
         filename,
         np.transpose(
@@ -58,6 +62,7 @@ def write_bdsim_beam_file(beam, filename):
                     -(beam.z.val - np.mean(beam.z.val))
                     / (beam.Bz.val * constants.speed_of_light),
                     beam.energy.val,
+                    weight / np.mean(weight),
                 ]
             )
         ),
@@ -90,12 +95,12 @@ def read_bdsim_beam_file(
         Reference particle index.
     """
     data = np.atleast_2d(np.loadtxt(filename))
-    if data.shape[1] != 6:
+    if data.shape[1] != 7:
         raise ValueError(
-            f"{filename} has {data.shape[1]} columns; expected 6 "
+            f"{filename} has {data.shape[1]} columns; expected 7 "
             f"({BDSIM_DISTRIBUTION_FORMAT})"
         )
-    x, xp, y, yp, t, energy = data.T
+    x, xp, y, yp, t, energy, weight = data.T
     self.filename = filename
     self.code = "BDSIM"
     _set_particles(
@@ -109,6 +114,10 @@ def read_bdsim_beam_file(
         charge=charge,
         s=s,
     )
+    if charge is not None:  # shared by weight, not equally
+        self._beam.charge = UnitValue(charge * weight / np.sum(weight), units="C")
+    self._beam.nmacro = UnitValue(np.abs(np.asarray(self._beam.charge, dtype=float)) / constants.elementary_charge
+                                  if charge is not None else weight)
     self._beam.t = UnitValue(t, units="s")
     self._beam.z = UnitValue(
         zstart - t * self._beam.Bz * constants.speed_of_light, units="m"

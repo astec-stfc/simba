@@ -393,3 +393,40 @@ def test_a_laura_crystal_channels_electrons_as_the_same_crystal_written_by_hand(
     error = np.sqrt(sum(f * (1 - f) / nevents for f in fractions))
     assert fractions[1] > 0.04  # electrons do channel (amorphous: 0.4%)
     assert abs(fractions[0] - fractions[1]) < 4 * error, fractions
+
+
+@needs_bdsim
+def test_a_variable_weight_beam_keeps_its_weights_through_bdsim(tmp_path):
+    # one electron per macroparticle at x < 0, three at x > 0 (as FBPIC/Wake-T beams vary)
+    import simba.Modules.Beams as rbf
+    from simba.Codes.Generators import frameworkGenerator
+    from simba.Modules.Beams import bdsim
+    from simba.Modules.units import UnitValue
+
+    npart, e = 400, constants.elementary_charge
+    frameworkGenerator(
+        global_parameters={"master_subdir": str(tmp_path)}, filename="weighted.openpmd.hdf5",
+        initial_momentum=100e6, sigma_x=1e-3, sigma_px=1e3, sigma_y=1e-3, sigma_py=1e3,
+        sigma_z=1e-4, sigma_pz=1e4, charge=1e-12, number_of_particles=npart,
+    ).write()
+    seed = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(seed, str(tmp_path / "weighted.openpmd.hdf5"))
+    nmacro = np.where(seed.x.val > 0, 3.0, 1.0)
+    seed.Particles.charge = UnitValue(-e * nmacro, units="C")
+    seed.Particles.nmacro = UnitValue(nmacro)
+    seed.Particles.total_charge = UnitValue(-e * nmacro.sum(), units="C")
+    seed.write_openpmd_beam_file(str(tmp_path / "weighted.openpmd.hdf5"))
+
+    beam, _ = _collimator_line(tmp_path, {"physics_list": "em", "secondaries": ["photon"]},
+                               seed=tmp_path / "weighted.openpmd.hdf5")
+    raw = bdsim.read_bdsim_sampler_arrays(beam.root_file, samplers=["M3"])["M3"]
+    # BDSIM gives every hit, primary or secondary, its event's weight relative to the mean
+    event = raw["eventID"].astype(int)
+    np.testing.assert_allclose(raw["weight"], nmacro[event] / nmacro.mean(), rtol=1e-6)
+    # and SIMBA turns that back into real particles per macroparticle
+    primary = raw["parentID"] == 0
+    np.testing.assert_allclose(np.sort(beam.Particles.nmacro.val), np.sort(nmacro[event[primary]]), rtol=1e-6)
+    assert float(beam.Particles.total_charge) == pytest.approx(-e * nmacro[event[primary]].sum())
+    photon = ~primary & (raw["partID"] == 22)
+    np.testing.assert_allclose(np.sort(beam.others["photon"].Particles.nmacro.val),
+                               np.sort(nmacro[event[photon]]), rtol=1e-6)
