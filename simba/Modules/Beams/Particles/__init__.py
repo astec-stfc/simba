@@ -108,17 +108,18 @@ class Particles(BaseModel):
     offset: UnitValue | list | np.ndarray = [0, 0, 0]
     """Position offset [x, y, z] [m]."""
 
-    species_name: Dict = {1: "electron", 2: "positron", 3: "proton", 4: "hydrogen"}
+    species_name: Dict = {1: "electron", 2: "positron", 3: "proton", 4: "hydrogen", 5: "photon"}
 
     mass_index: Dict = {
         1: constants.m_e,  # electron
         2: constants.m_e,  # positron
         3: constants.m_p,  # proton
         4: constants.m_p,  # hydrogen ion
+        5: 0.0,  # photon
     }
     """Mass [kg] of each particle index."""
 
-    charge_sign_index: Dict = {1: -1, 2: 1, 3: 1, 4: 1}
+    charge_sign_index: Dict = {1: -1, 2: 1, 3: 1, 4: 1, 5: 0}
     """Charge sign of each particle index."""
 
     def sign(self, x):
@@ -139,6 +140,8 @@ class Particles(BaseModel):
         -------
         int
         """
+        if m == 0 and q == 0:
+            return 5
         if m == constants.m_e or (0.9 * constants.m_e) < m < (1.1 * constants.m_e):
             if self.sign(q) > 0:
                 return 2
@@ -388,8 +391,8 @@ class Particles(BaseModel):
 
     @property
     def energy(self) -> UnitValue:
-        """Total energy, gamma * rest energy [eV]."""
-        return UnitValue(self.gamma * self.particle_rest_energy_eV, "eV")
+        """Total energy, sqrt(E0^2 + cp^2) [eV]; not gamma * E0, which is inf * 0 for photons."""
+        return UnitValue(np.hypot(self.particle_rest_energy_eV.val, self.cp.val), "eV")
 
     @property
     def Ex(self) -> UnitValue:

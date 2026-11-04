@@ -100,6 +100,9 @@ class xsuiteLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """``line.track(num_turns=...)``."""
 
+    tracks_multiple_species: ClassVar[bool] = True
+    """Per-particle ``charge_ratio`` and ``mass_ratio`` to the line's reference particle."""
+
     native_time: ClassVar[tuple[str, str]] = ("zeta", "m")
     """``zeta = s - beta0 c t``, measured from the reference."""
 

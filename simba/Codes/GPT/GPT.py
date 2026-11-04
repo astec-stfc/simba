@@ -18,7 +18,7 @@ from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import Dict, Literal, Any
+from typing import ClassVar, Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -36,6 +36,9 @@ class gptLattice(frameworkLattice):
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    tracks_multiple_species: ClassVar[bool] = True
+    """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
 
     allow_negative_drifts: bool = True
     """Flag to indicate whether negative drifts are allowed"""
@@ -662,6 +665,9 @@ class gptLattice(frameworkLattice):
             return
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
+        # GDF holds no species name; the tracked one is the primary (the per-particle
+        # q and m say what each particle is, so a mixed beam is split on writing)
+        beam.species = self.global_parameters["beam"].species
         HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
