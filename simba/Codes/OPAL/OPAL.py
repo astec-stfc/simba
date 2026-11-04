@@ -405,32 +405,46 @@ class opalLattice(frameworkLattice):
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 
+    def read_element_beam(self, name, opalbeamname, spositions, default_step=None):
+        """
+        The beam at element ``name``: from its MONITOR file if OPAL wrote one,
+        else from the dump in ``opalbeamname`` at step ``spositions[name]``,
+        else ``default_step``; ``None`` if there is neither.
+        """
+        monitor = f'{self.global_parameters["master_subdir"]}/{name}_opal.h5'
+        if os.path.exists(monitor):
+            filename, step = monitor, 0
+        elif name in spositions or default_step is not None:
+            filename, step = opalbeamname, spositions.get(name, default_step)
+        else:
+            return None
+        beam = rbf.beam()
+        beam.read_opal_beam_file(filename=filename, step=step)
+        return beam
+
     def postProcess(self):
-        start_z = self.startObject.physical.start.z
+        entrance = self.getSValues(as_dict=True, at_entrance=True)
         svals = {
-            s.name: s.physical.middle.z - start_z for s in self.screens_and_bpms
+            s.name: entrance[s.name] + s.physical.length / 2 for s in self.screens_and_bpms
         }
+        svals[self.endObject.name] = entrance[self.endObject.name] + self.endObject.physical.length
         opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
         spositions = find_opal_s_positions(opalbeamname, svals, tolerance=0.05)
         for elem in self.screens_and_bpms:
-            if elem.name in spositions:
-                beam = rbf.beam()
-                beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
+            beam = self.read_element_beam(elem.name, opalbeamname, spositions)
+            if beam is not None:
                 zpos = elem.physical.middle.z
                 beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-                beam._beam.t = UnitValue(
-                    beam._beam.t.val + (zpos / speed_of_light), "s"
-                )
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
                     f'{self.global_parameters["master_subdir"]}/'
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
-        beam = rbf.beam()
-        beam.read_opal_beam_file(filename=opalbeamname, step=-1)
+        beam = self.read_element_beam(
+            self.endObject.name, opalbeamname, spositions, default_step=-1
+        )
         zpos = self.endObject.physical.end.z
         beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-        beam._beam.t = UnitValue(beam._beam.t.val + (zpos / speed_of_light), "s")
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             f'{self.global_parameters["master_subdir"]}/'

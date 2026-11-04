@@ -8,9 +8,10 @@ except ImportError:
     has_cupy = False
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 
 def read_xsuite_beam_file(
-    self, filename, zstart=0, s=0, ref_index=None, t_reference=None, context=None
+    self, filename, zstart=0, s=0, ref_index=None, t_reference=None, start=None, context=None
 ):
     """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
     ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds.
@@ -105,6 +106,9 @@ def read_xsuite_beam_file(
     self._beam.y = UnitValue(alive("y"), units="m")
 
     lag = -alive("zeta") / (alive("beta0") * constants.speed_of_light)
+    if t_reference is None and start is not None:
+        # open line: the reference's time of flight from start = (t0, s0, p0)
+        t_reference = reference_time(s, float(alive("p0c")[0]), float(particles.mass0), start)
     if t_reference is None:
         t_reference = alive("s") / constants.speed_of_light
     self._beam.t = UnitValue(t_reference + lag, units="s")

@@ -123,6 +123,7 @@ class cheetahLattice(frameworkLattice):
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_openpmd()
+        self.reference_start = (self.reference_t0, float(self.pin.s), self.reference_p0c)
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
         """
@@ -183,6 +184,7 @@ class cheetahLattice(frameworkLattice):
             zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
+            start=self.reference_start,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
         if name == self.end:
@@ -220,6 +222,4 @@ class cheetahLattice(frameworkLattice):
                         data = svals + self.entrance_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
-                    lat_s = np.array(self.getSValues(at_entrance=False))
-                    lat_z = [a[-1] for a in self.getZValues()]
-                    twsgrp.create_dataset("z", data=np.interp(svals, lat_s, lat_z))
+                    twsgrp.create_dataset("z", data=self.getZAtS(svals))

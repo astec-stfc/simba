@@ -401,6 +401,9 @@ class gptLattice(frameworkLattice):
         Run GPT, then ``gdfa`` for the averaged beam properties (``_emit.gdf``, ``_emitt.gdf``, ``traj.gdf``).
 
         Needs ``GPTLICENSE`` in :attr:`global_parameters`.
+
+        With :attr:`~auto_phase`, the cavities are phased first and the input file
+        rewritten with their crests.
         """
         if self.auto_phase and self.autophase():
             self.write()
@@ -536,14 +539,13 @@ class gptLattice(frameworkLattice):
         """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
-        zvals = [a[-1] for a in self.getZValues()]
+        svals = self.getSValues(as_dict=True)
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
             if e.name != self.start:
-                sval = np.interp(e.physical.middle.z, zvals, svals)
+                sval = svals[e.name] - e.physical.length / 2 + self.entrance_s
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
                     screen=e,
@@ -552,7 +554,7 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
+        sval = svals[self.end] - self.endObject.physical.length / 2 + self.entrance_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,
