@@ -353,8 +353,8 @@ class ocelotLattice(frameworkLattice):
             is_tw = (
                 source is not None
                 and getattr(source, "hardware_type", "").lower() == "rfcavity"
-                and getattr(getattr(source, "cavity", None), "structure_type", None)
-                == "TravellingWave"
+                and str(getattr(getattr(source, "cavity", None), "structure_type", ""))
+                .replace("_", "").lower() in ("travellingwave", "travelingwave")
             )
             if is_tw and elem.l > 0:
                 # Ocelot's own phi convention (de = volt*cos(phi_ocelot)) maps
@@ -1143,7 +1143,7 @@ class ocelotLattice(frameworkLattice):
         name: str
             Name of the element with the wake
         loc: :class:`~laura.translator.utils.fields.FieldMap` or str
-            The wake, or its file; a FieldMap is written as an ASTRA file first
+            The wake, or its file; a FieldMap is written as an Ocelot wake table first
         ncell: int
             Number of cells; multiplies the wake
 

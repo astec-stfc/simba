@@ -435,9 +435,6 @@ class opalLattice(frameworkLattice):
             if beam is not None:
                 zpos = elem.physical.middle.z
                 beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-                beam._beam.t = UnitValue(
-                    beam._beam.t.val + (zpos / speed_of_light), "s"
-                )
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
                     f'{self.global_parameters["master_subdir"]}/'
@@ -448,7 +445,6 @@ class opalLattice(frameworkLattice):
         )
         zpos = self.endObject.physical.end.z
         beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-        beam._beam.t = UnitValue(beam._beam.t.val + (zpos / speed_of_light), "s")
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             f'{self.global_parameters["master_subdir"]}/'
