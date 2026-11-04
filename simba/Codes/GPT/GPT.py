@@ -31,6 +31,16 @@ from laura.translator.converters.codes.gpt import (
 gpt_defaults = {}
 
 
+def _without_spaces(path: str) -> str:
+    """``mr`` passes gpt's path to cmd unquoted, which stops at "Program Files": on Windows use the 8.3 name."""
+    if os.name != "nt" or " " not in path:
+        return path
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(260)
+    return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
+
+
 class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
@@ -270,7 +280,7 @@ class gptLattice(frameworkLattice):
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
             saveFile(base + "_crest.mr", f"crestscan {lo} {hi} {dx}\n")
-            gpt = self.executables[self.code]
+            gpt = [_without_spaces(self.executables[self.code][0]), *self.executables[self.code][1:]]
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
             env = gpt_environment(self.global_parameters)
