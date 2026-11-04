@@ -1203,6 +1203,24 @@ class frameworkLattice(BaseModel):
         return float(np.mean(getattr(beam, coord).val))
 
     @property
+    def plasma_box_origin(self) -> float:
+        """
+        Lattice ``z`` placed at the origin of a co-moving plasma-code box
+        (Wake-T ``xi = 0``, FBPIC ``z = 0``), which plasma and laser positions
+        are given relative to.
+
+        The incoming beam's reference particle if it has one; otherwise its
+        charge-weighted mean ``z``, so a light bunch carried by many
+        macroparticles (electrons injected in an earlier stage, say) does not
+        drag the box away from the driver.
+        """
+        if self._input_particle is not None:
+            return self._input_particle["z"]
+        beam = self.global_parameters["beam"]
+        charge = np.abs(np.asarray(beam.Particles.charge.val, dtype=float))
+        return float(np.average(np.asarray(beam.z.val, dtype=float), weights=charge))
+
+    @property
     def design_p0c(self) -> float | None:
         """
         A ring's design ``p0c`` in eV, from its section's ``reference_energy``.
@@ -2172,7 +2190,10 @@ class frameworkLattice(BaseModel):
                     setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
                 except Exception:
                     pass
-        nb.set_total_charge(np.sum(np.array(bm.charge.val)))
+        charge = np.array(bm.charge.val)
+        kept = charge[idx]
+        nb.charge = UnitValue(kept * (np.sum(charge) / np.sum(kept)), units="C")
+        nb.total_charge = UnitValue(float(np.sum(charge)), units="C")
         newbeam.reference_particle_index = self.sampled_index(bm.reference_particle_index)
         return newbeam
 
@@ -2245,8 +2266,8 @@ class frameworkLattice(BaseModel):
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
-        elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
+        elif os.path.isfile(os.path.join(self.global_parameters["master_subdir"], HDF5filename)):
+            filepath = os.path.join(self.global_parameters["master_subdir"], HDF5filename)
         if os.path.isfile(filepath):
             if read_file:
                 rbf.hdf5.read_HDF5_beam_file(
