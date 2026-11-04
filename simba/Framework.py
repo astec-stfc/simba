@@ -339,6 +339,7 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_ptarmigan_command(override_location=location)
         executables.define_ASTRAgenerator_command(override_location=location)
         self.executables_ready = True
         return executables
