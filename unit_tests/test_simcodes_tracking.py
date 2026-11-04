@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import pytest
 import simba.Framework as fw
+from laura.translator.converters.codes import cheetah as laura_cheetah
 from simba.Codes.Generators import frameworkGenerator
 from laura.models.element import Marker, Plasma, Wiggler
 from laura import LAURA
@@ -89,6 +90,9 @@ def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elemen
     assert not any(cwd.iterdir())
 
 
+@pytest.mark.skipif(
+    not hasattr(laura_cheetah, "choose_cheetah_tracking_method"), reason="needs a LAURA with cheetah_tracking_method"
+)
 @pytest.mark.parametrize("sigma_pz, settings, expected", [
     (1e3, None, "linear"),
     (2.5e5, None, "second_order"),
