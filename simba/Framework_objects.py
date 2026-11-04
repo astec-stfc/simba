@@ -474,6 +474,9 @@ class frameworkLattice(BaseModel):
     files: List = []
     """Files needed to run the lattice."""
 
+    verbose: bool = True
+    """Flag to display verbose output (debug messages, warnings, etc.)."""
+
     code: str = None
     """Code to run the lattice."""
 
@@ -499,6 +502,10 @@ class frameworkLattice(BaseModel):
 
     radiates_by_default: ClassVar[bool] = False
     """Whether this code radiates unasked."""
+
+    merges_carried_species: ClassVar[bool] = False
+    """Whether a species carried past this line is merged into one the code made itself (BDSIM's photons),
+    rather than skipped because the code already tracked it."""
 
     supports_radiation: ClassVar[bool] = False
     """Whether simba can switch radiation on for this code; see :meth:`check_radiation_supported`."""
@@ -2662,6 +2669,7 @@ class frameworkLattice(BaseModel):
             slt.tw_focusing = self.tw_focusing
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
+            slt.verbose = self.verbose
             self._section = slt
             return slt
         self._section.directory = self.global_parameters["master_subdir"]
@@ -3187,7 +3195,7 @@ class frameworkLattice(BaseModel):
         if not os.path.isfile(filename):
             warn(exceptions.SpeciesNotCarriedWarning(self.objectname, filename, list(carried)))
             return []
-        return rbf.openpmd.append_species(filename, carried.values())
+        return rbf.openpmd.append_species(filename, carried.values(), merge=self.merges_carried_species)
 
     def __repr__(self):
         return self.__str__()
