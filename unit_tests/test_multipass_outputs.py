@@ -6,7 +6,7 @@ import pytest
 from laura.models.element import Dipole
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Framework_objects import frameworkLattice
-from unit_tests.test_path_arc_lengths import ERL, machine
+from test_path_arc_lengths import ERL, machine
 
 
 class Line:

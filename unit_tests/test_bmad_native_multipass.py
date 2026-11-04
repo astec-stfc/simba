@@ -3,7 +3,7 @@
 import pytest
 
 from simba.Codes.Bmad.Bmad import bmadLattice
-from unit_tests.test_path_arc_lengths import ERL, machine
+from test_path_arc_lengths import ERL, machine
 
 
 class Line:
