@@ -1,5 +1,6 @@
 import os
 import warnings
+import numpy as np
 import pytest
 import simba.Framework as fw
 from simba.Codes.Generators import frameworkGenerator
@@ -93,13 +94,13 @@ def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elemen
     (2.5e5, None, "second_order"),
     (2.5e5, {"cheetah_tracking_method": "linear"}, "linear"),
 ])
-def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, sigma_pz, settings, expected):
+def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, fodo_elements, sigma_pz, settings, expected):
     """With a 5% energy spread, linear tracking through the FODO misses its chromatic
     aberration, so "auto" switches to second order and warns; a setting overrides it."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         framework = _run_lattice(
-            tmp_path, "cheetah", None, _fodo_elements(), sigma_pz=sigma_pz, cheetah_settings=settings
+            tmp_path, "cheetah", None, fodo_elements, sigma_pz=sigma_pz, cheetah_settings=settings
         )
     switched = [w for w in caught if "set cheetah_tracking_method" in str(w.message)]
     assert len(switched) == (expected == "second_order")
@@ -110,6 +111,40 @@ def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_pat
         if isinstance(e, (cheetah.Drift, cheetah.Quadrupole))
     }
     assert methods == {"Drift": expected, "Quadrupole": expected}
+
+
+@pytest.mark.parametrize("code,container_runtime", [
+    ("ocelot", None), ("xsuite", None), ("cheetah", None),
+    pytest.param("astra", "docker", id="astra", marks=needs_container),
+])
+def test_output_timestamps(tmp_path, code, container_runtime, fodo_elements):
+    """The bunch arrives L/(beta c) after it set off: Ocelot added the start z on top,
+    Xsuite and Cheetah divided by c alone and dropped the input time, and Cheetah put
+    every output at the start. Ocelot and Cheetah also read total energy as momentum.
+    ASTRA's output dropped its reference particle's clock."""
+    from scipy.constants import c
+    from simba.Modules.Beams import load_file
+    output_file = _track_lattice(tmp_path, code, container_runtime, fodo_elements)
+    beam_in = load_file(os.path.join(os.path.dirname(output_file), "M1.openpmd.hdf5"))
+    beam = load_file(output_file)
+    flight = np.mean(beam.t.val) - np.mean(beam_in.t.val)
+    # ASTRA gives each particle's t as (z - z_ref)/(beta c) from a snapshot: ~0.3 ps here
+    assert flight == pytest.approx(4.25 / (np.mean(beam_in.Bz.val) * c),
+                                   abs=1e-12 if code == "astra" else 1e-13)
+    assert np.mean(beam.z.val) == pytest.approx(4.25, abs=1e-3)
+    assert np.mean(beam.energy.val) == pytest.approx(np.mean(beam_in.energy.val), rel=1e-6)
+
+
+def test_reference_time_through_acceleration():
+    """5 to 50 MeV, linearly in s, against the integral of ds/(beta c)."""
+    from scipy.constants import c
+    from simba.FrameworkHelperFunctions import reference_time
+    mass, length = 0.511e6, 2.0
+    energy = np.linspace(5e6, 50e6, 100001)
+    p = np.sqrt(energy**2 - mass**2)
+    expected = 1e-9 + np.trapezoid(energy / p, dx=length / 100000) / c
+    assert reference_time(3.0 + length, p[-1], mass, (1e-9, 3.0, p[0])) == pytest.approx(expected, rel=1e-9)
+    assert reference_time(length, p[0], mass) == pytest.approx(length * energy[0] / (p[0] * c))
 
 
 def test_waket_tracks(tmp_path):

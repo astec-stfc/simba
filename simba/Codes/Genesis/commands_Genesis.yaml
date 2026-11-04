@@ -93,7 +93,7 @@ importtransformation:
   file: string
   vector: string
   matrix: string
-  slen: double/
+  slen: double
 
 lattice:
   zmatch: double
@@ -116,17 +116,19 @@ profile_gauss:
 
 profile_polynom:
   label: string
+  c0: double
+  c1: double
+  c2: double
+  c3: double
+  c4: double
+
+profile_file:
+  label: string
   xdata: string
   ydata: string
   isTime: long
   reverse: long
   autoassign: long
-
-profile_file:
-  label: string
-  xdata: str
-  ydata: str
-  sig: double
 
 profile_step:
   label: string
@@ -188,6 +190,8 @@ setup:
   write_semaphore_file: long
   write_semaphore_file_done: long
   write_semaphore_file_started: long
+
+sort: {}
 
 sponrad:
   seed: long

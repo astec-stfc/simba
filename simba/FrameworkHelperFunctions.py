@@ -3,6 +3,7 @@ import os
 import re
 from shutil import copyfile
 import numpy as np
+from .Modules.constants import speed_of_light
 from deepdiff import DeepDiff
 
 from laura.models.element import Element
@@ -12,6 +13,15 @@ def saveFile(filename, lines=[], mode="w"):
     with open(filename, mode) as stream:
         for line in lines:
             stream.write(line)
+
+
+def reference_time(s, p, mass, start=None):
+    """Time the reference particle reaches s with momentum p (eV/c, mass in eV), having
+    left start = (t0, s0, p0); without a start it left s=0 at t=0 with p."""
+    t0, s0, p0 = start if start is not None else (0.0, 0.0, p)
+    energy, energy0 = np.hypot(p, mass), np.hypot(p0, mass)
+    inv_beta = (p - p0) / (energy - energy0) if abs(energy - energy0) > 1e-6 * energy else energy / p
+    return t0 + (s - s0) * inv_beta / speed_of_light
 
 
 def isevaluable(self, s):
@@ -74,6 +84,19 @@ def copylink(source, destination):
         copyfile(source, destination)
     except Exception as e:
         print("copylink error!", e)
+
+
+def gpt_environment(global_parameters):
+    """
+    The environment to run GPT in. GPT reads ``GPTLICENSE`` from it.
+    """
+    if not global_parameters.get("GPTLICENSE"):
+        raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
+    return {
+        **os.environ,
+        "GPTLICENSE": str(global_parameters["GPTLICENSE"]),
+        "OMP_WAIT_POLICY": "PASSIVE",
+    }
 
 
 _CONVERSION = None

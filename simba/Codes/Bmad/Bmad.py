@@ -557,6 +557,7 @@ class bmadLattice(frameworkLattice):
             space_charge_n_bin=self.space_charge_n_bin,
             initial_twiss=self._bmad_initial_twiss(),
         )
+        lattice = f"beginning[ref_time] = {float(self.reference_t0)!r}\n" + lattice
         path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.bmad"
         path.write_text(lattice, encoding="utf-8")
         self.lattice_file = str(path)
