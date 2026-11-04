@@ -19,6 +19,7 @@ import json
 import os
 
 from typing import Dict, List, Any, ClassVar, Literal
+import warnings
 from warnings import warn
 
 
@@ -270,13 +271,16 @@ class xsuiteLattice(frameworkLattice):
             zeta=0.0,
         )
         beam_length = len(self.global_parameters["beam"].x.val)
-        self.line = self.section.to_xsuite(
-            beam_length,
-            env=self.env,
-            particle_ref=particle_ref,
-            save=True,
-            turns=self.turns,
-        )
+        with warnings.catch_warnings():
+            # LAURA writes no wakes to Xsuite, but install_wakes adds them (and warns for any it can't)
+            warnings.filterwarnings("ignore", message="Xsuite is written without structure wakefields")
+            self.line = self.section.to_xsuite(
+                beam_length,
+                env=self.env,
+                particle_ref=particle_ref,
+                save=True,
+                turns=self.turns,
+            )
         self.install_monitors(beam_length)
         self.names = self.line.element_names
 
