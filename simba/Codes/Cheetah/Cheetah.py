@@ -15,6 +15,10 @@ import h5py
 import lox
 from lox.worker.thread import ScatterGatherDescriptor
 from laura.models.diagnostic import DiagnosticElement
+try:
+    from laura.translator.converters.codes.cheetah import choose_cheetah_tracking_method
+except ImportError:  # a LAURA before the tracking-method option: Cheetah tracks linearly, as it did
+    choose_cheetah_tracking_method = None
 
 
 with open(
@@ -105,6 +109,8 @@ class cheetahLattice(frameworkLattice):
         bool
             Always True
         """
+        if choose_cheetah_tracking_method:
+            self.section.cheetah_tracking_method = self.cheetahglobal["cheetah_tracking_method"]
         self.segment = self.section.to_cheetah(Brho=self.rigidity(self.reference_p0c))
         return True
 
@@ -123,6 +129,7 @@ class cheetahLattice(frameworkLattice):
         prefix = prefix if self.trackBeam else prefix + self.particle_definition
         self.load_input_beam(prefix, self.particle_definition)
         self.hdf5_to_openpmd()
+        self.reference_start = (self.reference_t0, float(self.pin.s), self.reference_p0c)
 
     def hdf5_to_openpmd(self, prefix="", write=True) -> None:
         """
@@ -150,6 +157,10 @@ class cheetahLattice(frameworkLattice):
     def run(self) -> None:
         """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``)."""
         pin = deepcopy(self.pin)
+        # if self.sample_interval > 1:
+        #     pin = pin.thin_out(nth=self.sample_interval)
+        if choose_cheetah_tracking_method and self.cheetahglobal["cheetah_tracking_method"] == "auto":
+            choose_cheetah_tracking_method(self.segment, pin)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
@@ -183,6 +194,7 @@ class cheetahLattice(frameworkLattice):
             zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
+            start=self.reference_start,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
         if name == self.end:
@@ -220,6 +232,4 @@ class cheetahLattice(frameworkLattice):
                         data = svals + self.entrance_s
                     twsgrp.create_dataset(key, data=data)
                 if svals is not None:
-                    lat_s = np.array(self.getSValues(at_entrance=False))
-                    lat_z = [a[-1] for a in self.getZValues()]
-                    twsgrp.create_dataset("z", data=np.interp(svals, lat_s, lat_z))
+                    twsgrp.create_dataset("z", data=self.getZAtS(svals))

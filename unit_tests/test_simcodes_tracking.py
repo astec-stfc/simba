@@ -1,6 +1,9 @@
 import os
+import warnings
+import numpy as np
 import pytest
 import simba.Framework as fw
+from laura.translator.converters.codes import cheetah as laura_cheetah
 from simba.Codes.Generators import frameworkGenerator
 from laura.models.element import Marker, Plasma, Wiggler
 from laura import LAURA
@@ -24,6 +27,11 @@ CODES = [
 
 
 def _track_lattice(tmp_path, code, container_runtime, middle_elements):
+    framework = _run_lattice(tmp_path, code, container_runtime, middle_elements)
+    return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
+
+
+def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e3, cheetah_settings=None):
     m1 = Marker(name="M1", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}})
     end_z = middle_elements[-1].physical.middle.z + middle_elements[-1].physical.length
     m3 = Marker(name="M3", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": end_z}})
@@ -45,6 +53,8 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
     settings.layout = machine.layout
     settings.section = {"sections": {"FODO": element_names}}
     settings.element_list = f"{tmp_path}/lattice"
+    if cheetah_settings:
+        settings["global"] = {**(settings.get("global") or {}), "CHEETAHsettings": cheetah_settings}
 
     framework = fw.Framework(
         machine=machine,
@@ -59,7 +69,7 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
         global_parameters={"master_subdir": framework.subdirectory},
         filename="M1.openpmd.hdf5",
         initial_momentum=5e6,
-        sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3, sigma_z=1e-3, sigma_pz=1e3,
+        sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3, sigma_z=1e-3, sigma_pz=sigma_pz,
         gaussian_cutoff_x=3, gaussian_cutoff_y=3, gaussian_cutoff_z=3,
         gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3,
         charge=100e-12,
@@ -67,7 +77,7 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements):
     gen.write()
 
     framework.track()
-    return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
+    return framework
 
 
 @pytest.mark.parametrize("code,container_runtime", CODES)
@@ -78,6 +88,67 @@ def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elemen
     output_file = _track_lattice(tmp_path, code, container_runtime, fodo_elements)
     assert os.path.isfile(output_file)
     assert not any(cwd.iterdir())
+
+
+@pytest.mark.skipif(
+    not hasattr(laura_cheetah, "choose_cheetah_tracking_method"), reason="needs a LAURA with cheetah_tracking_method"
+)
+@pytest.mark.parametrize("sigma_pz, settings, expected", [
+    (1e3, None, "linear"),
+    (2.5e5, None, "second_order"),
+    (2.5e5, {"cheetah_tracking_method": "linear"}, "linear"),
+])
+def test_cheetah_auto_switches_to_second_order_for_a_large_energy_spread(tmp_path, fodo_elements, sigma_pz, settings, expected):
+    """With a 5% energy spread, linear tracking through the FODO misses its chromatic
+    aberration, so "auto" switches to second order and warns; a setting overrides it."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        framework = _run_lattice(
+            tmp_path, "cheetah", None, fodo_elements, sigma_pz=sigma_pz, cheetah_settings=settings
+        )
+    switched = [w for w in caught if "set cheetah_tracking_method" in str(w.message)]
+    assert len(switched) == (expected == "second_order")
+    segment = framework.latticeObjects["FODO"].segment
+    import cheetah
+    methods = {
+        type(e).__name__: e.tracking_method for e in segment.flattened().elements
+        if isinstance(e, (cheetah.Drift, cheetah.Quadrupole))
+    }
+    assert methods == {"Drift": expected, "Quadrupole": expected}
+
+
+@pytest.mark.parametrize("code,container_runtime", [
+    ("ocelot", None), ("xsuite", None), ("cheetah", None),
+    pytest.param("astra", "docker", id="astra", marks=needs_container),
+])
+def test_output_timestamps(tmp_path, code, container_runtime, fodo_elements):
+    """The bunch arrives L/(beta c) after it set off: Ocelot added the start z on top,
+    Xsuite and Cheetah divided by c alone and dropped the input time, and Cheetah put
+    every output at the start. Ocelot and Cheetah also read total energy as momentum.
+    ASTRA's output dropped its reference particle's clock."""
+    from scipy.constants import c
+    from simba.Modules.Beams import load_file
+    output_file = _track_lattice(tmp_path, code, container_runtime, fodo_elements)
+    beam_in = load_file(os.path.join(os.path.dirname(output_file), "M1.openpmd.hdf5"))
+    beam = load_file(output_file)
+    flight = np.mean(beam.t.val) - np.mean(beam_in.t.val)
+    # ASTRA gives each particle's t as (z - z_ref)/(beta c) from a snapshot: ~0.3 ps here
+    assert flight == pytest.approx(4.25 / (np.mean(beam_in.Bz.val) * c),
+                                   abs=1e-12 if code == "astra" else 1e-13)
+    assert np.mean(beam.z.val) == pytest.approx(4.25, abs=1e-3)
+    assert np.mean(beam.energy.val) == pytest.approx(np.mean(beam_in.energy.val), rel=1e-6)
+
+
+def test_reference_time_through_acceleration():
+    """5 to 50 MeV, linearly in s, against the integral of ds/(beta c)."""
+    from scipy.constants import c
+    from simba.FrameworkHelperFunctions import reference_time
+    mass, length = 0.511e6, 2.0
+    energy = np.linspace(5e6, 50e6, 100001)
+    p = np.sqrt(energy**2 - mass**2)
+    expected = 1e-9 + np.trapezoid(energy / p, dx=length / 100000) / c
+    assert reference_time(3.0 + length, p[-1], mass, (1e-9, 3.0, p[0])) == pytest.approx(expected, rel=1e-9)
+    assert reference_time(length, p[0], mass) == pytest.approx(length * energy[0] / (p[0] * c))
 
 
 def test_waket_tracks(tmp_path):
