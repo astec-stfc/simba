@@ -1,7 +1,0 @@
-name: START
-machine_area: RING
-physical:
-  s: 0.0
-  middle: {}
-hardware_type: Marker
-hardware_class: Marker
