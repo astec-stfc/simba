@@ -79,6 +79,17 @@ class MaterialWithoutPhysicsWarning(PhysicsWarning):
         )
 
 
+class CrystalWithoutChannellingWarning(PhysicsWarning):
+    """A crystal in a BDSIM line whose physics list does not channel."""
+
+    def __init__(self, line: str, crystals: list, physics_list: str):
+        super().__init__(
+            f"{_line(line)} has crystals ({', '.join(crystals)}) but BDSIM's physics list "
+            f"{physics_list!r} has no channelling, so they scatter as amorphous material. "
+            "Set tracking: {physics_list: completechannelling}."
+        )
+
+
 class BunchLengthWarning(PhysicsWarning):
     """BDSIM's matrix integrators, which time every particle as the reference."""
 

@@ -159,6 +159,9 @@ class bdsimLattice(frameworkLattice):
         ))
         if material and not self.physics_list:
             warn(exceptions.MaterialWithoutPhysicsWarning(self.objectname, material))
+        crystals = [name for name in material if self.lattice.elements[name].category == "crystalcol"]
+        if crystals and self.physics_list and "channel" not in self.physics_list.lower():
+            warn(exceptions.CrystalWithoutChannellingWarning(self.objectname, crystals, self.physics_list))
         if self.circular:
             self.close_ring()
             self.lattice.options.update(circular=1, nturns=self.turns)
@@ -256,11 +259,17 @@ class bdsimLattice(frameworkLattice):
 
         Strings are quoted for gmad. ``integratorSet`` comes from :attr:`integrator_set`,
         and ``circular`` and ``nturns`` from the turn count, after these.
+
+        With no :attr:`secondaries` asked for, ``stopSecondaries=1`` too, unless the
+        ``options`` say otherwise: they would be dropped anyway, and tracking them is
+        what costs. The primaries still lose what they gave them.
         """
         tracking = self.file_block.get("tracking") or {}
         options = dict(tracking.get("options") or {})
         if self.physics_list:
             options["physicsList"] = self.physics_list
+        if not self.secondaries:
+            options.setdefault("stopSecondaries", 1)
         return {
             key: f'"{value}"' if isinstance(value, str) else value
             for key, value in options.items()

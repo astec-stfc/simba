@@ -20,26 +20,30 @@ needs_bdsim = pytest.mark.skipif(shutil.which("bdsim") is None, reason="BDSIM no
 @pytest.mark.parametrize(
     "tracking, physics_list, options",
     [
-        (None, "", {}),
-        ({"physics_list": "em"}, "em", {"physicsList": '"em"'}),
+        (None, "", {"stopSecondaries": 1}),
+        ({"physics_list": "em"}, "em", {"physicsList": '"em"', "stopSecondaries": 1}),
         (
             {"physics_list": "em", "options": {"defaultRangeCut": 1e-3, "physicsVerbose": "1"}},
             "em",
-            {"defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"'},
+            {"defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"', "stopSecondaries": 1},
         ),
+        # secondaries asked for are tracked, and the options can always say otherwise
+        ({"physics_list": "em", "secondaries": ["photon"]}, "em", {"physicsList": '"em"'}),
+        ({"options": {"stopSecondaries": 0}}, "", {"stopSecondaries": 0}),
     ],
 )
 def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, physics_list, options):
     line = SimpleNamespace(file_block={"tracking": tracking})
     line.physics_list = bdsimLattice.physics_list.fget(line)
+    line.secondaries = bdsimLattice.secondaries.fget(line)
     assert line.physics_list == physics_list
     assert bdsimLattice.bdsim_options.fget(line) == options
 
 
-def _collimator_line(tmp_path, tracking, npart=400, element=None):
+def _collimator_line(tmp_path, tracking, npart=400, element=None, seed=None):
     """
     A 0.5 mm-radius copper collimator (or ``element``) at z = 0.5 m in a round 1 mm,
-    100 MeV electron beam, from M1 to M3, through Framework.track.
+    100 MeV electron beam (or the ``seed`` beam file), from M1 to M3, through Framework.track.
     """
     from laura import LAURA
     from laura.exporters.yaml_exporter import export_machine
@@ -62,11 +66,14 @@ def _collimator_line(tmp_path, tracking, npart=400, element=None):
     machine = LAURA(element_list=elements, section=section,
                     layout={"default_layout": "l", "layouts": {"l": ["LINE"]}})
     export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
-    frameworkGenerator(
-        global_parameters={"master_subdir": str(tmp_path)}, filename="seed.openpmd.hdf5",
-        initial_momentum=100e6, sigma_x=1e-3, sigma_px=1e3, sigma_y=1e-3, sigma_py=1e3,
-        sigma_z=1e-4, sigma_pz=1e4, charge=1e-12, number_of_particles=npart,
-    ).write()
+    if seed is None:
+        frameworkGenerator(
+            global_parameters={"master_subdir": str(tmp_path)}, filename="seed.openpmd.hdf5",
+            initial_momentum=100e6, sigma_x=1e-3, sigma_px=1e3, sigma_y=1e-3, sigma_py=1e3,
+            sigma_z=1e-4, sigma_pz=1e4, charge=1e-12, number_of_particles=npart,
+        ).write()
+    else:
+        shutil.copy(seed, tmp_path / "seed.openpmd.hdf5")
     settings = fw.FrameworkSettings()
     settings.files = {"LINE": {
         "code": "bdsim", "charge": {"space_charge_mode": "False"}, "tracking": tracking,
@@ -280,3 +287,109 @@ def test_a_sampler_on_the_target_records_the_shower_at_its_exit(tmp_path):
     secondary = raw["parentID"] != 0
     assert len(at_target.x) == np.count_nonzero(~secondary)
     assert len(at_target.others["photon"].x) == np.count_nonzero(secondary & (raw["partID"] == 22))
+
+
+SI220 = os.path.expanduser("~/Documents/bdsim/examples/features/components/data/Si220pl")
+"""Geant4 channelling data for Si(220), from BDSIM's examples."""
+
+needs_crystal_data = pytest.mark.skipif(
+    not os.path.exists(SI220 + "_pot.txt"), reason="BDSIM's Si(220) channelling data not found"
+)
+
+
+def _crystal(length, bend, entrance_angle=0.0):
+    from laura.models.element import Crystal
+
+    return Crystal(
+        name="CRY", machine_area="LINE", material="G4_Si",
+        physical={"length": length, "middle": {"x": 0.0, "y": 0.0, "z": 0.5}},
+        crystal={"data_file": SI220, "bending_angle": bend, "entrance_angle": entrance_angle},
+    )
+
+
+def _pencil_seed(tmp_path, species, momentum, npart):
+    """A pencil beam: 20 um and 0.1 urad rms, well inside a crystal and its critical angle."""
+    import simba.Modules.Beams as rbf
+    from simba.Codes.Generators import frameworkGenerator
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    frameworkGenerator(
+        global_parameters={"master_subdir": str(tmp_path)}, filename="pencil.openpmd.hdf5",
+        initial_momentum=momentum, sigma_x=2e-5, sigma_px=1e-7 * momentum,
+        sigma_y=2e-5, sigma_py=1e-7 * momentum, sigma_z=1e-4, sigma_pz=1e-6 * momentum,
+        charge=1e-12, number_of_particles=npart,
+    ).write()
+    path = tmp_path / "pencil.openpmd.hdf5"
+    beam = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(beam, str(path))
+    beam.set_species(species)
+    beam.write_openpmd_beam_file(str(path))
+    return path
+
+
+@needs_bdsim
+@needs_crystal_data
+@pytest.mark.parametrize(
+    "entrance_angle, effect",
+    [(0.0, "channelling"), (-25e-6, "volume reflection"), (500e-6, "amorphous")],
+)
+def test_a_laura_crystal_channels_reflects_or_scatters_with_its_entrance_angle(
+    tmp_path, entrance_angle, effect
+):
+    # 700 GeV protons on 4 mm of Si(220) bent by 50 urad; the critical angle is ~8 urad
+    end, caught = _collimator_line(
+        tmp_path, {"physics_list": "completechannelling"},
+        element=_crystal(4e-3, 50e-6, entrance_angle),
+        seed=_pencil_seed(tmp_path / "seed", "proton", 700e9, 300),
+    )
+    assert end.species == "proton"
+    xp = end.xp.val * 1e6  # urad
+    channelled = np.mean(np.abs(xp - 50) < 10)
+    if effect == "channelling":  # measured by hand in BDSIM: 91-93%
+        assert channelled > 0.8 and abs(np.median(xp) - 50) < 2
+    elif effect == "volume reflection":  # away from the bend, by ~1.5 critical angles
+        assert channelled < 0.05 and -20 < np.median(xp) < -5
+    else:
+        assert channelled < 0.05 and abs(np.median(xp)) < 2
+    assert not any(isinstance(m, exceptions.CrystalWithoutChannellingWarning) for m in caught)
+
+
+@needs_bdsim
+@needs_crystal_data
+def test_a_laura_crystal_channels_electrons_as_the_same_crystal_written_by_hand(tmp_path):
+    """855 MeV electrons on 30 um of Si(220) bent by 0.9 mrad, as at MAMI (but MAMI's
+    crystal was Si(111)): simba with a LAURA Crystal against hand-written gmad."""
+    import subprocess
+
+    from simba.Modules.Beams import bdsim
+
+    nevents = 1000
+    end, _ = _collimator_line(
+        tmp_path / "simba", {"physics_list": "completechannelling"},
+        element=_crystal(30e-6, 900e-6),
+        seed=_pencil_seed(tmp_path / "seed", "electron", 855e6, nevents),
+    )
+    gmad = tmp_path / "hand.gmad"
+    gmad.write_text(
+        f'c1: crystal, material="G4_Si", data="{SI220}", shape="box",\n'
+        "    lengthY=1*cm, lengthX=0.5*mm, lengthZ=30*um,\n"
+        "    sizeA=5.431*ang, sizeB=5.431*ang, sizeC=5.431*ang, alpha=pi/2, beta=pi/2, gamma=pi/2,\n"
+        "    spaceGroup=227, bendingAngleYAxis=900*urad, bendingAngleZAxis=0;\n"
+        'col1: crystalcol, l=40*um, apertureType="rectangular", aper1=0.5*mm, aper2=1*cm,\n'
+        '    crystalLeft="c1", crystalAngleYAxisLeft=450*urad, xsize=-0.25*mm;\n'
+        "d1: drift, l=0.1*mm;\ns1: marker;\nlat: line=(col1, d1, s1);\nuse, lat;\nsample, range=s1;\n"
+        'beam, particle="e-", energy=855*MeV, distrType="reference";\n'
+        'option, physicsList="completechannelling", stopSecondaries=1;\n'  # as simba sets
+    )
+    subprocess.run(
+        ["bdsim", f"--file={gmad}", f"--outfile={tmp_path / 'hand'}", "--batch", f"--ngenerate={nevents}"],
+        check=True, capture_output=True,
+    )
+    raw = bdsim.read_bdsim_sampler_arrays(str(tmp_path / "hand.root"), samplers=["s1"])["s1"]
+    hand = raw["xp"][raw["parentID"] == 0] * 1e6
+    ours = end.xp.val * 1e6
+    # electrons near the full bend: channelled through the whole crystal
+    fractions = [np.mean(np.abs(x - 900) < 150) for x in (ours, hand)]
+    error = np.sqrt(sum(f * (1 - f) / nevents for f in fractions))
+    assert fractions[1] > 0.04  # electrons do channel (amorphous: 0.4%)
+    assert abs(fractions[0] - fractions[1]) < 4 * error, fractions
