@@ -213,13 +213,14 @@ def _write_particles(self, h5file_particles, pos, toffset):
     return particles
 
 
-def append_species(filename, beams) -> list:
+def append_species(filename, beams, merge=False) -> list:
     """
     Add ``beams`` to an existing openPMD beam file as extra species groups.
 
     The species already in the file stays the primary one. A species the file
-    already holds (photons a code made itself, say, as well as those carried to it)
-    is merged into its group, the file's particles first.
+    already holds is not overwritten: it is skipped with a warning, or with ``merge``
+    (photons a code made itself, say, as well as those carried to it) merged into its
+    group, the file's particles first.
 
     Parameters
     ----------
@@ -227,6 +228,8 @@ def append_species(filename, beams) -> list:
         openPMD file to add to; for a multi-turn file, its last turn.
     beams: iterable of :class:`~simba.Modules.Beams.beam`
         The beams to add.
+    merge: bool
+        Merge a beam whose species the file already holds into it, instead of skipping it.
 
     Returns
     -------
@@ -241,6 +244,9 @@ def append_species(filename, beams) -> list:
             bunch_data.attrs[PRIMARY_SPECIES_ATTR] = present[0]
         for other in beams:
             if other.species in present:
+                if not merge:
+                    warn(f"{filename} already holds {other.species}; not adding another")
+                    continue
                 merged = type(other)()
                 _read_species_group(merged, bunch_data, other.species)
                 merged.absorb([other])

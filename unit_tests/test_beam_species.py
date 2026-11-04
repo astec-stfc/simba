@@ -99,13 +99,24 @@ def test_several_species_and_no_primary_must_be_chosen(tmp_path):
         rbf.openpmd.read_openpmd_beam_file(rbf.beam(), filename)
 
 
+def test_append_skips_a_species_already_there(tmp_path):
+    filename = str(tmp_path / "end.openpmd.hdf5")
+    make_beam("electron").write_openpmd_beam_file(filename)
+    assert rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3, seed=1)]) == ["photon"]
+    with pytest.warns(UserWarning, match="already holds photon"):
+        assert rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3)]) == []
+    back = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(back, filename)
+    assert len(back.others["photon"].x) == 50
+
+
 def test_append_keeps_the_existing_species_primary_and_merges_a_species_already_there(tmp_path):
     filename = str(tmp_path / "end.openpmd.hdf5")
     make_beam("electron").write_openpmd_beam_file(filename)
     added = rbf.openpmd.append_species(filename, [make_beam("photon", n=50, nmacro=3, seed=1)])
     assert added == ["photon"]
     # photons the code made itself, and photons carried to it from upstream
-    assert rbf.openpmd.append_species(filename, [make_beam("photon", n=20, nmacro=5, seed=2)]) == ["photon"]
+    assert rbf.openpmd.append_species(filename, [make_beam("photon", n=20, nmacro=5, seed=2)], merge=True) == ["photon"]
 
     back = rbf.beam()
     rbf.openpmd.read_openpmd_beam_file(back, filename)
@@ -120,6 +131,7 @@ def _line_given(others, species=None, multiple=False):
     beam = make_beam("electron")  # read_input_file has moved its others to the line
     return SimpleNamespace(
         _carried_species=dict(others),
+        merges_carried_species=False,
         global_parameters={"beam": beam},
         file_block={"input": {"species": species}} if species else {},
         objectname="LINE",
@@ -381,6 +393,7 @@ def test_a_line_carries_the_species_it_did_not_track(tmp_path):
         output_beam_file=lambda name: str(tmp_path / f"{name}.openpmd.hdf5"),
         end="END",
         objectname="LINE",
+        merges_carried_species=False,
     )
     assert frameworkLattice.carry_other_species(line) == ["photon"]
     back = rbf.beam()

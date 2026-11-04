@@ -22,8 +22,6 @@ import os
 import numpy as np
 from typing import Any, ClassVar
 from warnings import warn
-from pybdsim.Run import Bdsim, RebdsimOptics
-from pybdsim.Beam import Beam
 
 BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 """BDSIM particle names, keyed by the SIMBA particle index returned by
@@ -68,6 +66,8 @@ class bdsimLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """Via BDSIM's circular mode (``option, circular=1, nturns=N``), whose samplers
     record every turn with its ``turnNumber``."""
+
+    merges_carried_species: ClassVar[bool] = True
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -134,6 +134,8 @@ class bdsimLattice(frameworkLattice):
         """
         Create the lattice object and save it as a JSON file to `master_subdir`.
         """
+        from pybdsim.Beam import Beam  # not at the top: pybdsim is only needed to run BDSIM
+
         beam = Beam()
         beam.SetParticleType(self.particle_type)
         beam.SetDistributionType("userfile")
@@ -353,6 +355,8 @@ class bdsimLattice(frameworkLattice):
         if self.remote_setup:
             self.run_remote()
         else:
+            from pybdsim.Run import Bdsim, RebdsimOptics
+
             Bdsim(
                 f"{self.global_parameters['master_subdir']}/{self.gmadname}.gmad",
                 f"{self.global_parameters['master_subdir']}/{self.gmadname}",

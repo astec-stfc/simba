@@ -503,6 +503,10 @@ class frameworkLattice(BaseModel):
     radiates_by_default: ClassVar[bool] = False
     """Whether this code radiates unasked."""
 
+    merges_carried_species: ClassVar[bool] = False
+    """Whether a species carried past this line is merged into one the code made itself (BDSIM's photons),
+    rather than skipped because the code already tracked it."""
+
     supports_radiation: ClassVar[bool] = False
     """Whether simba can switch radiation on for this code; see :meth:`check_radiation_supported`."""
 
@@ -3170,7 +3174,7 @@ class frameworkLattice(BaseModel):
         if not os.path.isfile(filename):
             warn(exceptions.SpeciesNotCarriedWarning(self.objectname, filename, list(carried)))
             return []
-        return rbf.openpmd.append_species(filename, carried.values())
+        return rbf.openpmd.append_species(filename, carried.values(), merge=self.merges_carried_species)
 
     def __repr__(self):
         return self.__str__()
