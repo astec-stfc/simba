@@ -18,7 +18,7 @@ from ...Modules import Beams as rbf
 from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import Dict, Literal, Any
+from typing import ClassVar, Dict, Literal, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -36,6 +36,9 @@ class gptLattice(frameworkLattice):
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    tracks_multiple_species: ClassVar[bool] = True
+    """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
 
     allow_negative_drifts: bool = True
     """Flag to indicate whether negative drifts are allowed"""
@@ -413,6 +416,9 @@ class gptLattice(frameworkLattice):
         Run GPT, then ``gdfa`` for the averaged beam properties (``_emit.gdf``, ``_emitt.gdf``, ``traj.gdf``).
 
         Needs ``GPTLICENSE`` in :attr:`global_parameters`.
+
+        With :attr:`~auto_phase`, the cavities are phased first and the input file
+        rewritten with their crests.
         """
         if self.auto_phase and self.autophase():
             self.write()
@@ -548,14 +554,13 @@ class gptLattice(frameworkLattice):
         """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
         super().postProcess()
         cathode = self.particle_definition == "laser"
-        svals = np.array(self.getSValues(at_entrance=False)) + self.entrance_s
-        zvals = [a[-1] for a in self.getZValues()]
+        svals = self.getSValues(as_dict=True)
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
         for e in self.screens_and_markers_and_bpms:
             if e.name != self.start:
-                sval = np.interp(e.physical.middle.z, zvals, svals)
+                sval = svals[e.name] - e.physical.length / 2 + self.entrance_s
                 self.gdf_to_hdf5(
                     gptbeamfilename=self.objectname + "_out.gdf",
                     screen=e,
@@ -564,7 +569,7 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = np.interp(self.endObject.physical.middle.z, zvals, svals)
+        sval = svals[self.end] - self.endObject.physical.length / 2 + self.entrance_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,
@@ -675,6 +680,9 @@ class gptLattice(frameworkLattice):
             return
         beam._beam.t = UnitValue(beam._beam.t.val + t0, units="s")
         beam._beam.s = UnitValue(sval, units="m")
+        # GDF holds no species name; the tracked one is the primary (the per-particle
+        # q and m say what each particle is, so a mixed beam is split on writing)
+        beam.species = self.global_parameters["beam"].species
         HDF5filename = self.output_basename(screen.name) + ".openpmd.hdf5"
         rbf.openpmd.write_openpmd_beam_file(
             beam,
