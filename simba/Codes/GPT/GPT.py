@@ -15,7 +15,7 @@ from laura.models.diagnostic import DiagnosticElement
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile, gpt_environment
 from ...Modules import Beams as rbf
-from ...Modules.constants import speed_of_light
+from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import Dict, Literal, Any
@@ -285,12 +285,19 @@ class gptLattice(frameworkLattice):
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
+        rest_energy = electron_mass * speed_of_light**2 / elementary_charge
+        gamma_max = float(self.global_parameters["beam"].beam.centroids.mean_gamma.val) + sum(
+            abs(float(getattr(c, "field_amplitude", 0.0) or 0.0)) * float(c.physical.length)
+            for c in self.cavities  # this line's only: elementObjects holds the whole machine
+            if z_start - 1e-6 <= float(c.physical.start.z) < z_eval
+        ) / rest_energy
+
         phases, energies = scan(phase_range[0], phase_range[1], step)
-        peak = phases[int(np.argmax(energies))]
+        peak = self._crest_peak(phases, energies, gamma_max)
         if refine:
             fine_p, fine_e = scan(peak - step, peak + step, step / 10.0)
-            if len(fine_e):
-                peak = fine_p[int(np.argmax(fine_e))]
+            if (fine_e <= gamma_max).any():
+                peak = self._crest_peak(fine_p, fine_e, gamma_max)
 
         element = self.elementObjects[name]
         crest = (float(peak) - 90.0) % 360.0
@@ -330,14 +337,14 @@ class gptLattice(frameworkLattice):
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
-            for n, e in self.elementObjects.items():
+            for e in self.cavities:
                 if getattr(e, "crest", None) is None:
                     continue
                 if not float(getattr(e, "field_amplitude", 0.0) or 0.0):
                     continue
                 z = float(e.physical.start.z)
                 if z0 - 1e-6 <= z <= z1 + 1e-6:
-                    names.append(n)
+                    names.append(e.name)
         ordered = sorted(names, key=lambda n: float(self.elementObjects[n].physical.start.z))
         crests = {}
         for name in ordered:
@@ -345,6 +352,14 @@ class gptLattice(frameworkLattice):
                 name, phase_range=phase_range, step=step, refine=refine
             )
         return crests
+
+    @staticmethod
+    def _crest_peak(phases: np.ndarray, energies: np.ndarray, gamma_max: float) -> float:
+        """Phase of the highest ``avgG`` that is physically reachable (at most ``gamma_max``)."""
+        possible = energies <= gamma_max
+        if not possible.any():
+            raise ValueError(f"every crest-scan point is above the reachable gamma {gamma_max:.4g}")
+        return float(phases[possible][np.argmax(energies[possible])])
 
     @staticmethod
     def _read_crest_scan(filename: str, z_eval: float | None = None) -> tuple:
