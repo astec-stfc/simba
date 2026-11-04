@@ -343,6 +343,8 @@ def test_a_laura_crystal_channels_reflects_or_scatters_with_its_entrance_angle(
         seed=_pencil_seed(tmp_path / "seed", "proton", 700e9, 300),
     )
     assert end.species == "proton"
+    # the charge survives channelling physics, whose own recorded weights are garbage
+    assert float(end.Particles.total_charge) == pytest.approx(1e-12 * len(end.x) / 300)
     xp = end.xp.val * 1e6  # urad
     channelled = np.mean(np.abs(xp - 50) < 10)
     if effect == "channelling":  # measured by hand in BDSIM: 91-93%

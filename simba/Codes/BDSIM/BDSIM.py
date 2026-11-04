@@ -137,7 +137,7 @@ class bdsimLattice(frameworkLattice):
         beam = Beam()
         beam.SetParticleType(self.particle_type)
         beam.SetDistributionType("userfile")
-        beam.SetDistrFile(os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim"))
+        beam.SetDistrFile(self.bdsim_beam_file)
         beam.SetDistrFileFormat(rbf.bdsim.BDSIM_DISTRIBUTION_FORMAT)
         beam.SetEnergy(self.global_parameters["beam"].centroids.mean_energy.val, unitsstring="eV")
         self.lattice = self.section.to_bdsim(
@@ -317,13 +317,21 @@ class bdsimLattice(frameworkLattice):
 
     def hdf5_to_bdsim(self) -> None:
         """
-        Write the input beam as ``<particle_definition>.bdsim`` in BDSIM's ``userfile`` format.
+        Write the input beam as :attr:`bdsim_beam_file`.
         """
-        bdsimbeamfilename = os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim")
         rbf.bdsim.write_bdsim_beam_file(
             beam=self.global_parameters["beam"],
-            filename=bdsimbeamfilename,
+            filename=self.bdsim_beam_file,
         )
+
+    @property
+    def bdsim_beam_file(self) -> str:
+        """
+        The input beam in BDSIM's ``userfile`` format, ``<line>.bdsim`` in ``master_subdir``:
+        named after the line, as elegant's is, since ``particle_definition`` may be a path
+        (``$master_lattice$Data_Files/...``).
+        """
+        return os.path.join(self.global_parameters["master_subdir"], self.objectname + ".bdsim")
 
     def _generate_optics_config(self):
         with open(f"{self.global_parameters['master_subdir']}/optics_config.txt", "w") as f:
@@ -384,6 +392,12 @@ class bdsimLattice(frameworkLattice):
             # in circular mode only the primaries are kept, one per turn
             arrays = rbf.bdsim.select_turn(arrays, data_turn or 1)
         beam = rbf.beam()
+        # channelling physics records garbage weights (1e-41, 0: BDSIM develop @ 17ddb954,
+        # in hand-written gmad too), so take each event's from what was written
+        input_weights = None
+        if "channel" in self.physics_list.lower():
+            input_weights = np.asarray(rbf.openpmd._weight(injected), dtype=float)
+            input_weights = input_weights / np.mean(input_weights)
         rbf.bdsim.interpret_bdsim_sampler(
             beam,
             arrays,
@@ -393,6 +407,7 @@ class bdsimLattice(frameworkLattice):
             ninjected=ninjected,
             species=injected.species,
             secondaries=self.secondaries,
+            input_weights=input_weights,
         )
         beam.turn = self.beam_turn(turn)
         self.write_beam_file(beam, name, turn)
@@ -421,19 +436,18 @@ class bdsimLattice(frameworkLattice):
             raise FileNotFoundError(
                 f"BDSIM output file {rootfile} not found; the tracking run failed{hint}"
             )
-        available = rbf.bdsim.get_bdsim_sampler_names(rootfile)
+        # every sampler in one read: a second pybdsim DataLoader on the same file in one
+        # process corrupted the heap (a segfault reading the samplers, ~half the runs)
+        arrays = rbf.bdsim.read_bdsim_sampler_arrays(rootfile)
         names = [scr.name for scr in self.screens_and_markers_and_bpms] + self.samplers
         wanted = {name: name.replace("-", "_") for name in names}
-        missing = [n for n, s in wanted.items() if s not in available]
+        missing = [n for n, s in wanted.items() if s not in arrays]
         for name in missing:
             warn(f"No BDSIM sampler found for {name}; no beam file will be written")
         wanted = {n: s for n, s in wanted.items() if n not in missing}
         if not wanted:
             warn(f"No BDSIM samplers found in {rootfile}")
             return
-        arrays = rbf.bdsim.read_bdsim_sampler_arrays(
-            rootfile, samplers=list(wanted.values())
-        )
         # the end screen replaces the line's beam, so keep the one that was tracked
         injected = self.global_parameters["beam"]
         ninjected = len(injected.x)

@@ -162,24 +162,6 @@ def load_bdsim_output(filename):
     return pybdsim.Data.Load(filename)
 
 
-def get_bdsim_sampler_names(filename):
-    """
-    List the samplers present in a BDSIM output file.
-
-    Parameters
-    ----------
-    filename: str
-        Path to the BDSIM ``.root`` output file.
-
-    Returns
-    -------
-    list
-        Sampler names, without the trailing ``.`` that BDSIM appends.
-    """
-    data = load_bdsim_output(filename)
-    return ["Primary"] + [str(n).rstrip(".") for n in data.GetSamplerNames()]
-
-
 def read_bdsim_sampler_arrays(filename, samplers=None, variables=SAMPLER_VARIABLES):
     """
     Pull the raw sampler arrays out of a BDSIM ROOT output file.
@@ -270,6 +252,7 @@ def interpret_bdsim_sampler(
     secondaries=(),
     ninjected=None,
     species="electron",
+    input_weights=None,
 ):
     """
     Populate a :class:`~simba.Modules.Beams.beam` from one sampler's arrays as
@@ -296,6 +279,9 @@ def interpret_bdsim_sampler(
         Number of particles tracked; by default one more than the last event seen.
     species: str
         The species injected: this beam's :attr:`species`, whose primaries come first.
+    input_weights: array, optional
+        Each injected particle's weight relative to the mean, by event, to use instead of
+        BDSIM's recorded ``weight``.
     """
     from . import SPECIES
 
@@ -326,7 +312,8 @@ def interpret_bdsim_sampler(
     kept[: nprimaries] = species  # the primaries are what was injected
 
     per_macroparticle = abs(float(charge)) / (constants.elementary_charge * ninjected) if charge is not None else 1.0
-    real = per_macroparticle * np.asarray(dat["weight"], dtype=float)
+    weight = dat["weight"] if input_weights is None else np.asarray(input_weights)[dat["eventID"].astype(int)]
+    real = per_macroparticle * np.asarray(weight, dtype=float)
     mass = np.array([SPECIES[n][0] for n in kept])
     sign = np.array([SPECIES[n][1] for n in kept], dtype=float)
 
