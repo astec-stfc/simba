@@ -19,7 +19,15 @@ import json
 import os
 
 from typing import Dict, List, Any, ClassVar, Literal
+import warnings
 from warnings import warn
+
+
+def _to_cpu(obj):
+    """An xobject (particles, monitor) on the CPU, for numpy: copied there from a GPU context."""
+    import xobjects as xo
+
+    return obj if isinstance(obj._context, xo.ContextCpu) else obj.copy(_context=xo.ContextCpu())
 
 
 def _select_turn(data: Dict, turn: int) -> Dict:
@@ -40,6 +48,47 @@ def _select_turn(data: Dict, turn: int) -> Dict:
         else:
             selected[key] = value
     return selected
+
+
+class _Wake:
+    """
+    An xwakes wake from a LAURA wake field map, sliced across the bunch the
+    first time the bunch reaches it.
+    """
+
+    iscollective = True
+    isthick = False
+    length = 0.0
+    _kinds = {"Wz": "longitudinal", "Wx": "dipolar_x", "Wy": "dipolar_y"}
+
+    def __init__(self, field, factor: float, num_slices: int):
+        import xwakes as xw
+
+        s = np.abs(np.asarray(field.z_values, dtype=float))
+        order = np.argsort(s)
+        table = {"time": s[order] / speed_of_light}
+        for key, kind in self._kinds.items():
+            component = getattr(field, key)
+            if component is not None and component.value is not None:
+                table[kind] = factor * np.asarray(component.value.val, dtype=float)[order]
+        self.wake = xw.WakeFromTable(table)
+        self.num_slices = num_slices
+        self.configured = False
+
+    def track(self, particles) -> None:
+        if not self.configured:
+            to_numpy = particles._context.nparray_from_context_array
+            zeta = to_numpy(particles.zeta)[to_numpy(particles.state) > 0]
+            if not zeta.size:
+                return
+            pad = 0.01 * np.ptp(zeta) + 1e-9
+            self.wake.configure_for_tracking(
+                zeta_range=(zeta.min() - pad, zeta.max() + pad),
+                num_slices=self.num_slices,
+                _context=particles._context,
+            )
+            self.configured = True
+        self.wake.track(particles)
 
 
 class xsuiteLattice(frameworkLattice):
@@ -152,6 +201,9 @@ class xsuiteLattice(frameworkLattice):
     """Half-width of each space-charge grid in x, y and zeta, in rms beam
     sizes beyond the beam's centre"""
 
+    wake_slices: int = 1000
+    """Slices across the bunch for each wake, as Ocelot's ``wake_sampling``"""
+
     space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
     """``charge: space_charge_mode`` values that mean no space charge"""
 
@@ -219,13 +271,16 @@ class xsuiteLattice(frameworkLattice):
             zeta=0.0,
         )
         beam_length = len(self.global_parameters["beam"].x.val)
-        self.line = self.section.to_xsuite(
-            beam_length,
-            env=self.env,
-            particle_ref=particle_ref,
-            save=True,
-            turns=self.turns,
-        )
+        with warnings.catch_warnings():
+            # LAURA writes no wakes to Xsuite, but install_wakes adds them (and warns for any it can't)
+            warnings.filterwarnings("ignore", message="Xsuite is written without structure wakefields")
+            self.line = self.section.to_xsuite(
+                beam_length,
+                env=self.env,
+                particle_ref=particle_ref,
+                save=True,
+                turns=self.turns,
+            )
         self.install_monitors(beam_length)
         self.names = self.line.element_names
 
@@ -290,6 +345,49 @@ class xsuiteLattice(frameworkLattice):
         if self.line.iscollective:
             return self.line._get_non_collective_line()
         return self.line
+
+    def install_wakes(self) -> None:
+        """
+        Put an xwakes wake at the exit of each element with an active wake. The
+        table is per cell, so it is scaled by ``n_cells``.
+        """
+        import xtrack as xt
+        from laura.translator.utils.fields import FieldMap
+        from laura.translator.utils.functions import expand_substitution
+
+        wakes = {
+            e.name: e
+            for e in self.wakefields_and_cavity_wakefields
+            if getattr(e.simulation, "wakefield_enable", True)
+            and e.name in self.line.element_dict
+        }
+        if not wakes:
+            return
+        try:
+            import xwakes  # noqa: F401
+        except ImportError:
+            warn(f"Line '{self.objectname}': Xsuite wakes need xwakes (pip install xwakes); they are dropped.")
+            return
+        placed = {}
+        for name, elem in wakes.items():
+            field = elem.simulation.wakefield_definition
+            cells = getattr(getattr(elem, "cavity", None), "n_cells", None) or 1
+            if isinstance(field, str):
+                filename = expand_substitution(elem, field, self.global_parameters["master_lattice"])
+                try:
+                    field = FieldMap(filename=filename, n_cells=cells)
+                except Exception as exc:
+                    warn(f"Line '{self.objectname}': could not load {name}'s wake {filename} ({exc}); Xsuite drops it.")
+                    continue
+            exit_s = self.line.get_s_position(name) + self.line[name].length
+            placed[f"{name}_wake"] = (exit_s, _Wake(field, cells, self.wake_slices))
+        env = self.line.env
+        for name in placed:
+            env.new(name, xt.Marker)
+        self.line.insert([env.place(name, at=s) for name, (s, _) in placed.items()])
+        for name, (_, wake) in placed.items():
+            self.line.element_dict[name] = wake
+        self.names = self.line.element_names
 
     def install_space_charge(self) -> None:
         """
@@ -421,14 +519,15 @@ class xsuiteLattice(frameworkLattice):
             for element, name in zip(self.line.elements, self.line.element_names):
                 if recentre:
                     # as run() does, one pass at a time
-                    particles.zeta -= np.mean(particles.zeta)
+                    particles.zeta -= particles.zeta.mean()
                 if name in kicks:
-                    alive = np.asarray(particles.state) > 0
+                    here = _to_cpu(particles)
+                    alive = np.asarray(here.state) > 0
                     if alive.any():
                         widths[name] = tuple(
                             abs(np.mean(values)) + sigmas * np.std(values)
                             for values, sigmas in zip(
-                                (np.asarray(getattr(particles, coord))[alive]
+                                (np.asarray(getattr(here, coord))[alive]
                                  for coord in ("x", "y", "zeta")),
                                 self.space_charge_sigmas,
                             )
@@ -673,6 +772,8 @@ class xsuiteLattice(frameworkLattice):
         self.bind_ramp()
         if self.space_charge:
             self.install_space_charge()
+        if self.wakefield_enable and self.trackBeam:
+            self.install_wakes()
         self.line.build_tracker(_context=self.context)
         if self.radiation not in (None, "off"):
             self.line.configure_radiation(model=self.radiation)
@@ -684,28 +785,31 @@ class xsuiteLattice(frameworkLattice):
             self.line.enable_time_dependent_vars = True
         self.reference_at_start = self.line.particle_ref.copy()
         self._closed_orbit = None
-        pin = deepcopy(self.pin)
+        # Particles.copy(), not deepcopy: deepcopy also copies a GPU context, which the
+        # line's elements then refuse ("Incompatible context for argument `particles`")
+        pin = self.pin.copy()
 
         passes = self.turns * self.passes_per_turn
         if passes > 1:
             import xtrack as xt
             self.end_monitor = xt.ParticlesMonitor(
-                num_particles=len(pin.x), start_at_turn=0, stop_at_turn=passes
+                _context=self.context, num_particles=len(pin.x), start_at_turn=0, stop_at_turn=passes
             )
             self.line.track(pin, num_turns=passes, turn_by_turn_monitor=self.end_monitor)
-            self.pout = pin
-            self.check_space_charge_grids(pin)
-            self.collect_beam_data(deepcopy(pin))
+            self.end_monitor = _to_cpu(self.end_monitor)
+            self.pout = _to_cpu(pin)
+            self.check_space_charge_grids(self.pout)
+            self.collect_beam_data(pin.copy())  # tracks, so on the line's context
             self.tws = self._twiss()
             return
 
         for el, name in zip(self.line.elements, self.line.element_names):
-            pin.zeta -= np.mean(pin.zeta)  # Center zeta
+            pin.zeta -= pin.zeta.mean()  # Center zeta (numpy or cupy)
             self._track_element(el, pin)  # Track in-place
             self.beam_data.update({name: self.bunch_statistics(pin)})
         self.beam_data.update({"_end_point": self.bunch_statistics(pin)})
-        self.pout = pin
-        self.check_space_charge_grids(pin)
+        self.pout = _to_cpu(pin)
+        self.check_space_charge_grids(self.pout)
         self.tws = self._twiss()
 
     @staticmethod
@@ -730,6 +834,7 @@ class xsuiteLattice(frameworkLattice):
         dict
             One row of :attr:`beam_data`
         """
+        particles = _to_cpu(particles)
         # lost particles keep the coordinates where they were lost
         if np.any(np.asarray(particles.state) <= 0):
             particles = particles.filter(particles.state > 0)
@@ -1049,7 +1154,7 @@ class xsuiteLattice(frameworkLattice):
                 continue
             if not self.writes_output(elem.name):
                 continue
-            data = self.line[elem.name].data.to_dict()
+            data = _to_cpu(self.line[elem.name]).data.to_dict()
             for data_turn, name_turn in self.output_turns():
                 turn = self.beam_turn(data_turn)
                 self._write_xsuite_beam(
@@ -1093,7 +1198,7 @@ class xsuiteLattice(frameworkLattice):
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
             payload, zstart=zstart, s=s, ref_index=self.ref_idx,
-            t_reference=t_reference, start=self.reference_start, context=self.context,
+            t_reference=t_reference, start=self.reference_start, context=xo.ContextCpu(),  # read with numpy
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)
