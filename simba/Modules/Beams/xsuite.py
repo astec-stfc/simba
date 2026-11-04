@@ -19,6 +19,13 @@ def read_xsuite_beam_file(
         context = xo.ContextCpu()
 
     def from_dict(payload):
+        state = np.asarray(payload.get("state", []))
+        if state.ndim == 1 and state.size and not (state > 0).all():
+            alive = state > 0
+            payload = {
+                k: np.asarray(v)[alive] if np.ndim(v) == 1 and len(v) == state.size else v
+                for k, v in payload.items()
+            }
         try:
             return xp.Particles.from_dict(payload, _context=context)
         except ValueError:
