@@ -24,6 +24,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test,simcodes]
 
+      - name: Use LAURA's branch of the same name, if there is one
+        run: |
+          laura=https://github.com/astec-stfc/laura.git
+          branch="${{ github.head_ref || github.ref_name }}"
+          if git ls-remote --exit-code --heads "$laura" "$branch" >/dev/null; then
+            # LAURA's v* tags are lightweight, so a branch build describes itself as 0.9b1.postN,
+            # below simba's laura-accelerator>=1.1.0: version it as the latest release + the branch
+            release=$(git ls-remote --tags --sort=-v:refname "$laura" 'v*' | grep -v '\^{}' | head -1 | sed 's|.*refs/tags/v||')
+            export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LAURA_ACCELERATOR="$release+$(echo "$branch" | tr -c '[:alnum:]\n' '.')"
+            pip install "laura-accelerator @ git+$laura@$branch"
+          fi
+
       - name: Run unit tests (no container image needed)
         run: pytest unit_tests/ -v -m "not needs_container"
 
@@ -45,6 +57,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test,simcodes]
+
+      - name: Use LAURA's branch of the same name, if there is one
+        run: |
+          laura=https://github.com/astec-stfc/laura.git
+          branch="${{ github.head_ref || github.ref_name }}"
+          if git ls-remote --exit-code --heads "$laura" "$branch" >/dev/null; then
+            # LAURA's v* tags are lightweight, so a branch build describes itself as 0.9b1.postN,
+            # below simba's laura-accelerator>=1.1.0: version it as the latest release + the branch
+            release=$(git ls-remote --tags --sort=-v:refname "$laura" 'v*' | grep -v '\^{}' | head -1 | sed 's|.*refs/tags/v||')
+            export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LAURA_ACCELERATOR="$release+$(echo "$branch" | tr -c '[:alnum:]\n' '.')"
+            pip install "laura-accelerator @ git+$laura@$branch"
+          fi
 
       - name: Pull simcodes image
         run: docker pull ghcr.io/astec-stfc/simcodes-docker:master
