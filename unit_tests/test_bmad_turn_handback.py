@@ -8,10 +8,9 @@ import warnings
 
 import numpy as np
 import pytest
+from helpers import BMAD_SO
 
 from simba.Codes.Bmad.Bmad import bmadLattice
-
-BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
 
 PC = 1e9
 QUAD_L = 0.5

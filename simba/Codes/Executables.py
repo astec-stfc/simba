@@ -388,6 +388,10 @@ class Executables:
         ncpu = self.getNCPU(ncpu, scaling)
         default = [self.sim_codes_location + "Genesis/genesis4"]
         self._define("genesis", "genesis", default, location, ncpu, override_location)
+        if location is None and len(self.genesis) == 1 and not os.path.isfile(self.genesis[0]):
+            found = which("genesis4")
+            if found:
+                self._define("genesis", "genesis", [found], [found], ncpu, override_location)
 
     def define_madx_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
         """Define the MAD-X executable and set :attr:`~madx`."""

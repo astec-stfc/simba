@@ -14,7 +14,7 @@ import simba.Framework as fw
 import simba.Framework_lattices as lattices
 import simba.Modules.Beams as rbf
 import simba.Modules.Twiss as rtf
-from helpers import needs_elegant, skip_missing
+from helpers import BMAD_SO, needs_elegant, skip_missing
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole
@@ -26,7 +26,6 @@ from simba.Modules import constants
 TURNS = 4
 RING_CODES = ["elegant", "xsuite", "madx", "ocelot", "impactx"]
 END_Z = 3.25 + 1.0
-BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
 
 
 def _machine(tmp_path):

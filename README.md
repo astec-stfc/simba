@@ -53,6 +53,20 @@ Alternatively, `SIMBA` can be installed directly from PyPI using:
 ```bash
 pip install simba-accelerator
 ```
+
+Conda environment
+-----------------
+
+`environment.yml` builds a conda environment with SIMBA (editable), LAURA, and the simulation codes
+available on conda-forge (Bmad, ELEGANT, Genesis, ImpactX, FBPIC, Wake-T):
+
+```bash
+conda env create -f environment.yml
+conda activate simba
+```
+
+See the [installation docs](https://simba-accelerator.readthedocs.io/en/latest/installation.html) for
+what it includes and which codes still come from SimCodes.
     
 Optional Dependencies
 ---------------------

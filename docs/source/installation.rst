@@ -38,6 +38,35 @@ To check that the install was completed successfully, run this command from the 
 
 
 
+Conda environment
+-----------------
+
+``environment.yml`` in the :mod:`SIMBA` directory builds a conda environment with the compiled codes from
+conda-forge (Bmad/PyTao, ELEGANT and Pelegant on Open MPI, Genesis 1.3 v4, ImpactX, FBPIC, Wake-T, PyTorch,
+mpi4py), the
+remaining Python codes and :mod:`LAURA` from PyPI, and :mod:`SIMBA` itself as an editable install:
+
+.. code-block:: bash
+
+    conda env create -f environment.yml
+    conda activate simba
+    pytest unit_tests -n 4
+
+To develop against a local :mod:`LAURA` checkout, install it over the PyPI release (and keep its branch
+matching :mod:`SIMBA`'s):
+
+.. code-block:: bash
+
+    pip install -e ../laura
+
+Activating the environment blanks ``PYTHONPATH`` and ``LD_LIBRARY_PATH``, so separately built copies of
+ROOT, Bmad or MPI cannot shadow the conda ones. If ``SimCodes`` has no Bmad or Genesis build, :mod:`SIMBA`
+uses the environment's own ``libtao`` and ``genesis4``.
+
+ASTRA, GPT, OPAL, CSRTrack and BDSIM are not provided; set them up through
+:ref:`SimCodes <simcodes>` as usual. ELEGANT needs ``RPN_DEFNS`` pointing at a ``defns.rpn`` file, which
+the conda package does not ship; :mod:`SIMBA` sets it from ``SimCodes`` when one is there.
+
 Install from pypi / conda-forge
 -------------------------------
 

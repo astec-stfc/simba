@@ -7,6 +7,7 @@ from functools import cache
 
 import numpy as np
 import pytest
+from helpers import BMAD_SO
 
 from simba.Modules.Matrices import (
     fractional_tune,
@@ -116,7 +117,6 @@ def madx_ring(bend=()):
     return total, madx.table.summ
 
 
-BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
 
 
 def bmad_ring_file(rf=False):

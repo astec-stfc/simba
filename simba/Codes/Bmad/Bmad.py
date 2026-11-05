@@ -180,7 +180,8 @@ class bmadLattice(frameworkLattice):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
         if self.libtao is None:
-            self.libtao = self.executables["tao"][0]
+            libtao = self.executables["tao"][0]
+            self.libtao = libtao if Path(libtao).exists() else None
 
     def preProcess(self) -> None:
         """Load the input beam and write it as a Bmad beam file."""

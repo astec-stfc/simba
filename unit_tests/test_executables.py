@@ -54,6 +54,7 @@ def test_linux_only_codes_raise_on_windows(tmp_path):
 @patch("simba.Codes.Executables.ensure_image", lambda **kwargs: None)
 @patch("simba.Codes.Executables.socket.gethostname", lambda: "apclara2")
 @patch("simba.Codes.Executables.os.name", "posix")
+@patch("simba.Codes.Executables.which", lambda program: None)
 def test_code_missing_from_host_section_falls_back_to_default(tmp_path):
     # apclara2 defines no genesis entry; this used to raise KeyError
     ex = Executables({"simcodes_location": str(tmp_path)})

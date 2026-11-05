@@ -1,0 +1,54 @@
+# conda env create -f environment.yml
+# Simulation codes come from conda-forge where it has them (compiled ones especially);
+# the rest, and LAURA, are pulled in by pip through the extras.
+name: simba
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  # core
+  - numpy>=2
+  - scipy
+  - h5py
+  - numba
+  - numexpr
+  - pyfftw
+  - tqdm
+  - pyyaml
+  - attrs
+  - pydantic>=2.5.3
+  - deepdiff>=8.6
+  - munch
+  - pyqt
+  - pyqtgraph
+  - paramiko
+  - deap
+  - xopt
+  - easygdf
+  - openpmd-beamphysics
+  # simulation codes
+  - bmad
+  - pytao>=1.0
+  - elegant
+  - genesis4
+  - wake-t>=0.8
+  - impactx  # conda-forge builds it without MPI
+  - fbpic
+  - periodictable
+  - mpi4py
+  - mpi=*=openmpi
+  - pytorch
+  # tests
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - pip
+  - pip:
+      # mpl-axes-aligner, lox, fastKDE, nafflib, soliday.sdds, xsuite, xwakes, ocelot-desy,
+      # cheetah-accelerator, cpymad, laura-accelerator: PyPI only.
+      # ASTRA, GPT, OPAL, CSRTrack, MAD-X and BDSIM executables are not on conda-forge.
+      - -e .[simcodes,fbpic,test]
+variables:
+  # keep source-built ROOT/Bmad/MPI outside the env from shadowing the conda ones
+  PYTHONPATH: ""
+  LD_LIBRARY_PATH: ""

@@ -8,6 +8,7 @@ import warnings
 
 import numpy as np
 import pytest
+from helpers import BMAD_SO
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole
@@ -16,8 +17,6 @@ import simba.Framework as fw
 import simba.Modules.Beams as rbf
 from simba import exceptions
 from simba.Codes.Generators import frameworkGenerator
-
-BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
 
 needs_bmad = pytest.mark.skipif(not os.path.exists(BMAD_SO), reason="Bmad libtao not installed")
 

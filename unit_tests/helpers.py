@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import sys
 import warnings
 
 import pytest
@@ -15,6 +16,11 @@ from simba.Framework_objects import frameworkLattice
 
 ELEGANT = shutil.which("elegant")
 needs_elegant = pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+
+# A conda env's own libtao, else a ~/Documents/bmad-ecosystem build.
+BMAD_SO = os.path.join(sys.prefix, "lib", "libtao.so")
+if not os.path.exists(BMAD_SO):
+    BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
 
 
 def skip_missing(code):
