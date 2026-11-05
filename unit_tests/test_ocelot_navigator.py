@@ -126,3 +126,18 @@ def test_a_reset_rebuilds_the_element_ends():
     lat.sequence[1].l = 0.5
     navi.go_to_start()
     assert navi.element_end(len(lat.sequence) - 1) == pytest.approx(before + 0.4)
+
+
+def test_deferred_screen_beams_reach_the_callers_list():
+    """The Navigator applies copies of its processes; ``pending`` must stay the caller's."""
+    from simba.Codes.Ocelot.savebeamopenpmd import PendingBeams, SaveBeamOpenPMD
+
+    lat = lattice(cells=2)
+    pending = PendingBeams()
+    navi = PassNavigator(lat)
+    screen = SaveBeamOpenPMD("unused.h5", pending=pending)
+    navi.add_physics_processes([screen], [lat.sequence[5]], [lat.sequence[5]])
+    navi.go_to_start()
+    with lattice_pass(lat):
+        track(lat, beam(), navi=navi, print_progress=False)
+    assert len(pending) == 1

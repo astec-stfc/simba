@@ -328,8 +328,8 @@ class impactxLattice(frameworkLattice):
 
     def run(self) -> None:
         """
-        Track :attr:`pin` for :attr:`turns`, writing beams at the screens, markers,
-        BPMs and end on :meth:`output_turns`, and filling :attr:`beam_data`.
+        Track :attr:`pin` for :attr:`turns`, writing beams where :meth:`writes_output`
+        on :meth:`output_turns`, and filling :attr:`beam_data`.
         """
         import impactx
 
@@ -365,11 +365,13 @@ class impactxLattice(frameworkLattice):
         end = (self.endObject.physical.end.z, self.entrance_s + self.getSValues(as_dict=True)[self.end_name])
         last = self.last_pass(self.turns)
         now = {}
+        # beams are kept for converting in parallel after each pass
+        pending = [] if self.global_parameters.get("conversion_workers", 1) > 1 else None
 
         def before(sim):
             name = sim.tracking_element.name
             if now["record"] and name in points:
-                self._write_beam(sim, ids, name, *points[name], now["name_turn"], now["turn"])
+                self._write_beam(sim, ids, name, *points[name], now["name_turn"], now["turn"], pending)
 
         def after(sim):
             if now["index"] == last:
@@ -386,7 +388,10 @@ class impactxLattice(frameworkLattice):
             )
             sim.track_particles()
             if record:
-                self._write_beam(sim, ids, self.end, *end, name_turn, turn)
+                self._write_beam(sim, ids, self.end, *end, name_turn, turn, pending)
+            if pending:
+                self.convert_outputs(self._convert_beam, pending)
+                pending.clear()
 
         sim.hook["before_element"], sim.hook["after_element"] = before, after
         try:
@@ -396,17 +401,31 @@ class impactxLattice(frameworkLattice):
             del sim.hook["before_element"], sim.hook["after_element"]
 
     def _write_beam(
-        self, sim, ids, name: str, zstart: float, s: float, name_turn: int | None, turn: int
+        self, sim, ids, name: str, zstart: float, s: float, name_turn: int | None, turn: int,
+        pending: list | None = None,
     ) -> None:
-        """Write the beam as it is now, at ``name`` on ``turn``, via :meth:`write_beam_file`."""
+        """
+        Write the beam as it is now, at ``name`` on ``turn``, via :meth:`_convert_beam`;
+        or, given ``pending``, add what that needs to it, to convert later.
+        """
+        ref = sim.beam.ref
+        item = (
+            sim.beam.to_df(local=True), ids, ref.beta_gamma * self.rest_energy,
+            self.reference_t0 + ref.t / speed_of_light, zstart, s, name, name_turn, turn,
+        )
+        if pending is None:
+            self._convert_beam(item)
+        else:
+            pending.append(item)
+
+    def _convert_beam(self, item: tuple) -> None:
+        """Write one :meth:`_write_beam` item via :meth:`write_beam_file`."""
         from copy import deepcopy
 
-        ref = sim.beam.ref
+        df, ids, p0c, t_reference, zstart, s, name, name_turn, turn = item
         beam = deepcopy(self.global_parameters["beam"])
         rbf_impactx.read_impactx_beam(
-            beam, sim.beam.to_df(local=True), ids,
-            p0c=ref.beta_gamma * self.rest_energy,
-            t_reference=self.reference_t0 + ref.t / speed_of_light,
+            beam, df, ids, p0c=p0c, t_reference=t_reference,
             zstart=zstart, s=s, ref_index=self.ref_idx,
         )
         beam.turn = turn

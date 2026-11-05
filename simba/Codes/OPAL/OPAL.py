@@ -431,7 +431,7 @@ class opalLattice(frameworkLattice):
         svals[self.endObject.name] = entrance[self.endObject.name] + self.endObject.physical.length
         opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
         spositions = find_opal_s_positions(opalbeamname, svals, tolerance=0.05)
-        for elem in self.screens_and_bpms:
+        def convert(elem):
             beam = self.read_element_beam(elem.name, opalbeamname, spositions)
             if beam is not None:
                 zpos = self.local_z(elem.physical.middle)
@@ -441,6 +441,10 @@ class opalLattice(frameworkLattice):
                     f'{self.global_parameters["master_subdir"]}/'
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
+
+        self.convert_outputs(
+            convert, [e for e in self.screens_and_bpms if self.writes_output(e.name)]
+        )
         beam = self.read_element_beam(
             self.endObject.name, opalbeamname, spositions, default_step=-1
         )

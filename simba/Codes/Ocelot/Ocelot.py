@@ -24,7 +24,6 @@ with open(
     os.path.dirname(os.path.abspath(__file__)) + "/ocelot_defaults.yaml",
 ) as infile:
     oceglobal = safe_load(infile)
-from lox.worker.thread import ScatterGatherDescriptor
 from typing import Dict, List, Any, ClassVar, TYPE_CHECKING
 from warnings import warn
 
@@ -89,11 +88,6 @@ class ocelotLattice(frameworkLattice):
     """
     A line converted to an Ocelot ``MagneticLattice`` and tracked through it.
     """
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Threaded converter of screen outputs to :class:`~simba.Modules.Beams.beam` files."""
 
     code: str = "ocelot"
     """The lattice object type."""
@@ -504,6 +498,9 @@ class ocelotLattice(frameworkLattice):
         def start_turn(turn):
             self.pout = self.apply_ramp(self.pout, turn)
 
+        from .savebeamopenpmd import PendingBeams
+        pending = PendingBeams() if self.global_parameters.get("conversion_workers", 1) > 1 else None
+
         def track_pass(turn, pass_index, name_turn, record):
             navi = self.navi_setup(
                 turn=name_turn,
@@ -511,6 +508,7 @@ class ocelotLattice(frameworkLattice):
                 beam_turn=turn,
                 reference_energy=self.pout.E if self.fixed_reference else None,
                 pass_index=pass_index if self.uses_reference_clock else None,
+                pending=pending,
             )
             navi.go_to_start()
             with lattice_pass(self.lat_obj):
@@ -522,6 +520,10 @@ class ocelotLattice(frameworkLattice):
                     twiss_disp_correction=False,
                     print_progress=False,
                 )
+            if pending:
+                beam = self.global_parameters["beam"]
+                self.convert_outputs(lambda item: item[0].write(item[1], deepcopy(beam)), pending)
+                pending.clear()
 
         self._periodic = None
         self.run_turns(track_pass, start_turn)
@@ -848,6 +850,7 @@ class ocelotLattice(frameworkLattice):
         beam_turn: int | None = None,
         reference_energy: float | None = None,
         pass_index: int | None = None,
+        pending: list | None = None,
     ) -> "Navigator":
         """
         A ``Navigator`` with this pass's physics processes (space charge, CSR, wakes,
@@ -867,6 +870,9 @@ class ocelotLattice(frameworkLattice):
         pass_index: int, optional
             0-based pass, for the written beams' ``t`` (see :meth:`reference_time`);
             None keeps Ocelot's own clock, as in a linac
+        pending: list, optional
+            Collects the screens' beams for converting after the pass, instead of
+            during it; see :class:`~simba.Codes.Ocelot.savebeamopenpmd.SaveBeamOpenPMD`
 
         Returns
         -------
@@ -994,6 +1000,7 @@ class ocelotLattice(frameworkLattice):
                     t_reference=t_reference(sval_in[w.name]),
                     file_turn=file_turn,
                     start=self.reference_start,
+                    pending=pending,
                 )
             ]
             navi_locations_start += [loc]

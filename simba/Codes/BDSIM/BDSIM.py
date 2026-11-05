@@ -437,6 +437,7 @@ class bdsimLattice(frameworkLattice):
             species=injected.species,
             secondaries=self.secondaries,
             input_weights=input_weights,
+            sstart=self.entrance_s,
         )
         beam.turn = self.beam_turn(turn)
         self.write_beam_file(beam, name, turn)
@@ -469,7 +470,11 @@ class bdsimLattice(frameworkLattice):
         # process corrupted the heap (a segfault reading the samplers, ~half the runs)
         arrays = rbf.bdsim.read_bdsim_sampler_arrays(rootfile)
         names = [scr.name for scr in self.screens_and_markers_and_bpms] + self.samplers
-        wanted = {name: name.replace("-", "_") for name in names}
+        wanted = {name: name.replace("-", "_") for name in names if self.writes_output(name)}
+        svals = self.getSValues(as_dict=True)
+        for name, sampler in wanted.items():
+            if sampler not in arrays and "Primary" in arrays and abs(svals.get(name, 1.0)) < 1e-9:
+                wanted[name] = "Primary"
         missing = [n for n, s in wanted.items() if s not in arrays]
         for name in missing:
             warn(f"No BDSIM sampler found for {name}; no beam file will be written")
@@ -480,6 +485,11 @@ class bdsimLattice(frameworkLattice):
         # the end screen replaces the line's beam, so keep the one that was tracked
         injected = self.global_parameters["beam"]
         ninjected = len(injected.x)
-        for name, sampler in wanted.items():
+
+        def convert(name):
             for data_turn, turn in self.output_turns():
-                self.screen_function(name, arrays[sampler], data_turn, turn, ninjected, injected)
+                self.screen_function(name, arrays[wanted[name]], data_turn, turn, ninjected, injected)
+
+        self.convert_outputs(convert, [name for name in wanted if name != self.end])
+        if self.end in wanted:
+            convert(self.end)

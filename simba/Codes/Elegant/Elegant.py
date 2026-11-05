@@ -24,7 +24,7 @@ from ...Framework_objects import (
     elementkeywords,
     keyword_conversion_rules_elegant,
 )
-from ...FrameworkHelperFunctions import convert_outputs, saveFile
+from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from ...Modules.SDDSFile import SDDS_Types, SDDSFile
@@ -1029,10 +1029,9 @@ class elegantLattice(frameworkLattice):
             ):
                 screens.append(self.final_screen)
             toffset = -1 * np.mean(self.global_parameters["beam"].Particles.t)
-            convert_outputs(
+            self.convert_outputs(
                 lambda s: self.sdds_to_hdf5(s, toffset=toffset, ref_index=self.ref_idx),
                 screens,
-                self.global_parameters.get("conversion_workers", 1),
             )
         self.commandFiles = {}
 

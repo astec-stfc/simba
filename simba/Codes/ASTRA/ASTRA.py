@@ -12,8 +12,6 @@ import os
 from copy import deepcopy
 from warnings import warn
 import numpy as np
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
 from typing import ClassVar, Dict, Any
 from pydantic import Field, ConfigDict
 
@@ -50,11 +48,6 @@ class astraLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as an ASTRA input file."""
 
     model_config = ConfigDict(validate_assignment=True)
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Threaded conversion of ASTRA screen outputs to openPMD"""
 
     code: str = "astra"
     """String indicating the lattice object type"""
@@ -290,35 +283,6 @@ class astraLattice(frameworkLattice):
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
-    @lox.thread
-    def screen_threaded_function(
-        self,
-        objectname: str,
-        scr: DiagnosticElement,
-        cathode: bool,
-        mult: int,
-        sval: float = 0.0,
-    ) -> None:
-        """
-        Threaded :meth:`astra_to_hdf5` for one screen.
-
-        Parameters
-        ----------
-        objectname: str
-            Lattice name
-        scr: :class:`~laura.models.diagnostic.DiagnosticElement`
-            Screen
-        cathode: bool
-            Unused by :meth:`astra_to_hdf5`
-        mult: int
-            Position multiplier in ASTRA output filenames
-        sval: float
-            s of the screen [m]
-        """
-        return self.astra_to_hdf5(
-            lattice=objectname, scr=scr, cathode=cathode, mult=mult, sval=sval
-        )
-
     def get_screen_scaling(self) -> int:
         """
         Find the position multiplier (100, 1000 or 10) ASTRA used in the screen filenames.
@@ -345,15 +309,16 @@ class astraLattice(frameworkLattice):
         mult = self.get_screen_scaling()
         offset = self.s_offset
         self.write_s_offset()
-        for e in self.screens_and_bpms:
-            self.screen_threaded_function.scatter(
+        self.convert_outputs(
+            lambda e: self.astra_to_hdf5(
+                lattice=self.objectname,
                 scr=e,
-                objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
                 sval=offset + self.to_local(e.middle)[2],
-            )
-        self.screen_threaded_function.gather()
+            ),
+            self.screens_and_bpms,
+        )
         endelem = Screen(
             name=self.end,
             hardware_class="Diagnostic",
@@ -433,6 +398,11 @@ class astraLattice(frameworkLattice):
         astrabeamfilename = self.find_ASTRA_filename(lattice, scr, master_run_no, mult)
         if astrabeamfilename is None:
             warn(f"Screen Error: {lattice}, {scr.physical.middle.z}, {astrabeamfilename}")
+        elif not self.writes_output(scr.name):
+            if self.global_parameters["delete_tracking_files"]:
+                os.remove(
+                    os.path.join(self.global_parameters["master_subdir"], astrabeamfilename).strip('"')
+                )
         else:
             beam = rbf.beam()
             rbf.astra.read_astra_beam_file(

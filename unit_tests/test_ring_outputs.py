@@ -535,8 +535,34 @@ def test_s_is_the_lattices_not_the_incoming_beams(code, runs):
 )
 def test_the_start_is_never_written(name, turns, writes):
     """Its file is the incoming beam; in a ring its turns are the end's."""
-    line = SimpleNamespace(start="M1", turns=turns)
+    line = SimpleNamespace(
+        start="M1", end="M3", end_name="M3", turns=turns, global_parameters={}, elements={}
+    )
     assert frameworkLattice.writes_output(line, name) is writes
+
+
+@pytest.mark.parametrize("end_beams_only", [False, True])
+@pytest.mark.parametrize(
+    "name, end, writes",
+    [
+        ("SCR", "END", {False: True, True: False}),
+        ("BPM", "END", {False: False, True: False}),
+        ("END", "END", {False: True, True: True}),
+        ("BPM", "BPM", {False: True, True: True}),
+    ],
+)
+def test_bpms_and_end_beams_only(name, end, writes, end_beams_only):
+    """No beam at a BPM; with ``end_beams_only``, only at the end; the end always, BPM or not."""
+    elements = {
+        "SCR": SimpleNamespace(hardware_type="Screen"),
+        "BPM": SimpleNamespace(hardware_type="Beam_Position_Monitor"),
+        "END": SimpleNamespace(hardware_type="Marker"),
+    }
+    line = SimpleNamespace(
+        start="M1", end=end, end_name=end, elements=elements,
+        global_parameters={"end_beams_only": end_beams_only},
+    )
+    assert frameworkLattice.writes_output(line, name) is writes[end_beams_only]
 
 
 @pytest.mark.parametrize(

@@ -253,6 +253,7 @@ def interpret_bdsim_sampler(
     ninjected=None,
     species="electron",
     input_weights=None,
+    sstart=0,
 ):
     """
     Populate a :class:`~simba.Modules.Beams.beam` from one sampler's arrays as
@@ -282,6 +283,8 @@ def interpret_bdsim_sampler(
     input_weights: array, optional
         Each injected particle's weight relative to the mean, by event, to use instead of
         BDSIM's recorded ``weight``.
+    sstart: float, optional
+        ``s`` of the line's entrance [m], added to BDSIM's ``S``, which starts there.
     """
     from . import SPECIES
 
@@ -327,7 +330,7 @@ def interpret_bdsim_sampler(
         energy=dat["energy"] * 1e9,
         mass=mass,
         charge=None,
-        s=float(np.mean(dat["S"])),
+        s=sstart + float(np.mean(dat["S"])),
         zp=dat["zp"],
         particle_charge=sign * constants.elementary_charge,
     )

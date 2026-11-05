@@ -577,25 +577,20 @@ class gptLattice(frameworkLattice):
         gdfbeam = rbf.gdf.read_gdf_beam_file_object(
             f'{self.global_parameters["master_subdir"]}/{self.objectname}_out.gdf'
         )
-        for e in self.screens_and_markers_and_bpms:
-            if e.name != self.start:
-                sval = svals[e.name] - e.physical.length / 2 + self.entrance_s
-                self.gdf_to_hdf5(
-                    gptbeamfilename=self.objectname + "_out.gdf",
-                    screen=e,
-                    cathode=cathode,
-                    gdf=gdfbeam,
-                    t0=self.headers["setfile"].time,
-                    sval=sval,
-                )
-        sval = svals[self.end_name] - self.endObject.physical.length / 2 + self.entrance_s
-        self.gdf_to_hdf5(
-            gptbeamfilename=self.objectname + "_out.gdf",
-            screen=self.endObject,
-            cathode=cathode,
-            gdf=gdfbeam,
-            t0=self.headers["setfile"].time,
-            sval=sval,
+        outputs = [
+            (e, svals[e.name]) for e in self.screens_and_markers_and_bpms
+            if e.name != self.end_name and self.writes_output(e.name)
+        ] + [(self.endObject, svals[self.end_name])]
+        self.convert_outputs(
+            lambda output: self.gdf_to_hdf5(
+                gptbeamfilename=self.objectname + "_out.gdf",
+                screen=output[0],
+                cathode=cathode,
+                gdf=gdfbeam,
+                t0=self.headers["setfile"].time,
+                sval=output[1] - output[0].physical.length / 2 + self.entrance_s,
+            ),
+            outputs,
         )
         if self.global_parameters["delete_tracking_files"]:
             os.remove(

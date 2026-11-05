@@ -101,6 +101,23 @@ def test_without_a_physics_list_material_does_nothing_and_says_so(tmp_path):
 
 
 @needs_bdsim
+def test_a_marker_at_the_entrance_gets_the_primary_beam(tmp_path):
+    """BDSIM adds no sampler to a marker with nothing before it."""
+    from laura.models.element import Marker
+
+    import simba.Modules.Beams as rbf
+
+    m2 = Marker(name="M2", machine_area="LINE", hardware_class="Marker",
+                physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}})
+    _collimator_line(tmp_path, {}, element=m2, npart=50)
+    beam, seed = rbf.beam(), rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(beam, str(tmp_path / "run" / "M2.openpmd.hdf5"))
+    rbf.openpmd.read_openpmd_beam_file(seed, str(tmp_path / "seed.openpmd.hdf5"))
+    assert float(np.atleast_1d(beam.s)[0]) == pytest.approx(0.0)
+    assert np.allclose(np.sort(beam.x.val), np.sort(seed.x.val))
+
+
+@needs_bdsim
 def test_a_round_collimator_passes_the_core_of_the_beam(tmp_path):
     # inside r = 0.5 mm of a round 1 mm Gaussian: 1 - exp(-r^2 / 2 sigma^2) = 11.75%
     npart = 400
@@ -227,6 +244,16 @@ def test_the_reference_particle_is_found_by_its_event():
     assert beam.x.val[beam.reference_particle_index] == 1.0
     assert list(beam.particle_species) == ["electron", "electron", "electron", "photon"]
     assert float(beam.Particles.total_charge) == pytest.approx(-3e-15)
+
+
+def test_s_is_the_machine_position_not_the_lines():
+    """BDSIM's ``S`` starts at the line's entrance; ``sstart`` puts it back on the machine."""
+    import simba.Modules.Beams as rbf
+    from simba.Modules.Beams import bdsim
+
+    beam = rbf.beam()
+    bdsim.interpret_bdsim_sampler(beam, _sampler((0, 0, 11, 1.0), (1, 0, 11, 1.0)), sstart=80.296)
+    assert float(beam.s) == pytest.approx(81.296)
 
 
 def test_a_lost_reference_and_unknown_secondaries_are_reported():

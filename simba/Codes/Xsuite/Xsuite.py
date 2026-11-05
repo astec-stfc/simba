@@ -289,7 +289,7 @@ class xsuiteLattice(frameworkLattice):
 
     def install_monitors(self, num_particles: int) -> None:
         """
-        Add a ``ParticlesMonitor`` at every screen, marker and BPM, recording every pass.
+        Add a ``ParticlesMonitor`` at every screen and marker that :meth:`writes_output`, recording every pass.
 
         Parameters
         ----------
@@ -298,7 +298,7 @@ class xsuiteLattice(frameworkLattice):
         """
         import xtrack as xt
         for elem in self.screens_and_markers_and_bpms:
-            if elem.name in self.line.element_dict:
+            if elem.name in self.line.element_dict and self.writes_output(elem.name):
                 self.line.element_dict[elem.name] = xt.ParticlesMonitor(
                     num_particles=num_particles,
                     start_at_turn=0,
@@ -1154,13 +1154,18 @@ class xsuiteLattice(frameworkLattice):
                 payload, self.end_name, name_turn, turn,
                 self.endObject.physical.middle.z, svals[self.end_name],
             )
-        for elem in self.screens_and_markers_and_bpms:
-            # the end's is written above
-            if elem.name == self.end_name or elem.name not in self.line.element_dict:
-                continue
-            if not self.writes_output(elem.name):
-                continue
-            data = _to_cpu(self.line[elem.name]).data.to_dict()
+        # on the CPU here: CUDA does not work in a forked worker
+        monitors = [
+            (elem, _to_cpu(self.line[elem.name]))
+            for elem in self.screens_and_markers_and_bpms
+            if elem.name != self.end_name
+            and elem.name in self.line.element_dict
+            and self.writes_output(elem.name)
+        ]
+
+        def convert(item):
+            elem, monitor = item
+            data = monitor.data.to_dict()
             for data_turn, name_turn in self.output_turns():
                 turn = self.beam_turn(data_turn)
                 self._write_xsuite_beam(
@@ -1168,6 +1173,8 @@ class xsuiteLattice(frameworkLattice):
                     elem.name, name_turn, turn,
                     elem.physical.middle.z, svals[elem.name],
                 )
+
+        self.convert_outputs(convert, monitors)
         self._write_twiss_csv()
 
     def _write_xsuite_beam(

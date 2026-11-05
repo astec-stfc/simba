@@ -752,6 +752,7 @@ class bmadLattice(frameworkLattice):
             dict.fromkeys(
                 self._tao_name(element.name)
                 for element in self.screens_and_markers_and_bpms
+                if self.writes_output(element.name)
             )
         )
 
@@ -1026,12 +1027,10 @@ class bmadLattice(frameworkLattice):
         }
         end = self.end_name
         outputs[end] = ("END", self.endObject.physical.end.z)
-        final_beam = None
-        for output_name, (tao_element, zstart) in outputs.items():
-            if not self.writes_output(output_name):
-                continue
+
+        def convert(output):
+            output_name, (particles, ref_idx, species) = output
             beam = deepcopy(source_beam)
-            particles, ref_idx, species = self._particles_at(tao_element, zstart=zstart)
             rbf.openpmd.read_particle_group(
                 beam,
                 particles,
@@ -1050,8 +1049,16 @@ class bmadLattice(frameworkLattice):
                     / f"{self.output_basename(output_name)}.openpmd.hdf5"
                 ),
             )
-            if output_name == end:
-                final_beam = beam
+            return beam
+
+        fetched = {
+            output_name: self._particles_at(tao_element, zstart=zstart)
+            for output_name, (tao_element, zstart) in outputs.items()
+            if self.writes_output(output_name)
+        }
+        final = fetched.pop(end, None)
+        self.convert_outputs(convert, fetched.items())
+        final_beam = None if final is None else convert((end, final))
         save_bmad_twiss_hdf(
             filename=str(
                 Path(self.global_parameters["master_subdir"])

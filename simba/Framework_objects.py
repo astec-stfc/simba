@@ -43,7 +43,7 @@ from .Modules.EnergyRamp import (
 )
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution
+from .FrameworkHelperFunctions import convert_outputs, expand_substitution
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
 from .Modules import constants
@@ -62,8 +62,10 @@ from pydantic import (
     Field,
 )
 from typing import (
+    Callable,
     ClassVar,
     Dict,
+    Iterable,
     List,
     Any,
     Set,
@@ -2270,9 +2272,21 @@ class frameworkLattice(BaseModel):
         """
         Whether a beam recorded at ``name`` gets an :meth:`output_beam_file`.
 
-        Not at the start of the line: that is the input beam, the previous line's end.
+        Always at the end of the line; never at the start (that is the input beam, the
+        previous line's end) or at a BPM; nowhere else with ``end_beams_only``.
         """
-        return name != self.start
+        if name == self.start:
+            return False
+        if name in (self.end, self.end_name):
+            return True
+        if self.global_parameters.get("end_beams_only", False):
+            return False
+        element = self.elements.get(flatten_occurrence(name))
+        return element is None or element.hardware_type.lower() != "beam_position_monitor"
+
+    def convert_outputs(self, convert: Callable, items: Iterable) -> None:
+        """:func:`~simba.FrameworkHelperFunctions.convert_outputs` in ``conversion_workers`` processes."""
+        convert_outputs(convert, items, self.global_parameters.get("conversion_workers", 1))
 
     def get_prefix(self) -> str:
         """The ``input: prefix`` of the file block, defaulting to the master subdirectory."""
