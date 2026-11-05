@@ -293,7 +293,8 @@ class impactxLattice(frameworkLattice):
             if attribute is None:
                 continue
             for d in matches:
-                d[attribute] = float(program.value_at(turn))
+                lattice = self.__dict__.setdefault("_simba_lattice", {}).setdefault((id(d), attribute), d[attribute])
+                d[attribute] = float(program.value_at(turn, lattice))
 
     def apply_ramp(self, turn: int) -> None:
         """
@@ -319,7 +320,7 @@ class impactxLattice(frameworkLattice):
         """``dicts`` with a kick every :attr:`space_charge_step`, for space charge or ISR."""
         # LinearMap alone cannot be sliced
         return [
-            {**d, "nslice": max(1, int(np.ceil(d["ds"] / self.space_charge_step - 1e-9)))}
+            {**d, "nslice": max(d.get("nslice", 1), int(np.ceil(d["ds"] / self.space_charge_step - 1e-9)))}
             if d.get("ds", 0) > 0 and d["type"] != "LinearMap"
             else d
             for d in dicts
