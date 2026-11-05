@@ -573,6 +573,15 @@ class Framework(BaseModel):
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                 )
 
+            if self.settings.get("default_layout"):
+                path = self.settings["default_layout"]
+                if path not in self.machine.lattices:
+                    raise ValueError(
+                        f"default_layout {path!r} is not a layout in "
+                        f"{self.settings['layout']}; layouts are {list(self.machine.lattices)}"
+                    )
+                self.machine.default_path = path
+
             for k in list(self.machine.elements.keys()):
                 _ = self.machine.elements[k]
 

@@ -26,6 +26,7 @@ whether a container runtime is used for the other codes:
 
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
+* `ImpactX <https://impactx.readthedocs.io>`_
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
 
@@ -118,7 +119,7 @@ image via the local Docker daemon instead of writing a ``.sif`` file to the ``si
    | ``container_runtime`` covers ASTRA, Elegant, CSRTrack, OPAL, and Genesis. **GPT is not included**,
      as it is proprietary and requires a license; it must be installed locally (see
      :func:`~simba.Codes.Executables.Executables.define_gpt_command`) and run with ``GPTLICENSE`` set.
-   | The python-based codes (Ocelot, Xsuite, Cheetah, Wake-T) run in-process and are unaffected by
+   | The python-based codes (Ocelot, Xsuite, ImpactX, Cheetah, Wake-T) run in-process and are unaffected by
      ``container_runtime`` - install them locally via the ``simcodes`` extra regardless.
 
 .. _windows-wsl:

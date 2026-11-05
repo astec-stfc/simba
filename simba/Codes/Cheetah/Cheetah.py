@@ -142,7 +142,10 @@ class cheetahLattice(frameworkLattice):
         write: bool
             Also save it as ``<particle_definition>.cheetah.hdf5``
         """
-        cheetahbeamfilename = f'{self.global_parameters["master_subdir"]}/{self.particle_definition}.cheetah.hdf5'
+        cheetahbeamfilename = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{os.path.basename(self.particle_definition)}.cheetah.hdf5",
+        )
         self.global_parameters["beam"].beam.rematchXPlane(**self.initial_twiss["horizontal"])
         self.global_parameters["beam"].beam.rematchYPlane(**self.initial_twiss["vertical"])
 
@@ -157,8 +160,6 @@ class cheetahLattice(frameworkLattice):
     def run(self) -> None:
         """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``)."""
         pin = deepcopy(self.pin)
-        # if self.sample_interval > 1:
-        #     pin = pin.thin_out(nth=self.sample_interval)
         if choose_cheetah_tracking_method and self.cheetahglobal["cheetah_tracking_method"] == "auto":
             choose_cheetah_tracking_method(self.segment, pin)
         self.pout = self.segment.track(pin)
@@ -184,10 +185,7 @@ class cheetahLattice(frameworkLattice):
         if name == self.end:
             zstart = self.endObject.physical.end.z
         else:
-            try:
-                zstart = self.elementObjects[name].physical.start.z
-            except KeyError:
-                zstart = self.elementObjects[name.replace('_', "-")].physical.start.z
+            zstart = self.elementObjects[name].physical.start.z
         rbf_cheetah.interpret_cheetah_ParticleBeam(
             beam,
             scr,
@@ -203,19 +201,25 @@ class cheetahLattice(frameworkLattice):
     def postProcess(self) -> None:
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
         from cheetah.accelerator import Screen
+
+        def sanitized(n: str) -> str:
+            s = "".join(c if c.isalnum() or c == "_" else "_" for c in n)
+            return "_" + s if s[0].isdigit() else s
+
+        original = {sanitized(n): n for n in self.elementObjects}
         screens = {}
         for element in self.segment.elements:
             if isinstance(element, Screen):
-                screens.update({element.name: element.get_read_beam()})
+                screens.update({original.get(element.name, element.name): element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
         i = 0
         for name, scr in screens.items():
-            if name.replace("_", "-") == self.start:
+            if name == self.start:
                 continue
             outname = (
                 f'{self.global_parameters["master_subdir"]}/'
-                f'{self.output_basename(name).replace("_", "-")}.openpmd.hdf5'
+                f'{self.output_basename(name)}.openpmd.hdf5'
             )
             self.screen_threaded_function.scatter(scr, outname, name)
             i += 1

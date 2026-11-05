@@ -165,16 +165,23 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
         ):
-            self.headers["csr1d"] = GptCsr1D()
+            if self.particle_definition == "laser":
+                # csr1d cannot handle a bunch that is still being emitted from the cathode
+                warn(f"{self.objectname}: GPT starts at the cathode, so csr1d (CSR) is left out")
+            else:
+                self.headers["csr1d"] = GptCsr1D()
         self.headers["setfile"].particle_definition = self.particle_definition
-        self.section.gpt_headers = self.headers
         self.check_pass_rigidity(self.global_parameters["beam"].Brho)
-        return self.section.to_gpt(
-            startz=self.startObject.physical.start.z,
-            endz=self.endObject.physical.end.z,
+        section = self.deck_section
+        section.gpt_headers = self.headers
+        text = section.to_gpt(
+            startz=self.local_z(self.startObject.physical.start),
+            endz=self.local_z(self.endObject.physical.end),
             Brho=self.global_parameters["beam"].Brho,
             dtmin=self.dtmin
         )
+        self.section.gpt_screen_positions = section.gpt_screen_positions
+        return text
 
     def write(self) -> None:
         """Write :meth:`writeElements` to ``<master_subdir>/<objectname>.in``."""
@@ -201,7 +208,7 @@ class gptLattice(frameworkLattice):
             e.g. ``phi119357``
         """
         element = self.elementObjects[name]
-        zpos = float(element.physical.start.z)
+        zpos = self.local_z(element.physical.start)
         pattern = re.compile(
             r'map1D_TM\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*([-\d.eE+]+)\s*,'
             r'[^)]*?,\s*(phi\w+)\s*,'
@@ -270,8 +277,8 @@ class gptLattice(frameworkLattice):
             rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
             scan_text, count=1, flags=re.MULTILINE,
         )
-        z_eval = float(self.elementObjects[name].physical.end.z)
-        z_start = float(self.startObject.physical.start.z)
+        z_eval = self.local_z(self.elementObjects[name].physical.end)
+        z_start = self.local_z(self.startObject.physical.start)
         scan_text += (
             f'\nscreen("wcs","I",{z_eval});\n'
             f'zminmax("wcs","I",{z_start - 0.01},{z_eval + 1e-3});\n'
@@ -302,7 +309,7 @@ class gptLattice(frameworkLattice):
         gamma_max = float(self.global_parameters["beam"].beam.centroids.mean_gamma.val) + sum(
             abs(float(getattr(c, "field_amplitude", 0.0) or 0.0)) * float(c.physical.length)
             for c in self.cavities  # this line's only: elementObjects holds the whole machine
-            if z_start - 1e-6 <= float(c.physical.start.z) < z_eval
+            if z_start - 1e-6 <= self.local_z(c.physical.start) < z_eval
         ) / rest_energy
 
         phases, energies = scan(phase_range[0], phase_range[1], step)
@@ -430,6 +437,8 @@ class gptLattice(frameworkLattice):
         With :attr:`~auto_phase`, the cavities are phased first and the input file
         rewritten with their crests.
         """
+        if not self.global_parameters["GPTLICENSE"]:
+            raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
         if self.auto_phase and self.autophase():
             self.write()
         main_command = (
@@ -579,7 +588,7 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = svals[self.end] - self.endObject.physical.length / 2 + self.entrance_s
+        sval = svals[self.end_name] - self.endObject.physical.length / 2 + self.entrance_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,
@@ -644,7 +653,7 @@ class gptLattice(frameworkLattice):
         rbf.gdf.write_gdf_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + gdfbeamfilename,
-            normaliseX=self.startObject.physical.middle.x,
+            normaliseX=float(self.to_local(self.startObject.physical.middle)[0]),
             cathode=cathode,
         )
         self.Brho = self.global_parameters["beam"].Brho
@@ -682,7 +691,7 @@ class gptLattice(frameworkLattice):
             rbf.gdf.read_gdf_beam_file(
                 beam,
                 os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
-                position=positions.get(screen.name, screen.physical.middle.z),
+                position=positions.get(screen.name, self.local_z(screen.physical.middle)),
                 gdfbeam=gdf,
             )
         except ValueError as exc:

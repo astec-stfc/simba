@@ -24,7 +24,7 @@ from simba.Framework_objects import frameworkLattice
 from simba.Modules import constants
 
 TURNS = 4
-RING_CODES = ["elegant", "xsuite", "madx", "ocelot"]
+RING_CODES = ["elegant", "xsuite", "madx", "ocelot", "impactx"]
 END_Z = 3.25 + 1.0
 BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
 
@@ -299,9 +299,11 @@ def test_xsuite_reads_back_the_total_momentum_as_cp(runs):
     np.testing.assert_allclose(cp, total[alive], rtol=1e-12)
 
 
-def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
-    program = {"element": "QUAD1F", "parameter": "k1",
-               "turns": [1, TURNS], "values": [-1.05, -0.9]}
+def test_madx_and_impactx_program_a_quadrupole_as_xsuite_does(tmp_path, seed_beam):
+    def program(code):
+        # ``parameter`` is the code's own name for it
+        return {"element": "QUAD1F", "parameter": "k" if code == "impactx" else "k1",
+                "turns": [1, TURNS], "values": [-1.05, -0.9]}
 
     def sizes(code, **extra):
         subdir = _track(
@@ -313,11 +315,12 @@ def test_madx_programs_a_sliced_quadrupole_as_xsuite_does(tmp_path, seed_beam):
         ])
 
     effect = {
-        code: sizes(code, programs=[program]) - sizes(code)
-        for code in ("madx", "xsuite")
+        code: sizes(code, programs=[program(code)]) - sizes(code)
+        for code in ("madx", "xsuite", "impactx")
     }
     assert np.min(np.abs(effect["xsuite"])) > 5e-6
     np.testing.assert_allclose(effect["madx"], effect["xsuite"], rtol=0.1)
+    np.testing.assert_allclose(effect["impactx"], effect["xsuite"], rtol=1e-3)
 
 
 @pytest.mark.parametrize("block, name", [
@@ -398,6 +401,8 @@ CAN = {
                "nsuperperiods"},
     "madx": {"turns", "periodic", "frequency_map", "dynamic_aperture", "programs", "ramp",
              "nsuperperiods", "single_particle"},
+    "impactx": {"turns", "periodic", "frequency_map", "dynamic_aperture", "nsuperperiods", "radiation",
+                "programs", "ramp"},
     # single-pass here, so no turns to ramp over; its scans track a turn at a
     # time through Tao, measured in test_bmad_turn_handback.py
     "bmad": {"periodic", "frequency_map", "dynamic_aperture", "radiation", "programs"},

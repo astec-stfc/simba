@@ -66,11 +66,14 @@ TOLERANCES = {
     ("elegant", "ocelot"):      (0.25,  0.20,  42.0,  28.0,  38.0,  8.0,  22.0),
 }
 
+# At the undulator entrance, through S13 matched into the undulator. With the
+# chicane at 0.1 rad the 0.93% energy spread is barely compressed, so the strong
+# final focusing grows eps_ny chromatically (~2.5 um) in every code alike.
 EXIT_VALUES = {
-    "cheetah": {"E": 576.6, "dE": 0.9257, "enx": 0.8973, "eny": 0.8901, "sx": 169.3, "sy": 523.8, "sz": 142.4},
-    "elegant": {"E": 576.0, "dE": 0.9441, "enx": 0.9642, "eny": 0.9919, "sx": 178.0, "sy": 512.0, "sz": 164.6},
-    "madx": {"E": 576.7, "dE": 0.925, "enx": 0.8509, "eny": 0.929, "sx": 171.3, "sy": 518.9, "sz": 142.4},
-    "ocelot": {"E": 577.0, "dE": 0.9253, "enx": 0.8502, "eny": 0.9652, "sx": 170.1, "sy": 519.9, "sz": 159.8},
+    "cheetah": {"E": 576.7, "dE": 0.9265, "enx": 0.8512, "eny": 2.462, "sx": 51.77, "sy": 113.7, "sz": 142.8},
+    "elegant": {"E": 576.0, "dE": 0.9446, "enx": 0.9534, "eny": 2.621, "sx": 55.11, "sy": 111.5, "sz": 164.8},
+    "madx": {"E": 576.7, "dE": 0.9256, "enx": 0.8512, "eny": 2.497, "sx": 51.88, "sy": 113.7, "sz": 142.5},
+    "ocelot": {"E": 577.0, "dE": 0.9258, "enx": 0.8496, "eny": 2.562, "sx": 51.4, "sy": 113.3, "sz": 159.9},
 }
 EXIT_BANDS = {"E": 0.005, "dE": 0.15, "enx": 0.15, "eny": 0.15, "sx": 0.15, "sy": 0.05, "sz": 0.15}
 

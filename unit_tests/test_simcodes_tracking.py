@@ -8,6 +8,7 @@ from simba.Codes.Generators import frameworkGenerator
 from laura.models.element import Marker, Plasma, Wiggler
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
+from helpers import skip_missing
 
 needs_container = pytest.mark.needs_container
 
@@ -18,6 +19,7 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
+    pytest.param("impactx", None, id="impactx"),
     pytest.param("opal", "docker", id="opal", marks=needs_container),
     pytest.param(
         "gpt", None, id="gpt",
@@ -82,6 +84,7 @@ def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e
 
 @pytest.mark.parametrize("code,container_runtime", CODES)
 def test_code_tracks(tmp_path, code, container_runtime, monkeypatch, fodo_elements):
+    skip_missing(code)
     cwd = tmp_path / "cwd"
     cwd.mkdir()
     monkeypatch.chdir(cwd)

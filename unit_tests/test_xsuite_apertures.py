@@ -80,7 +80,8 @@ def test_a_collimator_passes_only_what_is_inside_it(tmp_path, aperture, expected
     assert abs(passed - expected) < 4 * np.sqrt(expected * (1 - expected) / npart), (passed, expected)
     assert float(beam.Particles.total_charge) == pytest.approx(-1e-12 * passed)
     half_x = aperture.get("radius") or aperture["horizontal_size"]
-    assert np.max(np.abs(beam.x.val)) <= half_x * 1.001
+    # 1 urad divergence over the 0.45 m from the collimator to M3 spreads x by ~0.5 um
+    assert np.max(np.abs(beam.x.val)) <= half_x + 5e-6
 
 
 def test_a_collimator_without_a_size_stays_a_drift(tmp_path):

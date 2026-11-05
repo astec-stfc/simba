@@ -578,6 +578,11 @@ class frameworkLattice(BaseModel):
     program_attributes: ClassVar[dict] = {}
     """``(horizontal, vertical)`` attribute an unqualified program sets, per code element type; see :meth:`program_attribute`."""
 
+    local_frame: bool | None = None
+    """Write the deck in the lattice's own frame (see :meth:`to_local`) rather than world
+    coordinates, for codes that place elements by position. None means
+    on when the line starts rotated; ``local_frame`` in the file block sets it."""
+
     def model_post_init(self, __context):
         for key, value in list(self.elementObjects.items()):
             setattr(self, key, value)
@@ -599,6 +604,8 @@ class frameworkLattice(BaseModel):
             self.file_block.update({"input": {}})
         if "tw_focusing" in self.file_block:
             self._tw_focusing = bool(self.file_block["tw_focusing"])
+        if "local_frame" in self.file_block:
+            self.local_frame = bool(self.file_block["local_frame"])
         self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
@@ -607,6 +614,67 @@ class frameworkLattice(BaseModel):
         if name in frameworkLattice.model_fields or name in self.__private_attributes__:
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
+
+    def _frame_rotation(self) -> float:
+        """Rotation about y [rad] that takes world directions into the deck's frame."""
+        return -float(self.startObject.physical.global_rotation.theta)
+
+    @property
+    def in_local_frame(self) -> bool:
+        """Whether the deck is written in the local frame: :attr:`local_frame`, else whether the line starts rotated."""
+        if self.local_frame is not None:
+            return self.local_frame
+        return abs(self._frame_rotation()) > 1e-9
+
+    def to_local(self, point) -> np.ndarray:
+        """
+        Map a world position into the deck's frame: origin at the first element's entrance, along +z.
+
+        Parameters
+        ----------
+        point: Position | Sequence[float]
+            LAURA ``Position`` or ``(x, y, z)``
+
+        Returns
+        -------
+        np.ndarray
+            ``(x, y, z)`` in the deck's frame; unchanged if not :attr:`in_local_frame`
+        """
+        p = np.asarray(getattr(point, "array", point), dtype=float)
+        if not self.in_local_frame:
+            return p
+        physical = self.startObject.physical
+        origin = np.asarray(physical.start.array, dtype=float)
+        local = physical.rotation_matrix.T @ (p - origin)
+        return np.round(local, 9)
+
+    def local_z(self, point) -> float:
+        """z of a world position in the deck's frame (see :meth:`to_local`)."""
+        return float(self.to_local(point)[2])
+
+    @property
+    def deck_section(self) -> SectionLatticeTranslator:
+        """
+        The section as written out; in the local frame, a deep copy moved into it.
+
+        Returns
+        -------
+        SectionLatticeTranslator
+        """
+        if not self.in_local_frame:
+            return self.section
+        section = self.section.model_copy(deep=True)
+        for element in section.elements.elements.values():
+            physical = getattr(element, "physical", None)
+            if physical is None or physical.middle is None:
+                continue
+            x, y, z = self.to_local(physical.middle)
+            # a rigid move keeps s (OPAL places by it); unguarded, LAURA re-projects it onto the world trajectory
+            physical._syncing = True
+            physical.middle = Position(x=x, y=y, z=z)
+            physical._syncing = False
+            physical.global_rotation.theta += self._frame_rotation()
+        return section
 
     def _apply_collective_settings(self) -> None:
         """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block; a ring defaults CSR off."""
@@ -2128,7 +2196,8 @@ class frameworkLattice(BaseModel):
                 continue
             try:
                 total += float(magnetic.KnL(0))
-            except (TypeError, ValueError, KeyError):
+            # a solenoid's magnet has no KnL
+            except (AttributeError, TypeError, ValueError, KeyError):
                 continue
         return total
 
@@ -2551,8 +2620,23 @@ class frameworkLattice(BaseModel):
 
     @property
     def startObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`start`."""
-        return self.elementObjects[self.start]
+        """The element named by :attr:`start` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.start)
+
+    def _named_element(self, name: str) -> "PhysicalBaseElement":
+        if name in self.elementObjects:
+            return self.elementObjects[name]
+        return self.elements[flatten_occurrence(name)]
+
+    @property
+    def start_name(self) -> str:
+        """:attr:`start` as this line names it: ``NAME.N`` for one pass (``NAME#N``) of a multipass element."""
+        return flatten_occurrence(self.start)
+
+    @property
+    def end_name(self) -> str:
+        """:attr:`end` as this line names it; see :attr:`start_name`."""
+        return flatten_occurrence(self.end)
 
     @property
     def end(self) -> str:
@@ -2585,8 +2669,8 @@ class frameworkLattice(BaseModel):
 
     @property
     def endObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`end`."""
-        return self.elementObjects[self.end]
+        """The element named by :attr:`end` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.end)
 
     @property
     def start_s(self) -> float:
@@ -2679,6 +2763,20 @@ class frameworkLattice(BaseModel):
     def elements(self) -> dict:
         """The lattice's elements, by name."""
         return self.section.elements.elements
+
+    def output_s(self, name: str) -> float:
+        """
+        The ``s`` an output beam at element ``name`` is placed at.
+        The machine element's own ``s``, except for one pass of a multipass
+        element (``NAME.N`` in a line): that is
+        placed at its arc length along the beam path.
+        """
+        element = self.elementObjects.get(name)
+        if element is not None:
+            return element.physical.s
+        layout = self.machine.lattices.get(self.machine.default_path)
+        arc = {flatten_occurrence(k): s for k, s in layout.arc_lengths().items()} if layout else {}
+        return arc[name] if name in arc else self.elements[name].physical.s
 
     def write(self):
         pass
@@ -3800,17 +3898,22 @@ class chicane(frameworkGroup):
                 lz = z_extents[dipole_number]
                 ang = a * self.ratios[dipole_number]
                 x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
+                s_entry = s_here - lz / 2.0
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
                     r = lz / (np.sin(p1) - np.sin(p0))
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
+                    pm = 0.5 * (p0 + p1)
+                    mid_u = x + r * (np.cos(p0) - np.cos(pm))
+                    mid_s = s_entry + r * (np.sin(pm) - np.sin(p0))
                 else:
                     dx, arc = 0.0, lz
-                e.physical.middle = to_global(x + dx / 2.0, s_here)
-                e.physical.global_rotation.theta = theta0
+                    mid_u, mid_s = x, s_here
+                e.physical.middle = to_global(mid_u, mid_s)
+                e.physical.global_rotation.theta = theta0 - p0
                 e.magnetic.angle = ang
-                e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
+                e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
                 x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
@@ -3818,7 +3921,7 @@ class chicane(frameworkGroup):
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
                 e.physical.middle = to_global(x_here, s_here)
-                e.physical.global_rotation.theta = theta0 + phi
+                e.physical.global_rotation.theta = theta0 - phi
 
     @property
     def _design_axis(self) -> tuple:
@@ -3829,11 +3932,26 @@ class chicane(frameworkGroup):
         """
         if not hasattr(self, "_axis"):
             d0 = self.allElementObjects[self.elements[0]].physical
-            self._axis = (
-                np.array(d0.rotation_matrix),
-                float(d0.global_rotation.theta),
-                np.asarray(d0.start.array, dtype=float),
-            )
+            rotation = np.array(d0.rotation_matrix)
+            along = rotation.T[2]
+            entrance = np.asarray(d0.start.array, dtype=float)
+            upstream = None
+            for element in self.allElementObjects.values():
+                if element.name in self.elements:
+                    continue
+                try:
+                    middle = np.asarray(element.physical.middle.array, dtype=float)
+                    theta = float(element.physical.global_rotation.theta)
+                except AttributeError:
+                    continue
+                gap = float(np.dot(entrance - middle, along))
+                if gap < 0 or abs(theta - float(d0.global_rotation.theta)) > 1e-9:
+                    continue
+                if upstream is None or gap < upstream[0]:
+                    upstream = (gap, middle)
+            if upstream is not None:
+                entrance = upstream[1] + upstream[0] * along
+            self._axis = (rotation, float(d0.global_rotation.theta), entrance)
         return self._axis
 
     def _z_extent(self, dipole, index: int) -> float:

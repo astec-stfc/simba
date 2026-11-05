@@ -711,6 +711,9 @@ class ocelotLattice(frameworkLattice):
                 len(elem_names) - 1,
             )
             twsdat["s"] = list(array(twsdat["s"]) - shift[idx])
+            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
+            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
+            # would silently drop the names.
             twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,
@@ -829,17 +832,12 @@ class ocelotLattice(frameworkLattice):
                 continue
             if not angle or not length:
                 continue
+            proc = SpontanRadEffects(type="dipole")
+            proc.radius = abs(length / angle)
+            proc.energy_loss = True
+            proc.quant_diff = model == "quantum"
             out.append(
-                (
-                    SpontanRadEffects(
-                        type="dipole",
-                        radius=abs(length / angle),
-                        energy_loss=True,
-                        quant_diff=(model == "quantum"),
-                    ),
-                    self.lat_obj.sequence[self.names.index(name)],
-                    abs(length / angle),
-                )
+                (proc, self.lat_obj.sequence[self.names.index(name)], abs(length / angle))
             )
         return out
 
@@ -1007,10 +1005,10 @@ class ocelotLattice(frameworkLattice):
                     filename=self.output_beam_file(self.names[-1]),
                     global_parameters=self.global_parameters,
                     zstart=self.endObject.physical.end.z,
-                    sstart=self.entrance_s + sval_out[self.end],
+                    sstart=self.entrance_s + sval_out[self.end_name],
                     ref_idx=self.ref_idx,
                     beam_turn=beam_turn,
-                    t_reference=t_reference(sval_out[self.end]),
+                    t_reference=t_reference(sval_out[self.end_name]),
                     file_turn=file_turn,
                     start=self.reference_start,
                 )

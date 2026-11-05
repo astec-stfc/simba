@@ -1072,7 +1072,7 @@ class elegantLattice(frameworkLattice):
             if screen.hardware_type != "Beam_Position_Monitor":
                 warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
             return
-        xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
+        xyzoffset = [0.0, 0.0, self.output_s(screen.name)]
         wanted = self.output_turns()
         # one load for every page
         sdds_file = SDDSFile(index=1)
