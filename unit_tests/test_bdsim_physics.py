@@ -432,3 +432,19 @@ def test_a_variable_weight_beam_keeps_its_weights_through_bdsim(tmp_path):
     photon = ~primary & (raw["partID"] == 22)
     np.testing.assert_allclose(np.sort(beam.others["photon"].Particles.nmacro.val),
                                np.sort(nmacro[event[photon]]), rtol=1e-6)
+
+
+def test_use_comes_before_the_samplers_whatever_the_pybdsim_version(tmp_path):
+    from simba.Codes.BDSIM.BDSIM import use_before_samplers
+
+    includes = "include L_components.gmad;\ninclude L_sequence.gmad;\ninclude L_beam.gmad;\n\n\n"
+    main = tmp_path / "L.gmad"
+    main.write_text(includes + "sample, range=M1;\nuse, lattice;\n")  # pybdsim 3.9
+    use_before_samplers(str(main))
+    assert main.read_text() == (
+        "include L_components.gmad;\ninclude L_sequence.gmad;\nuse, lattice;\n"
+        "include L_beam.gmad;\n\n\nsample, range=M1;\n"
+    )
+    main.write_text(includes + "sample, range=M1;\n")  # earlier pybdsim: use is in L_sequence.gmad
+    use_before_samplers(str(main))
+    assert main.read_text() == includes + "sample, range=M1;\n"

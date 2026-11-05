@@ -2304,7 +2304,8 @@ class frameworkLattice(BaseModel):
         if read_file:
             self._carried_species = {}
         HDF5filename = prefix + particle_definition + ".openpmd.hdf5"
-        if "$" in particle_definition:
+        given = "$" in particle_definition or os.path.isabs(particle_definition)
+        if given:
             if os.path.isfile(expand_substitution(self, particle_definition + ".openpmd.hdf5")):
                 filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
             else:
@@ -2328,7 +2329,7 @@ class frameworkLattice(BaseModel):
                 self.getInitialTwiss()
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
-        if "$" in particle_definition:
+        if given:
             if os.path.isfile(expand_substitution(self, particle_definition + ".hdf5")):
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
             else:

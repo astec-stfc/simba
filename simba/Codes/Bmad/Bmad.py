@@ -656,7 +656,9 @@ class bmadLattice(frameworkLattice):
         self.lattice_file = str(path)
         tao_path = path.with_suffix(".tao.init")
         tao_path.write_text(
-            f'&tao_beam_init\n  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
+            f'&tao_design_lattice\n  design_lattice(1)%file = "{path.name}"\n/\n'
+            f'&tao_beam_init\n  beam_init%position_file = "{self.objectname}.bmad.beam"\n'
+            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
             + self._tao_dynamic_aperture_namelist(),
             encoding="utf-8",
         )

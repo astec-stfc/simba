@@ -366,7 +366,7 @@ class opalLattice(frameworkLattice):
         bcurrent = abs(self.global_parameters["beam"].total_charge * 1e6)
         chargesign = int(self.global_parameters["beam"].chargesign[0])
         # the file hdf5_to_opal wrote
-        initobj = self.particle_definition
+        initobj = os.path.basename(self.particle_definition)
         self.headers["option"] = OpalOption(**self.option_settings())
         native = self.native_distribution_block()
         self.headers["distribution"] = OpalDistribution(
@@ -491,7 +491,7 @@ class opalLattice(frameworkLattice):
         emitted = self.emitted
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + self.particle_definition + '.opal',
+            self.global_parameters["master_subdir"] + "/" + os.path.basename(self.particle_definition) + '.opal',
             subz=self.local_z(self.startObject.physical.start),
             emitted=emitted,
         )
