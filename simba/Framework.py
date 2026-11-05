@@ -335,6 +335,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_bdsim_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command(override_location=location)
         self.executables_ready = True
         return executables
@@ -673,6 +677,7 @@ class Framework(BaseModel):
             global_parameters=self.global_parameters,
             machine=self.machine,
             globalSettings=self.globalSettings,
+            verbose=self.verbose,
         )
         if "remote" in lattice:
             self.setup_remote_execution(
@@ -1009,6 +1014,7 @@ class Framework(BaseModel):
                     global_parameters=self.global_parameters,
                     machine=self.machine,
                     globalSettings=self.globalSettings,
+                    verbose=self.verbose,
                 )
 
     def getElement(

@@ -63,6 +63,13 @@ simcodes = [
     "cpymad>=1.19.0",
 ]
 
+# FBPIC on a GPU also needs cupy built for the local CUDA version
+# (e.g. cupy-cuda12x or cupy-cuda13x), which is left to the user.
+fbpic = [
+    "fbpic>=0.27",
+    "periodictable",
+]
+
 test = [
     "pytest",
     "pytest-cov",

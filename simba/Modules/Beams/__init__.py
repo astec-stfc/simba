@@ -27,6 +27,7 @@ from . import openpmd
 from . import xsuite
 from . import opal
 from . import genesis
+from . import bdsim
 
 try:
     from . import plot
@@ -769,6 +770,14 @@ class beam(BaseModel):
         """Write a MAD8 beam file; see :func:`~simba.Modules.Beams.mad8.write_mad8_beam_file`."""
         mad8.write_mad8_beam_file(self, *args, **kwargs)
 
+    def read_bdsim_beam_file(self, *args, **kwargs):
+        """Read a BDSIM ``userfile`` beam; see :func:`~simba.Modules.Beams.bdsim.read_bdsim_beam_file`."""
+        bdsim.read_bdsim_beam_file(self, *args, **kwargs)
+
+    def write_bdsim_beam_file(self, *args, **kwargs):
+        """Write a BDSIM ``userfile`` beam; see :func:`~simba.Modules.Beams.bdsim.write_bdsim_beam_file`."""
+        bdsim.write_bdsim_beam_file(self, *args, **kwargs)
+
     def beam_to_madx_coords(self, *args, **kwargs):
         """MAD-X canonical coordinates (X, PX, Y, PY, T, PT); see :func:`~simba.Modules.Beams.madx.beam_to_madx_coords`."""
         return madx.beam_to_madx_coords(self, *args, **kwargs)
@@ -810,6 +819,8 @@ class beam(BaseModel):
             ocelot.read_ocelot_beam_file(self, filename)
         elif ext.lower() == ".astra":
             astra.read_astra_beam_file(self, filename)
+        elif ext.lower() == ".bdsim":
+            bdsim.read_bdsim_beam_file(self, filename)
         elif (ext.lower() == ".h5") and ("opal" in pre):
             opal.read_opal_beam_file(self, filename, step=step)
         elif ext.lower() == ".json":

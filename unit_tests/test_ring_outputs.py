@@ -406,6 +406,8 @@ CAN = {
     # single-pass here, so no turns to ramp over; its scans track a turn at a
     # time through Tao, measured in test_bmad_turn_handback.py
     "bmad": {"periodic", "frequency_map", "dynamic_aperture", "radiation", "programs"},
+    # circular mode, round a line that closes geometrically
+    "bdsim": {"turns"},
 }
 LATTICES = {
     cls.model_fields["code"].default: cls
