@@ -1015,6 +1015,9 @@ class ocelotLattice(frameworkLattice):
             ]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
+        # Ocelot's Aperture element only stops particles once the navigator activates it; this goes first,
+        # so a beam written at an aperture is the beam that got through
+        navi.activate_apertures()
         navi.add_physics_processes(
             navi_processes, navi_locations_start, navi_locations_end
         )
