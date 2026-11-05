@@ -52,6 +52,31 @@ BDSIM_MATRIX_INTEGRATOR_SETS = frozenset({"bdsimmatrix", "bdsimmatrixfringescali
 :class:`~simba.exceptions.BunchLengthWarning`."""
 
 
+def use_before_samplers(main: str) -> None:
+    """
+    Move the ``use`` line of a pybdsim main file to just after the sequence include.
+
+    pybdsim 3.9 writes ``use`` last, after the samplers, but BDSIM looks each sampler
+    up in the beamline already in use ("current beamline doesn't contain element").
+    Earlier pybdsim put ``use`` in the sequence file, so there is nothing to move.
+
+    Parameters
+    ----------
+    main: str
+        Main ``.gmad`` file written by ``pybdsim.Builder.Machine.Write``
+    """
+    with open(main) as fh:
+        lines = fh.readlines()
+    use = [line for line in lines if line.startswith("use,")]
+    rest = [line for line in lines if not line.startswith("use,")]
+    sequence = [i for i, line in enumerate(rest) if line.startswith("include") and "_sequence.gmad" in line]
+    if len(use) != 1 or not sequence:
+        return
+    rest.insert(sequence[0] + 1, use[0])
+    with open(main, "w") as fh:
+        fh.writelines(rest)
+
+
 class bdsimLattice(frameworkLattice):
     """
     Class for defining the BDSIM lattice object, used for
@@ -167,9 +192,9 @@ class bdsimLattice(frameworkLattice):
         if self.circular:
             self.close_ring()
             self.lattice.options.update(circular=1, nturns=self.turns)
-        self.lattice.Write(
-            os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
-        )
+        main = os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
+        self.lattice.Write(main)
+        use_before_samplers(main)
         if self.integrator_set in BDSIM_MATRIX_INTEGRATOR_SETS and any(
             getattr(e, "hardware_type", None) == "Dipole" for e in self.elements.values()
         ):

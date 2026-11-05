@@ -383,6 +383,21 @@ def test_reading_the_input_hands_the_other_species_to_the_line(tmp_path):
     assert beam.species == "electron" and not beam.others
 
 
+def test_an_absolute_input_path_is_read_as_given(tmp_path):
+    # not prefixed with the output directory, as a $master_lattice$ path isn't
+    (tmp_path / "beams").mkdir()
+    (tmp_path / "out").mkdir()
+    make_beam("electron").write_openpmd_beam_file(str(tmp_path / "beams" / "IN.openpmd.hdf5"))
+    line = SimpleNamespace(
+        global_parameters={"beam": rbf.beam(), "master_lattice": str(tmp_path), "master_subdir": str(tmp_path / "out")},
+        file_block={},
+        getInitialTwiss=lambda: None,
+    )
+    path = frameworkLattice.read_input_file(line, str(tmp_path / "out") + "/", str(tmp_path / "beams" / "IN"))
+    assert path == str(tmp_path / "beams" / "IN.openpmd.hdf5")
+    assert line.global_parameters["beam"].species == "electron"
+
+
 def test_a_line_carries_the_species_it_did_not_track(tmp_path):
     # the line's code wrote only electrons to its end file; the photons it was
     # given come along to the next line
