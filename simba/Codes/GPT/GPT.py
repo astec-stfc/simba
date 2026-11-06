@@ -40,6 +40,11 @@ def _without_spaces(path: str) -> str:
     return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
 
 
+GPT_V_MIN_MARGIN = 0.99
+"""Factor on the slowest particle's speed that closes an aperture's ``dtmaxt`` window: about 1%
+of the travel time to the aperture as slack (0.3 ns at 10 m)."""
+
+
 class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
@@ -189,8 +194,9 @@ class gptLattice(frameworkLattice):
         hold the time step down while the bunch passes so that GPT does not step over it.
 
         ``s`` of a particle is that of the start element plus its z from there. Without
-        ``t`` in the beam file every particle starts at t = 0; from a cathode each is
-        emitted at its ``t``, nearly at rest, so the window stays open to the end.
+        ``t`` in the beam file every particle starts at t = 0, so the window stays open
+        to the end. ``bunch_v_min`` is :data:`GPT_V_MIN_MARGIN` of the slowest particle's
+        speed.
 
         Returns
         -------
@@ -203,7 +209,7 @@ class gptLattice(frameworkLattice):
         s_ref = z_ref if start.s is None else start.s + {
             "start": 0.5, "middle": 0.0, "end": -0.5
         }[start.s_point] * start.length
-        v_min = max(float(np.min(np.asarray(beam.Bz))), 1e-6) * speed_of_light
+        v_min = max(float(np.min(np.asarray(beam.Bz))), 1e-6) * speed_of_light * GPT_V_MIN_MARGIN
         if self.particle_definition == "laser":
             t = np.asarray(beam.t)
             s_head = s_tail = s_ref - z_ref  # emitted at z = 0

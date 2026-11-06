@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from simba import Framework_objects
-from simba.Codes.GPT.GPT import gptLattice
+from simba.Codes.GPT.GPT import GPT_V_MIN_MARGIN, gptLattice
 from simba.Modules.constants import speed_of_light
 
 
@@ -46,12 +46,13 @@ def test_the_aperture_window_spans_the_bunch_in_s():
     """s = s of the start element + z from it; at t = 0 the head would pass s = 0 at c
     and the slowest tail at bunch_v_min."""
     t = _timing(z=np.array([3.999, 4.0, 4.001]), Bz=np.array([0.99, 0.999, 0.999]))
-    assert t["bunch_v_min"] == pytest.approx(0.99 * speed_of_light)
+    v_min = 0.99 * speed_of_light * GPT_V_MIN_MARGIN
+    assert t["bunch_v_min"] == pytest.approx(v_min)
     assert t["bunch_t_head"] == pytest.approx(-10.001 / speed_of_light)
-    assert t["bunch_t_tail"] == pytest.approx(-9.999 / (0.99 * speed_of_light))
+    assert t["bunch_t_tail"] == pytest.approx(-9.999 / v_min)
 
 
 def test_from_a_cathode_the_window_opens_at_the_first_emission():
     t = _timing(z=np.zeros(2), Bz=np.array([1e-3, 1e-3]), t=np.array([1e-12, 5e-12]), definition="laser")
     assert t["bunch_t_head"] == pytest.approx(1e-12 - 6.0 / speed_of_light)
-    assert t["bunch_t_tail"] == pytest.approx(5e-12 - 6.0 / (1e-3 * speed_of_light))
+    assert t["bunch_t_tail"] == pytest.approx(5e-12 - 6.0 / (1e-3 * speed_of_light * GPT_V_MIN_MARGIN))
