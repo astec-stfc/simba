@@ -279,16 +279,17 @@ class cheetahLattice(frameworkLattice):
             pin = deepcopy(self.pin)
             pin.particles = cheetah_particles(lab, E0, p0c, t0)
             pin.energy = sqrt(p0c**2 + E0**2)
+            start = None if self.reference_start is None else (t0, self.reference_start[1], p0c)
             twiss = {k: [] for k in twiss_keys}
             for beam in segment.beam_along_segment_generator(pin):
                 for k in twiss_keys:
                     twiss[k].append(getattr(beam, k))
             beams = {
-                e.name: cheetah_lab_coordinates(e.get_read_beam(), E0)
+                e.name: cheetah_lab_coordinates(e.get_read_beam(), E0, start)
                 for e in segment.elements if isinstance(e, Screen)
             }
             if not end_is_screen:
-                beams[self.end] = cheetah_lab_coordinates(beam, E0)
+                beams[self.end] = cheetah_lab_coordinates(beam, E0, start)
             return {k: stack(v) for k, v in twiss.items()}, beams
 
         incoming = self.incoming_tangents or {"parameters": [], "values": [], "tangent": np.zeros((len(lab), 6, 0))}

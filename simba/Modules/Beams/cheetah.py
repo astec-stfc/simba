@@ -1,7 +1,6 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
-from ...FrameworkHelperFunctions import reference_time
 from torch import tensor, get_default_device, float64, as_tensor
 
 
@@ -23,14 +22,38 @@ lab_coordinates = ("x", "cpx", "y", "cpy", "t", "cpz")
 """Columns of :func:`cheetah_lab_coordinates`, in m, eV/c and s."""
 
 
-def cheetah_lab_coordinates(parray, E0_eV):
-    """A Cheetah beam's particles as an (n, 6) tensor of :data:`lab_coordinates`, kept in torch so it differentiates."""
+def reference_time(s, p, mass, start):
+    """
+    :func:`~simba.FrameworkHelperFunctions.reference_time` in torch, so it differentiates: the time
+    the reference reaches ``s`` with momentum ``p`` (eV/c, ``mass`` in eV), having left
+    ``start = (t0, s0, p0)``, at the mean inverse speed of a linear energy change.
+    """
+    from torch import as_tensor, ones_like, sqrt, where
+    t0, s0, p0 = (as_tensor(v, dtype=float64) for v in start)
+    energy, energy0 = sqrt(p**2 + mass**2), sqrt(p0**2 + mass**2)
+    gain = energy - energy0
+    changed = gain.abs() > 1e-6 * energy
+    inv_beta = where(changed, (p - p0) / where(changed, gain, ones_like(gain)), energy / p)
+    return t0 + (s - s0) * inv_beta / constants.speed_of_light
+
+
+def cheetah_lab_coordinates(parray, E0_eV, start=None):
+    """
+    A Cheetah beam's particles as an (n, 6) tensor of :data:`lab_coordinates`, kept in torch so it differentiates.
+
+    ``t`` is ``(s + tau) / c``, or on an open line, with ``start = (t0, s0, p0)``, the reference's
+    time of flight from it (:func:`reference_time`) plus ``tau / c``.
+    """
     from torch import sqrt, stack
     p0c = sqrt(parray.energy**2 - E0_eV**2)
     cpx = parray.px * p0c
     cpy = parray.py * p0c
     cpz = sqrt(parray.energies**2 - E0_eV**2 - cpx**2 - cpy**2)
-    t = (parray.s + parray.tau) / constants.speed_of_light
+    t_reference = (
+        parray.s / constants.speed_of_light if start is None
+        else reference_time(parray.s, p0c, E0_eV, start)
+    )
+    t = t_reference + parray.tau / constants.speed_of_light
     return stack([parray.x, cpx, parray.y, cpy, t, cpz], dim=-1)
 
 
@@ -56,12 +79,7 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, 
     self.set_mass_and_charge(constants.m_e, charges, len(charges))
     # one rest energy for every particle of the Cheetah beam, lost ones included (simba's Cheetah beams are electrons)
     E0_eV = as_tensor(float(np.mean(self.E0_eV)), dtype=float64)
-    x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV).detach().numpy()[alive].T
-    if start is not None:
-        # open line: the reference's time of flight from start = (t0, s0, p0), not s / c
-        mass = float(np.mean(self.E0_eV))
-        t_reference = reference_time(float(parray.s), np.sqrt(float(parray.energy) ** 2 - mass**2), mass, start)
-        t = t_reference + parray.tau.numpy()[alive] / constants.speed_of_light
+    x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV, start).detach().numpy()[alive].T
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")
     self._beam.t = UnitValue(t, "s")

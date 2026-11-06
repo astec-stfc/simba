@@ -166,3 +166,20 @@ def test_rematching_breaks_the_chain(tmp_path):
     with warnings.catch_warnings(), pytest.raises(exceptions.GradientChainError):
         warnings.simplefilter("ignore")
         framework.track()
+
+
+@pytest.mark.parametrize("p0", [30e6, 25e6])  # no energy change, and a cavity's
+def test_the_differentiable_reference_time_is_the_written_one(p0):
+    """The tangents' reference time (torch) is the forward run's (numpy), and differentiates where p == p0."""
+    import torch
+    from torch.func import jvp
+    from simba.FrameworkHelperFunctions import reference_time as written
+    from simba.Modules.Beams.cheetah import reference_time
+
+    mass, start = 0.511e6, (1e-9, 2.0, p0)
+    p = torch.tensor(30e6, dtype=torch.float64)
+    assert float(reference_time(torch.tensor(7.0, dtype=torch.float64), p, mass, start)) == pytest.approx(
+        written(7.0, 30e6, mass, start), rel=1e-12
+    )
+    _, dt = jvp(lambda q: reference_time(torch.tensor(7.0, dtype=torch.float64), q, mass, start), (p,), (torch.ones_like(p),))
+    assert torch.isfinite(dt)
