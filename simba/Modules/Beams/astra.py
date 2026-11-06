@@ -180,12 +180,12 @@ def write_astra_beam_file(
         """ set the closest mean vector to be in position 0 in the array """
         array = np.roll(array, -1 * nearest_idx, axis=0)
 
-    """ASTRA stores z and pz of non-reference particles relative to the reference particle."""
+    """ASTRA stores z, pz and the clock of non-reference particles relative to the reference particle."""
     array[1:, 2] = array[1:, 2] - ref_particle[2]
     if normaliseZ is not False:
         array[0, 2] = 0
     if isinstance(normaliseZ, (int, float)):
         array[0, 2] += normaliseZ
     array[1:, 5] = array[1:, 5] - ref_particle[5]
-    array[0, 6] = array[0, 6] + ref_particle[6]
+    array[1:, 6] = array[1:, 6] - ref_particle[6]
     np.savetxt(filename, array, fmt=("%.12e",) * 8 + ("%d", "%d"))

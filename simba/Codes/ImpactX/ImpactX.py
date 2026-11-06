@@ -7,6 +7,7 @@ AMReX starts once per process and ImpactX cannot start again after
 .. _ImpactX: https://impactx.readthedocs.io
 """
 
+import os
 from typing import Any, ClassVar
 from warnings import warn
 
@@ -29,6 +30,7 @@ def simulation():
         import impactx
 
         sim = impactx.ImpactX()
+        sim.omp_threads = "system" if "OMP_NUM_THREADS" in os.environ else os.cpu_count()
         amr.ParmParse("diag").add("enable", False)
         sim.particle_shape = 2
         sim.space_charge = "false"
