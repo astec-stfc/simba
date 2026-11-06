@@ -6,7 +6,7 @@ import subprocess
 import h5py
 import numpy as np
 import yaml
-from typing import Any, Dict, Literal
+from typing import Any, Dict
 
 from ...Framework_objects import (
     frameworkLattice,
@@ -208,42 +208,6 @@ class opalLattice(frameworkLattice):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
 
-
-    @property
-    def space_charge_mode(self) -> str | None:
-        """
-        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
-
-        Returns
-        -------
-        str | None
-        """
-        if (
-                "charge" in self.file_block
-                and "space_charge_mode" in self.file_block["charge"]
-        ):
-            return self.file_block["charge"]["space_charge_mode"]
-        elif (
-                "charge" in self.globalSettings
-                and "space_charge_mode" in self.globalSettings["charge"]
-        ):
-            return self.globalSettings["charge"]["space_charge_mode"]
-        else:
-            return None
-
-    @space_charge_mode.setter
-    def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
-        """
-        Set the space charge mode in :attr:`file_block`.
-
-        Parameters
-        ----------
-        mode: Literal["2d", "3d", "2D", "3D"]
-        """
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        self.file_block["charge"]["space_charge_mode"] = mode
-
     def write(self):
         section = self.deck_section
         section.opal_headers = self.headers
@@ -388,7 +352,7 @@ class opalLattice(frameworkLattice):
         )
         self.headers["fieldsolver"] = OpalFieldSolver(
             npart=beamlen,
-            space_charge_mode=str(self.space_charge_mode),
+            space_charge_mode=self.space_charge_mode or "False",
             grid_size_override=self.space_charge_grid,
             BBOXINCR=self.bbox_increase,
         )

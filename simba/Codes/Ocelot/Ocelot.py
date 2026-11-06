@@ -98,6 +98,9 @@ class ocelotLattice(frameworkLattice):
     code: str = "ocelot"
     """The lattice object type."""
 
+    supports_csr: ClassVar[bool] = True
+    supports_lsc: ClassVar[bool] = True
+
     electrons_only: ClassVar[bool] = True
     """Ocelot's physics processes, and simba's beam conversion, assume electrons."""
 
@@ -189,8 +192,8 @@ class ocelotLattice(frameworkLattice):
     random_mesh: bool = True
     """Random meshing for space charge."""
 
-    nbin_csr: int = 10
-    """Number of longitudinal bins for CSR."""
+    nbin_csr: int | None = None
+    """Number of longitudinal bins for CSR; None takes the line's :attr:`csr_bins`, as the other codes do."""
 
     mbin_csr: int = 5
     """Number of macroparticle bins for CSR."""
@@ -887,18 +890,15 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [proc]
                 navi_locations_start += [loc]
                 navi_locations_end += [loc]
-        if self.lsc and self.lsc_enable:
+        space_charge_3d = self.space_charge_mode == "3d"
+        if self.lsc and self.lsc_enable and not space_charge_3d:
             lsc = self.physproc_lsc()
             navi_processes += [lsc]
             navi_locations_start += [self.lat_obj.sequence[0]]
             navi_locations_end += [self.lat_obj.sequence[-1]]
         space_charge_set = False
         csr_set = False
-        if (
-            "charge" in self.file_block
-            and "space_charge_mode" in self.file_block["charge"]
-            and str(self.file_block["charge"]["space_charge_mode"]).lower() == "3d"
-        ):
+        if space_charge_3d:
             gridsize = self.grids.getGridSizes(len(self.global_parameters["beam"].x))
             g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
             grids = [g1 for _ in range(3)]
@@ -907,7 +907,7 @@ class ocelotLattice(frameworkLattice):
             navi_locations_start += [self.lat_obj.sequence[0]]
             navi_locations_end += [self.lat_obj.sequence[-1]]
             space_charge_set = True
-        if "csr" in list(self.file_block.keys()) and self.csr_enable:
+        if self.csr_enable and self.dipoles:
             csr, start, end = self.physproc_csr()
             for i in range(len(csr)):
                 navi_processes += [csr[i]]
@@ -1015,8 +1015,6 @@ class ocelotLattice(frameworkLattice):
             ]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
-        # Ocelot's Aperture element only stops particles once the navigator activates it; this goes first,
-        # so a beam written at an aperture is the beam that got through
         navi.activate_apertures()
         navi.add_physics_processes(
             navi_processes, navi_locations_start, navi_locations_end
@@ -1093,42 +1091,53 @@ class ocelotLattice(frameworkLattice):
     def physproc_csr(self) -> tuple:
         """
         Ocelot ``CSR`` physics processes between the ``csr`` block's ``start`` and
-        ``end`` elements, or over the whole lattice if they are not given.
+        ``end`` elements, or else over each group of bends (:meth:`csr_regions`).
 
         Returns
         -------
         tuple
             Lists of the processes, their start elements and their end elements
         """
-        csrlist = []
-        stlist = []
-        enlist = []
         from ocelot.cpbd.csr import CSR
-        block = self.file_block.get("csr", {})
-        if ("start" in list(block.keys())) and ("end" in list(block.keys())):
-            start = block["start"]
-            st = [start] if isinstance(start, str) else start
-            end = block["end"]
-            en = [end] if isinstance(end, str) else end
-            for i in range(len(st)):
-                stelem = self.lat_obj.sequence[self.names.index(st[i])]
-                enelem = self.lat_obj.sequence[self.names.index(en[i])]
-                csr = CSR()
-                csr.n_bin = self.nbin_csr
-                csr.m_bin = self.mbin_csr
-                csr.sigma_min = self.sigmamin_csr
-                csrlist.append(csr)
-                stlist.append(stelem)
-                enlist.append(enelem)
+        block = self.file_block.get("csr") or {}
+        if "start" in block and "end" in block:
+            st = [block["start"]] if isinstance(block["start"], str) else block["start"]
+            en = [block["end"]] if isinstance(block["end"], str) else block["end"]
+            sequence = self.lat_obj.sequence
+            regions = [
+                (sequence[self.names.index(s)], sequence[self.names.index(e)])
+                for s, e in zip(st, en)
+            ]
         else:
+            regions = self.csr_regions()
+        csrlist = []
+        for _ in regions:
             csr = CSR()
-            csr.n_bin = self.nbin_csr
+            csr.n_bin = self.nbin_csr or self.csr_bins
             csr.m_bin = self.mbin_csr
             csr.sigma_min = self.sigmamin_csr
-            csrlist = [csr]
-            stlist = [self.lat_obj.sequence[0]]
-            enlist = [self.lat_obj.sequence[-1]]
-        return csrlist, stlist, enlist
+            csrlist.append(csr)
+        return csrlist, [r[0] for r in regions], [r[1] for r in regions]
+
+    def csr_regions(self) -> list:
+        """
+        ``(start, end)`` elements of each run of bends: from its first bend to the
+        element before the next cavity (or the end), so the CSR in the drifts after
+        a chicane is kept.
+        """
+        from ocelot.cpbd.elements import Bend, Cavity, RBend, SBend, TDCavity, TWCavity
+        regions, start = [], None
+        sequence = self.lat_obj.sequence
+        for i, element in enumerate(sequence):
+            if isinstance(element, (Cavity, TWCavity, TDCavity)):
+                if start is not None:
+                    regions.append((sequence[start], sequence[i - 1]))
+                start = None
+            elif start is None and isinstance(element, (Bend, SBend, RBend)) and element.angle:
+                start = i
+        if start is not None:
+            regions.append((sequence[start], sequence[-1]))
+        return regions
 
     def physproc_wake(
             self,

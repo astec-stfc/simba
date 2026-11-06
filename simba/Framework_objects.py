@@ -397,11 +397,11 @@ class frameworkLattice(BaseModel):
     allow_negative_drifts: bool = False
     """Allow negative drifts in the lattice."""
 
-    _lsc_enable: bool = False
-    """Enable LSC drifts; off by default, as in LAURA, so every code models the same physics."""
+    _lsc_enable: bool | None = None
+    """LSC for the whole line, if the settings file says; None leaves it to the elements (see :attr:`lsc_enable`)."""
 
-    _csr_enable: bool = True
-    """Enable CSR drifts."""
+    _csr_enable: bool | None = None
+    """CSR for the whole line, if the settings file says; None leaves it to the elements (see :attr:`csr_enable`)."""
 
     _wakefield_enable: bool = True
     """Enable structure wakefields."""
@@ -509,6 +509,15 @@ class frameworkLattice(BaseModel):
 
     supports_radiation: ClassVar[bool] = False
     """Whether simba can switch radiation on for this code; see :meth:`check_radiation_supported`."""
+
+    supports_csr: ClassVar[bool] = False
+    """Whether simba can switch CSR on for this code; see :meth:`check_collective_supported`."""
+
+    supports_lsc: ClassVar[bool] = False
+    """Whether simba can switch LSC on for this code; see :meth:`check_collective_supported`."""
+
+    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off", "no")
+    """``charge: space_charge_mode`` values that mean no space charge; see :attr:`space_charge_mode`."""
 
     supports_programs: ClassVar[bool] = False
     """Whether this code can vary an element from turn to turn; see :class:`~simba.Modules.DeviceProgram.DeviceProgram`."""
@@ -677,7 +686,13 @@ class frameworkLattice(BaseModel):
         return section
 
     def _apply_collective_settings(self) -> None:
-        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block; a ring defaults CSR off."""
+        """
+        Take ``csr_enable`` / ``lsc_enable`` / ``csr_bins`` from this line's settings block.
+
+        A stated flag overrides every element; unstated, each element keeps its own
+        LAURA setting. A ring defaults CSR off. ``csr_bins``, from here or the LAURA
+        section's ``number_of_bins``, is put on every element so all codes bin alike.
+        """
         if self.file_block.get("csr_enable") is None and (
             self.closed_geometry or self.periodic
         ):
@@ -686,6 +701,11 @@ class frameworkLattice(BaseModel):
             stated = self.file_block.get(flag)
             if stated is not None:
                 setattr(self, flag, bool(stated))
+        bins = self.file_block.get("csr_bins")
+        if bins is None:
+            bins = getattr(self._machine_space_charge(), "number_of_bins", None)
+        if bins is not None:
+            self.csr_bins = int(bins)
 
     def _apply_radiation_to_section(self) -> None:
         """Push :attr:`radiation` onto LAURA's ``sr_enable``/``isr_enable``."""
@@ -706,8 +726,17 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_enable(self) -> bool:
-        """Enable CSR, on the section and every element."""
-        return self._csr_enable
+        """
+        Whether this line models CSR: as set for the line, else whether any dipole asks for it.
+
+        Setting it puts it on the section and every element.
+        """
+        if self._csr_enable is not None:
+            return self._csr_enable
+        return any(
+            getattr(getattr(d, "simulation", None), "csr_enable", False)
+            for d in self.dipoles
+        )
 
     @csr_enable.setter
     def csr_enable(self, csr: bool) -> None:
@@ -723,11 +752,17 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_bins(self) -> int:
-        """Number of CSR bins; 20 unless set here or on the machine section."""
+        """
+        Number of CSR bins: as set for the line (or the LAURA section's ``number_of_bins``),
+        else the most any dipole asks for, else 20.
+        """
         if self._csr_bins is not None:
             return self._csr_bins
-        stated = getattr(self._machine_space_charge(), "number_of_bins", None)
-        return 20 if stated is None else stated
+        bins = [
+            getattr(getattr(d, "simulation", None), "csr_bins", None)
+            for d in self.dipoles
+        ]
+        return max((b for b in bins if b), default=20)
 
     @csr_bins.setter
     def csr_bins(self, csr: int) -> None:
@@ -742,8 +777,12 @@ class frameworkLattice(BaseModel):
 
     @property
     def lsc_enable(self) -> bool:
-        """Enable LSC, on the section and every element."""
-        return self._lsc_enable
+        """
+        Whether this line models LSC: as set for the line, else whether any element asks for it.
+
+        Setting it puts it on the section and every element.
+        """
+        return self.lsc_in_use if self._lsc_enable is None else self._lsc_enable
 
     @lsc_enable.setter
     def lsc_enable(self, lsc: bool) -> None:
@@ -938,6 +977,41 @@ class frameworkLattice(BaseModel):
             self.objectname, self.code, self.radiation, self.radiates_by_default,
             self.codes_that_can("supports_radiation"),
         ))
+
+    def check_collective_supported(self) -> None:
+        """Warn when this line asks for CSR (with a bend in it) or LSC and simba has no switch for them in this code."""
+        asked = [
+            ("CSR", "supports_csr", self.csr_enable and bool(self.dipoles)),
+            ("LSC", "supports_lsc", self.lsc_enable),
+        ]
+        for effect, flag, on in asked:
+            if on and not getattr(self, flag):
+                warn(exceptions.CollectiveUnsupportedWarning(
+                    self.objectname, self.code, effect, self.codes_that_can(flag)
+                ))
+
+    @property
+    def space_charge_mode(self) -> str:
+        """
+        ``charge: space_charge_mode`` from this line's settings block, else from the ``global`` one.
+
+        Lower-cased; ``""`` if neither says, or it says off (:attr:`space_charge_modes_off`)::
+
+            global:
+              charge: {space_charge_mode: 3d}
+            files:
+              L01: {charge: {space_charge_mode: off}}  # wins for L01
+        """
+        for block in (self.file_block, self.globalSettings):
+            mode = ((block or {}).get("charge") or {}).get("space_charge_mode")
+            if mode is not None:
+                mode = str(mode).strip().lower()
+                return "" if mode in self.space_charge_modes_off else mode
+        return ""
+
+    @space_charge_mode.setter
+    def space_charge_mode(self, mode: str) -> None:
+        self.file_block.setdefault("charge", {})["space_charge_mode"] = mode
 
     @property
     def write_turns(self) -> bool:
@@ -2697,7 +2771,7 @@ class frameworkLattice(BaseModel):
         """
         Space-charge settings of this lattice's LAURA section, or None for code defaults.
 
-        This lattice's own ``csr_bins`` is applied after, so still wins.
+        A ``csr_bins`` in this lattice's settings block wins over its ``number_of_bins``.
         """
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
@@ -2749,8 +2823,9 @@ class frameworkLattice(BaseModel):
                 geometry=self._machine_geometry(),
             )
             slt = SectionLatticeTranslator.from_section(section)
-            slt.lsc_enable = self.lsc_enable
-            slt.csr_enable = self.csr_enable
+            # None lets LAURA's synthesised drifts follow the elements
+            slt.lsc_enable = self._lsc_enable
+            slt.csr_enable = self._csr_enable
             slt.tw_focusing = self.tw_focusing
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
@@ -3085,6 +3160,7 @@ class frameworkLattice(BaseModel):
         self.check_periodic_supported()
         self.check_radiation()
         self.check_radiation_supported()
+        self.check_collective_supported()
         self.check_single_particle_supported()
         self.check_nsuperperiods_supported()
         self.check_programs_supported()

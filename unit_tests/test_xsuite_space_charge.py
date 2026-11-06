@@ -124,13 +124,18 @@ def _growth(beam, out):
     "mode, on", [("3d", True), ("3D", True), ("False", False), ("", False), ("off", False)]
 )
 def test_the_mode_is_read_as_ocelot_reads_it(mode, on):
-    line = SimpleNamespace(file_block={"charge": {"space_charge_mode": mode}}, trackBeam=True)
+    line = SimpleNamespace(
+        file_block={"charge": {"space_charge_mode": mode}}, globalSettings={}, trackBeam=True,
+        space_charge_modes_off=xsuiteLattice.space_charge_modes_off,
+    )
     line.space_charge_mode = xsuiteLattice.space_charge_mode.fget(line)
     assert xsuiteLattice.space_charge.fget(line) is on
 
 
 def test_no_charge_block_is_no_space_charge():
-    line = SimpleNamespace(file_block={}, trackBeam=True)
+    line = SimpleNamespace(
+        file_block={}, globalSettings={}, space_charge_modes_off=xsuiteLattice.space_charge_modes_off,
+    )
     assert xsuiteLattice.space_charge_mode.fget(line) == ""
 
 
