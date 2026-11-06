@@ -147,6 +147,33 @@ class ProgramsUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class GradientsUnsupportedWarning(UnsupportedWarning):
+    """Gradients asked for in a code that cannot differentiate its tracking."""
+
+    def __init__(self, line: str, code: str, parameters: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} carries gradients for {', '.join(parameters)}, but "
+            f"{code} cannot differentiate its tracking, so they stop here. "
+            f"{alternatives} Or set 'gradients: {{finite_difference: true}}' on the line "
+            "to carry them by re-running it."
+        )
+
+
+class GradientNotSmoothWarning(SettingWarning):
+    """Finite-difference gradients through output that jumps or kinks at the step taken."""
+
+    def __init__(self, line: str, parameter: str, outputs: list):
+        more = f" and {len(outputs) - 5} more" if len(outputs) > 5 else ""
+        super().__init__(
+            f"{_line(line)}: the finite-difference gradients for {parameter} are not smooth at "
+            f"{', '.join(outputs[:5])}{more}: the runs either side of the real one disagree on the slope. "
+            "The code's output jumps or kinks at this step (nearest-grid-point space charge "
+            "does), or the step is too large for its curvature, so treat these tangents as "
+            "unreliable; a smoother solver, or a different gradients: finite_difference: step, "
+            "may help."
+        )
+
+
 class ProgramOverrunWarning(SettingWarning):
     """A program with knots past the last turn tracked."""
 
@@ -586,6 +613,16 @@ class NeutralSpeciesError(SimbaError, ValueError):
             f"{line} is tracked by {code}, but the species it is given to track is "
             f"{species}, which has no charge: no tracking code steers it. Set "
             "``input: species`` to a charged species; photons are carried alongside."
+        )
+
+
+class GradientChainError(SimbaError, ValueError):
+    """Gradients reaching a line that changes the beam in a way they cannot follow."""
+
+    def __init__(self, line: str, reason: str):
+        super().__init__(
+            f"{_line(line)} carries gradients, but {reason}, which "
+            "breaks the chain. Remove it, or start the gradients after this line."
         )
 
 
