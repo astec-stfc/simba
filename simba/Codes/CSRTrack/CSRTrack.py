@@ -8,7 +8,7 @@ from pydantic import Field
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
-from typing import Dict, List, Any
+from typing import Dict, List, Any, ClassVar
 from laura.translator.converters.codes.csrtrack import (
     CsrTrackParticles,
     CsrTrackForces,
@@ -23,6 +23,8 @@ class csrtrackLattice(frameworkLattice):
 
     code: str = "csrtrack"
     """String indicating the lattice object type"""
+
+    supports_csr: ClassVar[bool] = True
 
     particle_definition: str = ""
     """String representing the initial particle distribution"""
@@ -68,8 +70,11 @@ class csrtrackLattice(frameworkLattice):
         )
 
     def setCSRMode(self) -> None:
-        """Set the ``forces`` header from ``csr: csr_mode``: "3D" is ``csr_g_to_p``, "1D" is ``projected``, unset is none."""
-        if "csr" in self.file_block and "csr_mode" in self.file_block["csr"]:
+        """
+        Set the ``forces`` header from ``csr: csr_mode``: "3D" is ``csr_g_to_p``, "1D" is ``projected``,
+        unset (or :attr:`csr_enable` off) is none.
+        """
+        if self.csr_enable and "csr_mode" in (self.file_block.get("csr") or {}):
             if self.file_block["csr"]["csr_mode"] == "3D":
                 self.csrtrack_headers["forces"] = CsrTrackForces(type="csr_g_to_p")
             elif self.file_block["csr"]["csr_mode"] == "1D":

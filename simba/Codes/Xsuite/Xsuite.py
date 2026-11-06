@@ -207,9 +207,6 @@ class xsuiteLattice(frameworkLattice):
     wake_slices: int = 1000
     """Slices across the bunch for each wake, as Ocelot's ``wake_sampling``"""
 
-    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
-    """``charge: space_charge_mode`` values that mean no space charge"""
-
     program_attributes: ClassVar[dict] = {
         "Magnet": ("knl[0]", "ksl[0]"),
         "Multipole": ("knl[0]", "ksl[0]"),
@@ -304,12 +301,6 @@ class xsuiteLattice(frameworkLattice):
                     start_at_turn=0,
                     stop_at_turn=self.turns * self.passes_per_turn,
                 )
-
-    @property
-    def space_charge_mode(self) -> str:
-        """``charge: space_charge_mode``, lower-cased; ``""`` if not given."""
-        charge = self.file_block.get("charge") or {}
-        return str(charge.get("space_charge_mode", "")).lower()
 
     @property
     def space_charge(self) -> bool:

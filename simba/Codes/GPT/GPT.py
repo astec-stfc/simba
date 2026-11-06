@@ -18,7 +18,7 @@ from ...Modules import Beams as rbf
 from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import ClassVar, Dict, Literal, Any
+from typing import ClassVar, Dict, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -46,6 +46,8 @@ class gptLattice(frameworkLattice):
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    supports_csr: ClassVar[bool] = True
 
     tracks_multiple_species: ClassVar[bool] = True
     """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
@@ -106,41 +108,6 @@ class gptLattice(frameworkLattice):
             filename='"' + self.objectname + '_floor.gdf"'
         )
 
-    @property
-    def space_charge_mode(self) -> str | None:
-        """
-        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
-
-        Returns
-        -------
-        str | None
-        """
-        if (
-            "charge" in self.file_block
-            and "space_charge_mode" in self.file_block["charge"]
-        ):
-            return self.file_block["charge"]["space_charge_mode"]
-        elif (
-            "charge" in self.globalSettings
-            and "space_charge_mode" in self.globalSettings["charge"]
-        ):
-            return self.globalSettings["charge"]["space_charge_mode"]
-        else:
-            return None
-
-    @space_charge_mode.setter
-    def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
-        """
-        Set the space charge mode in :attr:`file_block`.
-
-        Parameters
-        ----------
-        mode: Literal["2d", "3d", "2D", "3D"]
-        """
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        self.file_block["charge"]["space_charge_mode"] = mode
-
     def writeElements(self) -> str:
         """
         Build the :attr:`headers` and render the section as GPT input.
@@ -151,14 +118,11 @@ class gptLattice(frameworkLattice):
             GPT input file text
         """
         self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        if "charge" not in self.globalSettings:
-            self.globalSettings["charge"] = {}
-        space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
+        space_charge_dict = (self.globalSettings.get("charge") or {}) | (self.file_block.get("charge") or {})
+        space_charge_dict["space_charge_mode"] = self.space_charge_mode or "False"
         space_charge = self.global_parameters | space_charge_dict
         self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
-        if self.particle_definition == "laser" and self.space_charge_mode is not None:
+        if self.particle_definition == "laser" and self.space_charge_mode:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
         if (
             self.csr_enable

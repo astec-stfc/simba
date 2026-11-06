@@ -129,6 +129,17 @@ class RadiationUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class CollectiveUnsupportedWarning(UnsupportedWarning):
+    """CSR or LSC asked for, in a code simba has no switch for it in."""
+
+    def __init__(self, line: str, code: str, effect: str, alternatives: str):
+        super().__init__(
+            f"{_line(line)} asks for {effect} (csr_enable/lsc_enable on the line "
+            f"or its elements), but simba has no {effect} switch for {code}, so "
+            f"it is not modelled. {alternatives}"
+        )
+
+
 class UnreadableSettingWarning(SettingWarning):
     """A tracking entry simba cannot read, and so drops."""
 

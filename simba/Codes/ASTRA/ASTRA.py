@@ -71,8 +71,6 @@ class astraLattice(frameworkLattice):
     _toffset: float | None = None
     """Time offset of reference particle"""
 
-    _space_charge_mode: str | None = None
-
     headers: Dict = {}
     """Headers to be included in the ASTRA lattice file"""
 
@@ -165,11 +163,8 @@ class astraLattice(frameworkLattice):
             **output_settings,
         )
         # Create a "charge" block
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        if "charge" not in self.globalSettings:
-            self.globalSettings["charge"] = {}
-        space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
+        space_charge_dict = (self.globalSettings.get("charge") or {}) | (self.file_block.get("charge") or {})
+        space_charge_dict["space_charge_mode"] = self.space_charge_mode or "False"
         charge_settings = space_charge_dict | self.globalSettings["ASTRAsettings"]
         self.section.astra_headers["charge"] = AstraCharge(
             global_parameters=self.global_parameters,
@@ -193,28 +188,6 @@ class astraLattice(frameworkLattice):
                 **error_settings,
             )
         self.astra_headers = self.section.astra_headers
-
-    @property
-    def space_charge_mode(self) -> str:
-        """
-        Space charge mode of the &CHARGE header, e.g. "2D", "3D".
-
-        Returns
-        -------
-        str
-        """
-        return str(self.astra_headers["charge"].space_charge_mode)
-
-    @space_charge_mode.setter
-    def space_charge_mode(self, mode: str) -> None:
-        """
-        Set the space charge mode of the &CHARGE header.
-
-        Parameters
-        ----------
-        mode: str
-        """
-        self.astra_headers["charge"].space_charge_mode = str(mode)
 
     @property
     def bunch_charge(self) -> float:

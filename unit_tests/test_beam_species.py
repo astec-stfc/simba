@@ -321,7 +321,8 @@ def test_bmad_warns_that_its_collective_effects_take_one_species(csr, space_char
 
     line = SimpleNamespace(
         objectname="LINE", _input_species=np.array(["electron", "positron"], dtype=object),
-        csr_enable=csr, file_block={"charge": {"space_charge_mode": space_charge}},
+        csr_enable=csr, lsc_enable=False,
+        space_charge_mode="3d" if space_charge == "3D" else "",
     )
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
