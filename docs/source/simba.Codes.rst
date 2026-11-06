@@ -19,6 +19,7 @@ Subpackages
    simba.Codes.MADX
    simba.Codes.OPAL
    simba.Codes.Ocelot
+   simba.Codes.RFTrack
    simba.Codes.Wake_T
    simba.Codes.Xsuite
 

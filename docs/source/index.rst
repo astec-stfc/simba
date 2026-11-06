@@ -22,6 +22,7 @@ It provides a wrapper for several well-known particle tracking codes:
 * `MAD-X <https://mad.web.cern.ch/mad/>`_
 * `Bmad <https://www.classe.cornell.edu/bmad/>`_
 * `OPAL <https://amas.web.psi.ch/opal/>`_
+* `RF-Track <https://gitlab.cern.ch/rf-track>`_
 * `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
 
 Setup
