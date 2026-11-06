@@ -269,6 +269,7 @@ class Framework(BaseModel):
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
+            "tangents": {},
         }
         if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
             warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
@@ -1690,6 +1691,7 @@ class Framework(BaseModel):
         # Lattice objects are rebuilt by change_Lattice_Code after the generator
         # is created, so hand it over here rather than only at construction.
         self._propagate_generator()
+        self.global_parameters["tangents"].clear()
         self.tracking = True
         self.progress = 0
         if files is None:
