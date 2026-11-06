@@ -37,18 +37,25 @@ def read_astra_twiss_files(self, filename, reset=True) -> None:
         if "xemit" not in filename.lower():
             filename = filename.replace("Yemit", "Xemit").replace("Zemit", "Xemit")
         xemit = (
-            np.loadtxt(filename, unpack=False) if os.path.isfile(filename) else False
+            np.loadtxt(filename, unpack=False, ndmin=2) if os.path.isfile(filename) else False
         )
         if "yemit" not in filename.lower():
             filename = filename.replace("Xemit", "Yemit").replace("Zemit", "Yemit")
         yemit = (
-            np.loadtxt(filename, unpack=False) if os.path.isfile(filename) else False
+            np.loadtxt(filename, unpack=False, ndmin=2) if os.path.isfile(filename) else False
         )
         if "zemit" not in filename.lower():
             filename = filename.replace("Xemit", "Zemit").replace("Yemit", "Zemit")
         zemit = (
-            np.loadtxt(filename, unpack=False) if os.path.isfile(filename) else False
+            np.loadtxt(filename, unpack=False, ndmin=2) if os.path.isfile(filename) else False
         )
+        for plane, data in (("Xemit", xemit), ("Yemit", yemit), ("Zemit", zemit)):
+            if data is False or len(data) == 0:
+                raise ValueError(
+                    f"ASTRA wrote no {plane} statistics for {lattice_name} in "
+                    f"{os.path.dirname(filename) or '.'}: the run stopped early or had no "
+                    "particles taken into account (status > 1); see its log"
+                )
         interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset)
 
 
@@ -73,6 +80,9 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset=0.0) 
     ey = eyn / gamma
     ez = ezn / gamma
     beta = np.sqrt(1 - (gamma**-2))
+    alpha_x = -mean_xxp * rms_x / ex
+    alpha_y = -mean_yyp * rms_y / ey
+    sigma_p = 1e6 * rms_e / (beta**2 * (e_kin + self.E0_eV))
     self.append_columns(
         len(z),
         z=z,
@@ -92,10 +102,10 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset=0.0) 
         ez=ez,
         beta_x=rms_x**2 / ex,
         gamma_x=rms_xp**2 / ex,
-        alpha_x=(-1 * np.sign(mean_xxp) * rms_x * rms_xp) / ex,
+        alpha_x=alpha_x,
         beta_y=rms_y**2 / ey,
         gamma_y=rms_yp**2 / ey,
-        alpha_y=(-1 * np.sign(mean_yyp) * rms_y * rms_yp) / ey,
+        alpha_y=alpha_y,
         beta_z=rms_z**2 / ez,
         gamma_z=rms_e**2 / ez,
         alpha_z=(-1 * np.sign(mean_zep) * rms_z * rms_e) / ez,
@@ -107,8 +117,8 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset=0.0) 
         mean_x=mean_x,
         mean_y=mean_y,
         sigma_t=rms_z / (beta * constants.speed_of_light),
-        sigma_p=(rms_e / (e_kin + self.E0_eV)),
-        sigma_cp=(0.5e6 * (rms_e / e_kin) * cp),
+        sigma_p=sigma_p,
+        sigma_cp=sigma_p * cp,
         mux=cumtrapz(x=z, y=1 / (rms_x**2 / ex)),
         muy=cumtrapz(x=z, y=1 / (rms_y**2 / ey)),
         eta_x=0.0, eta_xp=0.0, eta_y=0.0, eta_yp=0.0,
@@ -119,6 +129,6 @@ def interpret_astra_data(self, lattice_name, xemit, yemit, zemit, s_offset=0.0) 
         lattice_name=lattice_name,
         beta_x_beam=rms_x**2 / ex,
         beta_y_beam=rms_y**2 / ey,
-        alpha_x_beam=(-1 * np.sign(mean_xxp) * rms_x * rms_xp) / ex,
-        alpha_y_beam=(1 * np.sign(mean_yyp) * rms_y * rms_yp) / ey,
+        alpha_x_beam=alpha_x,
+        alpha_y_beam=alpha_y,
     )

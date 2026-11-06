@@ -608,6 +608,16 @@ def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):
     assert set(np.array(newbeam.Particles.status)) == {-1}
 
 
+def test_openpmd_alive_status_becomes_astra_standard_particle(simple_beam, tmp_path):
+    """openPMD alive (1) is ASTRA's passive particle; it has to reach ASTRA as 5."""
+    simple_beam.Particles.status = np.ones(len(simple_beam.x))
+    simple_beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    newbeam = rbf.beam()
+    newbeam.read_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    newbeam.write_astra_beam_file(str(tmp_path / "b.astra"))
+    assert set(np.loadtxt(tmp_path / "b.astra")[:, -1]) == {5}
+
+
 def test_apply_mask(simple_beam):
     mask = np.array(simple_beam.x) > 0
     simple_beam.Particles.apply_mask(mask)

@@ -413,7 +413,7 @@ class beam(BaseModel):
         beams = [self, *others]
         n_before = len(self.x)
         defaults = {
-            "status": lambda b: np.ones(len(b.x)),
+            "status": lambda b: np.full(len(b.x), 5),
             "nmacro": lambda b: np.abs(np.asarray(b._beam.charge, dtype=float)) / constants.elementary_charge,
             "particle_rest_energy": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2,
             "particle_rest_energy_eV": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2 / constants.elementary_charge,
