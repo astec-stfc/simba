@@ -912,7 +912,8 @@ class madxLattice(frameworkLattice):
             Arrays from the ``trackone`` table
         """
         npart = len(coords["x"])
-        madx.input("track, onepass, onetable;")
+        # aperture: a particle outside an element's aperture (a collimator's) is lost and leaves the table
+        madx.input("track, onepass, onetable, aperture=true;")
         startlines = [
             "start, x={:.15g}, px={:.15g}, y={:.15g}, py={:.15g}, "
             "t={:.15g}, pt={:.15g};".format(

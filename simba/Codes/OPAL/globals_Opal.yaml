@@ -1,10 +1,15 @@
+# OPTION lines of the deck (OPAL.option_settings), overridden by global settings.
 option:
-  PSDUMPFREQ: 200
-  STATDUMPFREQ: 200
+  # Steps between phase-space dumps of the whole bunch to <section>.h5 (300 kB a dump for 4096
+  # particles: a few GB for a linac). The largest value OPAL takes means never; it still writes
+  # the last step, and the monitor files (the beam at each screen and BPM) and the .stat file are
+  # not affected. A smaller value gives the emittances and dispersion at every dump (postProcess).
+  PSDUMPFREQ: 2147483647
+  STATDUMPFREQ: 10
   BOUNDPDESTROYFQ: 10
   COMPUTEPERCENTILES: False
-  AUTOPHASE: 4
-  VERSION: 202210
+  AUTOPHASE: 6
+  VERSION: "202210"
 track:
   MAXSTEPS: 1000000000
   DT: 2e-12
