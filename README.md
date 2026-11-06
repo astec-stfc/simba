@@ -21,6 +21,7 @@ The codes currently supported by ``SIMBA`` are:
 * [Cheetah](https://www.github.com/desy-ml/cheetah/)
 * [Wake-T](https://www.github.com/AngelFP/Wake-T/)
 * [Xsuite](https://www.github.com/xsuite/)
+* [Slipstream](https://www.github.com/astec-stfc/slipstream/) (linac tracking; install it separately)
 
 A range of other codes are also currently under active development. 
 

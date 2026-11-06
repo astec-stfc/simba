@@ -19,6 +19,7 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
+    pytest.param("slipstream", None, id="slipstream"),
     pytest.param("impactx", None, id="impactx"),
     pytest.param("opal", "docker", id="opal", marks=needs_container),
     pytest.param(
