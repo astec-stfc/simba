@@ -60,19 +60,10 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         len(index),
     )
 
-    self._beam.t = UnitValue(
-        [
-            (
-                clock
-                if status == -1
-                else ((z - zref) / (-1 * Bz * constants.speed_of_light))
-            )
-            for status, z, Bz, clock in zip(
-                self._beam.status, z, self.Bz, self._beam.clock
-            )
-        ],
-        units="s",
-    )
+    beam_clock = np.asarray(self._beam.clock)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        from_z = (np.asarray(z) - zref) / (-1 * np.asarray(self.Bz) * constants.speed_of_light)
+    self._beam.t = UnitValue(np.where(np.asarray(status) == -1, beam_clock, from_z), units="s")
     self._beam.x = UnitValue(x, units="m")
     self._beam.y = UnitValue(y, units="m")
     self._beam.total_charge = UnitValue(np.sum(1.0e-9 * charge), units="C")

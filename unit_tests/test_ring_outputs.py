@@ -884,3 +884,28 @@ def test_xsuite_zeta_scales_with_beta0():
     line = _Clocked("xsuite")
     late = line.reference_time(1.5, 1) + 1e-12
     assert line.time_to_native(late, 1.5, 1) == pytest.approx(-0.95 * 299792458.0 * 1e-12)
+
+
+def test_xsuite_on_the_gpu_hands_the_conversion_workers_cpu_data(tmp_path, seed_beam, monkeypatch):
+    """A forked worker cannot use CUDA, so what it converts must already be numpy: a
+    monitor copied to the CPU still has its data on the GPU."""
+    skip_missing("xsuite")
+    from simba.Codes.Xsuite.Xsuite import has_cupy, xsuiteLattice
+
+    if not has_cupy:
+        pytest.skip("no GPU")
+    items = []
+
+    def convert_outputs(self, convert, outputs):
+        items.extend(outputs)
+        for output in outputs:
+            convert(output)
+
+    monkeypatch.setattr(xsuiteLattice, "convert_outputs", convert_outputs)
+    framework = _framework(tmp_path, "xsuite", {"turns": 2, "context": "gpu"}, seed_beam)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        framework.track()
+    assert items
+    for _, data in items:
+        assert isinstance(data, dict) and isinstance(data["x"], np.ndarray)

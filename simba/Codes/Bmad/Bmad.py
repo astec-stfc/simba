@@ -8,6 +8,7 @@ and `Tao manual`_.
 """
 
 import contextlib
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar
@@ -180,7 +181,9 @@ class bmadLattice(frameworkLattice):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
         if self.libtao is None:
-            self.libtao = self.executables["tao"][0]
+            libtao = self.executables["tao"][0]
+            use_simcodes = Path(libtao).exists() and not os.getenv("PYTAO_LIB_PATH")
+            self.libtao = libtao if use_simcodes else ""
 
     def preProcess(self) -> None:
         """Load the input beam and write it as a Bmad beam file."""

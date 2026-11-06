@@ -2589,6 +2589,14 @@ class frameworkLattice(BaseModel):
         )
 
     @property
+    def output_elements(self) -> list:
+        """The screens and markers that :meth:`writes_output`, but not the end, written as the final beam."""
+        return [
+            e for e in self.screens_and_markers_and_bpms
+            if self.writes_output(e.name) and e.name not in (self.end, self.end_name)
+        ]
+
+    @property
     def apertures(self) -> list:
         """All apertures and collimators, sorted by start ``z``."""
         return sorted(

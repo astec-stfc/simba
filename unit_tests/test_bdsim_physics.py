@@ -12,7 +12,7 @@ from simba import exceptions
 from simba.Modules import constants
 
 pytest.importorskip("pybdsim")
-from simba.Codes.BDSIM.BDSIM import bdsimLattice  # noqa: E402
+from simba.Codes.BDSIM.BDSIM import bdsimLattice, match_samplers  # noqa: E402
 
 needs_bdsim = pytest.mark.skipif(shutil.which("bdsim") is None, reason="BDSIM not installed")
 
@@ -20,16 +20,23 @@ needs_bdsim = pytest.mark.skipif(shutil.which("bdsim") is None, reason="BDSIM no
 @pytest.mark.parametrize(
     "tracking, physics_list, options",
     [
-        (None, "", {"stopSecondaries": 1}),
-        ({"physics_list": "em"}, "em", {"physicsList": '"em"', "stopSecondaries": 1}),
+        (None, "", {"stopSecondaries": 1, "samplersSplitLevel": 1}),
+        ({"physics_list": "em"}, "em", {"physicsList": '"em"', "stopSecondaries": 1, "samplersSplitLevel": 1}),
         (
             {"physics_list": "em", "options": {"defaultRangeCut": 1e-3, "physicsVerbose": "1"}},
             "em",
-            {"defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"', "stopSecondaries": 1},
+            {
+                "defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"',
+                "stopSecondaries": 1, "samplersSplitLevel": 1,
+            },
         ),
         # secondaries asked for are tracked, and the options can always say otherwise
-        ({"physics_list": "em", "secondaries": ["photon"]}, "em", {"physicsList": '"em"'}),
-        ({"options": {"stopSecondaries": 0}}, "", {"stopSecondaries": 0}),
+        ({"physics_list": "em", "secondaries": ["photon"]}, "em", {"physicsList": '"em"', "samplersSplitLevel": 1}),
+        (
+            {"options": {"stopSecondaries": 0, "samplersSplitLevel": 0}},
+            "",
+            {"stopSecondaries": 0, "samplersSplitLevel": 0},
+        ),
     ],
 )
 def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, physics_list, options):
@@ -38,6 +45,16 @@ def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, phy
     line.secondaries = bdsimLattice.secondaries.fget(line)
     assert line.physics_list == physics_list
     assert bdsimLattice.bdsim_options.fget(line) == options
+
+
+def test_a_marker_without_a_sampler_shares_one_at_the_same_s():
+    """Of two markers side by side BDSIM keeps one sampler; at s = 0 the Primary is the beam."""
+    svals = {"M-START": 0.0, "M-APER": 16.2, "M-MARK": 16.2, "SCR": 17.3, "M-LOST": 18.0}
+    names = list(svals)
+    available = {"Primary", "M_MARK", "SCR"}
+    assert match_samplers(names, names, svals, available) == {
+        "M-START": "Primary", "M-APER": "M_MARK", "M-MARK": "M_MARK", "SCR": "SCR", "M-LOST": "M_LOST",
+    }
 
 
 def _collimator_line(tmp_path, tracking, npart=400, element=None, seed=None):

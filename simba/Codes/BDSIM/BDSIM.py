@@ -77,6 +77,44 @@ def use_before_samplers(main: str) -> None:
         fh.writelines(rest)
 
 
+def match_samplers(wanted: list, names: list, svals: dict, available) -> dict:
+    """
+    The BDSIM sampler to read each of ``wanted``'s beams from: its own, else one at the same s.
+
+    BDSIM samples a marker at the end of the element before it, so of two markers side by
+    side only one keeps a sampler; the other's beam is the same, so it shares it. At s = 0
+    there is no element before, but the ``Primary`` sampler holds the same beam.
+
+    Parameters
+    ----------
+    wanted: list
+        Names to write beams at.
+    names: list
+        Every name that might have a sampler, ``wanted`` among them.
+    svals: dict
+        s of each name.
+    available:
+        The samplers BDSIM wrote.
+
+    Returns
+    -------
+    dict
+        ``{name: sampler}``; a sampler not in ``available`` if there is none.
+    """
+    own = {n: n.replace("-", "_") for n in names}
+    matched = {}
+    for name in wanted:
+        sampler, s = own[name], svals.get(name)
+        if sampler not in available and s is not None:
+            twins = [own[n] for n in names if own[n] in available and abs(svals.get(n, s + 1) - s) < 1e-9]
+            if twins:
+                sampler = twins[0]
+            elif "Primary" in available and abs(s) < 1e-9:
+                sampler = "Primary"
+        matched[name] = sampler
+    return matched
+
+
 class bdsimLattice(frameworkLattice):
     """
     Class for defining the BDSIM lattice object, used for
@@ -290,6 +328,10 @@ class bdsimLattice(frameworkLattice):
         With no :attr:`secondaries` asked for, ``stopSecondaries=1`` too, unless the
         ``options`` say otherwise: they would be dropped anyway, and tracking them is
         what costs. The primaries still lose what they gave them.
+
+        ``samplersSplitLevel=1`` too, unless the ``options`` say otherwise: a split
+        sampler is read in one go (:func:`~simba.Modules.Beams.bdsim.read_bdsim_sampler_arrays`)
+        rather than event by event.
         """
         tracking = self.file_block.get("tracking") or {}
         options = dict(tracking.get("options") or {})
@@ -297,6 +339,7 @@ class bdsimLattice(frameworkLattice):
             options["physicsList"] = self.physics_list
         if not self.secondaries:
             options.setdefault("stopSecondaries", 1)
+        options.setdefault("samplersSplitLevel", 1)
         return {
             key: f'"{value}"' if isinstance(value, str) else value
             for key, value in options.items()
@@ -470,11 +513,9 @@ class bdsimLattice(frameworkLattice):
         # process corrupted the heap (a segfault reading the samplers, ~half the runs)
         arrays = rbf.bdsim.read_bdsim_sampler_arrays(rootfile)
         names = [scr.name for scr in self.screens_and_markers_and_bpms] + self.samplers
-        wanted = {name: name.replace("-", "_") for name in names if self.writes_output(name)}
-        svals = self.getSValues(as_dict=True)
-        for name, sampler in wanted.items():
-            if sampler not in arrays and "Primary" in arrays and abs(svals.get(name, 1.0)) < 1e-9:
-                wanted[name] = "Primary"
+        wanted = match_samplers(
+            [n for n in names if self.writes_output(n)], names, self.getSValues(as_dict=True), arrays
+        )
         missing = [n for n, s in wanted.items() if s not in arrays]
         for name in missing:
             warn(f"No BDSIM sampler found for {name}; no beam file will be written")

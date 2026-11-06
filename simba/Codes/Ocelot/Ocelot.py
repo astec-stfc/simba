@@ -977,15 +977,13 @@ class ocelotLattice(frameworkLattice):
             navi_processes += [bend]
             navi_locations_start += [loc]
             navi_locations_end += [loc]
-        recorded = self.screens_and_markers_and_bpms + self.apertures
-
         def t_reference(s):
             if pass_index is None:
                 return None
             return self.reference_time(s, pass_index)
 
         file_turn = turn if self.bundles_turns else None
-        for w in recorded if write_beams else []:
+        for w in self.screens_and_markers_and_bpms if write_beams else []:
             if w.name == self.names[-1] or not self.writes_output(w.name):
                 continue
             loc = self.lat_obj.sequence[self.names.index(w.name)]

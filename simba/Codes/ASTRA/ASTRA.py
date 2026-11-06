@@ -146,7 +146,8 @@ class astraLattice(frameworkLattice):
         output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
         zstart = self.to_local(self.startObject.physical.start)[2]
         self.zstop = self.to_local(self.endObject.physical.end)[2]
-        screens = [e for e in self.deck_section.elements.elements.values() if e.hardware_class == "Diagnostic"]
+        deck = self.deck_section.elements.elements
+        screens = [deck[e.name] for e in self.output_elements if e.name in deck]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = AstraOutput(
@@ -296,7 +297,7 @@ class astraLattice(frameworkLattice):
         for mult in [100, 1000, 10]:
             foundscreens = [
                 self.find_ASTRA_filename(self.objectname, e, master_run_no, mult)
-                for e in self.screens_and_bpms
+                for e in self.output_elements
             ]
             if all(foundscreens):
                 return mult
@@ -317,7 +318,7 @@ class astraLattice(frameworkLattice):
                 mult=mult,
                 sval=offset + self.to_local(e.middle)[2],
             ),
-            self.screens_and_bpms,
+            self.output_elements,
         )
         endelem = Screen(
             name=self.end,
@@ -398,11 +399,6 @@ class astraLattice(frameworkLattice):
         astrabeamfilename = self.find_ASTRA_filename(lattice, scr, master_run_no, mult)
         if astrabeamfilename is None:
             warn(f"Screen Error: {lattice}, {scr.physical.middle.z}, {astrabeamfilename}")
-        elif not self.writes_output(scr.name):
-            if self.global_parameters["delete_tracking_files"]:
-                os.remove(
-                    os.path.join(self.global_parameters["master_subdir"], astrabeamfilename).strip('"')
-                )
         else:
             beam = rbf.beam()
             rbf.astra.read_astra_beam_file(

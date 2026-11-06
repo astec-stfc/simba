@@ -136,6 +136,8 @@ def convert_outputs(convert, items, workers: int = 1) -> None:
     try:
         with multiprocessing.get_context("fork").Pool(workers) as pool:
             pool.map(_convert_one, range(len(items)), chunksize=max(1, len(items) // (4 * workers)))
+            pool.close()
+            pool.join()
     finally:
         _CONVERSION = None
 

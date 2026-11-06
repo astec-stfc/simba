@@ -1,9 +1,10 @@
-"""A BPM never writes an elegant beam file, and that is not a problem."""
+"""A BPM never writes a beam file, and that is not a problem."""
 
 import types
 
 import pytest
 from simba.Codes.Elegant.Elegant import elegantLattice
+from simba.Framework_objects import frameworkLattice
 
 
 class FakeScreen:
@@ -33,3 +34,19 @@ def test_a_missing_bpm_file_is_not_worth_a_warning(tmp_path, recwarn):
 def test_a_missing_watch_file_still_warns(tmp_path, hardware_type):
     with pytest.warns(UserWarning, match="elegant wrote no beam file"):
         convert(tmp_path, FakeScreen("OTRDMP", hardware_type))
+
+
+@pytest.mark.parametrize("end_beams_only", [False, True])
+def test_astra_and_opal_write_beams_where_the_other_codes_do(end_beams_only):
+    """The screens and markers, not the BPMs, nor the start, nor the end (the final beam)."""
+    elements = [
+        FakeScreen("START", "Marker"), FakeScreen("SCR", "Screen"), FakeScreen("BPM", "Beam_Position_Monitor"),
+        FakeScreen("MARK", "Marker"), FakeScreen("END", "Marker"),
+    ]
+    line = types.SimpleNamespace(
+        start="START", end="END", end_name="END", screens_and_markers_and_bpms=elements,
+        elements={e.name: e for e in elements}, global_parameters={"end_beams_only": end_beams_only},
+    )
+    line.writes_output = lambda name: frameworkLattice.writes_output(line, name)
+    names = [e.name for e in frameworkLattice.output_elements.fget(line)]
+    assert names == ([] if end_beams_only else ["SCR", "MARK"])

@@ -424,10 +424,9 @@ class opalLattice(frameworkLattice):
         return beam
 
     def postProcess(self):
+        outputs = self.output_elements  # the end is written below
         entrance = self.getSValues(as_dict=True, at_entrance=True)
-        svals = {
-            s.name: entrance[s.name] + s.physical.length / 2 for s in self.screens_and_bpms
-        }
+        svals = {s.name: entrance[s.name] + s.physical.length / 2 for s in outputs}
         svals[self.endObject.name] = entrance[self.endObject.name] + self.endObject.physical.length
         opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
         spositions = find_opal_s_positions(opalbeamname, svals, tolerance=0.05)
@@ -442,9 +441,7 @@ class opalLattice(frameworkLattice):
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
 
-        self.convert_outputs(
-            convert, [e for e in self.screens_and_bpms if self.writes_output(e.name)]
-        )
+        self.convert_outputs(convert, outputs)
         beam = self.read_element_beam(
             self.endObject.name, opalbeamname, spositions, default_step=-1
         )

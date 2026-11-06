@@ -60,6 +60,9 @@ simcodes = [
     "cheetah-accelerator>=0.8.4",
     "Wake-T>=0.8.0",
     "cpymad>=1.19.0",
+    "pybdsim>=3.9.0",
+    "uproot>=5.0",
+    "orjson>=3.9",
 ]
 
 # FBPIC on a GPU also needs cupy built for the local CUDA version
