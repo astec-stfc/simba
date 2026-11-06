@@ -147,6 +147,57 @@ class ProgramsUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class GradientsUnsupportedWarning(UnsupportedWarning):
+    """Gradients asked for in a code that cannot differentiate its tracking."""
+
+    def __init__(self, line: str, code: str, parameters: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} carries gradients for {', '.join(parameters)}, but "
+            f"{code} cannot differentiate its tracking, so they stop here. "
+            f"{alternatives} Or set 'gradients: {{finite_difference: true}}' on the line "
+            "to carry them by re-running it."
+        )
+
+
+class StaleGradientsWarning(SettingWarning):
+    """Gradients resumed from a saved input beam tracked with other parameter values."""
+
+    def __init__(self, line: str, filename: str, changed: dict):
+        values = ", ".join(f"{p} = {saved:g} (now {now:g})" for p, (saved, now) in changed.items())
+        super().__init__(
+            f"{_line(line)} picks its gradients up from {filename}, whose beam was tracked with "
+            f"{values}. The gradients are right for that beam, not for the lattice as it is now; "
+            "track from further upstream for those."
+        )
+
+
+class GradientsNotResumedWarning(SettingWarning):
+    """Gradients resumed from a saved input beam, without some of the parameters upstream."""
+
+    def __init__(self, line: str, filename: str | None, parameters: list):
+        saved = f"the gradients saved with it in {filename} lack" if filename else "no gradients were saved with it, so it lacks"
+        super().__init__(
+            f"{_line(line)} starts from a saved beam, but {saved} {', '.join(parameters)}, "
+            "upstream of it: they were added since that beam was tracked, or a line between them "
+            "could not carry gradients then. Track from further upstream to include them."
+        )
+
+
+class GradientNotSmoothWarning(SettingWarning):
+    """Finite-difference gradients through output that jumps or kinks at the step taken."""
+
+    def __init__(self, line: str, parameter: str, outputs: list):
+        more = f" and {len(outputs) - 5} more" if len(outputs) > 5 else ""
+        super().__init__(
+            f"{_line(line)}: the finite-difference gradients for {parameter} are not smooth at "
+            f"{', '.join(outputs[:5])}{more}: the runs either side of the real one disagree on the slope. "
+            "The code's output jumps or kinks at this step (nearest-grid-point space charge "
+            "does), or the step is too large for its curvature, so treat these tangents as "
+            "unreliable; a smoother solver, or a different gradients: finite_difference: step, "
+            "may help."
+        )
+
+
 class ProgramOverrunWarning(SettingWarning):
     """A program with knots past the last turn tracked."""
 
@@ -586,6 +637,16 @@ class NeutralSpeciesError(SimbaError, ValueError):
             f"{line} is tracked by {code}, but the species it is given to track is "
             f"{species}, which has no charge: no tracking code steers it. Set "
             "``input: species`` to a charged species; photons are carried alongside."
+        )
+
+
+class GradientChainError(SimbaError, ValueError):
+    """Gradients reaching a line that changes the beam in a way they cannot follow."""
+
+    def __init__(self, line: str, reason: str):
+        super().__init__(
+            f"{_line(line)} carries gradients, but {reason}, which "
+            "breaks the chain. Remove it, or start the gradients after this line."
         )
 
 
