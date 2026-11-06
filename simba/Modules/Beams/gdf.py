@@ -108,10 +108,11 @@ def read_gdf_beam_file(
     if position is not None:
         self.longitudinal_reference = "t"
         gdfbeamdata = gdfbeam.get_position(position)
-        if gdfbeamdata is not None:
-            time = None
-        else:
+        if gdfbeamdata is None:
             raise ValueError(f"GDF DID NOT find position {position}")
+        if not len(getattr(gdfbeamdata, "x", [])):
+            raise ValueError(f"GDF has no particles at position {position}")
+        time = None
     elif position is None and time is not None:
         self.longitudinal_reference = "z"
         gdfbeamdata = gdfbeam.get_time(time)

@@ -40,7 +40,7 @@ dependencies = [
     "numexpr",
     "openpmd-beamphysics>=0.10",
     "xopt",
-    "laura-accelerator>=1.1.0",
+    "laura-accelerator>=1.1.3",
     "pytao>=1.0.0",
     "nafflib",
 ]
@@ -61,6 +61,13 @@ simcodes = [
     "cheetah-accelerator>=0.8.4",
     "Wake-T>=0.8.0",
     "cpymad>=1.19.0",
+]
+
+# FBPIC on a GPU also needs cupy built for the local CUDA version
+# (e.g. cupy-cuda12x or cupy-cuda13x), which is left to the user.
+fbpic = [
+    "fbpic>=0.27",
+    "periodictable",
 ]
 
 test = [

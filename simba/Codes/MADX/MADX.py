@@ -32,6 +32,7 @@ from ...Modules.rf_focusing import tw1_focusing_matrix
 
 from laura.translator.converters.converter import translate_elements
 from laura.translator.converters.magnet import SolenoidTranslator
+from laura.translator.converters.matrix import MatrixTransformTranslator
 from laura.translator.utils.functions import (
     sanitize_string,
     madx_functional_definitions,
@@ -305,6 +306,14 @@ class madxLattice(frameworkLattice):
                 current = []
         if len(current) > 0:
             segments.append(current)
+        for i in range(len(segments) - 1, -1, -1):
+            seg = segments[i]
+            if len(segments) > 1 and self._sval_out[seg[-1]] - self._sval_in[seg[0]] <= 0:
+                if i + 1 < len(segments):
+                    segments[i + 1] = seg + segments[i + 1]
+                else:
+                    segments[i - 1] += seg
+                del segments[i]
         self.segments = segments
         self._madx_shift = {}
         for segnames in segments:
@@ -361,6 +370,9 @@ class madxLattice(frameworkLattice):
                 at += self._madx_shift[name]
                 if isinstance(d, SolenoidTranslator):
                     estr = d.to_madx(at=at, Brho=self.rigidity_name(iseg)).strip()
+                elif isinstance(d, MatrixTransformTranslator):
+                    gamma = self._design_energy / self.rest_energy if self._design_energy else None
+                    estr = d.to_madx(at=at, gamma=gamma).strip()
                 elif d.hardware_type.lower() == "drift" and d.physical.length < 0:
                     entrance = at - d.physical.length / 2.0
                     L = d.physical.length - STEP_BACK_GAP
@@ -900,7 +912,8 @@ class madxLattice(frameworkLattice):
             Arrays from the ``trackone`` table
         """
         npart = len(coords["x"])
-        madx.input("track, onepass, onetable;")
+        # aperture: a particle outside an element's aperture (a collimator's) is lost and leaves the table
+        madx.input("track, onepass, onetable, aperture=true;")
         startlines = [
             "start, x={:.15g}, px={:.15g}, y={:.15g}, py={:.15g}, "
             "t={:.15g}, pt={:.15g};".format(
@@ -947,7 +960,8 @@ class madxLattice(frameworkLattice):
         Dict
             Coordinate arrays, including the surviving ``number``
         """
-        at_s = np.abs(trackdata["s"] - s_target) < 1e-8
+        # 1 um: MAD-X drops sub-micron drifts that SIMBA's s still counts
+        at_s = np.abs(trackdata["s"] - s_target) < 1e-6
         if turn is not None:
             mask = at_s & (trackdata["turn"] == turn)
             out = {k: trackdata[k][mask] for k in trackdata}
@@ -1672,7 +1686,7 @@ class madxLattice(frameworkLattice):
                 )
                 # the end of the line is written once more below, from the
                 # last turn; see `track_segment_beam` for the same guard
-                if name != self.end or name_turn is not None:
+                if name != self.end_name or name_turn is not None:
                     self.write_output_beam(name, bm, turn=name_turn)
 
             data = self.extract_observation(trackdata, seg_len, turn=madx_turn)
@@ -1883,7 +1897,7 @@ class madxLattice(frameworkLattice):
             self.store_beam_data(
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
-            if name != self.end or name_turn is not None:
+            if name != self.end_name or name_turn is not None:
                 self.write_output_beam(name, bm, turn=name_turn)
 
         data = self.extract_observation(trackdata, seg_len + self._madx_shift[segnames[-1]])
@@ -1995,7 +2009,7 @@ class madxLattice(frameworkLattice):
             self.store_beam_data(
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
-            if name != self.end or name_turn is not None:
+            if name != self.end_name or name_turn is not None:
                 self.write_output_beam(name, bm, turn=name_turn)
 
         endelem = self._elements_with_drifts[segnames[-1]]

@@ -99,24 +99,39 @@ def test_several_species_and_no_primary_must_be_chosen(tmp_path):
         rbf.openpmd.read_openpmd_beam_file(rbf.beam(), filename)
 
 
-def test_append_keeps_the_existing_species_primary(tmp_path):
+def test_append_skips_a_species_already_there(tmp_path):
     filename = str(tmp_path / "end.openpmd.hdf5")
     make_beam("electron").write_openpmd_beam_file(filename)
-    added = rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3, seed=1)])
-    assert added == ["photon"]
+    assert rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3, seed=1)]) == ["photon"]
     with pytest.warns(UserWarning, match="already holds photon"):
         assert rbf.openpmd.append_species(filename, [make_beam("photon", nmacro=3)]) == []
+    back = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(back, filename)
+    assert len(back.others["photon"].x) == 50
+
+
+def test_append_keeps_the_existing_species_primary_and_merges_a_species_already_there(tmp_path):
+    filename = str(tmp_path / "end.openpmd.hdf5")
+    make_beam("electron").write_openpmd_beam_file(filename)
+    added = rbf.openpmd.append_species(filename, [make_beam("photon", n=50, nmacro=3, seed=1)])
+    assert added == ["photon"]
+    # photons the code made itself, and photons carried to it from upstream
+    assert rbf.openpmd.append_species(filename, [make_beam("photon", n=20, nmacro=5, seed=2)], merge=True) == ["photon"]
 
     back = rbf.beam()
     rbf.openpmd.read_openpmd_beam_file(back, filename)
     assert back.species == "electron"
     assert list(back.others) == ["photon"]
+    photons = back.others["photon"]
+    assert len(photons.x) == 70
+    np.testing.assert_allclose(photons.Particles.nmacro, [3.0] * 50 + [5.0] * 20)
 
 
 def _line_given(others, species=None, multiple=False):
     beam = make_beam("electron")  # read_input_file has moved its others to the line
     return SimpleNamespace(
         _carried_species=dict(others),
+        merges_carried_species=False,
         global_parameters={"beam": beam},
         file_block={"input": {"species": species}} if species else {},
         objectname="LINE",
@@ -368,6 +383,21 @@ def test_reading_the_input_hands_the_other_species_to_the_line(tmp_path):
     assert beam.species == "electron" and not beam.others
 
 
+def test_an_absolute_input_path_is_read_as_given(tmp_path):
+    # not prefixed with the output directory, as a $master_lattice$ path isn't
+    (tmp_path / "beams").mkdir()
+    (tmp_path / "out").mkdir()
+    make_beam("electron").write_openpmd_beam_file(str(tmp_path / "beams" / "IN.openpmd.hdf5"))
+    line = SimpleNamespace(
+        global_parameters={"beam": rbf.beam(), "master_lattice": str(tmp_path), "master_subdir": str(tmp_path / "out")},
+        file_block={},
+        getInitialTwiss=lambda: None,
+    )
+    path = frameworkLattice.read_input_file(line, str(tmp_path / "out") + "/", str(tmp_path / "beams" / "IN"))
+    assert path == str(tmp_path / "beams" / "IN.openpmd.hdf5")
+    assert line.global_parameters["beam"].species == "electron"
+
+
 def test_a_line_carries_the_species_it_did_not_track(tmp_path):
     # the line's code wrote only electrons to its end file; the photons it was
     # given come along to the next line
@@ -378,6 +408,7 @@ def test_a_line_carries_the_species_it_did_not_track(tmp_path):
         output_beam_file=lambda name: str(tmp_path / f"{name}.openpmd.hdf5"),
         end="END",
         objectname="LINE",
+        merges_carried_species=False,
     )
     assert frameworkLattice.carry_other_species(line) == ["photon"]
     back = rbf.beam()

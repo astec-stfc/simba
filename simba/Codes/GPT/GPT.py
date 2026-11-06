@@ -7,7 +7,6 @@ The GPT header commands (``GptSetFile``, ``GptTout``, ...) live in
 
 import os
 import re
-import subprocess
 import numpy as np
 from warnings import warn
 from laura.models.diagnostic import DiagnosticElement
@@ -15,7 +14,7 @@ from laura.models.diagnostic import DiagnosticElement
 from ...Framework_objects import frameworkLattice
 from ...FrameworkHelperFunctions import saveFile, gpt_environment
 from ...Modules import Beams as rbf
-from ...Modules.constants import speed_of_light
+from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
 from typing import ClassVar, Dict, Literal, Any
@@ -29,6 +28,21 @@ from laura.translator.converters.codes.gpt import (
 )
 
 gpt_defaults = {}
+
+
+def _without_spaces(path: str) -> str:
+    """``mr`` passes gpt's path to cmd unquoted, which stops at "Program Files": on Windows use the 8.3 name."""
+    if os.name != "nt" or " " not in path:
+        return path
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(260)
+    return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
+
+
+GPT_V_MIN_MARGIN = 0.99
+"""Factor on the slowest particle's speed that closes an aperture's ``dtmaxt`` window: about 1%
+of the travel time to the aperture as slack (0.3 ns at 10 m)."""
 
 
 class gptLattice(frameworkLattice):
@@ -155,15 +169,59 @@ class gptLattice(frameworkLattice):
             and len(self.dipoles) > 0
             and max([abs(d.magnetic.KnL(0)) for d in self.dipoles]) > 0
         ):
-            self.headers["csr1d"] = GptCsr1D()
+            if self.particle_definition == "laser":
+                # csr1d cannot handle a bunch that is still being emitted from the cathode
+                warn(f"{self.objectname}: GPT starts at the cathode, so csr1d (CSR) is left out")
+            else:
+                self.headers["csr1d"] = GptCsr1D()
         self.headers["setfile"].particle_definition = self.particle_definition
-        self.section.gpt_headers = self.headers
         self.check_pass_rigidity(self.global_parameters["beam"].Brho)
-        return self.section.to_gpt(
-            startz=self.startObject.physical.start.z,
-            endz=self.endObject.physical.end.z,
+        section = self.deck_section
+        section.gpt_headers = self.headers
+        text = section.to_gpt(
+            startz=self.local_z(self.startObject.physical.start),
+            endz=self.local_z(self.endObject.physical.end),
             Brho=self.global_parameters["beam"].Brho,
-            dtmin=self.dtmin
+            dtmin=self.dtmin,
+            aperture_dtmax=True,
+        )
+        self.section.gpt_screen_positions = section.gpt_screen_positions
+        return self._bunch_timing() + text if "bunch_t_head" in text else text
+
+    def _bunch_timing(self) -> str:
+        """
+        The GPT variables timing LAURA's ``dtmaxt`` windows around each aperture, which
+        hold the time step down while the bunch passes so that GPT does not step over it.
+
+        ``s`` of a particle is that of the start element plus its z from there. Without
+        ``t`` in the beam file every particle starts at t = 0, so the window stays open
+        to the end. ``bunch_v_min`` is :data:`GPT_V_MIN_MARGIN` of the slowest particle's
+        speed.
+
+        Returns
+        -------
+        str
+            ``bunch_t_head``, ``bunch_t_tail`` and ``bunch_v_min`` as GPT assignments
+        """
+        beam = self.global_parameters["beam"]
+        start = self.startObject.physical
+        z_ref = self.local_z(start.middle)
+        s_ref = z_ref if start.s is None else start.s + {
+            "start": 0.5, "middle": 0.0, "end": -0.5
+        }[start.s_point] * start.length
+        v_min = max(float(np.min(np.asarray(beam.Bz))), 1e-6) * speed_of_light * GPT_V_MIN_MARGIN
+        if self.particle_definition == "laser":
+            t = np.asarray(beam.t)
+            s_head = s_tail = s_ref - z_ref  # emitted at z = 0
+            t_head, t_tail = float(np.min(t)), float(np.max(t))
+        else:
+            s = s_ref + np.asarray(beam.z) - z_ref
+            s_head, s_tail = float(np.max(s)), float(np.min(s))
+            t_head = t_tail = 0.0
+        return (
+            f"bunch_t_head = {t_head - s_head / speed_of_light};\n"
+            f"bunch_t_tail = {t_tail - s_tail / v_min};\n"
+            f"bunch_v_min = {v_min};\n"
         )
 
     def write(self) -> None:
@@ -191,7 +249,7 @@ class gptLattice(frameworkLattice):
             e.g. ``phi119357``
         """
         element = self.elementObjects[name]
-        zpos = float(element.physical.start.z)
+        zpos = self.local_z(element.physical.start)
         pattern = re.compile(
             r'map1D_TM\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*([-\d.eE+]+)\s*,'
             r'[^)]*?,\s*(phi\w+)\s*,'
@@ -260,8 +318,8 @@ class gptLattice(frameworkLattice):
             rf'\1\nsetreduce("beam",{self.crest_scan_particles});',
             scan_text, count=1, flags=re.MULTILINE,
         )
-        z_eval = float(self.elementObjects[name].physical.end.z)
-        z_start = float(self.startObject.physical.start.z)
+        z_eval = self.local_z(self.elementObjects[name].physical.end)
+        z_start = self.local_z(self.startObject.physical.start)
         scan_text += (
             f'\nscreen("wcs","I",{z_eval});\n'
             f'zminmax("wcs","I",{z_start - 0.01},{z_eval + 1e-3});\n'
@@ -270,30 +328,37 @@ class gptLattice(frameworkLattice):
         def scan(lo, hi, dx):
             saveFile(base + "_crest.in", scan_text)
             saveFile(base + "_crest.mr", f"crestscan {lo} {hi} {dx}\n")
-            gpt = self.executables[self.code]
+            gpt = [_without_spaces(self.executables[self.code][0]), *self.executables[self.code][1:]]
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
             env = gpt_environment(self.global_parameters)
-            subprocess.call(
+            self.run_command(
                 mr + ["-o", self.objectname + "_crest_out.gdf",
                       self.objectname + "_crest.mr"]
                 + gpt + [self.objectname + "_crest.in"],
-                cwd=subdir, env=env,
+                base + "_crest.log", cwd=subdir, env=env,
             )
-            subprocess.call(
+            self.run_command(
                 gdfa + ["-o", self.objectname + "_crest_avg.gdf",
                         self.objectname + "_crest_out.gdf",
                         "crestscan", "avgG", "numpar"],
-                cwd=subdir, env=env,
+                base + "_crest_gdfa.log", cwd=subdir, env=env,
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
+        rest_energy = electron_mass * speed_of_light**2 / elementary_charge
+        gamma_max = float(self.global_parameters["beam"].beam.centroids.mean_gamma.val) + sum(
+            abs(float(getattr(c, "field_amplitude", 0.0) or 0.0)) * float(c.physical.length)
+            for c in self.cavities  # this line's only: elementObjects holds the whole machine
+            if z_start - 1e-6 <= self.local_z(c.physical.start) < z_eval
+        ) / rest_energy
+
         phases, energies = scan(phase_range[0], phase_range[1], step)
-        peak = phases[int(np.argmax(energies))]
+        peak = self._crest_peak(phases, energies, gamma_max)
         if refine:
             fine_p, fine_e = scan(peak - step, peak + step, step / 10.0)
-            if len(fine_e):
-                peak = fine_p[int(np.argmax(fine_e))]
+            if (fine_e <= gamma_max).any():
+                peak = self._crest_peak(fine_p, fine_e, gamma_max)
 
         element = self.elementObjects[name]
         crest = (float(peak) - 90.0) % 360.0
@@ -333,14 +398,14 @@ class gptLattice(frameworkLattice):
             z0 = float(self.startObject.physical.start.z)
             z1 = float(self.endObject.physical.end.z)
             names = []
-            for n, e in self.elementObjects.items():
+            for e in self.cavities:
                 if getattr(e, "crest", None) is None:
                     continue
                 if not float(getattr(e, "field_amplitude", 0.0) or 0.0):
                     continue
                 z = float(e.physical.start.z)
                 if z0 - 1e-6 <= z <= z1 + 1e-6:
-                    names.append(n)
+                    names.append(e.name)
         ordered = sorted(names, key=lambda n: float(self.elementObjects[n].physical.start.z))
         crests = {}
         for name in ordered:
@@ -348,6 +413,14 @@ class gptLattice(frameworkLattice):
                 name, phase_range=phase_range, step=step, refine=refine
             )
         return crests
+
+    @staticmethod
+    def _crest_peak(phases: np.ndarray, energies: np.ndarray, gamma_max: float) -> float:
+        """Phase of the highest ``avgG`` that is physically reachable (at most ``gamma_max``)."""
+        possible = energies <= gamma_max
+        if not possible.any():
+            raise ValueError(f"every crest-scan point is above the reachable gamma {gamma_max:.4g}")
+        return float(phases[possible][np.argmax(energies[possible])])
 
     @staticmethod
     def _read_crest_scan(filename: str, z_eval: float | None = None) -> tuple:
@@ -405,6 +478,8 @@ class gptLattice(frameworkLattice):
         With :attr:`~auto_phase`, the cavities are phased first and the input file
         rewritten with their crests.
         """
+        if not self.global_parameters["GPTLICENSE"]:
+            raise RuntimeError("GPT needs a licence: set the GPTLICENSE environment variable")
         if self.auto_phase and self.autophase():
             self.write()
         main_command = (
@@ -513,27 +588,11 @@ class gptLattice(frameworkLattice):
                     output += c + " "
                 output += "\n"
                 batfile.write(output)
-        with open(
-            os.path.abspath(
-                self.global_parameters["master_subdir"] + "/" + self.objectname + ".log"
-            ),
-            "w",
-        ) as f:
-            subprocess.call(
-                main_command,
-                stdout=f,
-                cwd=self.global_parameters["master_subdir"],
-                env=my_env,
-            )
-            subprocess.call(
-                post_command, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
-            subprocess.call(
-                post_command_t, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
-            subprocess.call(
-                post_command_traj, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
+        subdir = self.global_parameters["master_subdir"]
+        log = os.path.abspath(f"{subdir}/{self.objectname}")
+        self.run_command(main_command, log + ".log", cwd=subdir, env=my_env)
+        for command in (post_command, post_command_t, post_command_traj):
+            self.run_command(command, log + "_gdfa.log", cwd=subdir)
 
     def postProcess(self) -> None:
         """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
@@ -554,7 +613,7 @@ class gptLattice(frameworkLattice):
                     t0=self.headers["setfile"].time,
                     sval=sval,
                 )
-        sval = svals[self.end] - self.endObject.physical.length / 2 + self.entrance_s
+        sval = svals[self.end_name] - self.endObject.physical.length / 2 + self.entrance_s
         self.gdf_to_hdf5(
             gptbeamfilename=self.objectname + "_out.gdf",
             screen=self.endObject,
@@ -619,7 +678,7 @@ class gptLattice(frameworkLattice):
         rbf.gdf.write_gdf_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + gdfbeamfilename,
-            normaliseX=self.startObject.physical.middle.x,
+            normaliseX=float(self.to_local(self.startObject.physical.middle)[0]),
             cathode=cathode,
         )
         self.Brho = self.global_parameters["beam"].Brho
@@ -657,7 +716,7 @@ class gptLattice(frameworkLattice):
             rbf.gdf.read_gdf_beam_file(
                 beam,
                 os.path.join(self.global_parameters["master_subdir"], gptbeamfilename),
-                position=positions.get(screen.name, screen.physical.middle.z),
+                position=positions.get(screen.name, self.local_z(screen.physical.middle)),
                 gdfbeam=gdf,
             )
         except ValueError as exc:

@@ -597,7 +597,10 @@ class xsuiteLattice(frameworkLattice):
         write: bool
             Also save it as ``<particle_definition>.xsuite.json``
         """
-        xsuitebeamfilename = self.global_parameters["master_subdir"] + "/" + self.particle_definition + ".xsuite.json"
+        xsuitebeamfilename = os.path.join(
+            self.global_parameters["master_subdir"],
+            f"{os.path.basename(self.particle_definition)}.xsuite.json",
+        )
         self.pin = rbf.beam.write_xsuite_beam_file(
             self.global_parameters["beam"],
             xsuitebeamfilename,
@@ -1148,12 +1151,12 @@ class xsuiteLattice(frameworkLattice):
                 # the end of turn k is the start of the pass after it
                 payload = _select_turn(ends, turn * self.passes_per_turn)
             self._write_xsuite_beam(
-                payload, self.end, name_turn, turn,
-                self.endObject.physical.middle.z, svals[self.end],
+                payload, self.end_name, name_turn, turn,
+                self.endObject.physical.middle.z, svals[self.end_name],
             )
         for elem in self.screens_and_markers_and_bpms:
             # the end's is written above
-            if elem.name == self.end or elem.name not in self.line.element_dict:
+            if elem.name == self.end_name or elem.name not in self.line.element_dict:
                 continue
             if not self.writes_output(elem.name):
                 continue

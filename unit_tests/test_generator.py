@@ -154,6 +154,7 @@ def test_gpt_generator_write(gpt_generator, tmp_path):
     with pytest.raises(NotImplementedError):
         gpt_generator.write()
 
+
 def test_opal_flattop_fwhm_is_the_plateau_length(tmp_path):
     """The rise and fall were added to the FWHM, so OPAL's pulse came out too long."""
     gen = OPALGenerator(
@@ -172,6 +173,7 @@ def test_opal_flattop_fwhm_is_the_plateau_length(tmp_path):
     assert "TPULSEFWHM = 3e-12," in written
     assert "TRISE = 2e-13," in written
 
+
 @pytest.mark.parametrize("species, sign", [("proton", 1), ("positrons", 1), ("electron", -1)])
 def test_species_sets_instance_mass_and_sign(species, sign):
     from simba.Modules import constants
@@ -185,6 +187,14 @@ def test_sample_gaussian_cutoff_follows_offset():
     from simba.Codes.Generators.Generators import sample_gaussian
     z = sample_gaussian(10.0, 1.0, 3, 2000)
     assert np.all(np.abs(z - 10.0) <= 3) and z.min() < 9
+
+
+def test_opal_flattop_fwhm_is_astra_lt():
+    """ASTRA's lt is already the FWHM; adding the rise edges again made OPAL's
+    LCLS pulse 1.4 times longer than ASTRA's."""
+    from simba.Codes.Generators import OPALGenerator
+    gen = OPALGenerator(distribution_type_z="p", plateau_bunch_length=4e-12, plateau_rise_time=1e-12)
+    assert "TPULSEFWHM = 4e-12," in gen._write_distribution()
 
 
 def test_gpt_gaussian_tlen_from_sigma_z():

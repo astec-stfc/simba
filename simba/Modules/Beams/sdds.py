@@ -100,13 +100,17 @@ def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]
     ]
     Csymbols = ["", "x'", "", "y'", "", ""]
     Cunits = ["m", "", "m", "", "s", "m$be$nc"]
+    q = np.abs(np.asarray(self._beam.charge, dtype=float))
+    idx = slice(None)
+    if q.size > 1 and np.ptp(q) > 1e-6 * q.max():
+        idx = np.random.default_rng(0).choice(q.size, q.size, p=q / q.sum())
     Ccolumns = [
-        np.array(self.x) - float(xoffset),
-        self.xp,
-        np.array(self.y) - float(yoffset),
-        self.yp,
-        self.t,
-        self.cp / self.particle_rest_energy_eV,
+        (np.asarray(self.x, dtype=float) - float(xoffset))[idx],
+        np.asarray(self.xp, dtype=float)[idx],
+        (np.asarray(self.y, dtype=float) - float(yoffset))[idx],
+        np.asarray(self.yp, dtype=float)[idx],
+        np.asarray(self.t, dtype=float)[idx],
+        (np.asarray(self.cp, dtype=float) / self.particle_rest_energy_eV)[idx],
     ]
     x.add_columns(Cnames, Ccolumns, Ctypes, Cunits, Csymbols)
 
@@ -115,9 +119,9 @@ def write_SDDS_file(self, filename: str = None, ascii=False, xyzoffset=[0, 0, 0]
     Psymbols = ["p$bcen$n", "", ""]
     Punits = ["m$be$nc", "C", ""]
     parameterData = [
-        np.mean(self.BetaGamma),
+        np.mean(np.asarray(self.BetaGamma, dtype=float)[idx]),
         abs(self._beam.total_charge),
-        len(self.x),
+        len(Ccolumns[0]),
     ]
     x.add_parameters(Pnames, parameterData, Ptypes, Punits, Psymbols)
 

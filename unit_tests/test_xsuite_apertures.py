@@ -66,10 +66,10 @@ def _through(tmp_path, aperture, npart=4000):
     [
         # inside r = 0.5 mm of a round 1 mm Gaussian: 1 - exp(-r^2 / 2 sigma^2)
         ({"shape": "circular", "radius": 5e-4}, 1 - np.exp(-0.5**2 / 2)),
-        # a 1 mm full-width horizontal slit: |x| < 0.5 mm, y open
-        ({"shape": "planar", "horizontal_size": 1e-3}, erf(0.5 / np.sqrt(2))),
-        # 1 mm x 2 mm rectangle: both planes
-        ({"shape": "rectangular", "horizontal_size": 1e-3, "vertical_size": 2e-3},
+        # a horizontal slit, half width 0.5 mm: |x| < 0.5 mm, y open
+        ({"shape": "planar", "horizontal_size": 5e-4}, erf(0.5 / np.sqrt(2))),
+        # 1 mm x 2 mm rectangle (half widths 0.5 mm, 1 mm): both planes
+        ({"shape": "rectangular", "horizontal_size": 5e-4, "vertical_size": 1e-3},
          erf(0.5 / np.sqrt(2)) * erf(1 / np.sqrt(2))),
     ],
 )
@@ -79,8 +79,9 @@ def test_a_collimator_passes_only_what_is_inside_it(tmp_path, aperture, expected
     passed = len(beam.x) / npart
     assert abs(passed - expected) < 4 * np.sqrt(expected * (1 - expected) / npart), (passed, expected)
     assert float(beam.Particles.total_charge) == pytest.approx(-1e-12 * passed)
-    half_x = aperture.get("radius") or aperture["horizontal_size"] / 2
-    assert np.max(np.abs(beam.x.val)) <= half_x * 1.001
+    half_x = aperture.get("radius") or aperture["horizontal_size"]
+    # 1 urad divergence over the 0.45 m from the collimator to M3 spreads x by ~0.5 um
+    assert np.max(np.abs(beam.x.val)) <= half_x + 5e-6
 
 
 def test_a_collimator_without_a_size_stays_a_drift(tmp_path):

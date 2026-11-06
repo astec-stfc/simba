@@ -335,6 +335,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_bdsim_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command(override_location=location)
         self.executables_ready = True
         return executables
@@ -569,6 +573,15 @@ class Framework(BaseModel):
                     exclude_keys=["controls", "electrical", "manufacturer", "reference"],
                 )
 
+            if self.settings.get("default_layout"):
+                path = self.settings["default_layout"]
+                if path not in self.machine.lattices:
+                    raise ValueError(
+                        f"default_layout {path!r} is not a layout in "
+                        f"{self.settings['layout']}; layouts are {list(self.machine.lattices)}"
+                    )
+                self.machine.default_path = path
+
             for k in list(self.machine.elements.keys()):
                 _ = self.machine.elements[k]
 
@@ -664,6 +677,7 @@ class Framework(BaseModel):
             global_parameters=self.global_parameters,
             machine=self.machine,
             globalSettings=self.globalSettings,
+            verbose=self.verbose,
         )
         if "remote" in lattice:
             self.setup_remote_execution(
@@ -1000,6 +1014,7 @@ class Framework(BaseModel):
                     global_parameters=self.global_parameters,
                     machine=self.machine,
                     globalSettings=self.globalSettings,
+                    verbose=self.verbose,
                 )
 
     def getElement(

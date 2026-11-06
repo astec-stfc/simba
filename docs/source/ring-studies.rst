@@ -257,8 +257,9 @@ is :math:`n \cdot T_{rev}` for 0-based :math:`n`, so each backend converts.
 **Values are the element's strength as the lattice states it** — a deflection angle
 in radians for a steering element, positive toward positive *x* (or *y*), not a
 fraction of anything. Each backend converts into its own code's attribute: a
-corrector's angle is Ocelot's ``angle``, MAD-X's ``kick`` and elegant's ``ANGLE``
-unchanged, but Xtrack's ``knl[0]`` with the **sign reversed**, because a positive
+corrector's angle is Ocelot's ``angle``, MAD-X's ``kick``, elegant's ``ANGLE``
+and ImpactX's ``xkick``/``ykick`` unchanged, but Xtrack's ``knl[0]`` with
+the **sign reversed**, because a positive
 normal multipole deflects the other way there.
 
 **The default rule is** ``hold``, **and that is no code's default.** Every tracking
@@ -409,13 +410,18 @@ How each code does it
    * - MAD-X
      - Between turns of SIMBA's loop: the ring's reference ``p0c`` and time are
        carried from turn to turn rather than taken from the bunch.
+   * - ImpactX
+     - Between turns of SIMBA's loop, as Ocelot: the reference is moved and each
+       particle's ``pt``, ``px`` and ``py`` re-expressed. Its strengths are
+       normalised, so the magnets follow. The exact solenoid's ``bz`` is a
+       field, so it is scaled with the reference's momentum each turn.
    * - Bmad
      - Not supported yet; its tracking path here is single-pass.
 
-``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all four
+``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all five
 codes. Over a 2% ramp with no RF, the ramp moves the orbit by about 1.2e-4 m.
-Xsuite and Ocelot agree with elegant to 1e-7 m and 3e-6 m. MAD-X, whose
-lenses are thin, agrees to 2e-5 m.
+Xsuite, Ocelot and ImpactX agree with elegant to 1e-7 m, 3e-6 m and 6e-8 m.
+MAD-X, whose lenses are thin, agrees to 2e-5 m.
 
 .. _rf-mode:
 
@@ -474,6 +480,10 @@ own. The reference reaches a cavity at
      - synchronous
      - each cavity's ``phi`` between passes. Its sign is the opposite of the
        others', because Ocelot's phase is cosine-based.
+   * - ImpactX
+     - synchronous
+     - each ``ShortRF``'s ``phase`` between passes; the lattice is rebuilt
+       every pass.
 
 .. note::
    **Ocelot's cavity moves the reference.** Its cavity map always adds
@@ -555,8 +565,33 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - no
      - no
+   * - ImpactX
+     - yes
+     - yes
+     - quantum only
+     - yes
+     - yes
+     - yes
+     - yes
+     - no
+     - yes
+   * - BDSIM
+     - yes (circular mode)
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
+     - no
 
 ASTRA, GPT, Cheetah, OPAL, Wake-T and CSRTrack track a line once and have none of these.
+
+BDSIM's turns run inside one Geant4 process, so nothing can change between them.
+It has no reference-momentum ramp, and its field modulators (a sinusoid, or one
+top-hat or linear window in time) cannot express a knotted program, so programs
+and ramps are left unsupported rather than approximated.
 
 .. _native-turns:
 
@@ -591,8 +626,8 @@ The two paths are the same tracking, and ``unit_tests/test_madx_native_turns.py`
 holds them to it turn by turn. The override is what lets that test run both.
 
 .. note::
-   Ocelot and Bmad still count turns in Python, and neither has a native turn
-   count to switch to.
+   Ocelot, Bmad and ImpactX still count turns in Python, and none has a native
+   turn count to switch to.
 
    **Bmad.** Tao has no multi-turn beam tracking: ``beam_init`` carries no turn
    count, ``tao.track_beam`` is one pass, and the only turn counts in Tao are
@@ -606,6 +641,39 @@ holds them to it turn by turn. The override is what lets that test run both.
    **Ocelot.** ``ocelot.cpbd.track.track()`` takes no turn argument, and
    ``track_nturns``, despite the name, takes a list of single particles and is
    the dynamic-aperture tool, not a ``ParticleArray`` path.
+
+.. note::
+   **BDSIM** takes the count natively, in its circular mode
+   (``option, circular=1, nturns=N``).
+   BDSIM builds the line in 3D and adds a terminator, which counts the turns,
+   and a teleporter, which moves each particle back to the start. The
+   teleporter only bridges a gap of 0.03 µm to 1 m along the beam, so the line
+   must close *geometrically*, through its bends.
+   A ring that closes exactly fails too, so SIMBA takes 2 µm off the last
+   drift. 1 µm of that goes to a drift after the last element, because a
+   sampler next to the terminator counts every turn twice (seen with BDSIM
+   1.7.7).
+
+   A single pass round a closed ring also runs in circular mode, with
+   ``nturns=1``. Otherwise nothing stops the particles and the run never ends.
+
+   Read ``z`` from BDSIM with care. SIMBA rebuilds it from the arrival time,
+   and BDSIM's default ``bdsimmatrix`` integrators leave each particle's path
+   length through a bend out of that time. Through dispersion, ``z`` then keeps
+   its starting spread while MAD-X and elegant show the bunch lengthen, and
+   SIMBA warns (:class:`~simba.exceptions.BunchLengthWarning`). The
+   ``bdsimtwo`` and ``geant4`` sets get the time right; pick one in the
+   ``tracking`` block:
+
+   .. code-block:: yaml
+
+       tracking: {turns: 1000, integrator_set: bdsimtwo}
+
+   On a test ring all three sets agreed with MAD-X particle by particle,
+   ``bdsimtwo`` and ``geant4`` on the bunch length as well. LAURA writes a
+   quadrupole's ``k1`` negated for a negative beam in the ``bdsim*`` sets,
+   whose quadrupole sets the field for a positive particle, and as it is for
+   ``geant4``; every other strength follows the particle's charge in all sets.
 
 What a Ring Run Reports
 -----------------------
