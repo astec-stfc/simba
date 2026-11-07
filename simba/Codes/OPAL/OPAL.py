@@ -44,6 +44,15 @@ def _rms_emittance(u: np.ndarray, pu: np.ndarray) -> float:
     )
 
 
+def _monitor_has_beam(filename: str) -> bool:
+    """Whether OPAL wrote a beam into this monitor file: a monitor the bunch never crossed
+    still gets a file, with no ``Step#0``."""
+    if not os.path.exists(filename):
+        return False
+    with h5py.File(filename, "r") as f:
+        return "Step#0" in f
+
+
 def _steps(files, bz_ref=None):
     """
     The steps of OPAL particle files as ``(s, bz, step)``, ``step`` being the open HDF5 group.
@@ -425,7 +434,7 @@ class opalLattice(frameworkLattice):
         else ``default_step``; ``None`` if there is neither.
         """
         monitor = f'{self.global_parameters["master_subdir"]}/{name}_opal.h5'
-        if os.path.exists(monitor):
+        if _monitor_has_beam(monitor):
             filename, step = monitor, 0
         elif name in spositions or default_step is not None:
             filename, step = opalbeamname, spositions.get(name, default_step)
@@ -443,7 +452,7 @@ class opalLattice(frameworkLattice):
         subdir = self.global_parameters["master_subdir"]
         opalbeamname = f"{subdir}/{self.objectname}.h5"
         # only an element without a monitor file needs the dump
-        unmonitored = {n: s for n, s in svals.items() if not os.path.exists(f"{subdir}/{n}_opal.h5")}
+        unmonitored = {n: s for n, s in svals.items() if not _monitor_has_beam(f"{subdir}/{n}_opal.h5")}
         spositions = find_opal_s_positions(opalbeamname, unmonitored, tolerance=0.05) if unmonitored else {}
 
         def convert(elem):

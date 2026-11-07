@@ -142,7 +142,8 @@ def write_astra_beam_file(
         ])
     else:
         zvector = self._beam.z
-    clockvector = 1.0e9 * self._beam.t
+    toffset = 0.0 if self._beam.toffset is None else float(np.asarray(self._beam.toffset))
+    clockvector = 1.0e9 * (np.asarray(self._beam.t) + toffset)
     array = np.array(
         [
             self._beam.x,
@@ -158,7 +159,7 @@ def write_astra_beam_file(
         ]
     ).transpose()
     if self.reference_particle is not None:
-        ref_particle = self.reference_particle
+        nearest_idx = self.reference_particle_index or 0
     else:
         """ Offset the z position to the nominal starting position """
         array[:, 2] += zoffset
@@ -174,11 +175,11 @@ def write_astra_beam_file(
             # the reference (row 0) must be of the tracked species: the reader takes it as the primary one
             primary = np.flatnonzero(self.particle_species == self.species)
             nearest_idx = int(primary[find_nearest_vector(self, norm_array[primary], mean_vector)])
-        ref_particle = array[nearest_idx]
-        self.reference_particle = ref_particle
+        self.reference_particle = array[nearest_idx].copy()
         self.reference_particle_index = nearest_idx
-        """ set the closest mean vector to be in position 0 in the array """
-        array = np.roll(array, -1 * nearest_idx, axis=0)
+    """ the reference particle goes in row 0 """
+    array = np.roll(array, -1 * nearest_idx, axis=0)
+    ref_particle = array[0].copy()
 
     """ASTRA stores z, pz and the clock of non-reference particles relative to the reference particle."""
     array[1:, 2] = array[1:, 2] - ref_particle[2]
