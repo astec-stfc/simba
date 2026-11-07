@@ -293,3 +293,32 @@ def test_quantum_radiation_takes_a_bends_energy_loss(tmp_path):
     energy = np.hypot(5.0, 0.51099895e-3)
     assert loss["quantum"] == pytest.approx(8.846e-5 * energy**4 * 0.1 / (2 * np.pi * 10.0) * 1e9, rel=0.05)
     assert loss["off"] == pytest.approx(0, abs=1.0)
+
+
+# a fresh process, as the simulation is made once per process
+THREADS_PUT_BACK = """
+import ctypes, ctypes.util, os
+import numpy as np
+from simba.Codes.ImpactX.ImpactX import simulation
+
+gomp = ctypes.CDLL(ctypes.util.find_library("gomp"))
+gomp.omp_set_num_threads(2)  # another library, before ImpactX starts
+sim = simulation()
+gomp.omp_set_num_threads(os.cpu_count())  # and after
+sim.beam.ref.set_charge_qe(-1.0).set_mass_MeV(0.51099895).set_kin_energy_MeV(10.0)
+zero = np.zeros(4)
+sim.beam.add_n_particles(zero, zero, zero, zero, zero, zero, -1 / 0.51099895, bunch_charge=1e-12)
+"""
+
+
+def test_particles_still_add_after_something_puts_the_openmp_threads_back():
+    """ImpactX sizes its tiles for the threads it starts with; another library setting
+    fewer before, and every hardware thread after, must not trip its tile check."""
+    import ctypes.util
+    import subprocess
+    import sys
+
+    if ctypes.util.find_library("gomp") is None:
+        pytest.skip("no libgomp to set the threads with")
+    run = subprocess.run([sys.executable, "-c", THREADS_PUT_BACK], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr[-2000:]

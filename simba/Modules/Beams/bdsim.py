@@ -181,6 +181,9 @@ def read_bdsim_sampler_arrays(filename, samplers=None, variables=SAMPLER_VARIABL
     dict
         ``{sampler_name: {variable: ndarray}}``.
     """
+    split = _read_split_samplers(filename, samplers, variables)
+    if split is not None:
+        return split
     data = load_bdsim_output(filename)
     tree = data.GetEventTree()
     event = data.GetEvent()
@@ -213,6 +216,49 @@ def read_bdsim_sampler_arrays(filename, samplers=None, variables=SAMPLER_VARIABL
         s: {v: np.array(vals) for v, vals in arrays.items()}
         for s, arrays in result.items()
     }
+
+
+def _read_split_samplers(filename, samplers, variables):
+    """
+    :func:`read_bdsim_sampler_arrays` in one vectorised read with uproot, for samplers
+    split into a branch per variable (``option, samplersSplitLevel=1``).
+
+    None if uproot is not installed or a sampler is not split, for the event-by-event read.
+    """
+    try:
+        import awkward as ak
+        import uproot
+    except ImportError:
+        return None
+    with uproot.open(filename) as file:
+        tree = file["Event"]
+        keys = set(tree.keys())
+        names = [
+            b.name.rstrip(".") for b in tree.branches
+            if b.typename.startswith("BDSOutputROOTEventSampler")
+        ]
+        if samplers is None:
+            samplers = names
+        missing = [s for s in samplers if s not in names]
+        if missing:
+            raise ValueError(f"Sampler(s) {missing} not found in {filename}; available: {names}")
+        branch = {(s, v): f"{s}./{s}.{v}" for s in samplers for v in ("n",) + tuple(variables)}
+        if not all(b in keys for b in branch.values()):
+            return None
+        data = tree.arrays(list(branch.values()), library="ak")
+    result = {}
+    for s in samplers:
+        n = ak.to_numpy(data[branch[s, "n"]]).astype(int)
+        result[s] = {"eventID": np.repeat(np.arange(len(n)), n)}
+        for v in variables:
+            column = data[branch[s, v]]
+            # a per-hit vector, or one value per event, as _as_hit_list repeats it
+            values = (
+                ak.to_numpy(ak.flatten(column)) if column.ndim > 1 else np.repeat(ak.to_numpy(column), n)
+            )
+            # float64/int64, as the event-by-event read's Python numbers give
+            result[s][v] = values.astype(np.float64 if values.dtype.kind == "f" else np.int64)
+    return result
 
 
 def _as_hit_list(value, nhits):
@@ -253,6 +299,7 @@ def interpret_bdsim_sampler(
     ninjected=None,
     species="electron",
     input_weights=None,
+    sstart=0,
 ):
     """
     Populate a :class:`~simba.Modules.Beams.beam` from one sampler's arrays as
@@ -282,6 +329,8 @@ def interpret_bdsim_sampler(
     input_weights: array, optional
         Each injected particle's weight relative to the mean, by event, to use instead of
         BDSIM's recorded ``weight``.
+    sstart: float, optional
+        ``s`` of the line's entrance [m], added to BDSIM's ``S``, which starts there.
     """
     from . import SPECIES
 
@@ -327,7 +376,7 @@ def interpret_bdsim_sampler(
         energy=dat["energy"] * 1e9,
         mass=mass,
         charge=None,
-        s=float(np.mean(dat["S"])),
+        s=sstart + float(np.mean(dat["S"])),
         zp=dat["zp"],
         particle_charge=sign * constants.elementary_charge,
     )

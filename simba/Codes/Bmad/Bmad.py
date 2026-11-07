@@ -8,6 +8,7 @@ and `Tao manual`_.
 """
 
 import contextlib
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar
@@ -183,7 +184,9 @@ class bmadLattice(frameworkLattice):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
         if self.libtao is None:
-            self.libtao = self.executables["tao"][0]
+            libtao = self.executables["tao"][0]
+            use_simcodes = Path(libtao).exists() and not os.getenv("PYTAO_LIB_PATH")
+            self.libtao = libtao if use_simcodes else ""
 
     def preProcess(self) -> None:
         """Load the input beam and write it as a Bmad beam file."""
@@ -756,6 +759,7 @@ class bmadLattice(frameworkLattice):
             dict.fromkeys(
                 self._tao_name(element.name)
                 for element in self.screens_and_markers_and_bpms
+                if self.writes_output(element.name)
             )
         )
 
@@ -1030,12 +1034,10 @@ class bmadLattice(frameworkLattice):
         }
         end = self.end_name
         outputs[end] = ("END", self.endObject.physical.end.z)
-        final_beam = None
-        for output_name, (tao_element, zstart) in outputs.items():
-            if not self.writes_output(output_name):
-                continue
+
+        def convert(output):
+            output_name, (particles, ref_idx, species) = output
             beam = deepcopy(source_beam)
-            particles, ref_idx, species = self._particles_at(tao_element, zstart=zstart)
             rbf.openpmd.read_particle_group(
                 beam,
                 particles,
@@ -1054,8 +1056,16 @@ class bmadLattice(frameworkLattice):
                     / f"{self.output_basename(output_name)}.openpmd.hdf5"
                 ),
             )
-            if output_name == end:
-                final_beam = beam
+            return beam
+
+        fetched = {
+            output_name: self._particles_at(tao_element, zstart=zstart)
+            for output_name, (tao_element, zstart) in outputs.items()
+            if self.writes_output(output_name)
+        }
+        final = fetched.pop(end, None)
+        self.convert_outputs(convert, fetched.items())
+        final_beam = None if final is None else convert((end, final))
         save_bmad_twiss_hdf(
             filename=str(
                 Path(self.global_parameters["master_subdir"])

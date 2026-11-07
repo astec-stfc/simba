@@ -44,6 +44,15 @@ def _rms_emittance(u: np.ndarray, pu: np.ndarray) -> float:
     )
 
 
+def _monitor_has_beam(filename: str) -> bool:
+    """Whether OPAL wrote a beam into this monitor file: a monitor the bunch never crossed
+    still gets a file, with no ``Step#0``."""
+    if not os.path.exists(filename):
+        return False
+    with h5py.File(filename, "r") as f:
+        return "Step#0" in f
+
+
 def _steps(files, bz_ref=None):
     """
     The steps of OPAL particle files as ``(s, bz, step)``, ``step`` being the open HDF5 group.
@@ -389,7 +398,7 @@ class opalLattice(frameworkLattice):
         else ``default_step``; ``None`` if there is neither.
         """
         monitor = f'{self.global_parameters["master_subdir"]}/{name}_opal.h5'
-        if os.path.exists(monitor):
+        if _monitor_has_beam(monitor):
             filename, step = monitor, 0
         elif name in spositions or default_step is not None:
             filename, step = opalbeamname, spositions.get(name, default_step)
@@ -400,17 +409,17 @@ class opalLattice(frameworkLattice):
         return beam
 
     def postProcess(self):
+        outputs = self.output_elements  # the end is written below
         entrance = self.getSValues(as_dict=True, at_entrance=True)
-        svals = {
-            s.name: entrance[s.name] + s.physical.length / 2 for s in self.screens_and_bpms
-        }
+        svals = {s.name: entrance[s.name] + s.physical.length / 2 for s in outputs}
         svals[self.endObject.name] = entrance[self.endObject.name] + self.endObject.physical.length
         subdir = self.global_parameters["master_subdir"]
         opalbeamname = f"{subdir}/{self.objectname}.h5"
         # only an element without a monitor file needs the dump
-        unmonitored = {n: s for n, s in svals.items() if not os.path.exists(f"{subdir}/{n}_opal.h5")}
+        unmonitored = {n: s for n, s in svals.items() if not _monitor_has_beam(f"{subdir}/{n}_opal.h5")}
         spositions = find_opal_s_positions(opalbeamname, unmonitored, tolerance=0.05) if unmonitored else {}
-        for elem in self.screens_and_bpms:
+
+        def convert(elem):
             beam = self.read_element_beam(elem.name, opalbeamname, spositions)
             if beam is not None:
                 zpos = self.local_z(elem.physical.middle)
@@ -420,6 +429,8 @@ class opalLattice(frameworkLattice):
                     f'{self.global_parameters["master_subdir"]}/'
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
+
+        self.convert_outputs(convert, outputs)
         beam = self.read_element_beam(
             self.endObject.name, opalbeamname, spositions, default_step=-1
         )

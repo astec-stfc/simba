@@ -535,8 +535,34 @@ def test_s_is_the_lattices_not_the_incoming_beams(code, runs):
 )
 def test_the_start_is_never_written(name, turns, writes):
     """Its file is the incoming beam; in a ring its turns are the end's."""
-    line = SimpleNamespace(start="M1", turns=turns)
+    line = SimpleNamespace(
+        start="M1", end="M3", end_name="M3", turns=turns, global_parameters={}, elements={}
+    )
     assert frameworkLattice.writes_output(line, name) is writes
+
+
+@pytest.mark.parametrize("end_beams_only", [False, True])
+@pytest.mark.parametrize(
+    "name, end, writes",
+    [
+        ("SCR", "END", {False: True, True: False}),
+        ("BPM", "END", {False: False, True: False}),
+        ("END", "END", {False: True, True: True}),
+        ("BPM", "BPM", {False: True, True: True}),
+    ],
+)
+def test_bpms_and_end_beams_only(name, end, writes, end_beams_only):
+    """No beam at a BPM; with ``end_beams_only``, only at the end; the end always, BPM or not."""
+    elements = {
+        "SCR": SimpleNamespace(hardware_type="Screen"),
+        "BPM": SimpleNamespace(hardware_type="Beam_Position_Monitor"),
+        "END": SimpleNamespace(hardware_type="Marker"),
+    }
+    line = SimpleNamespace(
+        start="M1", end=end, end_name=end, elements=elements,
+        global_parameters={"end_beams_only": end_beams_only},
+    )
+    assert frameworkLattice.writes_output(line, name) is writes[end_beams_only]
 
 
 @pytest.mark.parametrize(
@@ -858,3 +884,28 @@ def test_xsuite_zeta_scales_with_beta0():
     line = _Clocked("xsuite")
     late = line.reference_time(1.5, 1) + 1e-12
     assert line.time_to_native(late, 1.5, 1) == pytest.approx(-0.95 * 299792458.0 * 1e-12)
+
+
+def test_xsuite_on_the_gpu_hands_the_conversion_workers_cpu_data(tmp_path, seed_beam, monkeypatch):
+    """A forked worker cannot use CUDA, so what it converts must already be numpy: a
+    monitor copied to the CPU still has its data on the GPU."""
+    skip_missing("xsuite")
+    from simba.Codes.Xsuite.Xsuite import has_cupy, xsuiteLattice
+
+    if not has_cupy:
+        pytest.skip("no GPU")
+    items = []
+
+    def convert_outputs(self, convert, outputs):
+        items.extend(outputs)
+        for output in outputs:
+            convert(output)
+
+    monkeypatch.setattr(xsuiteLattice, "convert_outputs", convert_outputs)
+    framework = _framework(tmp_path, "xsuite", {"turns": 2, "context": "gpu"}, seed_beam)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        framework.track()
+    assert items
+    for _, data in items:
+        assert isinstance(data, dict) and isinstance(data["x"], np.ndarray)

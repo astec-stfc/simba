@@ -12,8 +12,6 @@ import os
 from copy import deepcopy
 from warnings import warn
 import numpy as np
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
 from typing import ClassVar, Dict, Any
 from pydantic import Field, ConfigDict
 
@@ -50,11 +48,6 @@ class astraLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as an ASTRA input file."""
 
     model_config = ConfigDict(validate_assignment=True)
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Threaded conversion of ASTRA screen outputs to openPMD"""
 
     code: str = "astra"
     """String indicating the lattice object type"""
@@ -151,7 +144,8 @@ class astraLattice(frameworkLattice):
         output_settings = self.file_block["output"] | self.globalSettings["ASTRAsettings"]
         zstart = self.to_local(self.startObject.physical.start)[2]
         self.zstop = self.to_local(self.endObject.physical.end)[2]
-        screens = [e for e in self.deck_section.elements.elements.values() if e.hardware_class == "Diagnostic"]
+        deck = self.deck_section.elements.elements
+        screens = [deck[e.name] for e in self.output_elements if e.name in deck]
         if "zstart" in output_settings:
             output_settings.pop("zstart")
         self.section.astra_headers["output"] = AstraOutput(
@@ -263,35 +257,6 @@ class astraLattice(frameworkLattice):
         self.astra_headers["newrun"].input_particle_definition = self.hdf5_to_astra()
         self.astra_headers["charge"].npart = len(self.global_parameters["beam"].x)
 
-    @lox.thread
-    def screen_threaded_function(
-        self,
-        objectname: str,
-        scr: DiagnosticElement,
-        cathode: bool,
-        mult: int,
-        sval: float = 0.0,
-    ) -> None:
-        """
-        Threaded :meth:`astra_to_hdf5` for one screen.
-
-        Parameters
-        ----------
-        objectname: str
-            Lattice name
-        scr: :class:`~laura.models.diagnostic.DiagnosticElement`
-            Screen
-        cathode: bool
-            Unused by :meth:`astra_to_hdf5`
-        mult: int
-            Position multiplier in ASTRA output filenames
-        sval: float
-            s of the screen [m]
-        """
-        return self.astra_to_hdf5(
-            lattice=objectname, scr=scr, cathode=cathode, mult=mult, sval=sval
-        )
-
     def get_screen_scaling(self) -> int:
         """
         Find the position multiplier (100, 1000 or 10) ASTRA used in the screen filenames.
@@ -305,7 +270,7 @@ class astraLattice(frameworkLattice):
         for mult in [100, 1000, 10]:
             foundscreens = [
                 self.find_ASTRA_filename(self.objectname, e, master_run_no, mult)
-                for e in self.screens_and_bpms
+                for e in self.output_elements
             ]
             if all(foundscreens):
                 return mult
@@ -318,15 +283,16 @@ class astraLattice(frameworkLattice):
         mult = self.get_screen_scaling()
         offset = self.s_offset
         self.write_s_offset()
-        for e in self.screens_and_bpms:
-            self.screen_threaded_function.scatter(
+        self.convert_outputs(
+            lambda e: self.astra_to_hdf5(
+                lattice=self.objectname,
                 scr=e,
-                objectname=self.objectname,
                 cathode=cathode,
                 mult=mult,
                 sval=offset + self.to_local(e.middle)[2],
-            )
-        self.screen_threaded_function.gather()
+            ),
+            self.output_elements,
+        )
         endelem = Screen(
             name=self.end,
             hardware_class="Diagnostic",

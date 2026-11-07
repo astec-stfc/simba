@@ -12,9 +12,6 @@ from yaml import safe_load
 from copy import deepcopy
 from typing import Dict, Any, ClassVar
 import h5py
-import lox
-from lox.worker.thread import ScatterGatherDescriptor
-from laura.models.diagnostic import DiagnosticElement
 try:
     from laura.translator.converters.codes.cheetah import choose_cheetah_tracking_method
 except ImportError:  # a LAURA before the tracking-method option: Cheetah tracks linearly, as it did
@@ -49,11 +46,6 @@ twiss_keys = (
 
 class cheetahLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` built and tracked as a Cheetah segment."""
-
-    screen_threaded_function: ClassVar[ScatterGatherDescriptor] = (
-        ScatterGatherDescriptor
-    )
-    """Threaded conversion of Cheetah screen beams to openPMD"""
 
     code: str = "cheetah"
     """String indicating the lattice object type"""
@@ -166,19 +158,21 @@ class cheetahLattice(frameworkLattice):
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
 
-    @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
+    def write_screen_beam(self, name: str, scr: Any) -> rbf.beam:
         """
-        Write a Cheetah beam as openPMD; the end's also becomes the framework beam.
+        Write the Cheetah beam at element ``name`` as openPMD.
 
         Parameters
         ----------
-        scr: cheetah.ParticleBeam
-            Beam read at the screen (despite the type hint)
-        outname: str
-            openPMD file to write
         name: str
             Element name
+        scr: cheetah.ParticleBeam
+            Beam read at the screen
+
+        Returns
+        -------
+        :class:`~simba.Modules.Beams.beam`
+            The beam written
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
@@ -194,9 +188,11 @@ class cheetahLattice(frameworkLattice):
             ref_index=self.ref_idx,
             start=self.reference_start,
         )
-        rbf.openpmd.write_openpmd_beam_file(beam, outname)
-        if name == self.end:
-            self.global_parameters["beam"] = beam
+        rbf.openpmd.write_openpmd_beam_file(
+            beam,
+            f'{self.global_parameters["master_subdir"]}/{self.output_basename(name)}.openpmd.hdf5',
+        )
+        return beam
 
     def postProcess(self) -> None:
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
@@ -213,17 +209,13 @@ class cheetahLattice(frameworkLattice):
                 screens.update({original.get(element.name, element.name): element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
-        i = 0
-        for name, scr in screens.items():
-            if name == self.start:
-                continue
-            outname = (
-                f'{self.global_parameters["master_subdir"]}/'
-                f'{self.output_basename(name)}.openpmd.hdf5'
-            )
-            self.screen_threaded_function.scatter(scr, outname, name)
-            i += 1
-        self.screen_threaded_function.gather()
+        end = screens.pop(self.end, None)
+        self.convert_outputs(
+            lambda item: self.write_screen_beam(*item),
+            [item for item in screens.items() if self.writes_output(item[0])],
+        )
+        if end is not None:
+            self.global_parameters["beam"] = self.write_screen_beam(self.end, end)
         if self.cheetahglobal["save_twiss"] and self.tws is not None:
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
             with h5py.File(twsname, "w") as f:

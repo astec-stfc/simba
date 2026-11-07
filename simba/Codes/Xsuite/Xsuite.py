@@ -15,7 +15,6 @@ from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from copy import deepcopy
 import numpy as np
-import json
 import os
 
 from typing import Dict, List, Any, ClassVar, Literal
@@ -286,7 +285,7 @@ class xsuiteLattice(frameworkLattice):
 
     def install_monitors(self, num_particles: int) -> None:
         """
-        Add a ``ParticlesMonitor`` at every screen, marker and BPM, recording every pass.
+        Add a ``ParticlesMonitor`` at every screen and marker that :meth:`writes_output`, recording every pass.
 
         Parameters
         ----------
@@ -295,7 +294,7 @@ class xsuiteLattice(frameworkLattice):
         """
         import xtrack as xt
         for elem in self.screens_and_markers_and_bpms:
-            if elem.name in self.line.element_dict:
+            if elem.name in self.line.element_dict and self.writes_output(elem.name):
                 self.line.element_dict[elem.name] = xt.ParticlesMonitor(
                     num_particles=num_particles,
                     start_at_turn=0,
@@ -1145,13 +1144,16 @@ class xsuiteLattice(frameworkLattice):
                 payload, self.end_name, name_turn, turn,
                 self.endObject.physical.middle.z, svals[self.end_name],
             )
-        for elem in self.screens_and_markers_and_bpms:
-            # the end's is written above
-            if elem.name == self.end_name or elem.name not in self.line.element_dict:
-                continue
-            if not self.writes_output(elem.name):
-                continue
-            data = _to_cpu(self.line[elem.name]).data.to_dict()
+        monitors = [
+            (elem, self.line[elem.name].data.to_dict())
+            for elem in self.screens_and_markers_and_bpms
+            if elem.name != self.end_name
+            and elem.name in self.line.element_dict
+            and self.writes_output(elem.name)
+        ]
+
+        def convert(item):
+            elem, data = item
             for data_turn, name_turn in self.output_turns():
                 turn = self.beam_turn(data_turn)
                 self._write_xsuite_beam(
@@ -1159,6 +1161,8 @@ class xsuiteLattice(frameworkLattice):
                     elem.name, name_turn, turn,
                     elem.physical.middle.z, svals[elem.name],
                 )
+
+        self.convert_outputs(convert, monitors)
         self._write_twiss_csv()
 
     def _write_xsuite_beam(
@@ -1186,9 +1190,7 @@ class xsuiteLattice(frameworkLattice):
         import xobjects as xo
         if turn == self.turns:
             stem = self.output_basename(name)
-            fname = f"{self.global_parameters['master_subdir']}/{stem}.xsuite.json"
-            with open(fname, "w") as fid:
-                json.dump(payload, fid, cls=xo.JEncoder)
+            rbf.xsuite.write_xsuite_json(payload, f"{self.global_parameters['master_subdir']}/{stem}.xsuite.json")
         t_reference = None
         if self.uses_reference_clock:
             t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))

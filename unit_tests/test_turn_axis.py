@@ -21,7 +21,8 @@ class FakeLine:
     def __init__(self, turns=1, write_turns=False, directory=None, end="M3"):
         self.file_block = {"tracking": {"turns": turns, "write_turns": write_turns}}
         self.start = "M0"
-        self.end = end
+        self.end = self.end_name = end
+        self.elements = {}
         self.objectname = "RING"
         self.colliding_outputs = []
         self.global_parameters = (

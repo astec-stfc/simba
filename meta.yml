@@ -37,7 +37,6 @@ requirements:
     - munch
     - fastkde
     - mpl-axes-aligner
-    - lox
     - pyqt
     - pyqtgraph
     - ocelot-desy
