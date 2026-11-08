@@ -74,3 +74,16 @@ def test_cheetah_reader_with_several_files(tmp_path):
     assert t.mux.val[-1] == pytest.approx(1.0)  # beta = 1 m over 1 m
     assert t.kinetic_energy.val[0] == pytest.approx(10e6 - t.E0_eV)
     assert t.cp.val[0] == pytest.approx(np.sqrt(10e6**2 - t.E0_eV**2))
+
+
+@pytest.mark.parametrize("save", ["madx", "ocelot"])
+def test_the_twiss_writers_do_not_drop_what_they_cannot_store(save, tmp_path):
+    """An entry h5py could not store was skipped without a word."""
+    from simba.Modules.Twiss.madx import save_madx_twiss_hdf
+    writer = save_madx_twiss_hdf if save == "madx" else ocelot.save_ocelot_twiss_hdf
+    filename = str(tmp_path / "twiss.hdf5")
+    writer(None, filename, {"s": np.arange(3.0), "element_name": np.array([b"A", b"B", b"C"])})
+    with h5py.File(filename, "r") as f:
+        assert sorted(f) == ["element_name", "s"]
+    with pytest.raises(TypeError):
+        writer(None, filename, {"s": np.arange(3.0), "element_name": np.array(["A", "B", "C"])})

@@ -700,6 +700,8 @@ class ocelotLattice(frameworkLattice):
                 if k == "s":
                     v += self.entrance_s
                 twsdat[k].append(v)
+        # Ocelot's unset attributes (_pending_emit_x) are None, which HDF5 cannot store
+        twsdat = {k: v for k, v in twsdat.items() if any(x is not None for x in v)}
         elements = list(self.create_drifts().values())
         shift = np.cumsum([STEP_BACK_GAP - e.physical.length if e.physical.length < 0 else 0.0 for e in elements])
         # Ocelot tracks a step back as a short forward drift, so its s runs ahead by shift
@@ -714,9 +716,7 @@ class ocelotLattice(frameworkLattice):
                 len(elem_names) - 1,
             )
             twsdat["s"] = list(array(twsdat["s"]) - shift[idx])
-            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and
-            # str) arrays, and save_ocelot_twiss_hdf swallows that error, which
-            # would silently drop the names.
+            # encode to bytes: h5py's create_dataset rejects numpy '<U' (and str) arrays
             twsdat['id'] = [str(n).encode("utf-8") for n in elem_names[idx]]
         save_ocelot_twiss_hdf(
             self,

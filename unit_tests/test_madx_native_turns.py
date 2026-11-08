@@ -311,3 +311,37 @@ def test_superperiods_agree_between_the_two_paths(tmp_path, seed_beam):
     assert np.allclose(
         np.array(native.x.val), np.array(looped.x.val), rtol=1e-9, atol=1e-12
     )
+
+
+def _generated_beam():
+    return frameworkGenerator(
+        initial_momentum=5e6, sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3,
+        sigma_z=1e-3, sigma_pz=1e3, charge=100e-12,
+    ).generate()
+
+
+def test_the_model_twiss_starts_from_the_beams_twiss():
+    import warnings
+    from types import SimpleNamespace
+    beam = _generated_beam()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        init = madxLattice.initial_twiss_conditions(SimpleNamespace(objectname="L"), beam)
+    assert init["betx"] == pytest.approx(float(beam.twiss.beta_x_corrected))
+
+
+@pytest.mark.parametrize("beam_kind", ["no beam", "pencil in x"])
+def test_the_model_twiss_says_when_the_beam_gives_none(beam_kind):
+    """It fell back to beta = 1 m without a word, and a beam with no spread in
+    x gave NaN, which went into MAD-X's model Twiss."""
+    from types import SimpleNamespace
+    from simba.Modules.units import UnitValue
+    if beam_kind == "no beam":
+        beam = rbf.beam()
+    else:
+        beam = _generated_beam()
+        beam.Particles.x = UnitValue(np.zeros(len(beam.x)), "m")
+        beam.Particles.px = UnitValue(np.zeros(len(beam.x)), "kg*m/s")
+    with pytest.warns(UserWarning, match="beta = 1 m"):
+        init = madxLattice.initial_twiss_conditions(SimpleNamespace(objectname="L"), beam)
+    assert (init["betx"], init["alfx"], init["bety"], init["alfy"]) == (1.0, 0.0, 1.0, 0.0)

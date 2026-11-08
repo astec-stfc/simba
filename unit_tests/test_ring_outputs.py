@@ -858,3 +858,25 @@ def test_xsuite_zeta_scales_with_beta0():
     line = _Clocked("xsuite")
     late = line.reference_time(1.5, 1) + 1e-12
     assert line.time_to_native(late, 1.5, 1) == pytest.approx(-0.95 * 299792458.0 * 1e-12)
+
+
+def test_sampling_takes_every_per_particle_array():
+    """Sampling went through a fixed list of keys and skipped any it could not
+    slice: `clock` (one per particle on an ASTRA beam) was not in the list, and a
+    unitless `nmacro` array failed, so both stayed the full beam's length."""
+    from simba.Modules.units import UnitValue
+    beam = frameworkGenerator(
+        initial_momentum=5e6, sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3,
+        sigma_z=1e-3, sigma_pz=1e3, charge=100e-12, number_of_particles=400,
+    ).generate()
+    n = len(beam.x)
+    beam.Particles.clock = UnitValue(np.arange(n, dtype=float), "s")
+    beam.Particles.nmacro = np.full(n, 3.0)
+    every_fourth = SimpleNamespace(sample_interval=4)
+    every_fourth.sampled_index = lambda i: frameworkLattice.sampled_index(every_fourth, i)
+    sampled = frameworkLattice.sample_beam(every_fourth, beam)._beam
+    for key in ["x", "px", "t", "clock", "nmacro", "particle_mass", "charge"]:
+        assert len(np.atleast_1d(getattr(getattr(sampled, key), "val", getattr(sampled, key)))) == n // 4, key
+    np.testing.assert_array_equal(np.asarray(sampled.clock.val), np.arange(0, n, 4))
+    assert float(np.sum(sampled.charge.val)) == pytest.approx(float(np.sum(beam.charge.val)))
+    assert np.ndim(getattr(sampled.particle_rest_energy, "val", sampled.particle_rest_energy)) == 0

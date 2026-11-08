@@ -2324,15 +2324,14 @@ class frameworkLattice(BaseModel):
         newbeam = deepcopy(bm)
         nb = newbeam._beam
         idx = slice(None, None, interval)
-        for key in ["x", "y", "z", "t", "px", "py", "pz", "nmacro", "status",
-                    "particle_mass", "particle_rest_energy",
-                    "particle_rest_energy_eV", "particle_charge"]:
-            if hasattr(nb, key) and getattr(nb, key) is not None:
-                val = getattr(nb, key)
-                try:
-                    setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
-                except Exception:
-                    pass
+        n = len(bm.x)
+        for key in type(nb).model_fields:
+            val = getattr(nb, key, None)
+            if key in ("charge", "offset") or val is None:
+                continue
+            arr = np.asarray(getattr(val, "val", val))
+            if arr.ndim == 1 and len(arr) == n:
+                setattr(nb, key, UnitValue(arr[idx], units=val.units) if isinstance(val, UnitValue) else arr[idx])
         charge = np.array(bm.charge.val)
         kept = charge[idx]
         nb.charge = UnitValue(kept * (np.sum(charge) / np.sum(kept)), units="C")

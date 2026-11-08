@@ -1032,7 +1032,11 @@ class Framework(BaseModel):
         dict or Any or :class:`~laura.models.element.Element`
             The parameter, or the element (also if it lacks ``param``), or ``{}`` if there is no such element.
         """
-        if self.__getitem__(element) is not None:
+        try:
+            found = self.__getitem__(element) is not None
+        except KeyError:
+            found = False
+        if found:
             if param is not None:
                 param = param.lower()
                 try:
@@ -1486,8 +1490,8 @@ class Framework(BaseModel):
         else:
             try:
                 return getattr(self, key)
-            except Exception:
-                return None
+            except AttributeError:
+                raise KeyError(f"No element, line, group or attribute called {key!r}") from None
 
     @property
     def elements(self) -> list:

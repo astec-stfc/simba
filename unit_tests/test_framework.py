@@ -412,3 +412,12 @@ def test_copylink_raises_when_the_copy_fails(tmp_path):
         copylink(str(tmp_path / "missing.gdf"), str(tmp_path / "out.gdf"))
     (tmp_path / "field.gdf").write_text("x")
     copylink(str(tmp_path / "field.gdf"), str(tmp_path / "field.gdf"))  # onto itself: nothing to do
+
+
+def test_an_unknown_name_in_brackets_raises(sample_framework):
+    """framework["NAME"] returned None for a misspelt name, so the error came
+    later, as an AttributeError on None."""
+    assert sample_framework["E1"].name == "E1"
+    assert sample_framework["directory"] == sample_framework.directory
+    with pytest.raises(KeyError, match="NO-SUCH"):
+        sample_framework["NO-SUCH"]
