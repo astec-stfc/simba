@@ -835,8 +835,9 @@ class Framework(BaseModel):
         ----------
         lattice: str or None
             Lattice line to export; if None, the whole machine, written to
-            ``<directory>/<stem>/`` as ``summary.yaml`` plus ``_sections.yaml``
-            and ``_layouts.yaml``.
+            ``<directory>/<stem>/`` as ``summary.yaml`` plus ``_sections.yaml``,
+            ``_layouts.yaml`` and, if the machine has any,
+            ``_functional_definitions.yaml``.
         filename: str or None
             Its stem names the output, with ``_<lattice>_lattice`` appended for a line;
             defaults to the settings filename.
@@ -847,7 +848,8 @@ class Framework(BaseModel):
         -------
         dict or None
             For the whole machine, the absolute paths written, as the ``layout``,
-            ``section`` and ``element_list`` settings that load it back.
+            ``section``, ``element_list`` and ``functional_definitions`` settings
+            that load it back.
         """
         if filename is None:
             if self.settingsFilename is not None:
@@ -863,6 +865,7 @@ class Framework(BaseModel):
                 "layout": os.path.join(path, "_layouts.yaml"),
                 "section": os.path.join(path, "_sections.yaml"),
                 "element_list": os.path.join(path, "summary.yaml"),
+                "functional_definitions": os.path.join(path, "_functional_definitions.yaml"),
             }
             return {key: p for key, p in written.items() if os.path.isfile(p)}
         else:
