@@ -604,7 +604,6 @@ def test_hdf5_round_trip_keeps_status_and_reference_particle(simple_beam, tmp_pa
 
 def test_hdf5_writes_a_beam_no_code_has_read(simple_beam, tmp_path):
     # as the generator makes it: no code, no nmacro
-    simple_beam.set_species("electron")  # the HDF5 reader does not keep a positron's species (ISSUES.md)
     simple_beam.code = None
     simple_beam.Particles.nmacro = None
     simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
@@ -612,6 +611,41 @@ def test_hdf5_writes_a_beam_no_code_has_read(simple_beam, tmp_path):
     for key in ["x", "y", "z", "t", "cpx", "cpy", "cpz"]:
         assert np.allclose(getattr(newbeam, key), getattr(simple_beam, key), rtol=1e-12, atol=0)
     assert np.isclose(float(newbeam.Q), float(simple_beam.Q), rtol=1e-12, atol=0)
+
+
+@pytest.mark.parametrize("species", ["electron", "positron", "proton", "antiproton"])
+def test_hdf5_keeps_the_species(simple_beam, tmp_path, species):
+    simple_beam.set_species(species)
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    for back in rbf.load_file(str(tmp_path / "b.hdf5")), rbf.beam(str(tmp_path / "b.hdf5")):
+        assert back.species == species
+        assert np.isclose(float(back.Q), float(simple_beam.Q), rtol=1e-12, atol=0)
+        assert np.allclose(back.E0_eV, simple_beam.E0_eV, rtol=1e-12)
+
+
+@pytest.mark.parametrize("name", ["b.hdf5", "b.astra", "b.gdf"])
+def test_reading_a_file_keeps_each_particles_species(simple_beam, tmp_path, name):
+    import copy
+    electrons = copy.deepcopy(simple_beam)
+    electrons.set_species("electron")
+    simple_beam.absorb([electrons])  # positrons first, so positron is the primary species
+    getattr(simple_beam, {".hdf5": "write_HDF5_beam_file", ".astra": "write_astra_beam_file",
+                          ".gdf": "write_gdf_beam_file"}[os.path.splitext(name)[1]])(str(tmp_path / name))
+    for back in rbf.load_file(str(tmp_path / name)), rbf.beam(str(tmp_path / name)):
+        assert back.species == "positron"
+        # counts, not order: ASTRA moves its reference particle to the first row
+        assert sorted(back.particle_species) == sorted(simple_beam.particle_species)
+        assert np.isclose(float(np.sum(back.Particles.charge)), 0, atol=1e-20)
+        assert np.isclose(float(back.Particles.total_charge), 0, atol=1e-20)
+
+
+def test_a_reader_that_does_not_name_the_species_keeps_it(simple_beam, tmp_path):
+    # GDF stores nmacro, not charge: make the fixture's nmacro (1) match its charge
+    simple_beam.Particles.nmacro = UnitValue(np.abs(simple_beam.Particles.charge.val) / e, "")
+    simple_beam.write_gdf_beam_file(str(tmp_path / "b.gdf"))  # a positron beam; the GDF reader sets no species
+    for back in rbf.load_file(str(tmp_path / "b.gdf")), rbf.beam(str(tmp_path / "b.gdf")):
+        assert back.species == "positron"
+        assert np.isclose(float(back.Q), float(simple_beam.Q), rtol=1e-9, atol=0)
 
 
 def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):

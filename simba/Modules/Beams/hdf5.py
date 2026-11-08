@@ -211,6 +211,9 @@ def read_HDF5_beam_file(self, filename, local=False):
         self._beam.clock = UnitValue(np.full(len(x), 0), "s")
         self._beam.t = UnitValue(t, "s")
         self._beam.set_total_charge(np.sum(self._beam.charge))
+        names = self.particle_species  # from each particle's mass and charge sign
+        if names is not None:
+            self.species = names[0]  # a mixed beam keeps its primary species first (see absorb)
         if h5file.get("beam/status") is not None:
             self._beam.status = UnitValue(np.array(h5file.get("beam/status")), "")
         elif bool(np.array(h5file.get("beam/cathode"))):
