@@ -646,6 +646,50 @@ def test_plot_single_key(simple_beam):
     plot.plot(simple_beam, keys="x")
 
 
+def _kde_backend(use_scipy):
+    import matplotlib
+    matplotlib.use("Agg")
+    from simba.Modules.Beams import plot
+    if not use_scipy and not plot.fastKDE_installed:
+        pytest.skip("fastKDE is not installed")
+    return plot
+
+
+@pytest.mark.parametrize("use_scipy", [True, False])
+def test_get_screen_image_is_what_plot_screen_image_draws(simple_beam, use_scipy):
+    """plotScreenImage read beam.filename for nothing, so an in-memory beam raised
+    TypeError; getScreenImage indexed the beam, which a SIMBA beam does not allow,
+    and its SciPy grid was laid out [x, y] where fastKDE's is [y, x]."""
+    plot = _kde_backend(use_scipy)
+    simple_beam.filename = None
+    # skewed in x, so a PDF the wrong way round shows
+    simple_beam.Particles.x = UnitValue(
+        np.random.default_rng(1).exponential(1e-2, len(simple_beam.x)), "m"
+    )
+    fig, ax = plot.plotScreenImage(simple_beam, keys=["x", "y"], use_scipy=use_scipy)
+    v1, v2, pdf, _, labelx, labely = plot.getScreenImage(
+        simple_beam, keys=["x", "y"], use_scipy=use_scipy
+    )
+    assert v1.ndim == v2.ndim == 1 and pdf.shape == (len(v2), len(v1))
+    assert np.array_equal(ax.collections[-1].get_array().reshape(pdf.shape), pdf)
+    assert (labelx, labely) == (ax.get_xlabel(), ax.get_ylabel())
+    x_peak = v1[pdf.sum(axis=0).argmax()]
+    y_peak = v2[pdf.sum(axis=1).argmax()]
+    assert x_peak < np.median(simple_beam.x) * 1e3  # x in mm, below its median
+    assert abs(y_peak) < 5  # y in mm, sigma 10 mm, centred
+
+
+@pytest.mark.parametrize("use_scipy", [True, False])
+@pytest.mark.parametrize("marginals", [False, True])
+def test_screen_image_title(simple_beam, marginals, use_scipy):
+    """`title` was accepted and ignored, and marginals crashed with SciPy."""
+    plot = _kde_backend(use_scipy)
+    fig, ax = plot.plotScreenImage(
+        simple_beam, keys=["x", "y"], use_scipy=use_scipy, marginals=marginals, title="screen 1"
+    )
+    assert [a.get_title() for a in fig.axes if a.get_title()] == ["screen 1"]
+
+
 def test_astra_write_with_index_array(simple_beam, tmp_path):
     simple_beam.filename = str(tmp_path / "run.openpmd.hdf5")
     simple_beam.write_astra_beam_file(index=np.full(len(simple_beam.x), 3))
