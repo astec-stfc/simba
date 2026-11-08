@@ -108,7 +108,8 @@ def write_HDF5_beam_file(
         inputgrp["total_charge"] = self._beam.total_charge
         inputgrp["npart"] = len(self.x)
         inputgrp["centered"] = centered
-        inputgrp["code"] = self.code
+        if self.code is not None:  # None for a generated beam or one read from openPMD
+            inputgrp["code"] = self.code
         inputgrp["particle_mass"] = mass
         inputgrp["toffset"] = toffset
         beamgrp = f.create_group("beam")
@@ -126,6 +127,7 @@ def write_HDF5_beam_file(
             massvector = self._beam.particle_mass
         else:
             massvector = np.full(len(self.x), constants.electron_mass)
+        nmacro = self.nmacro if self.nmacro is not None else np.abs(chargevector) / constants.elementary_charge
         array = np.array(
             [
                 self.x + UnitValue(xoffset, units="m"),
@@ -137,7 +139,7 @@ def write_HDF5_beam_file(
                 self.t + UnitValue(toffset, units="s"),
                 massvector,
                 chargevector,
-                self.nmacro,
+                nmacro,
             ]
         ).transpose()
         beamgrp["columns"] = np.array(

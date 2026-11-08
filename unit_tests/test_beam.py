@@ -602,6 +602,18 @@ def test_hdf5_round_trip_keeps_status_and_reference_particle(simple_beam, tmp_pa
     assert np.allclose(newbeam.reference_particle, np.arange(10.0))
 
 
+def test_hdf5_writes_a_beam_no_code_has_read(simple_beam, tmp_path):
+    # as the generator makes it: no code, no nmacro
+    simple_beam.set_species("electron")  # the HDF5 reader does not keep a positron's species (ISSUES.md)
+    simple_beam.code = None
+    simple_beam.Particles.nmacro = None
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
+    for key in ["x", "y", "z", "t", "cpx", "cpy", "cpz"]:
+        assert np.allclose(getattr(newbeam, key), getattr(simple_beam, key), rtol=1e-12, atol=0)
+    assert np.isclose(float(newbeam.Q), float(simple_beam.Q), rtol=1e-12, atol=0)
+
+
 def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):
     simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"), cathode=True)
     newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
