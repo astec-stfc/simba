@@ -18,7 +18,7 @@ from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement
 from laura.models.element_list import flatten_occurrence, split_occurrence
-from laura.exporters.yaml_exporter import export_machine, export_elements
+from laura.exporters.yaml_exporter import export_machine_combined_file, export_elements
 
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
@@ -829,7 +829,9 @@ class Framework(BaseModel):
         Parameters
         ----------
         lattice: str or None
-            Lattice line to export; if None, the whole machine.
+            Lattice line to export; if None, the whole machine, written to
+            ``<directory>/<stem>/`` as ``summary.yaml`` plus ``_sections.yaml``
+            and ``_layouts.yaml``.
         filename: str or None
             Its stem names the output, with ``_<lattice>_lattice`` appended for a line;
             defaults to the settings filename.
@@ -845,7 +847,7 @@ class Framework(BaseModel):
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
             filename = pre
-            export_machine(os.path.join(directory, filename), self.machine)
+            export_machine_combined_file(os.path.join(directory, filename), self.machine)
         else:
             if self.latticeObjects[lattice].elements is None:
                 warn(f"No elements found in {lattice} to save")

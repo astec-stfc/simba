@@ -244,6 +244,17 @@ def test_detect_changes(sample_framework, kwargs):
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
 
+def test_the_whole_machine_is_saved_as_one_summary_file(framework_with_machine, tmp_path):
+    framework_with_machine.save_lattice(directory=str(tmp_path), filename="lattice.yaml")
+    saved = tmp_path / "lattice"
+    assert sorted(os.listdir(saved)) == ["_layouts.yaml", "_sections.yaml", "summary.yaml"]
+    reloaded = LAURA(
+        layout=str(saved / "_layouts.yaml"),
+        section=str(saved / "_sections.yaml"),
+        element_list=str(saved / "summary.yaml"),
+    )
+    assert reloaded.sections["FODO"].names == ["M1", "QUAD1F", "QUAD1D", "M3"]
+
 def test_save_and_load_changes_file(sample_framework, tmp_path):
     fw_obj = sample_framework
     fw_obj.modifyElement("E2", "virtual_name", "VE2")
