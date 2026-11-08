@@ -71,6 +71,18 @@ def test_t_is_the_same_bunch_as_z(simple_generator):
     assert np.any(t > 0) and np.any(t < 0)
 
 
+@pytest.mark.parametrize("species", ["electron", "positron", "proton"])
+def test_a_generated_beam_has_nmacro_and_writes_to_every_format(simple_generator, tmp_path, species):
+    simple_generator.species = species
+    beam = simple_generator.generate()
+    n = len(beam.x)
+    # real particles per macroparticle
+    assert np.allclose(beam.Particles.nmacro.val, 100e-12 / 1.602176634e-19 / n, rtol=1e-12)
+    beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    beam.write_gdf_beam_file(str(tmp_path / "b.gdf"))
+    beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+
+
 def test_load_defaults_dict(simple_generator):
     gen = simple_generator
     defaults = {"sigma_x": 2e-4, "sigma_y": 2e-4}

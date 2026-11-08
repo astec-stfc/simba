@@ -603,9 +603,7 @@ def test_hdf5_round_trip_keeps_status_and_reference_particle(simple_beam, tmp_pa
 
 
 def test_hdf5_writes_a_beam_no_code_has_read(simple_beam, tmp_path):
-    # as the generator makes it: no code, no nmacro
-    simple_beam.code = None
-    simple_beam.Particles.nmacro = None
+    simple_beam.code = None  # a generated beam, or one read from openPMD
     simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
     newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
     for key in ["x", "y", "z", "t", "cpx", "cpy", "cpz"]:

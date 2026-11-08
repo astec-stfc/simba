@@ -127,7 +127,6 @@ def write_HDF5_beam_file(
             massvector = self._beam.particle_mass
         else:
             massvector = np.full(len(self.x), constants.electron_mass)
-        nmacro = self.nmacro if self.nmacro is not None else np.abs(chargevector) / constants.elementary_charge
         array = np.array(
             [
                 self.x + UnitValue(xoffset, units="m"),
@@ -139,7 +138,7 @@ def write_HDF5_beam_file(
                 self.t + UnitValue(toffset, units="s"),
                 massvector,
                 chargevector,
-                nmacro,
+                self.nmacro,
             ]
         ).transpose()
         beamgrp["columns"] = np.array(
