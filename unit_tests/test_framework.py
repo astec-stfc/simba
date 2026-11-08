@@ -144,6 +144,14 @@ def test_framework_settings_and_tracking(framework_with_machine, simple_generato
     framework.set_lattice_prefix("FODO", f"{simple_generator}/")
     framework.track()
     assert os.path.isfile(os.path.join(framework.directory, "M3.openpmd.hdf5"))
+    # the settings.def saved beside the run loads the lattice saved with it
+    saved = os.path.join(framework.subdirectory, "lattice")
+    rerun = fw.Framework(directory=str(simple_generator / "rerun"))
+    rerun.loadSettings(filename=os.path.join(framework.subdirectory, "settings.def"))
+    assert rerun.settings["element_list"] == os.path.join(saved, "summary.yaml")
+    assert rerun.settings["section"] == os.path.join(saved, "_sections.yaml")
+    assert rerun.settings["layout"] == os.path.join(saved, "_layouts.yaml")
+    assert rerun.machine.sections["FODO"].names == ["M1", "QUAD1F", "QUAD1D", "M3"]
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):

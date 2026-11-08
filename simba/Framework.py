@@ -623,6 +623,7 @@ class Framework(BaseModel):
         filename: str | None = None,
         directory: str = ".",
         elements: dict | None = None,
+        lattice_files: dict | None = None,
     ) -> None:
         """
         Save lattice settings to a file.
@@ -635,12 +636,16 @@ class Framework(BaseModel):
             Output directory.
         elements: dict or None
             Replaces the ``elements`` entry of the saved settings.
+        lattice_files: dict or None
+            Replaces the ``layout``, ``section`` and ``element_list`` entries
+            it gives, as returned by :meth:`save_lattice`.
         """
         if filename is None:
             filename = "settings.def"
         settings = self.settings.copy()
         if elements is not None:
             settings["elements"] = elements
+        settings.update(lattice_files or {})
         settings = convert_numpy_types(settings)
         with open(os.path.join(directory, filename), "w") as yaml_file:
             yaml.default_flow_style = True
@@ -837,6 +842,12 @@ class Framework(BaseModel):
             defaults to the settings filename.
         directory: str
             Output directory.
+
+        Returns
+        -------
+        dict or None
+            For the whole machine, the absolute paths written, as the ``layout``,
+            ``section`` and ``element_list`` settings that load it back.
         """
         if filename is None:
             if self.settingsFilename is not None:
@@ -846,8 +857,14 @@ class Framework(BaseModel):
         else:
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
-            filename = pre
-            export_machine_combined_file(os.path.join(directory, filename), self.machine)
+            path = os.path.abspath(os.path.join(directory, pre))
+            export_machine_combined_file(path, self.machine)
+            written = {
+                "layout": os.path.join(path, "_layouts.yaml"),
+                "section": os.path.join(path, "_sections.yaml"),
+                "element_list": os.path.join(path, "summary.yaml"),
+            }
+            return {key: p for key, p in written.items() if os.path.isfile(p)}
         else:
             if self.latticeObjects[lattice].elements is None:
                 warn(f"No elements found in {lattice} to save")
@@ -1767,11 +1784,10 @@ class Framework(BaseModel):
         if self.verbose:
             pbar.set_description(base_description + ": Finished! ")
             pbar.close()
-        self.save_lattice(directory=self.subdirectory, filename="lattice.yaml")
         self.save_settings(
             directory=self.subdirectory,
             filename="settings.def",
-            elements={"filename": "lattice.yaml"},
+            lattice_files=self.save_lattice(directory=self.subdirectory, filename="lattice.yaml"),
         )
         if save_summary:
             self.save_summary_files()
