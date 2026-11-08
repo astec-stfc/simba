@@ -271,8 +271,9 @@ class Framework(BaseModel):
             "container_runtime": self.container_runtime,
         }
         if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
-            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
-                 "Cannot run simulations without either of these - please set one or the other")
+            warn("Neither `simcodes` nor `container_runtime` ('docker' or 'apptainer') is set, so the external codes "
+                 "(ASTRA, elegant, GPT, Genesis, OPAL, CSRTrack, Tao, BDSIM) cannot run; "
+                 "Python codes such as ocelot and cheetah still work. Set one of them to use the external codes.")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
@@ -1963,7 +1964,8 @@ class frameworkDirectory(BaseModel):
     """Particle rest mass; defaults to the beams' own, or the electron's."""
 
     framework: Framework | None = None
-    """The run's :class:`~simba.Framework.Framework`; built from :attr:`settings` if not given."""
+    """The run's :class:`~simba.Framework.Framework`; built from :attr:`settings` if not given,
+    with this loader's :attr:`verbose` and any keywords that are not this loader's own fields."""
 
     def __init__(
         self,
@@ -1978,7 +1980,12 @@ class frameworkDirectory(BaseModel):
             directory = (
                 "." if self.directory is None else os.path.abspath(self.directory)
             )
-            self.framework = Framework(**kwargs)
+            # the loader's own options (settings filename, beams, ...) are not Framework's
+            own = type(self).model_fields.keys() - {"directory"}
+            self.framework = Framework(
+                verbose=self.verbose,
+                **{k: v for k, v in kwargs.items() if k not in own},
+            )
             self.framework.loadSettings(os.path.join(directory, self.settings))
         else:
             if self.directory is None:

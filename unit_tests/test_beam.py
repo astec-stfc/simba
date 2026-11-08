@@ -230,6 +230,16 @@ def test_centroids(simple_beam):
         )
     )
 
+def test_astra_write_leaves_a_serialisable_reference_index(simple_beam, tmp_path):
+    import warnings
+
+    simple_beam.write_astra_beam_file(str(tmp_path / "test.astra"))
+    assert type(simple_beam.reference_particle_index) is int
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        simple_beam.model_dump()
+
+
 def test_astra_beam(simple_beam):
     simple_beam.write_astra_beam_file("test.astra")
     astra_beam = rbf.beam("test.astra")

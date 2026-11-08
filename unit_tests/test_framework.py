@@ -2,6 +2,7 @@ import os
 import pytest
 import shutil
 import types
+import warnings
 from pydantic import ValidationError
 import simba.Framework as fw
 from simba.Framework_objects import chicane
@@ -331,3 +332,32 @@ def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(FileNotFoundError):
         yaml_checker.main([str(tmp_path / "missing.def")])
+
+
+@pytest.fixture
+def tracked_directory(framework_with_machine, simple_generator):
+    framework = framework_with_machine
+    framework["FODO"].lsc_enable = False
+    framework["FODO"].csr_enable = False
+    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
+    framework.track()
+    return framework.directory
+
+
+def test_load_directory_is_quiet_unless_asked(tracked_directory, capsys):
+    capsys.readouterr()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fwdir = fw.load_directory(tracked_directory, beams=True)
+    assert [str(w.message) for w in caught] == []
+    assert capsys.readouterr().out == ""
+    assert len(fwdir.beams) > 0
+
+
+def test_load_directory_reads_the_settings_file_it_is_given(tracked_directory):
+    shutil.copy(
+        os.path.join(tracked_directory, "settings.def"),
+        os.path.join(tracked_directory, "other.def"),
+    )
+    fwdir = fw.load_directory(tracked_directory, settings="other.def")
+    assert fwdir.framework.settings.settingsFilename.endswith("other.def")
