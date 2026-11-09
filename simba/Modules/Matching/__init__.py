@@ -6,5 +6,6 @@ caller to apply (see :meth:`~simba.Framework_objects.frameworkLattice.apply_sett
 """
 
 from .longitudinal import energy_polynomial, longitudinal_match, rf_settings
+from .transverse import transverse_match
 
-__all__ = ["energy_polynomial", "longitudinal_match", "rf_settings"]
+__all__ = ["energy_polynomial", "longitudinal_match", "rf_settings", "transverse_match"]

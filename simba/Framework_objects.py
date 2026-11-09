@@ -29,7 +29,7 @@ from laura.models.element_list import (
 )
 from laura.models.magnetic import brho as laura_brho
 from laura.models.physical import Position
-from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
+from laura.models.element import PhysicalBaseElement
 from laura.translator.converters.section import SectionLatticeTranslator
 
 from . import exceptions
@@ -2440,7 +2440,8 @@ class frameworkLattice(BaseModel):
         samples (:meth:`sample_beam`), runs :meth:`check_species`, rematches to
         ``input: twiss``, sets :attr:`ref_idx`, runs :meth:`check_design_energy` and
         :meth:`check_ramp_beam`, and resets the :meth:`reference_time` clock. Then applies
-        any ``longitudinal_match`` (:func:`~simba.Modules.Matching.longitudinal_match`).
+        any ``longitudinal_match`` (:func:`~simba.Modules.Matching.longitudinal_match`), then
+        any ``match`` (:func:`~simba.Modules.Matching.transverse_match`).
 
         Parameters
         ----------
@@ -2477,11 +2478,17 @@ class frameworkLattice(BaseModel):
         self.check_ramp_beam()
         self.reset_reference_clock()
         self.merge_other_species()
+        # matching needs the input beam, and every code writes its deck after loading it;
+        # the RF first, as the optics depend on the energies it gives
         if "longitudinal_match" in self.file_block:
-            # needs the input beam, and every code writes its deck after loading it
             from .Modules.Matching import longitudinal_match
 
             self.apply_settings(longitudinal_match(self, self.file_block["longitudinal_match"]))
+        match = self.file_block.get("match")
+        if match and match.get("enable", True):
+            from .Modules.Matching import transverse_match
+
+            self.apply_settings(transverse_match(self, match))
         return filepath
 
     def update_groups(self) -> None:
@@ -3114,7 +3121,7 @@ class frameworkLattice(BaseModel):
 
     def preProcess(self) -> None:
         """
-        Run the pre-tracking checks, apply section settings, read :meth:`getInitialTwiss` and do any transverse ``match``.
+        Run the pre-tracking checks, apply section settings and read :meth:`getInitialTwiss`.
         """
         self.check_turns_supported()
         self.check_periodic_supported()
@@ -3131,12 +3138,6 @@ class frameworkLattice(BaseModel):
         self.check_turns_closed()
         ast = self.section.astra_headers.copy()
         self.initial_twiss = self.getInitialTwiss()
-        if "match" in self.file_block:
-            domatch = True
-            if "enable" in self.file_block["match"] and not self.file_block["match"]["enable"]:
-                domatch = False
-            if domatch:
-                self.match(self.file_block["match"])
         self.section.astra_headers = ast
 
     def read_closed_orbit(self):
@@ -3574,91 +3575,6 @@ class frameworkLattice(BaseModel):
             return matrix["R_matrix_ebe"]
         return matrix["R_matrix"]
 
-    def match(self, params: Dict) -> None:
-        """
-        Transverse matching with Ocelot's ``match``, setting the variables' strengths in place.
-
-        ``variables`` are quadrupole, sextupole or octupole names; ``targets`` maps
-        element names (or ``global``) to Ocelot Twiss constraints; ``max_iterations``
-        defaults to 10000:
-
-        .. code-block:: yaml
-
-            files:
-              line:
-                match:
-                  variables: [Q1, Q2, S1]
-                  targets:
-                    SCR1: {beta_x: 10.0, alpha_x: 0.0}
-                    SCR2: {beta_y: 12.0, alpha_y: 0.0}
-                    SCR3: {beta_x: {mode: greaterthan, value: 8.0}}
-
-        Parameters
-        ----------
-        params: Dict
-            The ``match`` block.
-
-        Raises
-        ------
-        ValueError
-            If ``variables`` or ``targets`` is missing, or no variable is a usable magnet.
-        """
-        if "variables" not in params:
-            raise ValueError("No matching variables provided")
-        if "targets" not in params:
-            raise ValueError("No matching targets provided")
-        from .Framework_lattices import ocelotLattice
-        from ocelot.cpbd.beam import Twiss
-        from ocelot.cpbd.match import match as match_oce
-        latcopy = deepcopy(self)
-        lat = ocelotLattice(
-            name=f"{latcopy.name}_match",
-            file_block=latcopy.file_block,
-            machine=latcopy.machine,
-            elementObjects=latcopy.elementObjects,
-            groupObjects=latcopy.groupObjects,
-            runSettings=latcopy.runSettings,
-            executables=latcopy.executables,
-            global_parameters=latcopy.global_parameters,
-            settings=latcopy.settings,
-        )
-        prefix = lat.get_prefix()
-        prefix = prefix if lat.trackBeam else prefix + lat.particle_definition
-        lat.read_input_file(prefix, lat.particle_definition)
-        lat.ref_idx = self.global_parameters["beam"].reference_particle_index
-        lat.hdf5_to_npz(prefix)
-        lat.writeElements()
-        beam = lat.global_parameters["beam"]
-        twsobj = Twiss(
-            beta_x=beam.twiss.beta_x.val,
-            beta_y=beam.twiss.beta_y.val,
-            alpha_x=beam.twiss.alpha_x.val,
-            alpha_y=beam.twiss.alpha_y.val,
-            E=beam.centroids.mean_cp.val * 1e-9
-        )
-        matchelems = [e for e in lat.lat_obj.sequence if e.id in params["targets"]]
-        constr = {e: params["targets"][e.id] for e in matchelems}
-        if "global" in params["targets"]:
-            constr.update({"global": params["targets"]["global"]})
-        varelems = [
-            [e for e in lat.lat_obj.sequence if e.id == p][0]
-            for p in params["variables"]
-            if p in self.elements and type(self.elements[p]) in [Quadrupole, Sextupole, Octupole]
-        ]
-        try:
-            max_iter = params["max_iterations"]
-        except KeyError:
-            max_iter = 10000
-        if len(varelems) == 0:
-            raise ValueError("No variables added; make sure quadrupoles/sextupoles/octupoles are used for matching")
-        res = match_oce(lat=lat.lat_obj, constr=constr, vars=varelems, tw=twsobj, verbose=False, max_iter=max_iter)
-        print("Matching results:")
-        for v, r in zip(varelems, res):
-            elem = self.elementObjects[v.id]
-            magnetic_order = elem.magnetic.order
-            magnetic_length = elem.magnetic.length
-            setattr(elem, f"k{magnetic_order}l", r * magnetic_length)
-            print("\t", elem.name, f"k{magnetic_order}l =", r * magnetic_length)
 
 class global_error(frameworkObject):
     """A global error element."""

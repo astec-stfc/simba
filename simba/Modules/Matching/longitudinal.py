@@ -18,6 +18,8 @@ with no collective effects.
 import numpy as np
 from scipy.constants import speed_of_light
 
+from ._settings import FUNCTIONAL, check_definitions_stay_inside, expand, set_value
+
 _ROWS = (
     lambda k: (1.0, 0.0),
     lambda k: (0.0, -k),
@@ -92,18 +94,9 @@ def _voltage_factor(cavity) -> float:
     return float(next(iter(translate_elements([cavity]).values())).voltage_factor())
 
 
-def _expand(lattice, names) -> list:
-    """Element names, with any of the settings' ``groups`` replaced by their members."""
-    groups = getattr(lattice, "groupObjects", None) or {}
-    out = []
-    for name in [names] if isinstance(names, str) else names:
-        out += _expand(lattice, groups[name].elements) if name in groups else [name]
-    return list(dict.fromkeys(out))
-
-
 def _system(lattice, names, label: str) -> tuple:
     """``(cavities, frequency)`` of one RF system, which must share a frequency."""
-    names = _expand(lattice, names)
+    names = expand(lattice, names)
     missing = [n for n in names if n not in lattice.elements]
     if missing:
         raise KeyError(f"longitudinal_match {label} {missing} are not in line {lattice.objectname!r}")
@@ -219,47 +212,9 @@ def longitudinal_match(lattice, settings: dict) -> dict:
                 new = float(c.simulation.resolved("field_amplitude")) * voltage / total
             else:
                 new = voltage / sum(factors[x.name] for x in cavities)
-            _set(result, definitions, c, "simulation.field_amplitude", amplitude, new)
-            _set(result, definitions, c, "cavity.phase", c.cavity.phase, phase)
+            set_value(result, definitions, c, "simulation.field_amplitude", amplitude, new, "longitudinal_match")
+            set_value(result, definitions, c, "cavity.phase", c.cavity.phase, phase, "longitudinal_match")
     if definitions:
-        _check_definitions_stay_inside(lattice, definitions, [c for cs, _ in systems.values() for c in cs])
+        check_definitions_stay_inside(lattice, definitions, set(matched), "longitudinal_match")
         result[FUNCTIONAL] = definitions
     return result
-
-
-FUNCTIONAL = "functional_definitions"
-"""Key of the matched functional definitions in a matcher's result."""
-
-
-def _set(result: dict, definitions: dict, cavity, path: str, current, value: float) -> None:
-    """Set ``path`` on ``cavity``, or the functional definition it names."""
-    if not isinstance(current, str):
-        result.setdefault(cavity.name, {})[path] = value
-    elif current in definitions and not np.isclose(definitions[current], value, rtol=1e-12, atol=0):
-        raise ValueError(
-            f"longitudinal_match needs functional definition {current!r} to be both "
-            f"{definitions[current]} and {value} (from {cavity.name}.{path})"
-        )
-    else:
-        definitions[current] = value
-
-
-def _check_definitions_stay_inside(lattice, definitions: dict, cavities: list) -> None:
-    """Refuse to change a definition that elements other than the matched cavities use too."""
-    from laura.models.base_models import functional_references
-
-    inside = {c.name for c in cavities}
-    machine = getattr(lattice, "machine", None)
-    elements = machine.elements if machine is not None else lattice.elements
-    outside = {}
-    for name in list(elements.keys()):
-        if name in inside:
-            continue
-        for ref in functional_references(elements[name]) & definitions.keys():
-            outside.setdefault(ref, []).append(name)
-    if outside:
-        raise ValueError(
-            "longitudinal_match would change functional definitions that other "
-            f"elements use too: {outside}; match those cavities as well, or give "
-            "the matched ones their own definitions"
-        )

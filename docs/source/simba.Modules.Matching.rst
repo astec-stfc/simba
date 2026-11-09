@@ -12,6 +12,14 @@ simba.Modules.Matching.longitudinal module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Matching.transverse module
+----------------------------------------
+
+.. automodule:: simba.Modules.Matching.transverse
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 
