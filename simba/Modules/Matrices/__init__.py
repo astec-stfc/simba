@@ -29,6 +29,38 @@ def _block(matrix, plane):
     return np.asarray(matrix, dtype=float)[index : index + 2, index : index + 2]
 
 
+def canonical_scaling(sign: int, scale: int | None, beta0: float = 1.0, magnitude: bool = True):
+    """
+    ``d`` such that ``d[:, None] * R / d[None, :]`` takes a code's 6x6 matrix ``R`` into
+    Xsuite's ``(x, px, y, py, zeta, delta)``: the code's longitudinal ``sign``, and
+    ``beta0 ** scale`` in ``R56`` split between the fifth and sixth coordinates.
+
+    Parameters
+    ----------
+    sign: int
+        A code's ``otm_longitudinal_sign``.
+    scale: int | None
+        Its ``otm_longitudinal_scale``; None if its conversion is not a rescale.
+    beta0: float
+        Reference ``v/c``.
+    magnitude: bool
+        Convert sizes as well as signs.
+
+    Returns
+    -------
+    numpy.ndarray | None
+        None when sizes are asked for and ``scale`` is None.
+    """
+    ratio, momentum = float(sign), 1.0
+    if magnitude:
+        if scale is None:
+            return None
+        # zeta = beta0 * t and delta = pt / beta0: scaling only one would leave R16 and R51 off by beta0
+        momentum = beta0 ** (-scale / 2)
+        ratio /= momentum
+    return np.array([1.0, 1.0, 1.0, 1.0, ratio, momentum])
+
+
 def tune_from_trajectory(positions, momenta=None) -> float:
     """
     Fractional tune from one particle's turn-by-turn motion.

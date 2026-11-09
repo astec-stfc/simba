@@ -4,11 +4,12 @@ import os
 import shutil
 import warnings
 
+import numpy as np
 import pytest
 
 import simba.Framework as fw
 from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
-from laura.models.element import Sextupole
+from laura.models.element import Dipole, Sextupole
 from simba.Codes.Generators import frameworkGenerator
 
 INPUT_TWISS = {"beta_x": 10.0, "alpha_x": 1.0, "nemit_x": 1e-6,
@@ -65,16 +66,78 @@ def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, group
 BETA_5 = {"variables": ["QUAD1F", "QUAD1D"], "targets": {"M3": {"beta_x": 5.0, "beta_y": 5.0}}}
 
 
-@pytest.mark.parametrize("code", ["ocelot", "elegant", "xsuite"])
-def test_the_matched_line_tracks_to_the_targets(tmp_path, code, seed_beam):
-    """The old match started from the beam file, not the rematched input beam: it
-    gave beta (2.85, 4.28) here, not (5, 5)."""
+MATCHERS = ["ocelot", "xsuite", "madx", "cheetah"]
+
+
+@pytest.mark.parametrize("code", MATCHERS)
+def test_each_code_matches_its_own_line(tmp_path, code, seed_beam):
+    """By default the line's own code matches. The old match started from the beam
+    file, not the rematched input beam: it gave beta (2.85, 4.28) here, not (5, 5)."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         _, end = track(tmp_path, code, seed_beam, BETA_5, quiet=False)
-    assert not [w for w in caught if "match missed" in str(w.message)]
+    assert not [w for w in caught if "match" in str(w.message)]
     assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
     assert end.twiss.beta_y.val == pytest.approx(5.0, rel=1e-2)
+
+
+@pytest.mark.parametrize("matcher", MATCHERS)
+def test_any_code_matches_a_line_tracked_in_another(tmp_path, matcher, seed_beam):
+    """elegant has no matcher here; each code matches for it, and elegant agrees."""
+    skip_missing(matcher)
+    _, end = track(tmp_path, "elegant", seed_beam, {**BETA_5, "code": matcher})
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+    assert end.twiss.beta_y.val == pytest.approx(5.0, rel=1e-2)
+
+
+def test_a_line_whose_code_cannot_match_falls_back(tmp_path, seed_beam):
+    """elegant has no backend, so the first that can (Ocelot) matches, without a word."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, end = track(tmp_path, "elegant", seed_beam, BETA_5, quiet=False)
+    assert not [w for w in caught if "match" in str(w.message)]
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+
+
+DISPERSION = {"variables": ["QUAD1F", "QUAD1D"],
+              "targets": {"M3": {"beta_x": 5.0, "eta_x": ["a<", 1.0]}}}
+
+
+def test_a_code_that_cannot_target_it_hands_over(tmp_path, seed_beam):
+    """Cheetah's Twiss has no dispersion: its line is matched elsewhere, with a warning."""
+    with pytest.warns(UserWarning, match="cheetah cannot match this.*eta_x.*matching in ocelot"):
+        _, end = track(tmp_path, "cheetah", seed_beam, DISPERSION, quiet=False)
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+
+
+def test_naming_a_code_that_cannot_target_it_is_refused(tmp_path, seed_beam):
+    with pytest.raises(ValueError, match="cannot run in cheetah.*eta_x"):
+        track(tmp_path, "ocelot", seed_beam, {**DISPERSION, "code": "cheetah"})
+
+
+def test_ocelots_names_still_work(tmp_path, seed_beam):
+    _, end = track(tmp_path, "ocelot", seed_beam,
+                   {**BETA_5, "targets": {"M3": {"beta_x": 5.0, "Dx": ["a<", 1.0]}}})
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+
+
+@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx"])
+def test_the_phase_advance_is_in_units_of_two_pi(tmp_path, matcher, seed_beam):
+    """Ocelot works in radians, Xsuite and MAD-X in 2 pi: each must reach the same
+    target, as Xsuite's own twiss of the matched line reads it."""
+    from simba.Modules.Matching.backends.xsuite import XsuiteBackend
+    from simba.Modules.Matching.transverse import parse
+
+    skip_missing(matcher)
+    skip_missing("xsuite")
+    block = {"variables": ["QUAD1F", "QUAD1D"], "targets": {"M3": {"beta_x": 5.0, "mux": 0.1}}}
+    framework, _ = track(tmp_path, "ocelot", seed_beam, {**block, "code": matcher})
+    line = framework["FODO"]
+    values = [line.elements[q].magnetic.k1l for q in ("QUAD1F", "QUAD1D")]
+    spec = parse(line, {**block, "variables": ["QUAD1F", "QUAD1D"]})
+    end = dict(XsuiteBackend(line, spec).twiss(values))["M3"]
+    assert end["mux"] == pytest.approx(0.1, abs=1e-4)
+    assert end["beta_x"] == pytest.approx(5.0, rel=1e-3)
 
 
 def test_an_inequality_is_met(tmp_path, seed_beam):
@@ -116,14 +179,92 @@ def test_definitions_are_matched_not_overwritten(tmp_path, seed_beam):
     assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
 
 
-def test_a_sextupole_is_refused(tmp_path, seed_beam):
-    """Ocelot never varies one: the old match wrote back wherever the minimiser left it."""
+def test_anything_but_a_quadrupole_names_its_setting(tmp_path, seed_beam):
+    """A bare name means a quadrupole's k1l. The old match took a sextupole's name,
+    which Ocelot never varied, and wrote back wherever the minimiser left it."""
     middle = fodo_quads() + [Sextupole(
         name="SEXT1", machine_area="FODO", magnetic={"length": 0.2, "k2l": 1.0},
         physical={"length": 0.2, "middle": {"x": 0.0, "y": 0.0, "z": 4.0}},
     )]
-    with pytest.raises(ValueError, match="SEXT1"):
+    with pytest.raises(ValueError, match="SEXT1.angle"):
         track(tmp_path, "ocelot", seed_beam, {**BETA_5, "variables": ["QUAD1F", "SEXT1"]}, middle=middle)
+    with pytest.raises(ValueError, match="no number nope"):
+        track(tmp_path / "2", "ocelot", seed_beam, {**BETA_5, "variables": ["QUAD1F", "SEXT1.nope"]}, middle=middle)
+
+
+IMAGING = {"variables": ["QUAD1F", "QUAD1D"], "targets": {"M3": {"R12": 0.0, "R34": 0.0}}}
+
+
+@pytest.mark.parametrize("matcher,checker", [("ocelot", "madx"), ("xsuite", "ocelot"), ("madx", "xsuite")])
+def test_transfer_matrix_targets(tmp_path, matcher, checker, seed_beam):
+    """Point-to-point imaging, solved in one code and read back in another: Ocelot's
+    match has no matrix targets, so it takes the shared solver."""
+    from simba.Modules.Matching.backends import backends
+    from simba.Modules.Matching.transverse import parse
+
+    skip_missing(matcher)
+    skip_missing(checker)
+    framework, _ = track(tmp_path, "elegant", seed_beam, {**IMAGING, "code": matcher})
+    line = framework["FODO"]
+    values = [line.elements[q].magnetic.k1l for q in ("QUAD1F", "QUAD1D")]
+    end = dict(backends()[checker](line, parse(line, IMAGING)).twiss(values))["M3"]
+    assert end["R12"] == pytest.approx(0.0, abs=1e-6)
+    assert end["R34"] == pytest.approx(0.0, abs=1e-6)
+
+
+def bend(angle):
+    """A 1 m sector bend from 1.5 m to 2.5 m: fodo_machine ends the line 0.5 m after it."""
+    return Dipole(
+        name="BEND1", machine_area="FODO", magnetic={"length": 1.0, "angle": angle},
+        physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+    )
+
+
+def test_every_code_gives_the_same_canonical_matrix(tmp_path, seed_beam):
+    """Ocelot's (tau, p) and MAD-X's (t, pt) read into Xsuite's (zeta, delta)."""
+    from simba.Modules.Matching.backends import MATRIX, backends
+    from simba.Modules.Matching.transverse import parse
+
+    block = {"variables": ["QUAD1F"], "targets": {"M3": {"R16": 0.0, "R56": 0.0, "R51": 0.0}}}
+    framework, _ = track(tmp_path, "ocelot", seed_beam, {**BETA_5, "enable": False},
+                         middle=fodo_quads()[:1] + [bend(0.2)])
+    line = framework["FODO"]
+    matrices = {}
+    for code in ("ocelot", "xsuite", "madx"):
+        skip_missing(code)
+        end = dict(backends()[code](line, parse(line, block)).twiss([-1.0]))["M3"]
+        matrices[code] = [end[q] for q in sorted(MATRIX)]
+    assert abs(matrices["xsuite"][sorted(MATRIX).index("R16")]) > 1e-2, "the bend must disperse"
+    for code in ("ocelot", "madx"):
+        assert matrices[code] == pytest.approx(matrices["xsuite"], abs=1e-5), code
+
+
+def test_rebuilding_leaves_the_elements_as_they_were(tmp_path, seed_beam):
+    from simba.Modules.Matching.backends import backends
+    from simba.Modules.Matching.transverse import parse
+
+    block = {"variables": ["BEND1.angle"], "targets": {"M3": {"R16": 0.1}}}
+    framework, _ = track(tmp_path, "ocelot", seed_beam, {**block, "enable": False}, middle=[bend(0.05)])
+    line = framework["FODO"]
+    backend = backends()["ocelot"](line, parse(line, block))
+    assert dict(backend.twiss([0.3]))["M3"]["R16"] != pytest.approx(dict(backend.twiss([0.05]))["M3"]["R16"])
+    assert line.elements["BEND1"].magnetic.angle == pytest.approx(0.05)
+
+
+@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx"])
+def test_a_dipole_angle_is_matched_by_rebuilding(tmp_path, matcher, seed_beam):
+    """Any field LAURA exports: here a sector bend's angle, for R16 = L (1 - cos a) / a
+    plus 0.5 m of drift at the slope sin a."""
+    from scipy.optimize import brentq
+
+    skip_missing(matcher)
+    framework, _ = track(tmp_path, "ocelot", seed_beam,
+                         {"variables": ["BEND1.angle"], "targets": {"M3": {"R16": [">", 0.08]}},
+                          "code": matcher},
+                         middle=[bend(0.05)])
+    angle = framework["FODO"].elements["BEND1"].magnetic.angle
+    expected = brentq(lambda a: (1 - np.cos(a)) / a + 0.5 * np.sin(a) - 0.08, 0.01, 1.0)
+    assert angle == pytest.approx(expected, rel=1e-3)
 
 
 @pytest.mark.parametrize(

@@ -3195,11 +3195,11 @@ class frameworkLattice(BaseModel):
         numpy.ndarray | None
             None when ``magnitude`` is set and this code's conversion is not a rescale.
         """
+        from .Modules.Matrices import canonical_scaling
+
         matrix = self.one_turn_map
         if matrix is None or np is None:
             return None
-        ratio = float(self.otm_longitudinal_sign)
-        momentum = 1.0
         if magnitude:
             if self.otm_longitudinal_scale is None:
                 return None
@@ -3213,11 +3213,10 @@ class frameworkLattice(BaseModel):
                     return None
             if not beta0:
                 return None
-            # zeta = beta0 * t and delta = pt / beta0: scaling only one would leave R16 and R51 off by beta0
-            momentum = beta0 ** (-self.otm_longitudinal_scale / 2)
-            ratio /= momentum
+        diagonal = canonical_scaling(
+            self.otm_longitudinal_sign, self.otm_longitudinal_scale, beta0 or 1.0, magnitude
+        )
         matrix = np.asarray(matrix, dtype=float)
-        diagonal = np.array([1.0, 1.0, 1.0, 1.0, ratio, momentum])
         return (diagonal[:, None] * matrix) / diagonal[None, :]
 
     def ring_parameters(self) -> dict:

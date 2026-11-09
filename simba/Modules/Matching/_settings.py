@@ -1,5 +1,8 @@
 """What the matchers share: naming elements, and returning settings that keep functional definitions."""
 
+import contextlib
+from functools import reduce
+
 import numpy as np
 
 FUNCTIONAL = "functional_definitions"
@@ -13,6 +16,44 @@ def expand(lattice, names) -> list:
     for name in [names] if isinstance(names, str) else names:
         out += expand(lattice, groups[name].elements) if name in groups else [name]
     return list(dict.fromkeys(out))
+
+
+def get_path(obj, path: str):
+    """``obj.a.b.c`` for ``path`` ``"a.b.c"``."""
+    return reduce(getattr, path.split("."), obj)
+
+
+@contextlib.contextmanager
+def temporarily(lattice, knobs, values):
+    """
+    With each knob's field set to its value, on its elements or in the functional
+    definition it names, then put back: for building a model with LAURA's exporters.
+    """
+    from laura.models.base_models import IgnoreExtra
+
+    from ...FrameworkHelperFunctions import set_deep_attr
+
+    registry = IgnoreExtra.functional_definitions
+    section = getattr(lattice.section, "functional_definitions", None)
+    section = section if isinstance(section, dict) else {}
+    saved_fields, saved_definitions = [], []
+    try:
+        for knob, value in zip(knobs, values):
+            if knob.definition is not None:
+                saved_definitions.append((knob.definition, registry.get(knob.definition), section.get(knob.definition)))
+                registry[knob.definition] = section[knob.definition] = float(value)
+            else:
+                for element in knob.elements:
+                    saved_fields.append((element, knob.field, get_path(element, knob.field)))
+                    set_deep_attr(element, knob.field, float(value))
+        yield
+    finally:
+        for element, path, value in reversed(saved_fields):
+            set_deep_attr(element, path, value)
+        for name, old, old_section in reversed(saved_definitions):
+            registry[name] = old
+            if old_section is not None:
+                section[name] = old_section
 
 
 def set_value(result: dict, definitions: dict, element, path: str, current, value: float, matcher: str) -> None:

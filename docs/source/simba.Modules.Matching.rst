@@ -1,6 +1,14 @@
 simba.Modules.Matching package
 ==============================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   simba.Modules.Matching.backends
+
 Submodules
 ----------
 
