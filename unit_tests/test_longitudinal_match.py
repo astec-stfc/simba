@@ -222,8 +222,8 @@ def test_a_definition_cannot_take_two_values(tmp_path, seed_beam):
 
 def test_a_group_names_the_cavities(tmp_path, seed_beam):
     """Groups from the settings, nested, in place of the cavity names. C2 is outside
-    the group and off: the match leaves it be, and does not count what it would give."""
-    cavities = [cavity(f"C{i}", 0.75 + i, 0.5, 20.0, 20e6 if i < 2 else 0.0) for i in range(3)]
+    the group: the match leaves it be, and allows for it."""
+    cavities = [cavity(f"C{i}", 0.75 + i, 0.5, 20.0, 20e6) for i in range(3)]
     groups = {
         "half1": {"type": "element_group", "elements": ["C0"]},
         "linac": {"type": "element_group", "elements": ["half1", "C1"]},
@@ -234,7 +234,22 @@ def test_a_group_names_the_cavities(tmp_path, seed_beam):
     phases = [framework["L"].elements[f"C{i}"].cavity.phase for i in range(3)]
     assert phases[0] == phases[1] != pytest.approx(20.0)
     assert phases[2] == pytest.approx(20.0)  # not in the group
-    assert shape(after)[1][0] == pytest.approx(-5.0, rel=1e-3)
+    (e0, _), (e1, h) = shape(before), shape(after)
+    assert e1 - e0 == pytest.approx(3 * 20e6 * np.cos(np.radians(20.0)), rel=1e-3)
+    assert h[0] == pytest.approx(-5.0, rel=1e-3)
+
+
+@pytest.mark.parametrize("where", ["before", "after"])
+def test_a_fixed_cavity_is_allowed_for_wherever_it_is(tmp_path, seed_beam, where):
+    """A cavity left out of the match, upstream or downstream of the matched one."""
+    z = {"before": (2.0, 1.0), "after": (1.0, 2.0)}[where]
+    cavities = [cavity("CAV", z[0], 0.5, 20.0, 20e6), cavity("FIXED", z[1], 0.5, -30.0, 10e6)]
+    framework, before, after = track(tmp_path, "ocelot", cavities, seed_beam,
+                                     {"cavities": ["CAV"], "chirp": -5.0, "energy_gain": 25e6})
+    assert framework["L"].elements["FIXED"].cavity.phase == pytest.approx(-30.0)
+    (e0, _), (e1, h) = shape(before), shape(after)
+    assert e1 - e0 == pytest.approx(25e6, rel=1e-3)
+    assert h[0] == pytest.approx(-5.0, rel=1e-3)
 
 
 def test_a_group_member_that_is_not_a_cavity_is_refused(tmp_path, seed_beam):

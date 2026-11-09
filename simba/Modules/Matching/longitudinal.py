@@ -78,6 +78,13 @@ def rf_settings(
     }
 
 
+def _contribution(frequency: float, voltage: float, phase: float) -> np.ndarray:
+    """What one cavity, at ``phase`` [rad], adds to ``[e_0, ..., e_3]``."""
+    k = 2 * np.pi * float(frequency) / speed_of_light
+    xy = voltage * np.array([np.cos(phase), np.sin(phase)])
+    return np.array([np.dot(row(k), xy) for row in _ROWS])
+
+
 def _voltage_factor(cavity) -> float:
     """Voltage per unit ``field_amplitude``: 1, or a travelling-wave cavity's length factor."""
     from laura.translator.converters.converter import translate_elements
@@ -124,7 +131,7 @@ def longitudinal_match(lattice, settings: dict) -> dict:
               chirp: -5.0            # relative energy chirp afterwards [1/m]
               curvature: 0.0         # [1/m^2], needs harmonics
               skewness: 0.0          # [1/m^3], needs harmonics
-              energy_gain: 100.0e6   # [eV]; by default what the cavities give now
+              energy_gain: 100.0e6   # [eV] over the line; by default what its cavities give now
 
     ``cavities`` and ``harmonics`` take element names or the names of ``groups``
     from the settings (``type: element_group``), alone or in a list:
@@ -136,6 +143,10 @@ def longitudinal_match(lattice, settings: dict) -> dict:
         files:
           line:
             longitudinal_match: {cavities: linac1, chirp: -5.0}
+
+    The line's other accelerating cavities keep their settings, and what they do to
+    the beam is allowed for, wherever they are in the line: the targets are for the
+    end of it.
 
     See :func:`rf_settings` for the conventions. Each system's voltage is shared
     between its cavities as they share it now (with equal field amplitudes if they
@@ -174,18 +185,17 @@ def longitudinal_match(lattice, settings: dict) -> dict:
                 f"harmonic of the cavities at {systems['main'][1]} Hz"
             )
 
-    factors = {c.name: _voltage_factor(c) for cavities, _ in systems.values() for c in cavities}
-    voltages = {
-        c.name: abs(float(c.simulation.resolved("field_amplitude"))) * factors[c.name]
-        for cavities, _ in systems.values()
-        for c in cavities
-    }
-    phases = {
-        c.name: np.radians(float(c.cavity.resolved("phase")))
-        for cavities, _ in systems.values()
-        for c in cavities
-    }
-    energy_in = energy_polynomial(lattice.global_parameters["beam"])
+    matched = {c.name: c for cavities, _ in systems.values() for c in cavities}
+    every = {**lattice.accelerating_cavities(), **matched}
+    factors = {n: _voltage_factor(c) for n, c in every.items()}
+    voltages = {n: abs(float(c.simulation.resolved("field_amplitude"))) * factors[n] for n, c in every.items()}
+    phases = {n: np.radians(float(c.cavity.resolved("phase"))) for n, c in every.items()}
+    # the line's other cavities stay as they are, and count as part of the incoming beam
+    beam_energy = energy_polynomial(lattice.global_parameters["beam"])
+    energy_in = beam_energy.copy()
+    for n, c in every.items():
+        if n not in matched:
+            energy_in += _contribution(c.cavity.resolved("frequency"), voltages[n], phases[n])
     gain = settings.get("energy_gain")
     if gain is None:
         gain = sum(v * np.cos(phases[n]) for n, v in voltages.items())
@@ -193,7 +203,7 @@ def longitudinal_match(lattice, settings: dict) -> dict:
     solved = rf_settings(
         energy_in,
         systems["main"][1],
-        energy_in[0] + gain,
+        beam_energy[0] + gain,
         settings["chirp"],
         settings.get("curvature", 0.0),
         settings.get("skewness", 0.0),
