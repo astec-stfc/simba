@@ -21,6 +21,12 @@ except ImportError:  # a LAURA before the tracking-method option: Cheetah tracks
     choose_cheetah_tracking_method = None
 
 
+def cheetah_element_name(name: str) -> str:
+    """The name Cheetah knows an element by: LAURA builds them with ``sanitize_name=True``."""
+    s = "".join(c if c.isalnum() or c == "_" else "_" for c in name)
+    return "_" + s if s[0].isdigit() else s
+
+
 with open(
     os.path.dirname(os.path.abspath(__file__)) + "/cheetah_defaults.yaml",
 ) as infile:
@@ -202,11 +208,7 @@ class cheetahLattice(frameworkLattice):
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
         from cheetah.accelerator import Screen
 
-        def sanitized(n: str) -> str:
-            s = "".join(c if c.isalnum() or c == "_" else "_" for c in n)
-            return "_" + s if s[0].isdigit() else s
-
-        original = {sanitized(n): n for n in self.elementObjects}
+        original = {cheetah_element_name(n): n for n in self.elementObjects}
         screens = {}
         for element in self.segment.elements:
             if isinstance(element, Screen):

@@ -64,9 +64,7 @@ class XsuiteBackend(Backend):
         """The transfer matrix from the line's start to ``name``'s end."""
         end = self.end_row[name]
         bounds = {} if end == "_end_point" else {"start": self.line.element_names[0], "end": end}
-        result = self.line.compute_one_turn_matrix_finite_differences(
-            particle_on_co=self.line.particle_ref.copy(), **bounds
-        )
+        result = self.line.compute_R_matrix(particle_on_co=self.line.particle_ref.copy(), **bounds)
         return np.asarray(result["R_matrix"], dtype=float)
 
     def points(self) -> list:

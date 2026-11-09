@@ -79,7 +79,9 @@ class BmadBackend(Backend):
         overlays = ""
         if self.native:
             for i, knob in enumerate(spec.knobs):
-                slaves = ", ".join(f"{e.name}[K1]: k1l / {float(e.magnetic.length)}" for e in knob.elements)
+                slaves = ", ".join(
+                    f"{self._name(e.name)}[K1]: k1l / {float(e.magnetic.length)}" for e in knob.elements
+                )
                 overlays += f"SIMBA_KNOB_{i}: overlay = {{{slaves}}}, var = {{k1l}}, k1l = {knob.value}\n"
         use = text.rindex("use,")
         # a new name each build: Bmad otherwise reuses its digested copy of a file rewritten within a second
@@ -94,6 +96,16 @@ class BmadBackend(Backend):
                 self.tao = Tao("-init tao.init -noplot", so_lib=libtao(lattice) or "")
             else:
                 self.tao.init("-init tao.init -noplot")
+
+    def _name(self, name: str) -> str:
+        """Tao's name for an element: a Bmad line's ``_tao_name``, else as LAURA writes it (``sanitize_string``)."""
+        from laura.translator.utils.functions import sanitize_string
+
+        from ....Codes.Bmad.Bmad import bmadLattice
+
+        if isinstance(self.lattice, bmadLattice):
+            return self.lattice._tao_name(name)
+        return sanitize_string(name)
 
     def _lattice_text(self, initial_twiss) -> str:
         """
@@ -134,7 +146,7 @@ class BmadBackend(Backend):
         text += "&tao_d2_data\n  d2_data%name = 'simba'\n  universe = 1\n  n_d1_data = 1\n/\n"
         text += "&tao_d1_data\n  ix_d1_data = 1\n  d1_data%name = 'targets'\n"
         for i, t in enumerate(spec.targets, start=1):
-            start, end = ("BEGINNING", "END") if t.at is None else ("", t.at)
+            start, end = ("BEGINNING", "END") if t.at is None else ("", self._name(t.at))
             value = t.value * SCALE.get(t.quantity, 1.0)
             weight = 1.0 / max(1.0, abs(t.value)) ** 2
             text += (
@@ -154,7 +166,7 @@ class BmadBackend(Backend):
         tao = self.tao
         names = [str(n).upper() for n in tao.lat_list("*", "ele.name")]
         columns = {q: np.asarray(tao.lat_list("*", c), dtype=float) / SCALE.get(q, 1.0) for q, c in LAT_LIST.items()}
-        laura = {e.upper(): e for e in self.lattice.elements}
+        laura = {self._name(e).upper(): e for e in self.lattice.elements}
         points = []
         for i, raw in enumerate(names):
             name = laura.get(raw)
@@ -173,9 +185,10 @@ class BmadBackend(Backend):
         tao = self.tao
         tao.cmd("use var simba")
         tao.cmd("use dat simba")
-        tao.cmd("run")
+        with contextlib.chdir(self.workdir):  # the optimiser writes var1.out where it runs
+            tao.cmd("run")
         values = []
         for knob in self.spec.knobs:
             first = knob.elements[0]
-            values.append(float(tao.ele_gen_attribs(first.name)["K1"]) * float(first.magnetic.length))
+            values.append(float(tao.ele_gen_attribs(self._name(first.name))["K1"]) * float(first.magnetic.length))
         return values

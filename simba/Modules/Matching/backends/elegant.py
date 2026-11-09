@@ -93,7 +93,6 @@ class ElegantBackend(Backend):
 
     def build(self) -> None:
         from ....Codes.Elegant.Elegant import elegant_element_name
-        from laura.translator.utils.functions import sanitize_string
 
         if not hasattr(self, "workdir"):
             self.workdir = tempfile.mkdtemp(prefix="simba_match_elegant_")
@@ -108,8 +107,7 @@ class ElegantBackend(Backend):
         for i, name in enumerate(dict.fromkeys(t.at for t in self.spec.targets if t.at is not None)):
             marker = f"SIMBA_FIT_{i}"
             markers.append(f"{marker}: marker, fitpoint = 1\n")
-            written = re.escape(sanitize_string(name))
-            body = re.sub(rf"(?<![\w-]){written}(?![\w-])", rf"\g<0>, {marker}", body, flags=re.I)
+            body = re.sub(rf"(?<![\w-]){re.escape(name)}(?![\w-])", rf"\g<0>, {marker}", body, flags=re.I)
             self.fitpoint[name] = marker
         start, end = lines[-1].span(2)
         with open(os.path.join(self.workdir, "lattice.lte"), "w") as f:
@@ -224,13 +222,14 @@ class ElegantBackend(Backend):
             first, length = knob.elements[0], float(knob.elements[0].magnetic.length)
             after.append(_command("optimization_variable", self.name[first.name], item="K1",
                                   lower_limit=-1e3, upper_limit=1e3,
-                                  step_size=max(1e-3, 0.01 * abs(knob.value / length))))
+                                  # 5%, scipy's fmin's first simplex: 1% stalled in a local minimum on JFEL S13
+                                  step_size=max(1e-2, 0.05 * abs(knob.value / length))))
             for other in knob.elements[1:]:
                 equation = f"{self.name[first.name]}.K1 {length} * {float(other.magnetic.length)} /"
                 after.append(_command("optimization_covariable", self.name[other.name], item="K1",
                                       equation=_quoted(equation)))
         for t in spec.targets:
-            tolerance = 1e-6 * max(1.0, abs(t.value))
+            scale = max(1.0, abs(t.value))
             if t.at is None:
                 quantity, value = f"{'max' if t.op == '<' else 'min'}.{GLOBAL[t.quantity]}", t.value
             else:
@@ -238,8 +237,11 @@ class ElegantBackend(Backend):
                 quantity, value = f"{self.fitpoint[t.at]}#1.{column}", self._elegant_value(t)
             if t.op.startswith("a"):
                 quantity += " abs"
-            function = {"=": "sene", "<": "selt", ">": "segt"}[t.op.lstrip("a")]
-            after.append(_command("optimization_term", term=_quoted(f"{quantity} {value} {tolerance} {function}")))
+            if t.op == "=":
+                term = f"{quantity} {value} - {scale} / sqr"
+            else:
+                term = f"{quantity} {value} {1e-4 * scale} {'selt' if t.op.endswith('<') else 'segt'}"
+            after.append(_command("optimization_term", term=_quoted(term)))
         after += [elegant_bunched_beam_command(), _command("optimize"), _command("save_lattice", filename="%s.new")]
         self._run(self._deck(after, False), "match")
         with open(os.path.join(self.workdir, "match.new")) as f:
@@ -247,7 +249,10 @@ class ElegantBackend(Backend):
         values = []
         for knob in spec.knobs:
             first = knob.elements[0]
-            found = re.search(rf"^{re.escape(self.name[first.name])}\s*:.*?\bK1=([^,\n]+)", saved, re.M | re.I)
-            values.append(float(found.group(1)) * float(first.magnetic.length) if found else 0.0)
+            line = re.search(rf'^"?{re.escape(self.name[first.name])}"?\s*:(.*)$', saved, re.M | re.I)
+            if line is None:
+                raise RuntimeError(f"elegant's matched lattice has no {first.name}")
+            k1 = re.search(r"\bK1=([^,\n]+)", line.group(1), re.I)  # left out when 0, its default
+            values.append(float(k1.group(1)) * float(first.magnetic.length) if k1 else 0.0)
         self.values = values
         return values

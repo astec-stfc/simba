@@ -24,9 +24,13 @@ class CheetahBackend(Backend):
             emittance_x=torch.tensor(1e-9, **f64), emittance_y=torch.tensor(1e-9, **f64),
             energy=torch.tensor(spec.energy, **f64), **f64,
         )
+        from ....Codes.Cheetah.Cheetah import cheetah_element_name
+
+        self.laura = {cheetah_element_name(n): n for n in self.lattice.elements}
         by_name = {e.name: e for e in self.segment.elements}
         self.variables = [
-            [(by_name[e.name], float(e.magnetic.length)) for e in knob.elements] for knob in spec.knobs
+            [(by_name[cheetah_element_name(e.name)], float(e.magnetic.length)) for e in knob.elements]
+            for knob in spec.knobs
         ] if self.native else []
 
     def set_native(self, values) -> None:
@@ -38,5 +42,6 @@ class CheetahBackend(Backend):
         beam, points = self.beam, []
         for element in self.segment.elements:
             beam = element.track(beam)
-            points.append((element.name, {q: float(getattr(beam, q)) for q in self.quantities}))
+            name = self.laura.get(element.name, element.name)
+            points.append((name, {q: float(getattr(beam, q)) for q in self.quantities}))
         return points

@@ -27,15 +27,19 @@ class MadxBackend(Backend):
         charge = 1 if lattice.reference_charge > 0 else -1
         beam = {"mass": lattice.rest_energy / 1e9, "charge": charge, "pc": spec.p0c / 1e9}
         self.madx = Madx(stdout=False)
-        self.madx.input(lattice.section.to_madx(beam=beam, Brho=lattice.rigidity(spec.p0c)))
-        self.sequence = sanitize_string(lattice.section.name).lower()
+        section = lattice.section
+        name = section.name
+        section.name = f"{sanitize_string(name)}_match"
+        try:
+            self.madx.input(section.to_madx(beam=beam, Brho=lattice.rigidity(spec.p0c)))
+        finally:
+            section.name = name
+        self.sequence = f"{sanitize_string(name)}_match".lower()
         self.name = {e: sanitize_string(e).lower() for e in lattice.elements}
-        # a k1l knob is a variable; each quadrupole's k1 is it over its length
         self.vars = [f"match_knob_{i}" for i in range(len(spec.knobs))] if self.native else []
         for var, knob in zip(self.vars, spec.knobs):
             self.madx.input(f"{var} = {knob.value};")
             for e in knob.elements:
-                # not `name->k1 := ...`, which MAD-X accepts and ignores here
                 self.madx.input(f"{self.name[e.name]}, k1 := {var} / {float(e.magnetic.length)};")
         t = spec.twiss
         self.initial = f"betx={t['beta_x']}, alfx={t['alpha_x']}, bety={t['beta_y']}, alfy={t['alpha_y']}"
@@ -57,6 +61,9 @@ class MadxBackend(Backend):
             if name is not None:
                 points.append((name, {q: float(table[n][i]) for q, n in wanted.items()}))
         return points
+
+    def native_solves(self) -> bool:
+        return self.native and len(self.spec.knobs) <= len(self.spec.targets)
 
     def native_solve(self) -> list:
         lines = [f"match, sequence={self.sequence}, {self.initial};"]

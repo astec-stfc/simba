@@ -184,7 +184,8 @@ def longitudinal_match(lattice, settings: dict) -> dict:
     voltages = {n: abs(float(c.simulation.resolved("field_amplitude"))) * factors[n] for n, c in every.items()}
     phases = {n: np.radians(float(c.cavity.resolved("phase"))) for n, c in every.items()}
     # the line's other cavities stay as they are, and count as part of the incoming beam
-    beam_energy = energy_polynomial(lattice.global_parameters["beam"])
+    # fitted to fifth order and cut to the third
+    beam_energy = energy_polynomial(lattice.global_parameters["beam"], order=5)[:4]
     energy_in = beam_energy.copy()
     for n, c in every.items():
         if n not in matched:

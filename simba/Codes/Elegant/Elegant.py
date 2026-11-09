@@ -35,8 +35,13 @@ from laura.translator.utils.functions import sanitize_string
 
 
 def elegant_element_name(name: str) -> str:
-    """The name ELEGANT knows an element by."""
-    return sanitize_string(name).upper()
+    """
+    The name ELEGANT knows an element by: as LAURA writes it, upper case.
+
+    Not ``sanitize_string``, which is for MAD-X and turns ``-`` into ``_``: LAURA
+    keeps the hyphens in an elegant lattice, so a JFEL name went unmatched.
+    """
+    return str(name).upper()
 
 
 class elegantLattice(frameworkLattice):

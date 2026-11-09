@@ -409,3 +409,55 @@ def test_edges_written_with_the_angle_follow_it(tmp_path, seed_beam):
     chained = r43("angle/2", 0.3)
     assert chained == pytest.approx(r43(0.15, 0.3), rel=1e-9)
     assert chained != pytest.approx(r43(0.0, 0.3), rel=1e-3), "the edges must focus"
+
+
+@pytest.mark.parametrize("matcher", MATCHERS)
+def test_names_as_real_lattices_write_them(tmp_path, matcher, seed_beam):
+    """JFEL's: hyphens (elegant keeps them and quotes them in its saved lattice;
+    MAD-X, Bmad and Cheetah change them) in a line called Match, a MAD-X keyword."""
+    skip_missing(matcher)
+    if matcher == "bmad" and not os.path.exists(BMAD_SO):
+        pytest.skip("Bmad libtao not installed")
+    quads = fodo_quads()
+    quads[0].name, quads[1].name = "JFEL-Q-F-01", "JFEL-Q-D-01"
+    machine, _, section = fodo_machine(tmp_path, middle=quads)
+    settings = fw.FrameworkSettings()
+    settings.files = {"Match": {
+        "code": "ocelot", "charge": {"space_charge_mode": "False"}, "input": {"twiss": INPUT_TWISS},
+        "output": {"start_element": "M1", "end_element": "M3"},
+        "match": {"variables": ["JFEL-Q-F-01", "JFEL-Q-D-01"],
+                  "targets": {"M3": {"beta_x": 5.0, "beta_y": 5.0}}, "code": matcher},
+    }}
+    settings.layout, settings.section, settings.element_list = machine.layout, section, f"{tmp_path}/lattice"
+    framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
+    framework.loadSettings(settings=settings)
+    framework["Match"].lsc_enable = framework["Match"].csr_enable = False
+    shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        framework.track()
+    assert not [w for w in caught if "match missed" in str(w.message)]
+    end = read_beam(framework.subdirectory, "M3")
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+    assert end.twiss.beta_y.val == pytest.approx(5.0, rel=1e-2)
+
+
+def test_madx_hands_more_knobs_than_targets_to_the_shared_solver(tmp_path, seed_beam):
+    """MAD-X's MATCH ignores a match with more variables than constraints."""
+    from simba.Modules.Matching.backends import backends
+    from simba.Modules.Matching.transverse import parse
+
+    skip_missing("madx")
+    block = {**BETA_5, "targets": {"M3": {"beta_x": 5.0}}, "code": "madx"}
+    framework, end = track(tmp_path, "ocelot", seed_beam, block)
+    assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
+    line = framework["FODO"]
+    assert not backends()["madx"](line, parse(line, block)).native_solves()
+
+
+def test_elegant_names_keep_their_hyphens():
+    """sanitize_string is MAD-X's, and changes them; LAURA writes elegant's as they are."""
+    from simba.Codes.Elegant.Elegant import elegant_element_name
+
+    assert elegant_element_name("JFEL-S13-MAG-QUAD-01") == "JFEL-S13-MAG-QUAD-01"
+    assert elegant_element_name("quad1f") == "QUAD1F"
