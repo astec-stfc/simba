@@ -74,3 +74,10 @@ def test_cheetah_reader_with_several_files(tmp_path):
     assert t.mux.val[-1] == pytest.approx(1.0)  # beta = 1 m over 1 m
     assert t.kinetic_energy.val[0] == pytest.approx(10e6 - t.E0_eV)
     assert t.cp.val[0] == pytest.approx(np.sqrt(10e6**2 - t.E0_eV**2))
+
+
+def test_ocelot_beam_twiss_is_zero_without_a_beam():
+    # #24: a periodic Ocelot run writes zero eigen-emittances; 0/0 gave NaN and warned
+    with np.errstate(all="raise"):
+        out = ocelot._per_emittance([0.0, 2.0], [0.0, 1.0])
+    assert out.tolist() == [0.0, 2.0]
