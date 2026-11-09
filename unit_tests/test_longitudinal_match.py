@@ -77,9 +77,9 @@ def cavity(name, z, length, phase, field_amplitude, frequency=F, **extra):
     )
 
 
-def track(tmp_path, code, cavities, seed_beam, match=None, definitions=None):
+def track(tmp_path, code, cavities, seed_beam, match=None, definitions=None, groups=None):
     """A fresh Framework: the match must load the beam itself (#26's first fault).
-    ``definitions`` are the functional definitions."""
+    ``definitions`` are the functional definitions, ``groups`` the settings' groups."""
     skip_missing(code)
     end = max(cv.physical.middle.z + cv.physical.length / 2 for cv in cavities) + 0.5
     elements = [
@@ -99,6 +99,7 @@ def track(tmp_path, code, cavities, seed_beam, match=None, definitions=None):
     export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
     settings = fw.FrameworkSettings()
     settings.functional_definitions = dict(definitions or {})
+    settings.groups = dict(groups or {})
     settings.files = {
         "L": {
             "code": code,
@@ -217,3 +218,27 @@ def test_a_definition_cannot_take_two_values(tmp_path, seed_beam):
     with pytest.raises(ValueError, match="both"):
         track(tmp_path, "ocelot", cavities, seed_beam,
               {"cavities": ["CAV"], "harmonics": ["H3"], "chirp": -5.0}, {"phase": 20.0})
+
+
+def test_a_group_names_the_cavities(tmp_path, seed_beam):
+    """Groups from the settings, nested, in place of the cavity names. C2 is outside
+    the group and off: the match leaves it be, and does not count what it would give."""
+    cavities = [cavity(f"C{i}", 0.75 + i, 0.5, 20.0, 20e6 if i < 2 else 0.0) for i in range(3)]
+    groups = {
+        "half1": {"type": "element_group", "elements": ["C0"]},
+        "linac": {"type": "element_group", "elements": ["half1", "C1"]},
+    }
+    framework, before, after = track(
+        tmp_path, "ocelot", cavities, seed_beam, {"cavities": "linac", "chirp": -5.0}, groups=groups,
+    )
+    phases = [framework["L"].elements[f"C{i}"].cavity.phase for i in range(3)]
+    assert phases[0] == phases[1] != pytest.approx(20.0)
+    assert phases[2] == pytest.approx(20.0)  # not in the group
+    assert shape(after)[1][0] == pytest.approx(-5.0, rel=1e-3)
+
+
+def test_a_group_member_that_is_not_a_cavity_is_refused(tmp_path, seed_beam):
+    groups = {"linac": {"type": "element_group", "elements": ["CAV", "M3"]}}
+    with pytest.raises(ValueError, match="M3"):
+        track(tmp_path, "ocelot", [cavity("CAV", 1.0, 1.0, 20.0, 20e6)], seed_beam,
+              {"cavities": "linac", "chirp": -5.0}, groups=groups)

@@ -85,12 +85,25 @@ def _voltage_factor(cavity) -> float:
     return float(next(iter(translate_elements([cavity]).values())).voltage_factor())
 
 
+def _expand(lattice, names) -> list:
+    """Element names, with any of the settings' ``groups`` replaced by their members."""
+    groups = getattr(lattice, "groupObjects", None) or {}
+    out = []
+    for name in [names] if isinstance(names, str) else names:
+        out += _expand(lattice, groups[name].elements) if name in groups else [name]
+    return list(dict.fromkeys(out))
+
+
 def _system(lattice, names, label: str) -> tuple:
     """``(cavities, frequency)`` of one RF system, which must share a frequency."""
+    names = _expand(lattice, names)
     missing = [n for n in names if n not in lattice.elements]
     if missing:
         raise KeyError(f"longitudinal_match {label} {missing} are not in line {lattice.objectname!r}")
     cavities = [lattice.elements[n] for n in names]
+    not_cavities = [c.name for c in cavities if getattr(c, "cavity", None) is None]
+    if not_cavities:
+        raise ValueError(f"longitudinal_match {label} {not_cavities} are not cavities")
     frequencies = {float(c.cavity.resolved("frequency")) for c in cavities}
     if len(frequencies) > 1:
         raise ValueError(f"longitudinal_match {label} must share one frequency, not {sorted(frequencies)}")
@@ -106,12 +119,23 @@ def longitudinal_match(lattice, settings: dict) -> dict:
         files:
           line:
             longitudinal_match:
-              cavities: [L01, L02]   # the main RF system, at one frequency
+              cavities: [L01, L02]   # the main RF system, at one frequency; or groups
               harmonics: [L3]        # optional: a harmonic system
               chirp: -5.0            # relative energy chirp afterwards [1/m]
               curvature: 0.0         # [1/m^2], needs harmonics
               skewness: 0.0          # [1/m^3], needs harmonics
               energy_gain: 100.0e6   # [eV]; by default what the cavities give now
+
+    ``cavities`` and ``harmonics`` take element names or the names of ``groups``
+    from the settings (``type: element_group``), alone or in a list:
+
+    .. code-block:: yaml
+
+        groups:
+          linac1: {type: element_group, elements: [L01, L02, L03, L04]}
+        files:
+          line:
+            longitudinal_match: {cavities: linac1, chirp: -5.0}
 
     See :func:`rf_settings` for the conventions. Each system's voltage is shared
     between its cavities as they share it now (with equal field amplitudes if they
