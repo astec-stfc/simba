@@ -15,6 +15,12 @@ from simba.Codes.Generators import frameworkGenerator
 INPUT_TWISS = {"beta_x": 10.0, "alpha_x": 1.0, "nemit_x": 1e-6,
                "beta_y": 10.0, "alpha_y": -1.0, "nemit_y": 1e-6}
 
+ACC_ROOT_DIR = os.path.expanduser("~/Documents/bmad-ecosystem")
+BMAD_SO = os.path.join(ACC_ROOT_DIR, "production", "lib", "libtao.so")
+if os.path.exists(BMAD_SO):
+    # as a Bmad installation sets it: how matching in Bmad finds libtao for any line
+    os.environ.setdefault("ACC_ROOT_DIR", ACC_ROOT_DIR)
+
 
 @pytest.fixture(scope="module")
 def seed_beam(tmp_path_factory):
@@ -32,11 +38,14 @@ def seed_beam(tmp_path_factory):
 
 
 def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, groups=None, quiet=True,
-          line=None):
+          line=None, end_marker=None):
     """The FODO cell, its input beam rematched to INPUT_TWISS, which the match must start from.
-    ``quiet`` silences warnings; ``line`` adds to the line's block."""
+    ``quiet`` silences warnings; ``line`` adds to the line's block; ``end_marker`` replaces M3."""
     skip_missing(code)
-    machine, _, section = fodo_machine(tmp_path, middle=middle, functional_definitions=definitions)
+    if "bmad" in (code, (match or {}).get("code")) and not os.path.exists(BMAD_SO):
+        pytest.skip("Bmad libtao not installed")
+    machine, _, section = fodo_machine(tmp_path, middle=middle, functional_definitions=definitions,
+                                       end_marker=end_marker)
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
@@ -57,6 +66,8 @@ def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, group
     framework.loadSettings(settings=settings)
     framework["FODO"].lsc_enable = False
     framework["FODO"].csr_enable = False
+    if code == "bmad":
+        framework["FODO"].libtao = BMAD_SO
     shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
     with warnings.catch_warnings():
         if quiet:
@@ -68,7 +79,7 @@ def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, group
 BETA_5 = {"variables": ["QUAD1F", "QUAD1D"], "targets": {"M3": {"beta_x": 5.0, "beta_y": 5.0}}}
 
 
-MATCHERS = ["ocelot", "xsuite", "madx", "cheetah"]
+MATCHERS = ["ocelot", "xsuite", "madx", "cheetah", "bmad", "elegant"]
 
 
 @pytest.mark.parametrize("code", MATCHERS)
@@ -85,7 +96,7 @@ def test_each_code_matches_its_own_line(tmp_path, code, seed_beam):
 
 @pytest.mark.parametrize("matcher", MATCHERS)
 def test_any_code_matches_a_line_tracked_in_another(tmp_path, matcher, seed_beam):
-    """elegant has no matcher here; each code matches for it, and elegant agrees."""
+    """Each code matches for a line elegant tracks, and elegant agrees."""
     skip_missing(matcher)
     _, end = track(tmp_path, "elegant", seed_beam, {**BETA_5, "code": matcher})
     assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
@@ -93,10 +104,10 @@ def test_any_code_matches_a_line_tracked_in_another(tmp_path, matcher, seed_beam
 
 
 def test_a_line_whose_code_cannot_match_falls_back(tmp_path, seed_beam):
-    """elegant has no backend, so the first that can (Ocelot) matches, without a word."""
+    """ImpactX has no backend, so the first that can (Ocelot) matches, without a word."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        _, end = track(tmp_path, "elegant", seed_beam, BETA_5, quiet=False)
+        _, end = track(tmp_path, "impactx", seed_beam, BETA_5, quiet=False)
     assert not [w for w in caught if "match" in str(w.message)]
     assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
 
@@ -197,7 +208,11 @@ def test_anything_but_a_quadrupole_names_its_setting(tmp_path, seed_beam):
 IMAGING = {"variables": ["QUAD1F", "QUAD1D"], "targets": {"M3": {"R12": 0.0, "R34": 0.0}}}
 
 
-@pytest.mark.parametrize("matcher,checker", [("ocelot", "madx"), ("xsuite", "ocelot"), ("madx", "xsuite")])
+@pytest.mark.parametrize(
+    "matcher,checker",
+    [("ocelot", "madx"), ("xsuite", "ocelot"), ("madx", "xsuite"), ("elegant", "xsuite"), ("xsuite", "elegant"),
+     ("bmad", "xsuite"), ("xsuite", "bmad")],
+)
 def test_transfer_matrix_targets(tmp_path, matcher, checker, seed_beam):
     """Point-to-point imaging, solved in one code and read back in another: Ocelot's
     match has no matrix targets, so it takes the shared solver."""
@@ -209,36 +224,67 @@ def test_transfer_matrix_targets(tmp_path, matcher, checker, seed_beam):
     framework, _ = track(tmp_path, "elegant", seed_beam, {**IMAGING, "code": matcher})
     line = framework["FODO"]
     values = [line.elements[q].magnetic.k1l for q in ("QUAD1F", "QUAD1D")]
-    end = dict(backends()[checker](line, parse(line, IMAGING)).twiss(values))["M3"]
+    spec = parse(line, IMAGING)
+    if backends()[checker].cannot(line, spec):
+        pytest.skip(f"{checker}: {backends()[checker].cannot(line, spec)}")
+    end = dict(backends()[checker](line, spec).twiss(values))["M3"]
     assert end["R12"] == pytest.approx(0.0, abs=1e-6)
     assert end["R34"] == pytest.approx(0.0, abs=1e-6)
 
 
 def bend(angle):
-    """A 1 m sector bend from 1.5 m to 2.5 m: fodo_machine ends the line 0.5 m after it."""
-    return Dipole(
+    """A 1 m sector bend entering on the axis at 1.5 m (its middle is on the arc, off
+    the axis); fodo_machine ends the line about 0.5 m after it, see :func:`marker_after`."""
+    dipole = Dipole(
         name="BEND1", machine_area="FODO", magnetic={"length": 1.0, "angle": angle},
         physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+    )
+    shift = np.array([0.0, 0.0, 1.5]) - np.asarray(dipole.physical.start.array, dtype=float)
+    x, y, z = np.asarray(dipole.physical.middle.array, dtype=float) + shift
+    dipole.physical.middle = {"x": float(x), "y": float(y), "z": float(z)}
+    return dipole
+
+
+def marker_after(dipole, distance=0.5):
+    """M3, ``distance`` on from ``dipole`` along its exit direction: a layout Bmad can
+    follow, which places elements where they are, with patches between."""
+    from laura.models.element import Marker
+
+    end = np.asarray(dipole.physical.end.array, dtype=float)
+    direction = np.asarray(dipole.physical.end_rotation_matrix) @ [0.0, 0.0, 1.0]
+    x, _, z = end + distance * direction
+    return Marker(
+        name="M3", machine_area="FODO", hardware_class="Marker",
+        physical={"middle": {"x": float(x), "y": 0.0, "z": float(z)},
+                  "global_rotation": {"theta": float(np.arctan2(-direction[0], direction[2]))}},
     )
 
 
 def test_every_code_gives_the_same_canonical_matrix(tmp_path, seed_beam):
-    """Ocelot's (tau, p) and MAD-X's (t, pt) read into Xsuite's (zeta, delta)."""
+    """Ocelot's (tau, p), MAD-X's (t, pt) and elegant's (s, delta) read into Xsuite's
+    (zeta, delta); elegant's path length is not a rescale, so it gets R5j and R56 its own way."""
     from simba.Modules.Matching.backends import MATRIX, backends
     from simba.Modules.Matching.transverse import parse
 
     block = {"variables": ["QUAD1F"], "targets": {"M3": {"R16": 0.0, "R56": 0.0, "R51": 0.0}}}
+    # FINT said outright: left out, each code takes its own default (0.5 in elegant, 0 in MAD-X)
+    dipole = bend(0.2)
+    dipole.magnetic.edge_field_integral = 0.5
     framework, _ = track(tmp_path, "ocelot", seed_beam, {**BETA_5, "enable": False},
-                         middle=fodo_quads()[:1] + [bend(0.2)])
+                         middle=fodo_quads()[:1] + [dipole], end_marker=marker_after(dipole))
     line = framework["FODO"]
+    spec = parse(line, block)
+    skip_missing("xsuite")
     matrices = {}
-    for code in ("ocelot", "xsuite", "madx"):
-        skip_missing(code)
-        end = dict(backends()[code](line, parse(line, block)).twiss([-1.0]))["M3"]
+    for code in ("ocelot", "xsuite", "madx", "elegant", "bmad"):
+        if backends()[code].cannot(line, spec):
+            continue
+        end = dict(backends()[code](line, spec).twiss([-1.0]))["M3"]
         matrices[code] = [end[q] for q in sorted(MATRIX)]
     assert abs(matrices["xsuite"][sorted(MATRIX).index("R16")]) > 1e-2, "the bend must disperse"
-    for code in ("ocelot", "madx"):
-        assert matrices[code] == pytest.approx(matrices["xsuite"], abs=1e-5), code
+    assert len(matrices) > 1
+    for code, matrix in matrices.items():
+        assert matrix == pytest.approx(matrices["xsuite"], abs=1e-5), code
 
 
 def test_rebuilding_leaves_the_elements_as_they_were(tmp_path, seed_beam):
@@ -253,20 +299,28 @@ def test_rebuilding_leaves_the_elements_as_they_were(tmp_path, seed_beam):
     assert line.elements["BEND1"].magnetic.angle == pytest.approx(0.05)
 
 
-@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx"])
+BEND_ANGLE = {"variables": ["BEND1.angle"], "targets": {"M3": {"R16": [">", 0.08]}}}
+
+
+@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx", "elegant"])
 def test_a_dipole_angle_is_matched_by_rebuilding(tmp_path, matcher, seed_beam):
     """Any field LAURA exports: here a sector bend's angle, for R16 = L (1 - cos a) / a
-    plus 0.5 m of drift at the slope sin a."""
+    plus the drift to M3 at the slope sin a."""
     from scipy.optimize import brentq
 
     skip_missing(matcher)
-    framework, _ = track(tmp_path, "ocelot", seed_beam,
-                         {"variables": ["BEND1.angle"], "targets": {"M3": {"R16": [">", 0.08]}},
-                          "code": matcher},
-                         middle=[bend(0.05)])
-    angle = framework["FODO"].elements["BEND1"].magnetic.angle
-    expected = brentq(lambda a: (1 - np.cos(a)) / a + 0.5 * np.sin(a) - 0.08, 0.01, 1.0)
-    assert angle == pytest.approx(expected, rel=1e-3)
+    framework, _ = track(tmp_path, "ocelot", seed_beam, {**BEND_ANGLE, "code": matcher}, middle=[bend(0.05)])
+    elements = framework["FODO"].elements
+    drift = elements["M3"].physical.middle.z - elements["BEND1"].physical.end.z
+    expected = brentq(lambda a: (1 - np.cos(a)) / a + drift * np.sin(a) - 0.08, 0.01, 1.0)
+    assert elements["BEND1"].magnetic.angle == pytest.approx(expected, rel=1e-3)
+
+
+def test_bmad_will_not_vary_a_lone_dipole_angle(tmp_path, seed_beam):
+    """Its lattice keeps elements where they are placed: the patch after the bend would
+    take the angle's change back out."""
+    with pytest.raises(ValueError, match="cannot run in bmad.*BEND1.*chicane"):
+        track(tmp_path, "ocelot", seed_beam, {**BEND_ANGLE, "code": "bmad"}, middle=[bend(0.05)])
 
 
 @pytest.mark.parametrize(
@@ -311,7 +365,7 @@ def chicane_r56(tmp_path, seed_beam, angle):
     return dict(backends()["xsuite"](line, parse(line, block)).twiss([angle]))["M3"]["R56"]
 
 
-@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx"])
+@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx", "elegant", "bmad"])
 def test_a_chicane_angle_is_matched_through_its_group(tmp_path, matcher, seed_beam):
     """The group lays the chicane out at each angle tried; the angle that gives the
     target R56 is the one Xsuite reads it at, and the settings keep it."""

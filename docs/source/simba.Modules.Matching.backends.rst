@@ -28,6 +28,22 @@ simba.Modules.Matching.backends.madx module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Matching.backends.elegant module
+----------------------------------------------
+
+.. automodule:: simba.Modules.Matching.backends.elegant
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+simba.Modules.Matching.backends.bmad module
+-------------------------------------------
+
+.. automodule:: simba.Modules.Matching.backends.bmad
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.Matching.backends.cheetah module
 ----------------------------------------------
 

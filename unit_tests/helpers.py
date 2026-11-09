@@ -42,13 +42,14 @@ def fodo_quads():
 
 
 def fodo_machine(tmp_path, cavity=False, closed=False, cavity_length=0.0, middle=None,
-                 functional_definitions=None):
+                 functional_definitions=None, end_marker=None):
     """The FODO cell between markers M1 and M3, exported to ``tmp_path/lattice``.
 
     ``cavity`` adds CAV1 at the end (a dict gives its fields; the bare one has
     no voltage). ``closed`` makes the section a ring. Ocelot's cavity divides
     by its length, so cannot be thin. ``middle`` replaces the two quadrupoles.
-    ``functional_definitions`` are any the elements name.
+    ``functional_definitions`` are any the elements name. ``end_marker``
+    replaces M3, which otherwise sits on the axis, straight on from the last element.
     """
     middle = middle or fodo_quads()
     if cavity:
@@ -66,7 +67,7 @@ def fodo_machine(tmp_path, cavity=False, closed=False, cavity_length=0.0, middle
     )
     last = middle[-1]
     end_z = last.physical.middle.z + (last.physical.length or 0.0)
-    m3 = Marker(
+    m3 = end_marker or Marker(
         name="M3", machine_area="FODO", hardware_class="Marker",
         physical={"middle": {"x": 0.0, "y": 0.0, "z": end_z}},
     )

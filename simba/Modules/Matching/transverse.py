@@ -12,7 +12,7 @@ from .backends import MATRIX, OPERATORS, QUANTITIES, backends, residual
 ALIASES = {"Dx": "eta_x", "Dxp": "eta_xp", "Dy": "eta_y", "Dyp": "eta_yp"}
 """Ocelot's names for SIMBA's Twiss quantities, still accepted."""
 
-FALLBACK = ("ocelot", "xsuite", "madx", "cheetah")
+FALLBACK = ("xsuite", "madx", "bmad", "elegant", "cheetah", "ocelot")
 """Codes to try, in order, when the line's own cannot match."""
 
 

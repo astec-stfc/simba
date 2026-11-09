@@ -200,6 +200,11 @@ def backends() -> dict:
     from .cheetah import CheetahBackend
     from .madx import MadxBackend
     from .ocelot import OcelotBackend
+    from .bmad import BmadBackend
+    from .elegant import ElegantBackend
     from .xsuite import XsuiteBackend
 
-    return {b.code: b for b in (OcelotBackend, XsuiteBackend, MadxBackend, CheetahBackend)}
+    return {
+        b.code: b
+        for b in (OcelotBackend, XsuiteBackend, MadxBackend, CheetahBackend, BmadBackend, ElegantBackend)
+    }
