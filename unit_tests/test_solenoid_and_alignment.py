@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 from helpers import fodo_machine, fodo_quads, read_beam, skip_missing
-from laura.models.element import Dipole, MatrixTransform, Quadrupole, Solenoid
+from laura.models.element import Dipole, MatrixTransform, Quadrupole, Sextupole, Solenoid
 from simba.Codes.Generators import frameworkGenerator
 
 
@@ -140,20 +140,26 @@ def test_madx_slices_follow_a_bends_arc(tmp_path, seed_beam, error):
     assert np.abs(got - want).max() < 0.1 * np.abs(want).max()
 
 
-def madx_ring_optics(tmp_path, slices, seed_beam):
+def madx_ring_optics(tmp_path, slices, seed_beam, code="madx",
+                     error={"position": {"x": 1e-3}, "rotation": {"theta": 1e-3}}, k2l=0.0):
     """``(optics summary, closed orbit)`` of a one-cell FODO ring with a
-    misaligned quadrupole, from MAD-X slicing quadrupoles ``slices`` times."""
-    skip_missing("madx")
-    error = {"position": {"x": 1e-3}, "rotation": {"theta": 1e-3}}
+    misaligned quadrupole, from MAD-X (or ``code``) slicing quadrupoles ``slices`` times.
+    ``k2l`` adds a sextupole between the quadrupoles."""
+    skip_missing(code)
     quads = fodo_quads()
     for quad, k1l in zip(quads, (-0.5, 0.5)):
         quad.magnetic.k1l = k1l
     quads[0].physical.error = error
+    if k2l:
+        quads.insert(1, Sextupole(
+            name="SEXT1", machine_area="FODO", magnetic={"length": 0.5, "k2l": k2l},
+            physical={"length": 0.5, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+        ))
     machine, _, section = fodo_machine(tmp_path, closed=True, middle=quads)
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
-            "code": "madx",
+            "code": code,
             "charge": {"space_charge_mode": "False"},
             "input": {},
             "output": {"start_element": "M1", "end_element": "M3"},
@@ -183,6 +189,28 @@ def test_madx_periodic_optics_come_from_the_thick_ring(tmp_path, seed_beam):
     assert coarse == pytest.approx(fine, rel=1e-9)
     assert abs(coarse_orbit[0]) > 1e-5, "the error must move the orbit"
     assert coarse_orbit == pytest.approx(fine_orbit, abs=1e-12)
+
+
+def test_ocelot_closed_orbit_sees_the_misalignment(tmp_path, seed_beam):
+    """Displaced only: Ocelot's map has no yaw (``rotation.theta``)."""
+    error = {"position": {"x": 1e-3}}
+    _, madx = madx_ring_optics(tmp_path / "madx", 1, seed_beam, error=error)
+    _, ocelot = madx_ring_optics(tmp_path / "ocelot", 1, seed_beam, code="ocelot", error=error)
+    assert abs(madx[0]) > 1e-5, "the error must move the orbit"
+    assert ocelot[:4] == pytest.approx(madx[:4], abs=1e-9)
+
+
+def test_ocelot_tune_sees_a_sextupole_off_axis(tmp_path, seed_beam):
+    """The orbit is through each element's map in turn: one composed second-order
+    map drops enough to put it 2% out. (At k2l = 50 there is no closed orbit.)"""
+    error, k2l = {"position": {"x": 1e-3}}, 5.0
+    on_axis, _ = madx_ring_optics(tmp_path / "axis", 1, seed_beam, error={}, k2l=k2l)
+    madx, _ = madx_ring_optics(tmp_path / "madx", 1, seed_beam, error=error, k2l=k2l)
+    ocelot, _ = madx_ring_optics(tmp_path / "ocelot", 1, seed_beam, code="ocelot", error=error, k2l=k2l)
+    shift = madx["tune_x_total"] - on_axis["tune_x_total"]
+    assert abs(shift) > 1e-3, "the orbit through the sextupole must move the tune"
+    for plane in "xy":
+        assert ocelot[f"tune_{plane}_total"] == pytest.approx(madx[f"tune_{plane}_total"], abs=1e-3 * abs(shift))
 
 
 def close(final, expected, rtol):

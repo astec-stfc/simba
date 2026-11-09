@@ -210,6 +210,7 @@ def test_ocelot_single_particles_track_on_a_ring_with_rf():
         _ocelot_periodic = ocelotLattice._ocelot_periodic
         read_one_turn_map = ocelotLattice.read_one_turn_map
         read_closed_orbit = ocelotLattice.read_closed_orbit
+        _closed_orbit_and_map = ocelotLattice._closed_orbit_and_map
         lat_obj = MagneticLattice(cells, method={"global": SecondTM})
         objectname, turns, nsuperperiods, da_settings = "ring", 20, 1, {}
         reference_energy = 1e9
