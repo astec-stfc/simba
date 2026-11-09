@@ -331,3 +331,14 @@ def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(FileNotFoundError):
         yaml_checker.main([str(tmp_path / "missing.def")])
+
+
+def test_change_lattice_code_is_saved(framework_with_machine, tmp_path):
+    # #23: settings.def kept the .def's code after change_Lattice_Code
+    framework = framework_with_machine
+    framework.change_Lattice_Code("FODO", "elegant")
+    assert type(framework["FODO"]).__name__ == "elegantLattice"
+    assert framework["FODO"].code == "elegant"
+    framework.save_settings(directory=str(tmp_path))
+    saved = fw.FrameworkSettings(str(tmp_path / "settings.def"))
+    assert saved["files"]["FODO"]["code"] == "elegant"
