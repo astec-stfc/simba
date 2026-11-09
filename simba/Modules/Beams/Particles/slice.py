@@ -617,37 +617,3 @@ class slice(BaseModel):
                 len(slice_momentum_centroid) * self.slice_length
         )
         return UnitValue(chirp, "1/m")
-
-    def get_chirp_coeffs(self, order=3) -> Dict:
-        """
-        Polynomial fit of fractional slice momentum against z [m], within 75% of the peak current.
-
-        Parameters
-        ----------
-        order: int
-            Polynomial order
-
-        Returns
-        -------
-        Dict
-            Coefficients keyed ``order_N``
-        """
-        peakIPosition = self.slice_max_peak_current_slice
-        peakI = self.slice_current[peakIPosition]
-        centralmomentum = self.slice_momentum[peakIPosition]
-
-        # fractional momentum deviation δ
-        slicemomentum = (self.slice_momentum - centralmomentum) / centralmomentum
-
-        # longitudinal positions (assuming uniform spacing from slice_length)
-        z = np.arange(len(slicemomentum)) * self.slice_length * constants.speed_of_light
-
-        # restrict to region with significant current (same logic as chirp)
-        mask = np.abs(self.slice_current - peakI) < (0.75 * peakI)
-        z_masked = z[mask]
-        delta_masked = slicemomentum[mask]
-
-        # polynomial fit δ(z)
-        coeffs = np.polyfit(z_masked, delta_masked, order)  # highest power first
-
-        return {f"order_{order - i}": coeff for i, coeff in enumerate(coeffs)}

@@ -43,7 +43,7 @@ from .Modules.EnergyRamp import (
 )
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution
+from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
 from .Codes import Executables as exes
 from .Modules import constants
@@ -2439,7 +2439,8 @@ class frameworkLattice(BaseModel):
         Records the reference for :attr:`reference_p0c` and :attr:`reference_t0`,
         samples (:meth:`sample_beam`), runs :meth:`check_species`, rematches to
         ``input: twiss``, sets :attr:`ref_idx`, runs :meth:`check_design_energy` and
-        :meth:`check_ramp_beam`, and resets the :meth:`reference_time` clock.
+        :meth:`check_ramp_beam`, and resets the :meth:`reference_time` clock. Then applies
+        any ``longitudinal_match`` (:func:`~simba.Modules.Matching.longitudinal_match`).
 
         Parameters
         ----------
@@ -2476,6 +2477,11 @@ class frameworkLattice(BaseModel):
         self.check_ramp_beam()
         self.reset_reference_clock()
         self.merge_other_species()
+        if "longitudinal_match" in self.file_block:
+            # needs the input beam, and every code writes its deck after loading it
+            from .Modules.Matching import longitudinal_match
+
+            self.apply_settings(longitudinal_match(self, self.file_block["longitudinal_match"]))
         return filepath
 
     def update_groups(self) -> None:
@@ -3066,95 +3072,49 @@ class frameworkLattice(BaseModel):
                 },
             }
 
-    def longitudinal_match(self, settings) -> None:
-        harmonics = {}
-        harm_number = 0
-        if "cavities" in settings:
-            cavs = [c for c in self.cavities if c.name in settings["cavities"]]
-            freq = list({c.cavity.frequency for c in cavs})
-            if len(freq) > 1:
-                raise ValueError("All accelerating cavities must have the same frequency")
-            freq = freq[0]
-        else:
-            raise KeyError("settings must contain `cavities` key containing names of cavities")
-        if "harmonics" in settings:
-            harmonics = [c for c in self.cavities if c.name in settings["harmonics"]]
-            harm_freq = list({c.cavity.frequency for c in harmonics})
-            if len(harm_freq) > 1:
-                raise ValueError("All harmonic cavities must have the same frequency")
-            harm_freq = harm_freq[0]
-            if not harm_freq % freq == 0:
-                raise ValueError("Harmonic cavity frequency is not a harmonic of the main frequency")
-            harm_number = int(harm_freq / freq)
-        if "chirp" in settings:
-            chirp = settings["chirp"]
-        else:
-            raise ValueError("Chirp must be defined")
-        curvature = settings.get("curvature", 0)
-        skewness = settings.get("skewness", 0)
+    def apply_settings(self, settings: dict) -> None:
+        """
+        Set ``{element: {dotted.field: value}}``, as a :mod:`~simba.Modules.Matching` matcher returns them.
 
-        k = 2 * np.pi * freq / speed_of_light
-        M = np.array(
-            [
-                [1, 0, 1, 0],
-                [0, -k, 0, -(harm_number * k)],
-                [-k ** 2, 0, -(harm_number * k) ** 2, 0],
-                [0, k ** 3, 0, (harm_number * k) ** 3]
-            ]
-        )
+        A ``functional_definitions`` entry sets those definitions: in LAURA's registry,
+        this line's section and the settings, so lines built later and the saved
+        settings take them too.
 
-        initial_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
-        final_energy = self.global_parameters["beam"].centroids.mean_cpz.val * 1e-9
-        for cav in cavs:
-            final_energy += (cav.simulation.resolved("field_amplitude") * np.cos(cav.cavity.resolved("phase"))) * 1e-9
-        if harmonics:
-            for harm in harmonics:
-                final_energy += (harm.simulation.resolved("field_amplitude") * np.cos(harm.cavity.resolved("phase"))) * 1e-9
+        Parameters
+        ----------
+        settings: dict
+            Values by dotted field path, by element name.
+        """
+        settings = dict(settings)
+        definitions = settings.pop("functional_definitions", None)
+        if definitions:
+            self._set_functional_definitions(definitions)
+            if self.verbose:
+                print(f"Line '{self.objectname}': matched functional definitions {definitions}")
+        for name, fields in settings.items():
+            for path, value in fields.items():
+                set_deep_attr(self.elements[name], path, value)
+            if self.verbose:
+                print(f"Line '{self.objectname}': matched {name}: {fields}")
 
-        chirps = self.global_parameters["beam"].slice.get_chirp_coeffs()
+    def _set_functional_definitions(self, definitions: dict) -> None:
+        """Update functional definitions everywhere they are read from; see :meth:`apply_settings`."""
+        from laura.models.base_models import set_functional_definitions
+        from laura.models.element_list import load_functional_definitions
 
-        energy_gain = final_energy - initial_energy
-        r = np.array(
-            [
-                energy_gain,
-                chirp * final_energy - (initial_energy * chirps["order_1"]),
-                curvature * final_energy - ((initial_energy * chirps["order_2"]) / 2),
-                skewness * final_energy - ((initial_energy * chirps["order_3"]) / 6),
-            ]
-        )
-
-        if not harmonics:
-            M = np.array([[1, 0],
-                          [0, -k]])
-            r = np.array(
-                [
-                    energy_gain,
-                    chirp * final_energy - (initial_energy * chirps["order_1"]),
-                ]
-            )
-        rf = np.dot(np.linalg.inv(M), r)
-        X1 = rf[0]
-        Y1 = rf[1]
-        rad2deg = 180 / np.pi
-        v1 = np.sqrt(X1 ** 2 + Y1 ** 2) * 1e9
-        phi1 = (np.arctan(Y1 / X1) + np.pi / 2 * (1 - np.sign(X1))) * rad2deg
-        for cav in cavs:
-            cav.simulation.field_amplitude = v1
-            cav.cavity.phase = ((-phi1 + 180) % 360)# - 180
-        print(f"Longitudinal matching gave cavity phase of {phi1} and field amplitude of {v1}")
-        if harmonics:
-            X13 = rf[2]
-            Y13 = rf[3]
-            vh = np.sqrt(X13 ** 2 + Y13 ** 2) * 1e9
-            phih = (np.arctan(Y13 / X13) + np.pi / 2 * (1 - np.sign(X13)) - 2 * np.pi) * rad2deg
-            for harm in harmonics:
-                harm.simulation.field_amplitude = vh
-                harm.cavity.phase = ((-phih + 180) % 360)# - 180
-                print(f"Longitudinal matching gave harmonic phase of {phih} and field amplitude of {vh}")
+        set_functional_definitions(definitions)
+        if isinstance(self.section.functional_definitions, dict):
+            self.section.functional_definitions.update(definitions)
+        source = self.settings.get("functional_definitions")
+        if not isinstance(source, dict):
+            # a file: matched values go in a copy, not the file
+            source = load_functional_definitions(source, self.global_parameters["master_lattice"])
+            self.settings["functional_definitions"] = source
+        source.update(definitions)
 
     def preProcess(self) -> None:
         """
-        Run the pre-tracking checks, apply section settings, read :meth:`getInitialTwiss` and do any matching.
+        Run the pre-tracking checks, apply section settings, read :meth:`getInitialTwiss` and do any transverse ``match``.
         """
         self.check_turns_supported()
         self.check_periodic_supported()
@@ -3177,8 +3137,6 @@ class frameworkLattice(BaseModel):
                 domatch = False
             if domatch:
                 self.match(self.file_block["match"])
-        if "longitudinal_match" in self.file_block:
-            self.longitudinal_match(self.file_block["longitudinal_match"])
         self.section.astra_headers = ast
 
     def read_closed_orbit(self):

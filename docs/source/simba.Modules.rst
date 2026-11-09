@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    simba.Modules.Beams
+   simba.Modules.Matching
    simba.Modules.Matrices
    simba.Modules.Twiss
    simba.Modules.plotting
