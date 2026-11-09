@@ -331,3 +331,21 @@ def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(FileNotFoundError):
         yaml_checker.main([str(tmp_path / "missing.def")])
+
+
+def test_remote_password_is_not_saved_or_shown(framework_with_machine, tmp_path):
+    framework = framework_with_machine
+    block = framework.settings.files["FODO"]
+    block["code"] = "elegant"
+    block["remote"] = {"server": "apclara1", "username": "u", "password": "s3cret"}
+    framework.read_Lattice("FODO", block)
+    line = framework["FODO"]
+    assert line.remote_setup["password"] == "s3cret"
+    framework.save_settings(directory=str(tmp_path))
+    assert "s3cret" not in (tmp_path / "settings.def").read_text()
+    assert "s3cret" not in repr(line) + str(line)
+    assert "s3cret" not in str(fw.Framework(directory=str(tmp_path), password="s3cret"))
+    # no password: SSH keys / agent
+    block["remote"] = {"server": "apclara1", "username": "u"}
+    framework.read_Lattice("FODO", block)
+    assert framework["FODO"].remote_setup["password"] is None

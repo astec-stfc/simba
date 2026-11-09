@@ -44,6 +44,7 @@ from .FrameworkHelperFunctions import (
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     PrivateAttr,
 )
 from warnings import warn
@@ -243,7 +244,7 @@ class Framework(BaseModel):
     username: str = ""
     """Username for remote execution."""
 
-    password: str = ""
+    password: str = Field("", repr=False)
     """Password for remote execution."""
 
     eager_mode: bool = False
@@ -657,6 +658,8 @@ class Framework(BaseModel):
         lattice: dict
             Settings for the lattice line.
         """
+        remote = lattice.get("remote")
+        password = remote.pop("password", None) if isinstance(remote, dict) else None
         if "code" not in lattice:
             raise KeyError(f"code must be provided for {lattice}")
         code = lattice["code"]
@@ -679,11 +682,12 @@ class Framework(BaseModel):
             globalSettings=self.globalSettings,
             verbose=self.verbose,
         )
-        if "remote" in lattice:
+        if remote is not None:
             self.setup_remote_execution(
                 lattice=name,
                 code=code.lower(),
-                **lattice["remote"],
+                password=password,
+                **remote,
             )
 
     def detect_changes(
@@ -1438,12 +1442,13 @@ class Framework(BaseModel):
         username: str | None, optional
             SSH username; defaults to :attr:`username`.
         password: str | None, optional
-            SSH password; defaults to :attr:`password`.
+            SSH password; defaults to :attr:`password`, else SSH keys or agent are used.
+            Pass it here or to the Framework rather than in the ``.def``.
 
         Raises
         ------
         ValueError
-            If ``server`` is unknown, ``code`` is not available on it, or there is no username or password.
+            If ``server`` is unknown, ``code`` is not available on it, or there is no username.
         """
         if server not in list(hosts.keys()):
             raise ValueError(f"Server '{server}' not found in defined hosts.")
@@ -1453,10 +1458,7 @@ class Framework(BaseModel):
             else:
                 raise ValueError("Username must be provided for remote execution.")
         if password is None:
-            if self.password != "":
-                password = self.password
-            else:
-                raise ValueError("Password must be provided for remote execution.")
+            password = self.password or None
         if lattice == "All":
             [self.setup_remote_execution(lo, code, server, ncpu, ngpu, exclude, username, password) for lo in self.latticeObjects]
         elif isinstance(lattice, (tuple, list)):
