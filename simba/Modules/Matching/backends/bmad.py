@@ -75,16 +75,7 @@ class BmadBackend(Backend):
         if not hasattr(self, "workdir"):
             self.workdir = tempfile.mkdtemp(prefix="simba_match_tao_")
             weakref.finalize(self, shutil.rmtree, self.workdir, True)
-        section = lattice.section
-        saved = section.reference_energy
-        section.reference_energy = spec.energy
-        try:
-            text = section.to_bmad(
-                particle=lattice.global_parameters["beam"].species,
-                initial_twiss=TwissMatchSimulationElement(**spec.twiss),
-            )
-        finally:
-            section.reference_energy = saved
+        text = self._lattice_text(TwissMatchSimulationElement(**spec.twiss))
         overlays = ""
         if self.native:
             for i, knob in enumerate(spec.knobs):
@@ -103,6 +94,32 @@ class BmadBackend(Backend):
                 self.tao = Tao("-init tao.init -noplot", so_lib=libtao(lattice) or "")
             else:
                 self.tao.init("-init tao.init -noplot")
+
+    def _lattice_text(self, initial_twiss) -> str:
+        """
+        The lattice as :meth:`~simba.Codes.Bmad.Bmad.bmadLattice.write` writes it, from the
+        match's initial Twiss: a Bmad line's own reference energy, space-charge bins,
+        collective methods and ``ref_time``; another line's beam energy, without the rest,
+        which tracking needs but its optics do not.
+        """
+        from ....Codes.Bmad.Bmad import bmadLattice
+
+        lattice, section = self.lattice, self.lattice.section
+        own = isinstance(lattice, bmadLattice)
+        saved = section.reference_energy
+        section.reference_energy = lattice._reference_energy() if own else self.spec.energy
+        try:
+            text = section.to_bmad(
+                particle=lattice.global_parameters["beam"].species,
+                space_charge_n_bin=lattice.space_charge_n_bin if own else None,
+                initial_twiss=initial_twiss,
+            )
+        finally:
+            section.reference_energy = saved
+        if own:
+            text += lattice._collective_methods(text)
+            text = f"beginning[ref_time] = {float(lattice.reference_t0)!r}\n" + text
+        return text
 
     def _init(self) -> str:
         """The Tao init file: the lattice, the optimiser, and the targets and knobs as data and variables."""

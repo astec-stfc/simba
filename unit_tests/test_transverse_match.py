@@ -104,7 +104,7 @@ def test_any_code_matches_a_line_tracked_in_another(tmp_path, matcher, seed_beam
 
 
 def test_a_line_whose_code_cannot_match_falls_back(tmp_path, seed_beam):
-    """ImpactX has no backend, so the first that can (Ocelot) matches, without a word."""
+    """ImpactX has no backend, so the first of FALLBACK that can matches, without a word."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         _, end = track(tmp_path, "impactx", seed_beam, BETA_5, quiet=False)
@@ -117,8 +117,10 @@ DISPERSION = {"variables": ["QUAD1F", "QUAD1D"],
 
 
 def test_a_code_that_cannot_target_it_hands_over(tmp_path, seed_beam):
-    """Cheetah's Twiss has no dispersion: its line is matched elsewhere, with a warning."""
-    with pytest.warns(UserWarning, match="cheetah cannot match this.*eta_x.*matching in ocelot"):
+    """Cheetah's Twiss has no dispersion: its line is matched in the first of FALLBACK, with a warning."""
+    from simba.Modules.Matching.transverse import FALLBACK
+
+    with pytest.warns(UserWarning, match=f"cheetah cannot match this.*eta_x.*matching in {FALLBACK[0]}"):
         _, end = track(tmp_path, "cheetah", seed_beam, DISPERSION, quiet=False)
     assert end.twiss.beta_x.val == pytest.approx(5.0, rel=1e-2)
 
