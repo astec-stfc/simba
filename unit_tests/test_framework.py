@@ -331,3 +331,18 @@ def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(FileNotFoundError):
         yaml_checker.main([str(tmp_path / "missing.def")])
+
+
+def test_find_master_lattice_from_saved_settings(tmp_path):
+    # #22: a run's settings.def keeps the .def's relative element_list; the master
+    # lattice is the ancestor of the original .def where that path resolves
+    (tmp_path / "ML" / "YAML").mkdir(parents=True)
+    (tmp_path / "ML" / "Lattices").mkdir()
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "settings.def").write_text(
+        f"settingsFilename: {tmp_path / 'ML' / 'Lattices' / 'x.def'}\nelement_list: ./YAML/\n"
+    )
+    assert fw._find_master_lattice(str(run / "settings.def")) == str(tmp_path / "ML")
+    (run / "settings.def").write_text("element_list: ./YAML/\n")
+    assert fw._find_master_lattice(str(run / "settings.def")) is None

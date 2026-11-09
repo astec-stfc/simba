@@ -1935,6 +1935,27 @@ class Framework(BaseModel):
         self.pushRunSettings()
 
 
+def _find_master_lattice(settings_file: str) -> str | None:
+    """
+    Guess the master lattice a saved ``settings.def`` was written against.
+
+    Its ``element_list`` is relative to the master lattice, and its ``settingsFilename`` is the
+    original ``.def``; returns the nearest ancestor of that ``.def`` in which ``element_list`` exists.
+    """
+    with open(settings_file) as stream:
+        settings = yaml.safe_load(stream) or {}
+    original, element_list = settings.get("settingsFilename"), settings.get("element_list")
+    if not original or not isinstance(element_list, str) or os.path.isabs(element_list):
+        return None
+    path = os.path.dirname(os.path.abspath(original))
+    while not os.path.exists(os.path.join(path, element_list)):
+        parent = os.path.dirname(path)
+        if parent == path:
+            return None
+        path = parent
+    return path
+
+
 class frameworkDirectory(BaseModel):
     """Load the Beam and Twiss files of a finished tracking run."""
 
@@ -1978,8 +1999,11 @@ class frameworkDirectory(BaseModel):
             directory = (
                 "." if self.directory is None else os.path.abspath(self.directory)
             )
+            settings_file = os.path.join(directory, self.settings)
+            if kwargs.get("master_lattice") is None:
+                kwargs["master_lattice"] = _find_master_lattice(settings_file)
             self.framework = Framework(**kwargs)
-            self.framework.loadSettings(os.path.join(directory, self.settings))
+            self.framework.loadSettings(settings_file)
         else:
             if self.directory is None:
                 directory = os.path.abspath(self.framework.subdirectory)
