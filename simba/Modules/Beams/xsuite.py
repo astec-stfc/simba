@@ -1,29 +1,31 @@
 import os
 import numpy as np
 
-try:
-    import cupy as cp
-    has_cupy = True
-except ImportError:
-    has_cupy = False
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 
 def read_xsuite_beam_file(
-    self, filename, zstart=0, s=0, ref_index=None, t_reference=None, context=None
+    self, filename, zstart=0, s=0, ref_index=None, t_reference=None, start=None, context=None
 ):
     """Read an Xsuite beam: a ``.json`` or ``.pkl`` file, an
     ``xpart.Particles``, or a ``Particles.to_dict()`` as the ``.json`` holds.
 
-    ``context`` is the xobjects context to build the particles in; the lattice's,
-    so that a run held to the CPU does not make GPU particles. Default: the GPU if
-    ``cupy`` imports."""
+    ``context`` is the xobjects context to build the particles in. Default: the CPU,
+    since they are read with numpy."""
     import xobjects as xo
     import xpart as xp
     if context is None:
-        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+        context = xo.ContextCpu()
 
     def from_dict(payload):
+        state = np.asarray(payload.get("state", []))
+        if state.ndim == 1 and state.size and not (state > 0).all():
+            alive = state > 0
+            payload = {
+                k: np.asarray(v)[alive] if np.ndim(v) == 1 and len(v) == state.size else v
+                for k, v in payload.items()
+            }
         try:
             return xp.Particles.from_dict(payload, _context=context)
         except ValueError:
@@ -61,7 +63,7 @@ def read_xsuite_beam_file(
         else:
             raise ValueError(f"File format not supported for xsuite beam file {filename}.")
     elif isinstance(filename, xp.Particles):
-        particles = filename
+        particles = filename if isinstance(filename._context, xo.ContextCpu) else filename.copy(_context=xo.ContextCpu())
     else:
         raise ValueError("Input must be a filename or an xpart.Particles instance.")
     self.filename = filename
@@ -105,6 +107,9 @@ def read_xsuite_beam_file(
     self._beam.y = UnitValue(alive("y"), units="m")
 
     lag = -alive("zeta") / (alive("beta0") * constants.speed_of_light)
+    if t_reference is None and start is not None:
+        # open line: the reference's time of flight from start = (t0, s0, p0)
+        t_reference = reference_time(s, float(alive("p0c")[0]), float(particles.mass0), start)
     if t_reference is None:
         t_reference = alive("s") / constants.speed_of_light
     self._beam.t = UnitValue(t_reference + lag, units="s")
@@ -141,11 +146,12 @@ def write_xsuite_beam_file(
     self, filename: str = None, write: bool = True, s_start: float = 0,
     p0c: float = None, t0: float = None, context=None,
 ):
-    """Save a json file for xsuite; ``context`` as for :func:`read_xsuite_beam_file`."""
+    """Save a json file for xsuite; ``context``: the xobjects context to build the
+    particles in, the CPU by default (a lattice passes its own)."""
     import xobjects as xo
     import xtrack as xt
     if context is None:
-        context = xo.ContextCupy() if has_cupy else xo.ContextCpu()
+        context = xo.ContextCpu()
 
     if filename is None:
         fn = os.path.splitext(self.filename)

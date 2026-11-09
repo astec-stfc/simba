@@ -93,6 +93,9 @@ class bmadLattice(frameworkLattice):
     code: str = "bmad"
     """String indicating the lattice type"""
 
+    supports_csr: ClassVar[bool] = True
+    supports_lsc: ClassVar[bool] = True
+
     radiates_by_default: ClassVar[bool] = True
     """Bmad lattices from LAURA radiate by default."""
 
@@ -138,6 +141,10 @@ class bmadLattice(frameworkLattice):
 
     tao: Any | None = None
     """PyTao instance"""
+
+    collective_step: float = 0.01
+    """Bmad ``space_charge_com[ds_track_step]`` [m] used when CSR or space charge
+    is on and the lattice does not set one."""
 
     space_charge_n_bin: int | None = None
     """Number of space-charge bins"""
@@ -204,7 +211,7 @@ class bmadLattice(frameworkLattice):
         """
         if getattr(self, "_input_species", None) is None:
             return
-        space_charge = str((self.file_block.get("charge") or {}).get("space_charge_mode", "")).lower() == "3d"
+        space_charge = self.space_charge_mode == "3d" or self.lsc_enable
         effects = [name for name, on in (("CSR", self.csr_enable), ("space charge", space_charge)) if on]
         if effects:
             warn(exceptions.CollectiveSpeciesWarning(
@@ -635,29 +642,119 @@ class bmadLattice(frameworkLattice):
 
     def write(self) -> None:
         """Write the Bmad lattice and Tao init file to `master_subdir`."""
-        section = self.section
-        section.reference_energy = self._reference_energy()
-        lattice = section.to_bmad(
-            particle=self.global_parameters["beam"].species,
-            space_charge_n_bin=self.space_charge_n_bin,
-            initial_twiss=self._bmad_initial_twiss(),
-        )
+        if self.native_multipass:
+            lattice = self._native_multipass_lattice()
+        else:
+            section = self.section
+            section.reference_energy = self._reference_energy()
+            lattice = section.to_bmad(
+                particle=self.global_parameters["beam"].species,
+                space_charge_n_bin=self.space_charge_n_bin,
+                initial_twiss=self._bmad_initial_twiss(),
+            )
+        lattice += self._collective_methods(lattice)
+        lattice = f"beginning[ref_time] = {float(self.reference_t0)!r}\n" + lattice
         path = Path(self.global_parameters["master_subdir"]) / f"{self.objectname}.bmad"
         path.write_text(lattice, encoding="utf-8")
         self.lattice_file = str(path)
         tao_path = path.with_suffix(".tao.init")
         tao_path.write_text(
-            f'&tao_beam_init\n  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
+            f'&tao_design_lattice\n  design_lattice(1)%file = "{path.name}"\n/\n'
+            f'&tao_beam_init\n  beam_init%position_file = "{self.objectname}.bmad.beam"\n'
+            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
             + self._tao_dynamic_aperture_namelist(),
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)
 
+    def _collective_methods(self, lattice: str) -> str:
+        """
+        Bmad attribute settings that switch on the collective effects asked for.
+
+        ``bmad_com[csr_and_space_charge_on]`` alone computes nothing: each
+        element also needs a ``csr_method`` / ``space_charge_method``. Set them
+        on every element by wildcard: :attr:`csr_enable` gives Bmad's 1D CSR, and
+        ``charge: space_charge_mode: 3d`` its 3D space charge. Else :attr:`lsc_enable`
+        gives ``slice`` space charge.
+
+        Parameters
+        ----------
+        lattice: str
+            The lattice text, to check the global switch is on
+
+        Returns
+        -------
+        str
+            Lines to append to the lattice
+        """
+        lines = []
+        if self.csr_enable:
+            lines.append("*[csr_method] = 1_dim")
+        if self.space_charge_mode == "3d":
+            lines.append("*[space_charge_method] = fft_3d")
+        elif self.lsc_enable:
+            lines.append("*[space_charge_method] = slice")
+        if lines and "bmad_com[csr_and_space_charge_on] = T" not in lattice:
+            lines.append("bmad_com[csr_and_space_charge_on] = T")
+        if lines and "space_charge_com[ds_track_step]" not in lattice:
+            lines.append(f"space_charge_com[ds_track_step] = {self.collective_step}")
+        return "".join(f"{line}\n" for line in lines)
+
+    @property
+    def native_multipass(self) -> bool:
+        """
+        Write a multipass path as Bmad multipass (``multipass: native`` on the
+        line): shared hardware defined once, a lord with one slave per pass,
+        rather than one copy per pass. The line has to run the whole path::
+
+            files:
+              ERL:
+                code: bmad
+                multipass: native
+        """
+        return str(self.file_block.get("multipass", "")).lower() == "native"
+
+    def _native_multipass_lattice(self) -> str:
+        """The whole beam path from LAURA's native Bmad multipass export."""
+        from laura.translator.converters.layout import MachineLayoutTranslator
+
+        layout = self.machine.lattices.get(self.machine.default_path)
+        if layout is None or not layout.is_multipass:
+            raise ValueError(f"Line '{self.objectname}' asks for native multipass, "
+                             "but its beam path is not multipass")
+        names = layout.elements
+        if (self.start, self.end) != (names[0], names[-1]):
+            raise ValueError(
+                f"Line '{self.objectname}' asks for native multipass, which writes the "
+                f"whole beam path: it has to run from {names[0]} to {names[-1]}, "
+                f"not {self.start} to {self.end}"
+            )
+        return MachineLayoutTranslator.from_layout(layout, multipass=True).to_bmad_multipass(
+            particle=self.global_parameters["beam"].species,
+            space_charge_n_bin=self.space_charge_n_bin,
+            initial_twiss=self._bmad_initial_twiss(),
+            reference_energy=self._reference_energy(),
+        )
+
+    def _tao_name(self, name: str) -> str:
+        """
+        Tao's name for one of this line's elements: one pass of a multipass
+        element (``NAME.N`` in the line) is the slave ``NAME\\N`` when written
+        natively.
+        """
+        if self.native_multipass:
+            base, _, number = name.rpartition(".")
+            if base and number.isdigit() and f"{base}#{number}" in self.machine.lattices[
+                self.machine.default_path
+            ].elements:
+                return f"{sanitize_string(base)}\\{number}"
+        return sanitize_string(name)
+
     @property
     def _saved_elements(self) -> list[str]:
         return list(
             dict.fromkeys(
-                sanitize_string(element.name)
+                self._tao_name(element.name)
                 for element in self.screens_and_markers_and_bpms
             )
         )
@@ -714,7 +811,43 @@ class bmadLattice(frameworkLattice):
                 so_lib=self.libtao,
                 noplot=True,
             )
+            for name in self._saved_elements:
+                location = self._exit_location(name)
+                if location != name:
+                    self.tao.cmd(f"set beam add_saved_at = {location}")
             self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+
+    def _exit_location(self, element: str) -> str:
+        """
+        Where Tao holds the beam leaving ``element``.
+
+        The element itself, unless it was superimposed (on a quadrupole, say),
+        when it is a super-lord that is not tracked through: then its last
+        super-slave, as a ``branch>>index`` location.
+
+        Parameters
+        ----------
+        element: str
+            Element name in the Bmad lattice
+
+        Returns
+        -------
+        str
+            ``element``, or the location of its last slave
+        """
+        try:
+            rows = self.tao.ele_lord_slave(element)
+        except Exception:
+            return element
+        # super-slaves only: a multipass slave also lists its lord's other passes
+        slaves = [
+            row["location_name"]
+            for row in rows
+            if row.get("type") == "Slave" and row.get("status", "Super_Slave") == "Super_Slave"
+        ]
+        if not slaves:
+            return element
+        return max(slaves, key=lambda location: int(location.split(">>")[-1]))
 
     def _particles_at(self, element: str, zstart: float = 0) -> tuple:
         """
@@ -733,7 +866,7 @@ class bmadLattice(frameworkLattice):
             The particles, the reference particle's index (None if it was lost), and
             for a beam of several species, each live particle's species (else None).
         """
-        data = self.tao.bunch_data(element)
+        data = self.tao.bunch_data(self._exit_location(element))
         alive = np.asarray(data["status"]) == self._ALIVE
         species = getattr(self, "_input_species", None)
         if species is not None:
@@ -892,10 +1025,11 @@ class bmadLattice(frameworkLattice):
             for name, value in self.getSValues(as_dict=True).items()
         }
         outputs = {
-            element.name: (sanitize_string(element.name), element.physical.start.z)
+            element.name: (self._tao_name(element.name), element.physical.start.z)
             for element in self.screens_and_markers_and_bpms
         }
-        outputs[self.end] = ("END", self.endObject.physical.end.z)
+        end = self.end_name
+        outputs[end] = ("END", self.endObject.physical.end.z)
         final_beam = None
         for output_name, (tao_element, zstart) in outputs.items():
             if not self.writes_output(output_name):
@@ -920,7 +1054,7 @@ class bmadLattice(frameworkLattice):
                     / f"{self.output_basename(output_name)}.openpmd.hdf5"
                 ),
             )
-            if output_name == self.end:
+            if output_name == end:
                 final_beam = beam
         save_bmad_twiss_hdf(
             filename=str(

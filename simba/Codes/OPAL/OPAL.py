@@ -1,10 +1,12 @@
 import contextlib
+import glob
 import os
 from warnings import warn
 import subprocess
+import h5py
 import numpy as np
 import yaml
-from typing import Any, Dict, Literal
+from typing import Any, Dict
 
 from ...Framework_objects import (
     frameworkLattice,
@@ -42,17 +44,41 @@ def _rms_emittance(u: np.ndarray, pu: np.ndarray) -> float:
     )
 
 
-def canonical_emittances(filename: str, b_threshold: float = 1e-6) -> Dict[float, tuple]:
+def _steps(files, bz_ref=None):
     """
-    Transverse emittances of an OPAL particle dump from canonical momenta, keyed by s.
+    The steps of OPAL particle files as ``(s, bz, step)``, ``step`` being the open HDF5 group.
+
+    A dump of the whole section (``<name>.h5``) has a step per dump and the field at the reference
+    particle in ``B-ref``. A monitor file (``<element>_opal.h5``) has one step and no field, so
+    ``bz_ref(s)`` gives it (the ``Bz_ref`` column of the ``.stat`` file, say).
+    """
+    for filename in [files] if isinstance(files, (str, os.PathLike)) else files:
+        with h5py.File(filename, "r") as f:
+            for key in f:
+                if not key.startswith("Step#"):
+                    continue
+                step = f[key]
+                spos = float(np.atleast_1d(step.attrs["SPOS"])[0])
+                if "B-ref" in step.attrs:
+                    bz = float(np.atleast_1d(step.attrs["B-ref"])[-1])
+                else:
+                    bz = float(bz_ref(spos)) if bz_ref else 0.0
+                yield spos, bz, step
+
+
+def canonical_emittances(files, bz_ref=None, b_threshold: float = 1e-6) -> Dict[float, tuple]:
+    """
+    Transverse emittances of OPAL particle files from canonical momenta, keyed by s.
 
     OPAL uses mechanical momenta, which inside a solenoid inflate the emittance
     (often tenfold); every other code reports the canonical one.
 
     Parameters
     ----------
-    filename: str
-        OPAL particle dump (``<name>.h5``)
+    files: str | list of str
+        OPAL particle dump (``<name>.h5``) or monitor files (``<element>_opal.h5``)
+    bz_ref: callable, optional
+        ``bz_ref(s)`` gives the field [T] for files that do not hold it (monitor files)
     b_threshold: float
         Field below which no correction is needed [T]
 
@@ -61,24 +87,16 @@ def canonical_emittances(filename: str, b_threshold: float = 1e-6) -> Dict[float
     Dict[float, tuple]
         ``{s: (emit_x, emit_y)}`` for the steps that needed correcting
     """
-    import h5py
-
     corrected = {}
-    with h5py.File(filename, "r") as f:
-        for key in f:
-            if not key.startswith("Step#"):
-                continue
-            step = f[key]
-            bz = float(np.atleast_1d(step.attrs["B-ref"])[-1])
-            if abs(bz) < b_threshold:
-                continue
-            k = bz / (2 * BRHO_BETAGAMMA_1)
-            x, y = step["x"][()], step["y"][()]
-            spos = float(np.atleast_1d(step.attrs["SPOS"])[0])
-            corrected[spos] = (
-                _rms_emittance(x, step["px"][()] + k * y),
-                _rms_emittance(y, step["py"][()] - k * x),
-            )
+    for spos, bz, step in _steps(files, bz_ref):
+        if abs(bz) < b_threshold:
+            continue
+        k = bz / (2 * BRHO_BETAGAMMA_1)
+        x, y = step["x"][()], step["y"][()]
+        corrected[spos] = (
+            _rms_emittance(x, step["px"][()] + k * y),
+            _rms_emittance(y, step["py"][()] - k * x),
+        )
     return corrected
 
 
@@ -89,14 +107,14 @@ def _dispersion(u: np.ndarray, delta: np.ndarray, var_delta: float) -> float:
     return float(((u - u.mean()) * delta).mean() / var_delta)
 
 
-def dispersions(filename: str, min_spread: float = 1e-6) -> Dict[float, tuple]:
+def dispersions(files, min_spread: float = 1e-6) -> Dict[float, tuple]:
     """
-    Dispersion and its derivative at each step of an OPAL particle dump, keyed by s.
+    Dispersion and its derivative at each step of OPAL particle files, keyed by s.
 
     Parameters
     ----------
-    filename: str
-        OPAL particle dump (``<name>.h5``)
+    files: str | list of str
+        OPAL particle dump (``<name>.h5``) or monitor files (``<element>_opal.h5``)
     min_spread: float
         Relative momentum spread below which no dispersion is reported
 
@@ -105,30 +123,23 @@ def dispersions(filename: str, min_spread: float = 1e-6) -> Dict[float, tuple]:
     Dict[float, tuple]
         ``{s: (Dx, Dxp, Dy, Dyp)}`` for the steps with enough spread to fit
     """
-    import h5py
-
     disp = {}
-    with h5py.File(filename, "r") as f:
-        for key in f:
-            if not key.startswith("Step#"):
-                continue
-            step = f[key]
-            px, py, pz = step["px"][()], step["py"][()], step["pz"][()]
-            if pz.size == 0 or pz.min() <= 0:
-                continue
-            p = np.sqrt(px**2 + py**2 + pz**2)
-            p0 = p.mean()
-            if p0 <= 0:
-                continue
-            delta = p / p0 - 1.0
-            var_delta = (delta * delta).mean()
-            if np.sqrt(var_delta) < min_spread:
-                continue
-            spos = float(np.atleast_1d(step.attrs["SPOS"])[0])
-            disp[spos] = tuple(
-                _dispersion(u, delta, var_delta)
-                for u in (step["x"][()], px / pz, step["y"][()], py / pz)
-            )
+    for spos, _, step in _steps(files):
+        px, py, pz = step["px"][()], step["py"][()], step["pz"][()]
+        if pz.size == 0 or pz.min() <= 0:
+            continue
+        p = np.sqrt(px**2 + py**2 + pz**2)
+        p0 = p.mean()
+        if p0 <= 0:
+            continue
+        delta = p / p0 - 1.0
+        var_delta = (delta * delta).mean()
+        if np.sqrt(var_delta) < min_spread:
+            continue
+        disp[spos] = tuple(
+            _dispersion(u, delta, var_delta)
+            for u in (step["x"][()], px / pz, step["y"][()], py / pz)
+        )
     return disp
 
 
@@ -197,46 +208,11 @@ class opalLattice(frameworkLattice):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
 
-
-    @property
-    def space_charge_mode(self) -> str | None:
-        """
-        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
-
-        Returns
-        -------
-        str | None
-        """
-        if (
-                "charge" in self.file_block
-                and "space_charge_mode" in self.file_block["charge"]
-        ):
-            return self.file_block["charge"]["space_charge_mode"]
-        elif (
-                "charge" in self.globalSettings
-                and "space_charge_mode" in self.globalSettings["charge"]
-        ):
-            return self.globalSettings["charge"]["space_charge_mode"]
-        else:
-            return None
-
-    @space_charge_mode.setter
-    def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
-        """
-        Set the space charge mode in :attr:`file_block`.
-
-        Parameters
-        ----------
-        mode: Literal["2d", "3d", "2D", "3D"]
-        """
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        self.file_block["charge"]["space_charge_mode"] = mode
-
     def write(self):
-        self.section.opal_headers = self.headers
-        self.section.opal_version = self.version
-        output = self.section.to_opal(
+        section = self.deck_section
+        section.opal_headers = self.headers
+        section.opal_version = self.version
+        output = section.to_opal(
             energy=self.global_parameters["beam"].centroids.mean_cpz.val / 1e6,
             breakstr=self.breakstr,
         )
@@ -253,7 +229,8 @@ class opalLattice(frameworkLattice):
 
     def option_settings(self) -> dict:
         """
-        OPAL ``OPTION`` settings: ``globals_Opal.yaml``'s ``global`` block, overridden by global settings.
+        OPAL ``OPTION`` settings: ``globals_Opal.yaml``'s ``option`` and ``global`` blocks, overridden
+        by global settings.
 
         Returns
         -------
@@ -261,7 +238,7 @@ class opalLattice(frameworkLattice):
             Keyword arguments for :class:`~laura.translator.converters.codes.opal.OpalOption`
         """
         opalglobal = update_globals(self.globalSettings)
-        settings = dict(opalglobal.get("global", {}) or {})
+        settings = {**(opalglobal.get("option") or {}), **(opalglobal.get("global") or {})}
         allowed = OpalOption.model_fields
         dropped = [k for k in settings if k not in allowed]
         for k in dropped:
@@ -365,7 +342,7 @@ class opalLattice(frameworkLattice):
         bcurrent = abs(self.global_parameters["beam"].total_charge * 1e6)
         chargesign = int(self.global_parameters["beam"].chargesign[0])
         # the file hdf5_to_opal wrote
-        initobj = self.particle_definition
+        initobj = os.path.basename(self.particle_definition)
         self.headers["option"] = OpalOption(**self.option_settings())
         native = self.native_distribution_block()
         self.headers["distribution"] = OpalDistribution(
@@ -375,7 +352,7 @@ class opalLattice(frameworkLattice):
         )
         self.headers["fieldsolver"] = OpalFieldSolver(
             npart=beamlen,
-            space_charge_mode=str(self.space_charge_mode),
+            space_charge_mode=self.space_charge_mode or "False",
             grid_size_override=self.space_charge_grid,
             BBOXINCR=self.bbox_increase,
         )
@@ -398,39 +375,56 @@ class opalLattice(frameworkLattice):
             DT=self.time_step_size,
             MAXSTEPS=self.maxsteps,
             LINE=self.objectname,
-            ZSTOP=self.endObject.physical.end.z - self.startObject.physical.start.z,
+            ZSTOP=self.local_z(self.endObject.physical.end) - self.local_z(self.startObject.physical.start),
             ZSTOP_STAGES=bounds,
         )
         self.headers["run"] = OpalRun()
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 
+    def read_element_beam(self, name, opalbeamname, spositions, default_step=None):
+        """
+        The beam at element ``name``: from its MONITOR file if OPAL wrote one,
+        else from the dump in ``opalbeamname`` at step ``spositions[name]``,
+        else ``default_step``; ``None`` if there is neither.
+        """
+        monitor = f'{self.global_parameters["master_subdir"]}/{name}_opal.h5'
+        if os.path.exists(monitor):
+            filename, step = monitor, 0
+        elif name in spositions or default_step is not None:
+            filename, step = opalbeamname, spositions.get(name, default_step)
+        else:
+            return None
+        beam = rbf.beam()
+        beam.read_opal_beam_file(filename=filename, step=step)
+        return beam
+
     def postProcess(self):
-        start_z = self.startObject.physical.start.z
+        entrance = self.getSValues(as_dict=True, at_entrance=True)
         svals = {
-            s.name: s.physical.middle.z - start_z for s in self.screens_and_bpms
+            s.name: entrance[s.name] + s.physical.length / 2 for s in self.screens_and_bpms
         }
-        opalbeamname = f'{self.global_parameters["master_subdir"]}/{self.objectname}.h5'
-        spositions = find_opal_s_positions(opalbeamname, svals, tolerance=0.05)
+        svals[self.endObject.name] = entrance[self.endObject.name] + self.endObject.physical.length
+        subdir = self.global_parameters["master_subdir"]
+        opalbeamname = f"{subdir}/{self.objectname}.h5"
+        # only an element without a monitor file needs the dump
+        unmonitored = {n: s for n, s in svals.items() if not os.path.exists(f"{subdir}/{n}_opal.h5")}
+        spositions = find_opal_s_positions(opalbeamname, unmonitored, tolerance=0.05) if unmonitored else {}
         for elem in self.screens_and_bpms:
-            if elem.name in spositions:
-                beam = rbf.beam()
-                beam.read_opal_beam_file(filename=opalbeamname, step=spositions[elem.name])
-                zpos = elem.physical.middle.z
+            beam = self.read_element_beam(elem.name, opalbeamname, spositions)
+            if beam is not None:
+                zpos = self.local_z(elem.physical.middle)
                 beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-                beam._beam.t = UnitValue(
-                    beam._beam.t.val + (zpos / speed_of_light), "s"
-                )
                 rbf.openpmd.write_openpmd_beam_file(
                     beam,
                     f'{self.global_parameters["master_subdir"]}/'
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
-        beam = rbf.beam()
-        beam.read_opal_beam_file(filename=opalbeamname, step=-1)
-        zpos = self.endObject.physical.end.z
+        beam = self.read_element_beam(
+            self.endObject.name, opalbeamname, spositions, default_step=-1
+        )
+        zpos = self.local_z(self.endObject.physical.end)
         beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
-        beam._beam.t = UnitValue(beam._beam.t.val + (zpos / speed_of_light), "s")
         rbf.openpmd.write_openpmd_beam_file(
             beam,
             f'{self.global_parameters["master_subdir"]}/'
@@ -450,23 +444,33 @@ class opalLattice(frameworkLattice):
         # OPAL's own emittances use mechanical momenta, so replace them with
         # canonical ones wherever a solenoid is on -- see canonical_emittances.
         svals_stat = np.asarray(opalData["s"], dtype=float)
-        corrected = canonical_emittances(opalbeamname)
+        with h5py.File(opalbeamname, "r") as f:
+            dumped = sum(k.startswith("Step#") for k in f) > 1
+        if dumped:  # a dump every PSDUMPFREQ steps: the rows of the .stat file that coincide with one
+            sources, bz_ref, tolerance = opalbeamname, None, 1e-6
+        else:  # the default, no dump: the rows nearest the monitors, with the field of the .stat file
+            sources = sorted(glob.glob(f"{subdir}/*_opal.h5"))
+
+            def bz_ref(s):
+                return np.interp(s, svals_stat, opalData["Bz_ref"])
+
+            tolerance = np.median(np.diff(svals_stat)) / 2 if len(svals_stat) > 1 else 0.0
+        corrected = canonical_emittances(sources, bz_ref)
         if corrected:
             for spos, (ex, ey) in corrected.items():
                 idx = int(np.argmin(np.abs(svals_stat - spos)))
-                if abs(svals_stat[idx] - spos) < 1e-6:
+                if abs(svals_stat[idx] - spos) <= tolerance:
                     opalData["emit_x"][idx] = ex
                     opalData["emit_y"][idx] = ey
         DISPERSION_COLUMNS = ("Dx", "Dxp", "Dy", "Dyp")
         for name in DISPERSION_COLUMNS:
             opalData[name] = np.zeros(len(svals_stat))
-        for spos, values in dispersions(opalbeamname).items():
+        for spos, values in dispersions(sources).items():
             idx = int(np.argmin(np.abs(svals_stat - spos)))
-            if abs(svals_stat[idx] - spos) < 1e-6:
+            if abs(svals_stat[idx] - spos) <= tolerance:
                 for name, value in zip(DISPERSION_COLUMNS, values):
                     opalData[name][idx] = value
         opalData["s"] += self.entrance_s
-        import h5py
         with h5py.File(f"{self.global_parameters['master_subdir']}/{self.objectname}.opal_twiss.h5", "w") as f:
             for k, v in opalData.items():
                 with contextlib.suppress(TypeError):
@@ -476,8 +480,8 @@ class opalLattice(frameworkLattice):
         emitted = self.emitted
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
-            self.global_parameters["master_subdir"] + "/" + self.particle_definition + '.opal',
-            subz=self.startObject.physical.start.z,
+            self.global_parameters["master_subdir"] + "/" + os.path.basename(self.particle_definition) + '.opal',
+            subz=self.local_z(self.startObject.physical.start),
             emitted=emitted,
         )
 

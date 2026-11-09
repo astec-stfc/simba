@@ -25,7 +25,7 @@ ELECTRON = 0.51099895e6
 OFFSET = 5e-3
 """Inside the 1 % :class:`OffDesignEnergyWarning` threshold, but well clear of the codes' noise."""
 
-CODES = ["xsuite", "elegant", "ocelot", "madx"]
+CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx"]
 
 
 def _machine(tmp_path, closed=True, reference_energy=None, scale=1.0, cavity=None):
@@ -148,9 +148,12 @@ def test_a_ring_takes_its_reference_from_the_section(tmp_path, seed_beam):
 def test_the_beam_is_tracked_at_its_offset(tmp_path, seed_beam):
     """Xsuite's particles carry the offset as delta against the design."""
     design = _mean_cp(seed_beam) / (1 + OFFSET)
+    from simba.Codes.Xsuite.Xsuite import _to_cpu
+
     lattice, _ = _loaded(tmp_path, seed_beam, reference_energy=_energy(design))
-    assert lattice.pin.p0c[0] == pytest.approx(design, rel=1e-12)
-    assert np.mean(lattice.pin.delta) == pytest.approx(OFFSET, rel=1e-6)
+    pin = _to_cpu(lattice.pin)  # on the GPU when cupy is installed
+    assert pin.p0c[0] == pytest.approx(design, rel=1e-12)
+    assert np.mean(pin.delta) == pytest.approx(OFFSET, rel=1e-6)
 
 
 def test_a_ring_without_an_energy_uses_the_beam(tmp_path, seed_beam):
@@ -238,7 +241,7 @@ def runs(tmp_path_factory, seed_beam):
     return get
 
 
-AGREEMENT = {"xsuite": 1e-6, "madx": 1e-6, "elegant": 2 * OFFSET, "ocelot": 0.05}
+AGREEMENT = {"xsuite": 1e-6, "madx": 1e-6, "impactx": 1e-6, "elegant": 2 * OFFSET, "ocelot": 0.05}
 """Design vs rescaled agreement, as a fraction of the design's effect. Xsuite
 and MAD-X are exact in delta; elegant and Ocelot expand to second order, so
 err by ~OFFSET (worst seen: 5.3e-4, and an Ocelot beam above 1e-2)."""
@@ -353,6 +356,7 @@ def timed(tmp_path_factory, seed_beam):
 TIMING = {
     "xsuite": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "madx": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
+    "impactx": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "elegant": {"cp": 1e-6, "t": 1e-6, "x": 1e-6, "px": 1e-6},
     "ocelot": {"cp": 2e-2, "t": 2e-2},
 }

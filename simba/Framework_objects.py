@@ -397,11 +397,11 @@ class frameworkLattice(BaseModel):
     allow_negative_drifts: bool = False
     """Allow negative drifts in the lattice."""
 
-    _lsc_enable: bool = False
-    """Enable LSC drifts; off by default, as in LAURA, so every code models the same physics."""
+    _lsc_enable: bool | None = None
+    """LSC for the whole line, if the settings file says; None leaves it to the elements (see :attr:`lsc_enable`)."""
 
-    _csr_enable: bool = True
-    """Enable CSR drifts."""
+    _csr_enable: bool | None = None
+    """CSR for the whole line, if the settings file says; None leaves it to the elements (see :attr:`csr_enable`)."""
 
     _wakefield_enable: bool = True
     """Enable structure wakefields."""
@@ -464,6 +464,10 @@ class frameworkLattice(BaseModel):
     _start_s: float = None
     """Cached s at the start of the lattice; see :attr:`start_s`."""
 
+    reference_start: tuple | None = None
+    """(t, s, p) of the input beam's reference, so codes that track relative to it can
+    write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
+
     remote_setup: Dict = {}
     """Settings for running executables remotely."""
 
@@ -499,8 +503,21 @@ class frameworkLattice(BaseModel):
     radiates_by_default: ClassVar[bool] = False
     """Whether this code radiates unasked."""
 
+    merges_carried_species: ClassVar[bool] = False
+    """Whether a species carried past this line is merged into one the code made itself (BDSIM's photons),
+    rather than skipped because the code already tracked it."""
+
     supports_radiation: ClassVar[bool] = False
     """Whether simba can switch radiation on for this code; see :meth:`check_radiation_supported`."""
+
+    supports_csr: ClassVar[bool] = False
+    """Whether simba can switch CSR on for this code; see :meth:`check_collective_supported`."""
+
+    supports_lsc: ClassVar[bool] = False
+    """Whether simba can switch LSC on for this code; see :meth:`check_collective_supported`."""
+
+    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off", "no")
+    """``charge: space_charge_mode`` values that mean no space charge; see :attr:`space_charge_mode`."""
 
     supports_programs: ClassVar[bool] = False
     """Whether this code can vary an element from turn to turn; see :class:`~simba.Modules.DeviceProgram.DeviceProgram`."""
@@ -570,6 +587,11 @@ class frameworkLattice(BaseModel):
     program_attributes: ClassVar[dict] = {}
     """``(horizontal, vertical)`` attribute an unqualified program sets, per code element type; see :meth:`program_attribute`."""
 
+    local_frame: bool | None = None
+    """Write the deck in the lattice's own frame (see :meth:`to_local`) rather than world
+    coordinates, for codes that place elements by position. None means
+    on when the line starts rotated; ``local_frame`` in the file block sets it."""
+
     def model_post_init(self, __context):
         for key, value in list(self.elementObjects.items()):
             setattr(self, key, value)
@@ -591,6 +613,8 @@ class frameworkLattice(BaseModel):
             self.file_block.update({"input": {}})
         if "tw_focusing" in self.file_block:
             self._tw_focusing = bool(self.file_block["tw_focusing"])
+        if "local_frame" in self.file_block:
+            self.local_frame = bool(self.file_block["local_frame"])
         self._apply_collective_settings()
         self.globalSettings = self.settings["global"]
         self.update_groups()
@@ -600,8 +624,75 @@ class frameworkLattice(BaseModel):
             return super().__setattr__(name, value)
         object.__setattr__(self, name, value)
 
+    def _frame_rotation(self) -> float:
+        """Rotation about y [rad] that takes world directions into the deck's frame."""
+        return -float(self.startObject.physical.global_rotation.theta)
+
+    @property
+    def in_local_frame(self) -> bool:
+        """Whether the deck is written in the local frame: :attr:`local_frame`, else whether the line starts rotated."""
+        if self.local_frame is not None:
+            return self.local_frame
+        return abs(self._frame_rotation()) > 1e-9
+
+    def to_local(self, point) -> np.ndarray:
+        """
+        Map a world position into the deck's frame: origin at the first element's entrance, along +z.
+
+        Parameters
+        ----------
+        point: Position | Sequence[float]
+            LAURA ``Position`` or ``(x, y, z)``
+
+        Returns
+        -------
+        np.ndarray
+            ``(x, y, z)`` in the deck's frame; unchanged if not :attr:`in_local_frame`
+        """
+        p = np.asarray(getattr(point, "array", point), dtype=float)
+        if not self.in_local_frame:
+            return p
+        physical = self.startObject.physical
+        origin = np.asarray(physical.start.array, dtype=float)
+        local = physical.rotation_matrix.T @ (p - origin)
+        return np.round(local, 9)
+
+    def local_z(self, point) -> float:
+        """z of a world position in the deck's frame (see :meth:`to_local`)."""
+        return float(self.to_local(point)[2])
+
+    @property
+    def deck_section(self) -> SectionLatticeTranslator:
+        """
+        The section as written out; in the local frame, a deep copy moved into it.
+
+        Returns
+        -------
+        SectionLatticeTranslator
+        """
+        if not self.in_local_frame:
+            return self.section
+        section = self.section.model_copy(deep=True)
+        for element in section.elements.elements.values():
+            physical = getattr(element, "physical", None)
+            if physical is None or physical.middle is None:
+                continue
+            x, y, z = self.to_local(physical.middle)
+            # a rigid move keeps s (OPAL places by it); unguarded, LAURA re-projects it onto the world trajectory
+            physical._syncing = True
+            physical.middle = Position(x=x, y=y, z=z)
+            physical._syncing = False
+            physical.global_rotation.theta += self._frame_rotation()
+        return section
+
     def _apply_collective_settings(self) -> None:
-        """Take ``csr_enable`` / ``lsc_enable`` from this line's settings block; a ring defaults CSR off."""
+        """
+        Take ``csr_enable`` / ``lsc_enable`` / ``csr_bins`` from this line's settings block.
+
+        A stated flag overrides every element; unstated, each element keeps its own
+        LAURA setting. A ring defaults CSR off. ``csr_bins``, from here or the LAURA
+        section's ``number_of_bins``, is put on every element so all codes bin alike.
+        """
         if self.file_block.get("csr_enable") is None and (
             self.closed_geometry or self.periodic
         ):
@@ -610,6 +701,11 @@ class frameworkLattice(BaseModel):
             stated = self.file_block.get(flag)
             if stated is not None:
                 setattr(self, flag, bool(stated))
+        bins = self.file_block.get("csr_bins")
+        if bins is None:
+            bins = getattr(self._machine_space_charge(), "number_of_bins", None)
+        if bins is not None:
+            self.csr_bins = int(bins)
 
     def _apply_radiation_to_section(self) -> None:
         """Push :attr:`radiation` onto LAURA's ``sr_enable``/``isr_enable``."""
@@ -630,8 +726,17 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_enable(self) -> bool:
-        """Enable CSR, on the section and every element."""
-        return self._csr_enable
+        """
+        Whether this line models CSR: as set for the line, else whether any dipole asks for it.
+
+        Setting it puts it on the section and every element.
+        """
+        if self._csr_enable is not None:
+            return self._csr_enable
+        return any(
+            getattr(getattr(d, "simulation", None), "csr_enable", False)
+            for d in self.dipoles
+        )
 
     @csr_enable.setter
     def csr_enable(self, csr: bool) -> None:
@@ -647,11 +752,17 @@ class frameworkLattice(BaseModel):
 
     @property
     def csr_bins(self) -> int:
-        """Number of CSR bins; 20 unless set here or on the machine section."""
+        """
+        Number of CSR bins: as set for the line (or the LAURA section's ``number_of_bins``),
+        else the most any dipole asks for, else 20.
+        """
         if self._csr_bins is not None:
             return self._csr_bins
-        stated = getattr(self._machine_space_charge(), "number_of_bins", None)
-        return 20 if stated is None else stated
+        bins = [
+            getattr(getattr(d, "simulation", None), "csr_bins", None)
+            for d in self.dipoles
+        ]
+        return max((b for b in bins if b), default=20)
 
     @csr_bins.setter
     def csr_bins(self, csr: int) -> None:
@@ -666,8 +777,12 @@ class frameworkLattice(BaseModel):
 
     @property
     def lsc_enable(self) -> bool:
-        """Enable LSC, on the section and every element."""
-        return self._lsc_enable
+        """
+        Whether this line models LSC: as set for the line, else whether any element asks for it.
+
+        Setting it puts it on the section and every element.
+        """
+        return self.lsc_in_use if self._lsc_enable is None else self._lsc_enable
 
     @lsc_enable.setter
     def lsc_enable(self, lsc: bool) -> None:
@@ -862,6 +977,41 @@ class frameworkLattice(BaseModel):
             self.objectname, self.code, self.radiation, self.radiates_by_default,
             self.codes_that_can("supports_radiation"),
         ))
+
+    def check_collective_supported(self) -> None:
+        """Warn when this line asks for CSR (with a bend in it) or LSC and simba has no switch for them in this code."""
+        asked = [
+            ("CSR", "supports_csr", self.csr_enable and bool(self.dipoles)),
+            ("LSC", "supports_lsc", self.lsc_enable),
+        ]
+        for effect, flag, on in asked:
+            if on and not getattr(self, flag):
+                warn(exceptions.CollectiveUnsupportedWarning(
+                    self.objectname, self.code, effect, self.codes_that_can(flag)
+                ))
+
+    @property
+    def space_charge_mode(self) -> str:
+        """
+        ``charge: space_charge_mode`` from this line's settings block, else from the ``global`` one.
+
+        Lower-cased; ``""`` if neither says, or it says off (:attr:`space_charge_modes_off`)::
+
+            global:
+              charge: {space_charge_mode: 3d}
+            files:
+              L01: {charge: {space_charge_mode: off}}  # wins for L01
+        """
+        for block in (self.file_block, self.globalSettings):
+            mode = ((block or {}).get("charge") or {}).get("space_charge_mode")
+            if mode is not None:
+                mode = str(mode).strip().lower()
+                return "" if mode in self.space_charge_modes_off else mode
+        return ""
+
+    @space_charge_mode.setter
+    def space_charge_mode(self, mode: str) -> None:
+        self.file_block.setdefault("charge", {})["space_charge_mode"] = mode
 
     @property
     def write_turns(self) -> bool:
@@ -1193,6 +1343,24 @@ class frameworkLattice(BaseModel):
             return self._input_reference[coord]
         beam = self.global_parameters["beam"]
         return float(np.mean(getattr(beam, coord).val))
+
+    @property
+    def plasma_box_origin(self) -> float:
+        """
+        Lattice ``z`` placed at the origin of a co-moving plasma-code box
+        (Wake-T ``xi = 0``, FBPIC ``z = 0``), which plasma and laser positions
+        are given relative to.
+
+        The incoming beam's reference particle if it has one; otherwise its
+        charge-weighted mean ``z``, so a light bunch carried by many
+        macroparticles (electrons injected in an earlier stage, say) does not
+        drag the box away from the driver.
+        """
+        if self._input_particle is not None:
+            return self._input_particle["z"]
+        beam = self.global_parameters["beam"]
+        charge = np.abs(np.asarray(beam.Particles.charge.val, dtype=float))
+        return float(np.average(np.asarray(beam.z.val, dtype=float), weights=charge))
 
     @property
     def design_p0c(self) -> float | None:
@@ -2102,7 +2270,8 @@ class frameworkLattice(BaseModel):
                 continue
             try:
                 total += float(magnetic.KnL(0))
-            except (TypeError, ValueError, KeyError):
+            # a solenoid's magnet has no KnL
+            except (AttributeError, TypeError, ValueError, KeyError):
                 continue
         return total
 
@@ -2164,7 +2333,10 @@ class frameworkLattice(BaseModel):
                     setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
                 except Exception:
                     pass
-        nb.set_total_charge(np.sum(np.array(bm.charge.val)))
+        charge = np.array(bm.charge.val)
+        kept = charge[idx]
+        nb.charge = UnitValue(kept * (np.sum(charge) / np.sum(kept)), units="C")
+        nb.total_charge = UnitValue(float(np.sum(charge)), units="C")
         newbeam.reference_particle_index = self.sampled_index(bm.reference_particle_index)
         return newbeam
 
@@ -2206,7 +2378,8 @@ class frameworkLattice(BaseModel):
         if read_file:
             self._carried_species = {}
         HDF5filename = prefix + particle_definition + ".openpmd.hdf5"
-        if "$" in particle_definition:
+        given = "$" in particle_definition or os.path.isabs(particle_definition)
+        if given:
             if os.path.isfile(expand_substitution(self, particle_definition + ".openpmd.hdf5")):
                 filepath = expand_substitution(self, particle_definition + ".openpmd.hdf5")
             else:
@@ -2230,15 +2403,15 @@ class frameworkLattice(BaseModel):
                 self.getInitialTwiss()
             return filepath
         HDF5filename = prefix + particle_definition + ".hdf5"
-        if "$" in particle_definition:
+        if given:
             if os.path.isfile(expand_substitution(self, particle_definition + ".hdf5")):
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
             else:
                 filepath = expand_substitution(self, particle_definition + ".hdf5")
         if os.path.isfile(expand_substitution(self, HDF5filename)):
             filepath = expand_substitution(self, HDF5filename)
-        elif os.path.isfile(self.global_parameters["master_subdir"] + "/" + HDF5filename):
-            filepath = self.global_parameters["master_subdir"] + "/" + HDF5filename
+        elif os.path.isfile(os.path.join(self.global_parameters["master_subdir"], HDF5filename)):
+            filepath = os.path.join(self.global_parameters["master_subdir"], HDF5filename)
         if os.path.isfile(filepath):
             if read_file:
                 rbf.hdf5.read_HDF5_beam_file(
@@ -2522,8 +2695,23 @@ class frameworkLattice(BaseModel):
 
     @property
     def startObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`start`."""
-        return self.elementObjects[self.start]
+        """The element named by :attr:`start` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.start)
+
+    def _named_element(self, name: str) -> "PhysicalBaseElement":
+        if name in self.elementObjects:
+            return self.elementObjects[name]
+        return self.elements[flatten_occurrence(name)]
+
+    @property
+    def start_name(self) -> str:
+        """:attr:`start` as this line names it: ``NAME.N`` for one pass (``NAME#N``) of a multipass element."""
+        return flatten_occurrence(self.start)
+
+    @property
+    def end_name(self) -> str:
+        """:attr:`end` as this line names it; see :attr:`start_name`."""
+        return flatten_occurrence(self.end)
 
     @property
     def end(self) -> str:
@@ -2556,8 +2744,8 @@ class frameworkLattice(BaseModel):
 
     @property
     def endObject(self) -> "PhysicalBaseElement":
-        """The element named by :attr:`end`."""
-        return self.elementObjects[self.end]
+        """The element named by :attr:`end` (this line's copy for one pass, ``NAME#N``)."""
+        return self._named_element(self.end)
 
     @property
     def start_s(self) -> float:
@@ -2583,7 +2771,7 @@ class frameworkLattice(BaseModel):
         """
         Space-charge settings of this lattice's LAURA section, or None for code defaults.
 
-        This lattice's own ``csr_bins`` is applied after, so still wins.
+        A ``csr_bins`` in this lattice's settings block wins over its ``number_of_bins``.
         """
         for section in (getattr(self.machine, "sections", None) or {}).values():
             if self.start in getattr(section, "order", ()):
@@ -2635,8 +2823,9 @@ class frameworkLattice(BaseModel):
                 geometry=self._machine_geometry(),
             )
             slt = SectionLatticeTranslator.from_section(section)
-            slt.lsc_enable = self.lsc_enable
-            slt.csr_enable = self.csr_enable
+            # None lets LAURA's synthesised drifts follow the elements
+            slt.lsc_enable = self._lsc_enable
+            slt.csr_enable = self._csr_enable
             slt.tw_focusing = self.tw_focusing
             slt.lsc_bins = self.lsc_bins
             slt.directory = self.global_parameters["master_subdir"]
@@ -2650,6 +2839,20 @@ class frameworkLattice(BaseModel):
     def elements(self) -> dict:
         """The lattice's elements, by name."""
         return self.section.elements.elements
+
+    def output_s(self, name: str) -> float:
+        """
+        The ``s`` an output beam at element ``name`` is placed at.
+        The machine element's own ``s``, except for one pass of a multipass
+        element (``NAME.N`` in a line): that is
+        placed at its arc length along the beam path.
+        """
+        element = self.elementObjects.get(name)
+        if element is not None:
+            return element.physical.s
+        layout = self.machine.lattices.get(self.machine.default_path)
+        arc = {flatten_occurrence(k): s for k, s in layout.arc_lengths().items()} if layout else {}
+        return arc[name] if name in arc else self.elements[name].physical.s
 
     def write(self):
         pass
@@ -2957,6 +3160,7 @@ class frameworkLattice(BaseModel):
         self.check_periodic_supported()
         self.check_radiation()
         self.check_radiation_supported()
+        self.check_collective_supported()
         self.check_single_particle_supported()
         self.check_nsuperperiods_supported()
         self.check_programs_supported()
@@ -3166,7 +3370,7 @@ class frameworkLattice(BaseModel):
         if not os.path.isfile(filename):
             warn(exceptions.SpeciesNotCarriedWarning(self.objectname, filename, list(carried)))
             return []
-        return rbf.openpmd.append_species(filename, carried.values())
+        return rbf.openpmd.append_species(filename, carried.values(), merge=self.merges_carried_species)
 
     def __repr__(self):
         return self.__str__()
@@ -3238,6 +3442,26 @@ class frameworkLattice(BaseModel):
         if as_dict:
             return {e.name: [e.physical.start.z, e.physical.end.z] for e in elems.values()}
         return [[e.physical.start.z, e.physical.end.z] for e in elems.values()]
+
+    def getZAtS(self, s: list | np.ndarray) -> np.ndarray:
+        """
+        Get the lattice Z at each S tracked along this lattice (e.g. Twiss output).
+
+        Parameters
+        ----------
+        s: list | np.ndarray
+            S values in lattice order, starting at the lattice entrance and including every
+            element boundary (as Twiss output does).
+
+        Returns
+        -------
+        np.ndarray
+            Z value at each S.
+        """
+        lengths = [e.physical.length for e in self.create_drifts().values()]
+        lat_z = [a[-1] for a in self.getZValues()]
+        path = np.concatenate([[0.0], np.cumsum(np.abs(np.diff(s)))])
+        return np.interp(path, np.cumsum(np.abs(lengths)), lat_z)
 
     def getNames(self, drifts: bool = True) -> list:
         """
@@ -3751,17 +3975,22 @@ class chicane(frameworkGroup):
                 lz = z_extents[dipole_number]
                 ang = a * self.ratios[dipole_number]
                 x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
+                s_entry = s_here - lz / 2.0
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
                     r = lz / (np.sin(p1) - np.sin(p0))
                     dx, arc = r * (np.cos(p0) - np.cos(p1)), r * (p1 - p0)
+                    pm = 0.5 * (p0 + p1)
+                    mid_u = x + r * (np.cos(p0) - np.cos(pm))
+                    mid_s = s_entry + r * (np.sin(pm) - np.sin(p0))
                 else:
                     dx, arc = 0.0, lz
-                e.physical.middle = to_global(x + dx / 2.0, s_here)
-                e.physical.global_rotation.theta = theta0
+                    mid_u, mid_s = x, s_here
+                e.physical.middle = to_global(mid_u, mid_s)
+                e.physical.global_rotation.theta = theta0 - p0
                 e.magnetic.angle = ang
-                e.physical.set_physical_angle(np.copysign(ang, dx) if dx else ang)
+                e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
                 x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
@@ -3769,7 +3998,7 @@ class chicane(frameworkGroup):
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
                 e.physical.middle = to_global(x_here, s_here)
-                e.physical.global_rotation.theta = theta0 + phi
+                e.physical.global_rotation.theta = theta0 - phi
 
     @property
     def _design_axis(self) -> tuple:
@@ -3780,11 +4009,26 @@ class chicane(frameworkGroup):
         """
         if not hasattr(self, "_axis"):
             d0 = self.allElementObjects[self.elements[0]].physical
-            self._axis = (
-                np.array(d0.rotation_matrix),
-                float(d0.global_rotation.theta),
-                np.asarray(d0.start.array, dtype=float),
-            )
+            rotation = np.array(d0.rotation_matrix)
+            along = rotation.T[2]
+            entrance = np.asarray(d0.start.array, dtype=float)
+            upstream = None
+            for element in self.allElementObjects.values():
+                if element.name in self.elements:
+                    continue
+                try:
+                    middle = np.asarray(element.physical.middle.array, dtype=float)
+                    theta = float(element.physical.global_rotation.theta)
+                except AttributeError:
+                    continue
+                gap = float(np.dot(entrance - middle, along))
+                if gap < 0 or abs(theta - float(d0.global_rotation.theta)) > 1e-9:
+                    continue
+                if upstream is None or gap < upstream[0]:
+                    upstream = (gap, middle)
+            if upstream is not None:
+                entrance = upstream[1] + upstream[0] * along
+            self._axis = (rotation, float(d0.global_rotation.theta), entrance)
         return self._axis
 
     def _z_extent(self, dipole, index: int) -> float:

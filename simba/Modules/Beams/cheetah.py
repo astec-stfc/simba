@@ -1,6 +1,7 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
+from ...FrameworkHelperFunctions import reference_time
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
@@ -18,18 +19,28 @@ def read_cheetah_beam_file(self, filename, beam_energy, zstart=0, s=0, ref_index
     interpret_cheetah_ParticleBeam(self, parray, zstart=zstart, s=s, ref_index=ref_index)
 
 
-def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None):
-    self.set_mass_and_charge(constants.m_e, parray.particle_charges.numpy(), len(parray.x.numpy()))
-    self._beam.x = UnitValue(parray.x.numpy(), "m")
-    self._beam.y = UnitValue(parray.y.numpy(), "m")
-    self._beam.t = UnitValue((parray.s.numpy() + parray.tau.numpy()) / constants.speed_of_light, "s")
-    cp = np.sqrt(parray.energies.numpy() ** 2 - self.E0_eV**2)
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
+    # Cheetah's Aperture does not remove a lost particle: it sets its survival probability to 0.
+    # 0.5 is the threshold Cheetah's own openPMD writer uses to decide alive or lost.
+    alive = parray.survival_probabilities.numpy() > 0.5
+    charges = parray.particle_charges.numpy()[alive]
+    self.set_mass_and_charge(constants.m_e, charges, len(charges))
+    self._beam.x = UnitValue(parray.x.numpy()[alive], "m")
+    self._beam.y = UnitValue(parray.y.numpy()[alive], "m")
     p0c = np.sqrt(float(parray.energy) ** 2 - self.E0_eV**2)
-    cpx = parray.px.numpy() * p0c
-    cpy = parray.py.numpy() * p0c
+    if start is None:
+        t_reference = parray.s.numpy() / constants.speed_of_light
+    else:
+        # open line: the reference's time of flight from start = (t0, s0, p0)
+        mass = float(np.mean(self.E0_eV))
+        t_reference = reference_time(float(parray.s), np.sqrt(float(parray.energy) ** 2 - mass**2), mass, start)
+    self._beam.t = UnitValue(t_reference + parray.tau.numpy()[alive] / constants.speed_of_light, "s")
+    cp = np.sqrt(parray.energies.numpy()[alive] ** 2 - self.E0_eV**2)
+    cpx = parray.px.numpy()[alive] * p0c
+    cpy = parray.py.numpy()[alive] * p0c
     cpz = np.sqrt(cp**2 - cpx**2 - cpy**2)
     self.set_momenta(cpx, cpy, cpz)
-    self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(parray.particle_charges.numpy())), "C"))
+    self._beam.set_total_charge(UnitValue(-1 * abs(np.sum(charges)), "C"))
     self._beam.nmacro = UnitValue(np.full(len(self._beam.x), 1))
     self._beam.status = UnitValue(np.full(len(self._beam.x), 5))
 

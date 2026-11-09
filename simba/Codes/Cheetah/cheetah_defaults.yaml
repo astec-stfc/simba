@@ -1,1 +1,2 @@
 save_twiss: True
+cheetah_tracking_method: auto

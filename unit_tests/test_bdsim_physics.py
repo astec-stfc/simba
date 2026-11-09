@@ -343,6 +343,8 @@ def test_a_laura_crystal_channels_reflects_or_scatters_with_its_entrance_angle(
         seed=_pencil_seed(tmp_path / "seed", "proton", 700e9, 300),
     )
     assert end.species == "proton"
+    # the charge survives channelling physics, whose own recorded weights are garbage
+    assert float(end.Particles.total_charge) == pytest.approx(1e-12 * len(end.x) / 300)
     xp = end.xp.val * 1e6  # urad
     channelled = np.mean(np.abs(xp - 50) < 10)
     if effect == "channelling":  # measured by hand in BDSIM: 91-93%
@@ -393,3 +395,56 @@ def test_a_laura_crystal_channels_electrons_as_the_same_crystal_written_by_hand(
     error = np.sqrt(sum(f * (1 - f) / nevents for f in fractions))
     assert fractions[1] > 0.04  # electrons do channel (amorphous: 0.4%)
     assert abs(fractions[0] - fractions[1]) < 4 * error, fractions
+
+
+@needs_bdsim
+def test_a_variable_weight_beam_keeps_its_weights_through_bdsim(tmp_path):
+    # one electron per macroparticle at x < 0, three at x > 0 (as FBPIC/Wake-T beams vary)
+    import simba.Modules.Beams as rbf
+    from simba.Codes.Generators import frameworkGenerator
+    from simba.Modules.Beams import bdsim
+    from simba.Modules.units import UnitValue
+
+    npart, e = 400, constants.elementary_charge
+    frameworkGenerator(
+        global_parameters={"master_subdir": str(tmp_path)}, filename="weighted.openpmd.hdf5",
+        initial_momentum=100e6, sigma_x=1e-3, sigma_px=1e3, sigma_y=1e-3, sigma_py=1e3,
+        sigma_z=1e-4, sigma_pz=1e4, charge=1e-12, number_of_particles=npart,
+    ).write()
+    seed = rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(seed, str(tmp_path / "weighted.openpmd.hdf5"))
+    nmacro = np.where(seed.x.val > 0, 3.0, 1.0)
+    seed.Particles.charge = UnitValue(-e * nmacro, units="C")
+    seed.Particles.nmacro = UnitValue(nmacro)
+    seed.Particles.total_charge = UnitValue(-e * nmacro.sum(), units="C")
+    seed.write_openpmd_beam_file(str(tmp_path / "weighted.openpmd.hdf5"))
+
+    beam, _ = _collimator_line(tmp_path, {"physics_list": "em", "secondaries": ["photon"]},
+                               seed=tmp_path / "weighted.openpmd.hdf5")
+    raw = bdsim.read_bdsim_sampler_arrays(beam.root_file, samplers=["M3"])["M3"]
+    # BDSIM gives every hit, primary or secondary, its event's weight relative to the mean
+    event = raw["eventID"].astype(int)
+    np.testing.assert_allclose(raw["weight"], nmacro[event] / nmacro.mean(), rtol=1e-6)
+    # and SIMBA turns that back into real particles per macroparticle
+    primary = raw["parentID"] == 0
+    np.testing.assert_allclose(np.sort(beam.Particles.nmacro.val), np.sort(nmacro[event[primary]]), rtol=1e-6)
+    assert float(beam.Particles.total_charge) == pytest.approx(-e * nmacro[event[primary]].sum())
+    photon = ~primary & (raw["partID"] == 22)
+    np.testing.assert_allclose(np.sort(beam.others["photon"].Particles.nmacro.val),
+                               np.sort(nmacro[event[photon]]), rtol=1e-6)
+
+
+def test_use_comes_before_the_samplers_whatever_the_pybdsim_version(tmp_path):
+    from simba.Codes.BDSIM.BDSIM import use_before_samplers
+
+    includes = "include L_components.gmad;\ninclude L_sequence.gmad;\ninclude L_beam.gmad;\n\n\n"
+    main = tmp_path / "L.gmad"
+    main.write_text(includes + "sample, range=M1;\nuse, lattice;\n")  # pybdsim 3.9
+    use_before_samplers(str(main))
+    assert main.read_text() == (
+        "include L_components.gmad;\ninclude L_sequence.gmad;\nuse, lattice;\n"
+        "include L_beam.gmad;\n\n\nsample, range=M1;\n"
+    )
+    main.write_text(includes + "sample, range=M1;\n")  # earlier pybdsim: use is in L_sequence.gmad
+    use_before_samplers(str(main))
+    assert main.read_text() == includes + "sample, range=M1;\n"

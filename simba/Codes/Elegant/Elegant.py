@@ -48,6 +48,9 @@ class elegantLattice(frameworkLattice):
     code: str = "elegant"
     """The lattice object type."""
 
+    supports_csr: ClassVar[bool] = True
+    supports_lsc: ClassVar[bool] = True
+
     electrons_only: ClassVar[bool] = True
     """elegant can track other species with ``&change_particle``, but simba
     does not write it, so anything else would be tracked as electrons."""
@@ -1072,7 +1075,7 @@ class elegantLattice(frameworkLattice):
             if screen.hardware_type != "Beam_Position_Monitor":
                 warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
             return
-        xyzoffset = [0.0, 0.0, self.elementObjects[screen.name].physical.s]
+        xyzoffset = [0.0, 0.0, self.output_s(screen.name)]
         wanted = self.output_turns()
         # one load for every page
         sdds_file = SDDSFile(index=1)

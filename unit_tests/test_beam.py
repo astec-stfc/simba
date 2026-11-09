@@ -567,6 +567,24 @@ def test_cheetah_beam_chirp_sign(simple_beam):
         )
 
 
+def test_cheetah_lost_particles_are_dropped(simple_beam):
+    """Cheetah's Aperture does not remove a lost particle, it sets its survival
+    probability to 0, so the beam SIMBA reads back must leave it out."""
+    from simba.Modules.Beams.cheetah import interpret_cheetah_ParticleBeam
+
+    parray = simple_beam.write_cheetah_beam_file(write=False)
+    n = len(simple_beam.x.val)
+    lost = n // 4
+    parray.survival_probabilities[:lost] = 0
+
+    survivors = rbf.beam()
+    interpret_cheetah_ParticleBeam(survivors, parray)
+
+    assert len(survivors.x.val) == n - lost
+    assert np.allclose(survivors.x.val, simple_beam.x.val[lost:], rtol=0, atol=1e-12)
+    assert np.isclose(abs(survivors.Q.val), abs(simple_beam.Q.val) * (n - lost) / n)
+
+
 def test_resample(simple_beam):
     newlen = 10000
     newbeam = simple_beam.resample(newlen)

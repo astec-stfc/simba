@@ -22,8 +22,6 @@ import os
 import numpy as np
 from typing import Any, ClassVar
 from warnings import warn
-from pybdsim.Run import Bdsim, RebdsimOptics
-from pybdsim.Beam import Beam
 
 BDSIM_PARTICLES = {1: "e-", 2: "e+", 3: "proton"}
 """BDSIM particle names, keyed by the SIMBA particle index returned by
@@ -54,6 +52,31 @@ BDSIM_MATRIX_INTEGRATOR_SETS = frozenset({"bdsimmatrix", "bdsimmatrixfringescali
 :class:`~simba.exceptions.BunchLengthWarning`."""
 
 
+def use_before_samplers(main: str) -> None:
+    """
+    Move the ``use`` line of a pybdsim main file to just after the sequence include.
+
+    pybdsim 3.9 writes ``use`` last, after the samplers, but BDSIM looks each sampler
+    up in the beamline already in use ("current beamline doesn't contain element").
+    Earlier pybdsim put ``use`` in the sequence file, so there is nothing to move.
+
+    Parameters
+    ----------
+    main: str
+        Main ``.gmad`` file written by ``pybdsim.Builder.Machine.Write``
+    """
+    with open(main) as fh:
+        lines = fh.readlines()
+    use = [line for line in lines if line.startswith("use,")]
+    rest = [line for line in lines if not line.startswith("use,")]
+    sequence = [i for i, line in enumerate(rest) if line.startswith("include") and "_sequence.gmad" in line]
+    if len(use) != 1 or not sequence:
+        return
+    rest.insert(sequence[0] + 1, use[0])
+    with open(main, "w") as fh:
+        fh.writelines(rest)
+
+
 class bdsimLattice(frameworkLattice):
     """
     Class for defining the BDSIM lattice object, used for
@@ -68,6 +91,8 @@ class bdsimLattice(frameworkLattice):
     supports_turns: ClassVar[bool] = True
     """Via BDSIM's circular mode (``option, circular=1, nturns=N``), whose samplers
     record every turn with its ``turnNumber``."""
+
+    merges_carried_species: ClassVar[bool] = True
 
     trackBeam: bool = True
     """Flag to indicate whether to track the beam"""
@@ -134,10 +159,12 @@ class bdsimLattice(frameworkLattice):
         """
         Create the lattice object and save it as a JSON file to `master_subdir`.
         """
+        from pybdsim.Beam import Beam  # not at the top: pybdsim is only needed to run BDSIM
+
         beam = Beam()
         beam.SetParticleType(self.particle_type)
         beam.SetDistributionType("userfile")
-        beam.SetDistrFile(os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim"))
+        beam.SetDistrFile(self.bdsim_beam_file)
         beam.SetDistrFileFormat(rbf.bdsim.BDSIM_DISTRIBUTION_FORMAT)
         beam.SetEnergy(self.global_parameters["beam"].centroids.mean_energy.val, unitsstring="eV")
         self.lattice = self.section.to_bdsim(
@@ -165,9 +192,9 @@ class bdsimLattice(frameworkLattice):
         if self.circular:
             self.close_ring()
             self.lattice.options.update(circular=1, nturns=self.turns)
-        self.lattice.Write(
-            os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
-        )
+        main = os.path.join(self.global_parameters["master_subdir"], self.gmadname + ".gmad")
+        self.lattice.Write(main)
+        use_before_samplers(main)
         if self.integrator_set in BDSIM_MATRIX_INTEGRATOR_SETS and any(
             getattr(e, "hardware_type", None) == "Dipole" for e in self.elements.values()
         ):
@@ -317,13 +344,21 @@ class bdsimLattice(frameworkLattice):
 
     def hdf5_to_bdsim(self) -> None:
         """
-        Write the input beam as ``<particle_definition>.bdsim`` in BDSIM's ``userfile`` format.
+        Write the input beam as :attr:`bdsim_beam_file`.
         """
-        bdsimbeamfilename = os.path.join(self.global_parameters["master_subdir"], self.particle_definition + ".bdsim")
         rbf.bdsim.write_bdsim_beam_file(
             beam=self.global_parameters["beam"],
-            filename=bdsimbeamfilename,
+            filename=self.bdsim_beam_file,
         )
+
+    @property
+    def bdsim_beam_file(self) -> str:
+        """
+        The input beam in BDSIM's ``userfile`` format, ``<line>.bdsim`` in ``master_subdir``:
+        named after the line, as elegant's is, since ``particle_definition`` may be a path
+        (``$master_lattice$Data_Files/...``).
+        """
+        return os.path.join(self.global_parameters["master_subdir"], self.objectname + ".bdsim")
 
     def _generate_optics_config(self):
         with open(f"{self.global_parameters['master_subdir']}/optics_config.txt", "w") as f:
@@ -345,6 +380,8 @@ class bdsimLattice(frameworkLattice):
         if self.remote_setup:
             self.run_remote()
         else:
+            from pybdsim.Run import Bdsim, RebdsimOptics
+
             Bdsim(
                 f"{self.global_parameters['master_subdir']}/{self.gmadname}.gmad",
                 f"{self.global_parameters['master_subdir']}/{self.gmadname}",
@@ -384,6 +421,12 @@ class bdsimLattice(frameworkLattice):
             # in circular mode only the primaries are kept, one per turn
             arrays = rbf.bdsim.select_turn(arrays, data_turn or 1)
         beam = rbf.beam()
+        # channelling physics records garbage weights (1e-41, 0: BDSIM develop @ 17ddb954,
+        # in hand-written gmad too), so take each event's from what was written
+        input_weights = None
+        if "channel" in self.physics_list.lower():
+            input_weights = np.asarray(rbf.openpmd._weight(injected), dtype=float)
+            input_weights = input_weights / np.mean(input_weights)
         rbf.bdsim.interpret_bdsim_sampler(
             beam,
             arrays,
@@ -393,6 +436,7 @@ class bdsimLattice(frameworkLattice):
             ninjected=ninjected,
             species=injected.species,
             secondaries=self.secondaries,
+            input_weights=input_weights,
         )
         beam.turn = self.beam_turn(turn)
         self.write_beam_file(beam, name, turn)
@@ -421,19 +465,18 @@ class bdsimLattice(frameworkLattice):
             raise FileNotFoundError(
                 f"BDSIM output file {rootfile} not found; the tracking run failed{hint}"
             )
-        available = rbf.bdsim.get_bdsim_sampler_names(rootfile)
+        # every sampler in one read: a second pybdsim DataLoader on the same file in one
+        # process corrupted the heap (a segfault reading the samplers, ~half the runs)
+        arrays = rbf.bdsim.read_bdsim_sampler_arrays(rootfile)
         names = [scr.name for scr in self.screens_and_markers_and_bpms] + self.samplers
         wanted = {name: name.replace("-", "_") for name in names}
-        missing = [n for n, s in wanted.items() if s not in available]
+        missing = [n for n, s in wanted.items() if s not in arrays]
         for name in missing:
             warn(f"No BDSIM sampler found for {name}; no beam file will be written")
         wanted = {n: s for n, s in wanted.items() if n not in missing}
         if not wanted:
             warn(f"No BDSIM samplers found in {rootfile}")
             return
-        arrays = rbf.bdsim.read_bdsim_sampler_arrays(
-            rootfile, samplers=list(wanted.values())
-        )
         # the end screen replaces the line's beam, so keep the one that was tracked
         injected = self.global_parameters["beam"]
         ninjected = len(injected.x)
