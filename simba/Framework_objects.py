@@ -3934,7 +3934,7 @@ class chicane(frameworkGroup):
         """
         Set the chicane bending angle, re-laying out the dipoles and everything between them.
 
-        Dipoles keep their z extent (:meth:`_z_extent`) and lengths become the arc.
+        Dipoles keep their entrance and exit along the axis (:meth:`_design_spans`) and lengths become the arc.
 
         Parameters
         ----------
@@ -3965,17 +3965,17 @@ class chicane(frameworkGroup):
         ]
         obj = [e for _, e in sorted(between, key=lambda se: se[0])]
 
-        z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
+        spans = self._design_spans(dipoles)
 
-        x, phi, s_cursor = 0.0, 0.0, ss[0] - z_extents[0] / 2.0
+        x, phi, s_cursor = 0.0, 0.0, spans[0][0]
         dipole_number = 0
         for e in obj:
             s_here = spos(e)
             if e.name in dipole_names:
-                lz = z_extents[dipole_number]
+                s_entry, s_exit = spans[dipole_number]
+                lz = s_exit - s_entry
                 ang = a * self.ratios[dipole_number]
-                x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
-                s_entry = s_here - lz / 2.0
+                x += (s_entry - s_cursor) * np.tan(phi)
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
@@ -3986,14 +3986,14 @@ class chicane(frameworkGroup):
                     mid_s = s_entry + r * (np.sin(pm) - np.sin(p0))
                 else:
                     dx, arc = 0.0, lz
-                    mid_u, mid_s = x, s_here
+                    mid_u, mid_s = x, s_entry + lz / 2.0
                 e.physical.middle = to_global(mid_u, mid_s)
                 e.physical.global_rotation.theta = theta0 - p0
                 e.magnetic.angle = ang
                 e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
-                x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
+                x, phi, s_cursor = x + dx, p1, s_exit
                 dipole_number += 1
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
@@ -4031,17 +4031,22 @@ class chicane(frameworkGroup):
             self._axis = (rotation, float(d0.global_rotation.theta), entrance)
         return self._axis
 
-    def _z_extent(self, dipole, index: int) -> float:
+    def _design_spans(self, dipoles: list) -> list:
         """
-        The z a dipole spans, held fixed as the angle changes: its design (zero-angle) length.
+        ``(s_entry, s_exit)`` of each dipole along the axis, held fixed as the angle changes.
 
-        Cached on first use because :meth:`set_angle` overwrites the length with the arc.
+        From the dipoles' entrance and exit, not their length: a bend's length is its arc.
+        Cached on first use because :meth:`set_angle` moves them.
         """
-        if not hasattr(self, "_design_z_extents"):
-            self._design_z_extents = {}
-        if dipole.name not in self._design_z_extents:
-            self._design_z_extents[dipole.name] = float(dipole.magnetic.length)
-        return self._design_z_extents[dipole.name]
+        if not hasattr(self, "_design_s_spans"):
+            rotation, _, origin = self._design_axis
+            along = rotation.T[2]
+            self._design_s_spans = [
+                tuple(float(np.dot(np.asarray(p.array, dtype=float) - origin, along))
+                      for p in (d.physical.start, d.physical.end))
+                for d in dipoles
+            ]
+        return self._design_s_spans
 
     def __str__(self):
         return str(
