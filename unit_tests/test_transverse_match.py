@@ -31,9 +31,10 @@ def seed_beam(tmp_path_factory):
     return os.path.join(directory, "M1.openpmd.hdf5")
 
 
-def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, groups=None, quiet=True):
+def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, groups=None, quiet=True,
+          line=None):
     """The FODO cell, its input beam rematched to INPUT_TWISS, which the match must start from.
-    ``quiet`` silences warnings."""
+    ``quiet`` silences warnings; ``line`` adds to the line's block."""
     skip_missing(code)
     machine, _, section = fodo_machine(tmp_path, middle=middle, functional_definitions=definitions)
     settings = fw.FrameworkSettings()
@@ -44,6 +45,7 @@ def track(tmp_path, code, seed_beam, match, middle=None, definitions=None, group
             "input": {"twiss": INPUT_TWISS},
             "output": {"start_element": "M1", "end_element": "M3"},
             "match": match,
+            **(line or {}),
         }
     }
     settings.layout = machine.layout
@@ -282,3 +284,72 @@ def test_a_dipole_angle_is_matched_by_rebuilding(tmp_path, matcher, seed_beam):
 def test_bad_blocks_are_refused(tmp_path, seed_beam, match, error, text):
     with pytest.raises(error, match=text):
         track(tmp_path, "ocelot", seed_beam, match)
+
+
+def chicane_dipoles():
+    """Four 0.2 m dipoles, straight to start with: the group's dipoleangle bends them."""
+    return [
+        Dipole(name=f"D{i}", machine_area="FODO", magnetic={"length": 0.2, "angle": 0.0},
+               physical={"length": 0.2, "middle": {"x": 0.0, "y": 0.0, "z": z}})
+        for i, z in enumerate((0.2, 1.4, 3.4, 4.6), start=1)
+    ]
+
+
+CHICANE = {"bc": {"type": "chicane", "elements": ["D1", "D2", "D3", "D4"]}}
+R56 = {"variables": ["bc.angle"], "targets": {"M3": {"R56": ["a>", 0.0]}}}
+
+
+def chicane_r56(tmp_path, seed_beam, angle):
+    """The chicane's canonical R56 at ``angle``, read in Xsuite."""
+    from simba.Modules.Matching.backends import backends
+    from simba.Modules.Matching.transverse import parse
+
+    framework, _ = track(tmp_path, "ocelot", seed_beam, {**R56, "enable": False}, middle=chicane_dipoles(),
+                         groups=CHICANE, line={"groups": {"bc": {"dipoleangle": 0.05}}})
+    line = framework["FODO"]
+    block = {"variables": ["bc.angle"], "targets": {"M3": {"R56": 0.0}}}
+    return dict(backends()["xsuite"](line, parse(line, block)).twiss([angle]))["M3"]["R56"]
+
+
+@pytest.mark.parametrize("matcher", ["ocelot", "xsuite", "madx"])
+def test_a_chicane_angle_is_matched_through_its_group(tmp_path, matcher, seed_beam):
+    """The group lays the chicane out at each angle tried; the angle that gives the
+    target R56 is the one Xsuite reads it at, and the settings keep it."""
+    skip_missing(matcher)
+    skip_missing("xsuite")
+    target = chicane_r56(tmp_path / "target", seed_beam, 0.1)
+    block = {"variables": ["bc.angle"], "targets": {"M3": {"R56": target}}, "code": matcher}
+    framework, _ = track(tmp_path / "match", "ocelot", seed_beam, block, middle=chicane_dipoles(),
+                         groups=CHICANE, line={"groups": {"bc": {"dipoleangle": 0.05}}})
+    group = framework.groupObjects["bc"]
+    assert group.angle == pytest.approx(0.1, rel=1e-4)
+    assert framework["FODO"].groupSettings["bc"]["dipoleangle"] == pytest.approx(0.1, rel=1e-4)
+    d4 = framework["FODO"].elements["D4"].physical
+    assert d4.end.x == pytest.approx(0.0, abs=1e-9), "the chicane is laid out closed"
+
+
+def test_numeric_edges_of_a_matched_dipole_warn(tmp_path, seed_beam):
+    edged = bend(0.05)
+    edged.magnetic.exit_edge_angle = 0.05
+    block = {"variables": ["BEND1.angle"], "targets": {"M3": {"R16": [">", 0.08]}}}
+    with pytest.warns(UserWarning, match="BEND1.*edge"):
+        track(tmp_path, "ocelot", seed_beam, block, middle=[edged], quiet=False)
+
+
+def test_edges_written_with_the_angle_follow_it(tmp_path, seed_beam):
+    """A bend with edges 'angle/2', at an angle tried, is the bend with those edges as numbers."""
+    from simba.Modules.Matching.backends import backends
+    from simba.Modules.Matching.transverse import parse
+
+    block = {"variables": ["BEND1.angle"], "targets": {"M3": {"R43": 0.0}}}
+
+    def r43(edge, angle):
+        b = bend(0.05)
+        b.magnetic.entrance_edge_angle = b.magnetic.exit_edge_angle = edge
+        framework, _ = track(tmp_path / str(edge), "ocelot", seed_beam, {**block, "enable": False}, middle=[b])
+        line = framework["FODO"]
+        return dict(backends()["ocelot"](line, parse(line, block)).twiss([angle]))["M3"]["R43"]
+
+    chained = r43("angle/2", 0.3)
+    assert chained == pytest.approx(r43(0.15, 0.3), rel=1e-9)
+    assert chained != pytest.approx(r43(0.0, 0.3), rel=1e-3), "the edges must focus"

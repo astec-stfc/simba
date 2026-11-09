@@ -6,7 +6,7 @@ code with a :mod:`~simba.Modules.Matching.backends` backend.
 from dataclasses import dataclass, field
 from warnings import warn
 
-from ._settings import FUNCTIONAL, check_definitions_stay_inside, expand, get_path, set_value
+from ._settings import FUNCTIONAL, check_definitions_stay_inside, expand, get_path, name_of, set_value
 from .backends import MATRIX, OPERATORS, QUANTITIES, backends, residual
 
 ALIASES = {"Dx": "eta_x", "Dxp": "eta_xp", "Dy": "eta_y", "Dyp": "eta_yp"}
@@ -30,7 +30,9 @@ class Knob:
     @property
     def is_k1l(self) -> bool:
         """A quadrupole ``k1l``, which every code can vary natively."""
-        return self.field == "magnetic.k1l" and all(e.hardware_type == "Quadrupole" for e in self.elements)
+        return self.field == "magnetic.k1l" and all(
+            getattr(e, "hardware_type", None) == "Quadrupole" for e in self.elements
+        )
 
 
 @dataclass
@@ -94,12 +96,21 @@ def _targets(lattice, block: dict) -> list:
 def _variables(lattice, items) -> list:
     """
     ``[(element, dotted field)]`` for ``variables``: ``NAME`` (a quadrupole's ``k1l``) or
-    ``NAME.field``, where ``field`` is a path on the element or its ``magnetic``; a
-    group's name stands for each member.
+    ``NAME.field``, where ``field`` is a path on the element or its ``magnetic``. A
+    group with ``field`` of its own (a chicane's ``angle``) is itself the variable,
+    set through the group; any other group's name stands for each member.
     """
+    groups = getattr(lattice, "groupObjects", None) or {}
     pairs = []
     for item in [items] if isinstance(items, str) else items:
         name, _, field = item.partition(".")
+        group = groups.get(name)
+        if field and group is not None and isinstance(getattr(type(group), field, None), property):
+            missing = [n for n in expand(lattice, name) if n not in lattice.elements]
+            if missing:
+                raise KeyError(f"match variable {item!r}: {missing} are not in line {lattice.objectname!r}")
+            pairs.append((group, field))
+            continue
         members = expand(lattice, name)
         missing = [n for n in members if n not in lattice.elements]
         if missing:
@@ -111,7 +122,8 @@ def _variables(lattice, items) -> list:
                     f"e.g. {element.name}.angle; only a quadrupole's (k1l) goes without saying"
                 )
             path = None
-            for candidate in ([field, f"magnetic.{field}"] if field else ["magnetic.k1l"]):
+            # magnetic first: an element also reads its magnetic fields as its own
+            for candidate in ([f"magnetic.{field}", field] if field else ["magnetic.k1l"]):
                 try:
                     value = get_path(element, candidate)
                 except AttributeError:
@@ -139,14 +151,14 @@ def parse(lattice, settings: dict) -> Spec:
     knobs = {}
     for element, path in pairs:
         current = get_path(element, path)
-        key = current if isinstance(current, str) else f"{element.name}.{path}"
+        key = current if isinstance(current, str) else f"{name_of(element)}.{path}"
         if key not in knobs:
             knobs[key] = Knob(key, [], path, float(resolve_functional_parameter(current, force=True)),
                               current if isinstance(current, str) else None)
         elif knobs[key].field != path:
             raise ValueError(f"match variable {key!r} is both {knobs[key].field} and {path}")
         knobs[key].elements.append(element)
-    names = list(dict.fromkeys(e.name for e, _ in pairs))
+    names = list(dict.fromkeys(name_of(e) for e, _ in pairs))
     beam = lattice.global_parameters["beam"]
     return Spec(
         knobs=list(knobs.values()),
@@ -188,6 +200,29 @@ def choose(lattice, spec: Spec):
         "no code can match this: "
         + "; ".join(f"{c}: {', '.join(every[c].cannot(lattice, spec))}" for c in FALLBACK)
     )
+
+
+def _warn_fixed_edges(lattice, spec: Spec) -> None:
+    """
+    Warn of dipoles whose angle is matched but whose edge angles are numbers, which
+    stay as they are: an edge angle written with ``angle`` (``"angle/2"``) follows it.
+    """
+    dipoles = []
+    for knob in spec.knobs:
+        if knob.field == "magnetic.angle":
+            dipoles += knob.elements
+        elif knob.field == "angle" and hasattr(knob.elements[0], "change_Parameter"):
+            dipoles += [lattice.elements[n] for n in expand(lattice, knob.elements[0].objectname)]
+    fixed = [
+        d.name for d in dipoles
+        if any(not isinstance(e, str) and e for e in (d.magnetic.entrance_edge_angle, d.magnetic.exit_edge_angle))
+    ]
+    if fixed:
+        warn(
+            f"Line '{lattice.objectname}': match varies the angle of {fixed}, whose edge "
+            "angles are numbers and stay as they are; write them with `angle` (e.g. "
+            "'angle' or 'angle/2') to have them follow"
+        )
 
 
 def _warn_missed(backend, values, line: str) -> None:
@@ -254,6 +289,7 @@ def transverse_match(lattice, settings: dict) -> dict:
         ``"functional_definitions"``.
     """
     spec = parse(lattice, settings)
+    _warn_fixed_edges(lattice, spec)
     backend = choose(lattice, spec)(lattice, spec)
     values = backend.solve()
     _warn_missed(backend, values, lattice.objectname)

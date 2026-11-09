@@ -340,6 +340,10 @@ def _charged_species(carried: dict | None) -> list:
     return [name for name, b in (carried or {}).items() if rbf.SPECIES[b.species][1] != 0]
 
 
+GROUP_SETTING_KEYS = {"angle": "dipoleangle"}
+"""A group parameter's key in the settings' ``groups``, where it differs (see :meth:`chicane.update`)."""
+
+
 class frameworkLattice(BaseModel):
     """
     A line of elements and groups tracked by one code: writing, running and post-processing it.
@@ -3085,12 +3089,13 @@ class frameworkLattice(BaseModel):
 
         A ``functional_definitions`` entry sets those definitions: in LAURA's registry,
         this line's section and the settings, so lines built later and the saved
-        settings take them too.
+        settings take them too. A group's name sets its parameter through the group
+        (a chicane's ``angle`` lays out its dipoles), and in the settings' ``groups``.
 
         Parameters
         ----------
         settings: dict
-            Values by dotted field path, by element name.
+            Values by dotted field path, by element or group name.
         """
         settings = dict(settings)
         definitions = settings.pop("functional_definitions", None)
@@ -3100,7 +3105,14 @@ class frameworkLattice(BaseModel):
                 print(f"Line '{self.objectname}': matched functional definitions {definitions}")
         for name, fields in settings.items():
             for path, value in fields.items():
-                set_deep_attr(self.elements[name], path, value)
+                if name in self.groupObjects:
+                    self.groupObjects[name].change_Parameter(path, value)
+                    key = GROUP_SETTING_KEYS.get(path, path)
+                    for groups in (self.settings.get("groups") or {}, self.groupSettings or {}):
+                        if isinstance(groups.get(name), dict):
+                            groups[name][key] = value
+                else:
+                    set_deep_attr(self.elements[name], path, value)
             if self.verbose:
                 print(f"Line '{self.objectname}': matched {name}: {fields}")
 

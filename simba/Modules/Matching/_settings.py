@@ -23,6 +23,21 @@ def get_path(obj, path: str):
     return reduce(getattr, path.split("."), obj)
 
 
+def name_of(target) -> str:
+    """An element's name, or a group's."""
+    return getattr(target, "name", None) or target.objectname
+
+
+def set_field(target, path: str, value) -> None:
+    """Set ``path`` on an element, or through a group, which lays out its members (a chicane's ``angle``)."""
+    from ...FrameworkHelperFunctions import set_deep_attr
+
+    if hasattr(target, "change_Parameter"):
+        target.change_Parameter(path, value)
+    else:
+        set_deep_attr(target, path, value)
+
+
 @contextlib.contextmanager
 def temporarily(lattice, knobs, values):
     """
@@ -30,8 +45,6 @@ def temporarily(lattice, knobs, values):
     definition it names, then put back: for building a model with LAURA's exporters.
     """
     from laura.models.base_models import IgnoreExtra
-
-    from ...FrameworkHelperFunctions import set_deep_attr
 
     registry = IgnoreExtra.functional_definitions
     section = getattr(lattice.section, "functional_definitions", None)
@@ -45,11 +58,11 @@ def temporarily(lattice, knobs, values):
             else:
                 for element in knob.elements:
                     saved_fields.append((element, knob.field, get_path(element, knob.field)))
-                    set_deep_attr(element, knob.field, float(value))
+                    set_field(element, knob.field, float(value))
         yield
     finally:
         for element, path, value in reversed(saved_fields):
-            set_deep_attr(element, path, value)
+            set_field(element, path, value)
         for name, old, old_section in reversed(saved_definitions):
             registry[name] = old
             if old_section is not None:
@@ -57,13 +70,13 @@ def temporarily(lattice, knobs, values):
 
 
 def set_value(result: dict, definitions: dict, element, path: str, current, value: float, matcher: str) -> None:
-    """Set ``path`` on ``element``, or the functional definition ``current`` names."""
+    """Set ``path`` on ``element`` (or group), or the functional definition ``current`` names."""
     if not isinstance(current, str):
-        result.setdefault(element.name, {})[path] = value
+        result.setdefault(name_of(element), {})[path] = value
     elif current in definitions and not np.isclose(definitions[current], value, rtol=1e-12, atol=0):
         raise ValueError(
             f"{matcher} needs functional definition {current!r} to be both "
-            f"{definitions[current]} and {value} (from {element.name}.{path})"
+            f"{definitions[current]} and {value} (from {name_of(element)}.{path})"
         )
     else:
         definitions[current] = value
