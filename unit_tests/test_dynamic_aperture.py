@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from helpers import ELEGANT, needs_elegant, xtrack_sector
-from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
@@ -30,36 +29,6 @@ class FakeLine:
     da_rays = frameworkLattice.da_rays
     dynamic_aperture_boundary = frameworkLattice.dynamic_aperture_boundary
     run_dynamic_aperture = frameworkLattice.run_dynamic_aperture
-
-
-class FakeBmad:
-    """Enough of a lattice for the namelist builder."""
-
-    def __init__(self, tracking=None):
-        self.file_block = {"tracking": tracking or {}}
-
-    turns = frameworkLattice.turns
-    da_settings = frameworkLattice.da_settings
-    da_grid = frameworkLattice.da_grid
-    _tao_dynamic_aperture_namelist = bmadLattice._tao_dynamic_aperture_namelist
-
-
-def test_the_namelist_carries_the_scan_settings():
-    text = FakeBmad({"turns": 250, "dynamic_aperture": {"x_max": 0.02}})._tao_dynamic_aperture_namelist()
-    assert "&tao_dynamic_aperture" in text
-    assert "da_param%n_turn = 250" in text
-    assert "da_param%x_init = 0.02" in text
-
-
-def test_the_namelist_is_written_even_with_no_scan_asked_for():
-    """Inert until `dynamic_aperture_calc` is on; setting these at runtime
-    core-dumped the Tao library."""
-    assert "&tao_dynamic_aperture" in FakeBmad()._tao_dynamic_aperture_namelist()
-
-
-def test_the_angle_count_has_a_floor():
-    text = FakeBmad({"dynamic_aperture": {"n_angle": 1}})._tao_dynamic_aperture_namelist()
-    assert "da_param%n_angle = 3" in text
 
 
 def test_the_base_class_returns_no_scan():

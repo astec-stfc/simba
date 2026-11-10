@@ -111,6 +111,7 @@ class FakeBmad:
     _POSITION_FILE_CMD = bmadLattice._POSITION_FILE_CMD
     _write_position_file = bmadLattice._write_position_file
     _write_grid_beam_file = bmadLattice._write_grid_beam_file
+    _grid_points = bmadLattice._grid_points
     _track_grid_turn_by_turn = bmadLattice._track_grid_turn_by_turn
     read_closed_orbit = bmadLattice.read_closed_orbit
     da_grid = bmadLattice.da_grid

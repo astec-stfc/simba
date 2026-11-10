@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 from helpers import BMAD_SO, fodo_machine, fodo_quads, read_beam, skip_missing, use_local_bmad
-from laura.models.element import HorizontalCorrector, VerticalCorrector
+from laura.models.element import HorizontalCorrector, Sextupole, VerticalCorrector
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Generators import frameworkGenerator
 
@@ -32,14 +32,19 @@ def seed_beam(tmp_path_factory):
     return os.path.join(str(directory), "M1.openpmd.hdf5")
 
 
-def _tracked(tmp_path, code, tracking, seed_beam):
-    """The FODO ring, with two correctors, tracked by ``code``."""
+def _tracked(tmp_path, code, tracking, seed_beam, k2l=0.0):
+    """The FODO ring, with two correctors and a sextupole of `k2l` between its quadrupoles, tracked by ``code``."""
     skip_missing(code)
     correctors = [
         cls(name=name, machine_area="FODO", physical={"length": 0.0, "middle": {"x": 0.0, "y": 0.0, "z": z}})
         for cls, name, z in ((HorizontalCorrector, "HCOR", 4.0), (VerticalCorrector, "VCOR", 4.1))
     ]
-    machine, _, section = fodo_machine(tmp_path, closed=True, middle=fodo_quads() + correctors)
+    quad1f, quad1d = fodo_quads()
+    sextupole = Sextupole(
+        name="SEXT", machine_area="FODO", magnetic={"length": 0.2, "k2l": k2l},
+        physical={"length": 0.2, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+    )
+    machine, _, section = fodo_machine(tmp_path, closed=True, middle=[quad1f, sextupole, quad1d, *correctors])
     settings = fw.FrameworkSettings()
     settings.files = {
         "FODO": {
@@ -113,6 +118,17 @@ def test_the_frequency_map_is_xsuites_under_a_program(tmp_path, seed_beam):
     assert len(bmad) == 4
     assert np.min(np.abs(bmad[:, 2:] - unprogrammed[:, 2:])) > 1e-3
     np.testing.assert_allclose(bmad, xsuite, rtol=0, atol=1e-5)
+
+
+def test_the_dynamic_aperture_is_xsuites(tmp_path, seed_beam):
+    """The same losses on the same turns, from the same rays, behind a sextupole."""
+    tracking = {"turns": 64, "dynamic_aperture": {"nx": 6, "n_lines": 3, "x_max": 0.02, "y_max": 0.02}}
+    bmad, xsuite = (
+        _tracked(tmp_path / code, code, tracking, seed_beam, k2l=20.0)["FODO"].run_dynamic_aperture()
+        for code in ("bmad", "xsuite")
+    )
+    assert 0 < sum(turns == 64 for *_, turns in bmad) < len(bmad), "the rays must straddle the aperture"
+    assert bmad == xsuite
 
 
 def test_a_long_ramper_is_read_whole(tmp_path):

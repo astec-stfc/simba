@@ -100,7 +100,7 @@ class bmadLattice(frameworkLattice):
     """Bmad lattices from LAURA radiate by default."""
 
     supports_dynamic_aperture: ClassVar[bool] = True
-    """Tao's own scan; see :meth:`_tao_dynamic_aperture_namelist`."""
+    """Survival along :meth:`da_rays` through ``long_term_tracking``; see :meth:`run_dynamic_aperture`."""
 
     supports_frequency_map: ClassVar[bool] = True
     """The grid through ``long_term_tracking``; see :meth:`_track_grid_turn_by_turn`."""
@@ -403,26 +403,6 @@ class bmadLattice(frameworkLattice):
             alpha_y=float(twiss.alpha_y.val),
         )
 
-    def _tao_dynamic_aperture_namelist(self) -> str:
-        """
-        The ``&tao_dynamic_aperture`` block for the Tao init file, written on every run.
-
-        Tao searches ``n_angle`` rays, so the result is a boundary, not a survival grid.
-        """
-        xs, ys = self.da_grid()
-        return (
-            "\n&tao_dynamic_aperture\n"
-            "  ix_universe = 1\n"
-            "  pz = 0.0\n"
-            "  da_param%min_angle = 0.0\n"
-            f"  da_param%max_angle = {np.pi}\n"
-            f"  da_param%n_angle = {max(3, int(self.da_settings.get('n_angle', 9)))}\n"
-            f"  da_param%n_turn = {self.turns}\n"
-            f"  da_param%x_init = {float(xs[-1])}\n"
-            f"  da_param%y_init = {float(ys[-1])}\n"
-            "/\n"
-        )
-
     def _write_position_file(self, path: str, rows, states=None) -> None:
         """
         Write particles in the ASCII form ``beam_init%position_file`` reads.
@@ -462,14 +442,16 @@ class bmadLattice(frameworkLattice):
                 f"{body}\n"
             )
 
-    def _write_grid_beam_file(self, path: str) -> list:
+    def _write_grid_beam_file(self, path: str, points: list | None = None) -> list:
         """
-        Write one particle per frequency-map grid point, offset from the closed orbit.
+        Write one particle per start, offset from the closed orbit.
 
         Parameters
         ----------
         path: str
             File to write
+        points: list | None
+            ``(x, y)`` starts; the frequency-map grid (:meth:`_grid_points`) if None
 
         Returns
         -------
@@ -479,8 +461,7 @@ class bmadLattice(frameworkLattice):
         orbit = self.read_closed_orbit()
         if orbit is None:
             orbit = np.zeros(6)
-        xs, ys = self.da_grid()
-        points = [(float(x), float(y)) for y in ys for x in xs]
+        points = self._grid_points() if points is None else points
         self._write_position_file(
             path,
             [
@@ -672,45 +653,37 @@ class bmadLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Tao's dynamic-aperture scan; needs lattice apertures.
+        Track one particle per point of :meth:`da_rays` through ``long_term_tracking`` and record survival.
 
         Returns
         -------
         list
-            ``(x, y, turns)`` along the aperture boundary; the turn count is
-            :attr:`turns` for every point.
+            ``(x, y, turns_survived)`` per start.
         """
         if self.tao is None:
             warn(
                 f"Line '{self.objectname}': Tao must be run before a "
-                "dynamic-aperture scan can be read."
+                "dynamic-aperture scan."
             )
             return []
+        starts = self.da_rays()
+        beam = Path(self.lattice_file).with_suffix(".da.beam")
         try:
-            with contextlib.chdir(Path(self.lattice_file).parent):
-                self.tao.cmd("set universe 1 dynamic_aperture_calc on")
-                rows = self.tao.cmd("pipe da_aperture")
-        except Exception as error:
-            warn(f"Tao dynamic aperture failed for {self.objectname}: {error}")
-            return []
-        aperture = []
-        for row in rows:
-            fields = str(row).split(";")
-            if len(fields) < 4:
-                continue
-            try:
-                aperture.append(
-                    (float(fields[2]), float(fields[3]), self.turns)
-                )
-            except ValueError:
-                continue
-        if not aperture:
-            warn(
-                f"Line '{self.objectname}': Tao returned no aperture points. "
-                "Does the lattice have apertures?"
+            self._write_grid_beam_file(str(beam), starts)
+            files = self._run_long_term_tracking(
+                f"{self.objectname}.da.turns", beam.name, self.turns, 1, complete=False
             )
-        self.dynamic_aperture = aperture
-        return aperture
+        except Exception as error:
+            warn(f"long_term_tracking failed on the rays of {self.objectname}: {error}")
+            return []
+        survived = sum(
+            self._read_ascii_beam(files[turn])["state"] == self._ALIVE
+            for turn in range(1, self.turns + 1) if turn in files
+        )
+        self.dynamic_aperture = [
+            (float(x), float(y), int(turns)) for (x, y), turns in zip(starts, survived)
+        ]
+        return self.dynamic_aperture
 
     def write(self) -> None:
         """Write the Bmad lattice and Tao init file to `master_subdir`."""
@@ -734,8 +707,7 @@ class bmadLattice(frameworkLattice):
             f'&tao_design_lattice\n  design_lattice(1)%file = "{path.name}"\n/\n'
             '&tao_params\n  global%lat_sigma_calc_uses_emit_from = "beam"\n/\n'
             f'&tao_beam_init\n  beam_init%position_file = "{self.objectname}.bmad.beam"\n'
-            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
-            + self._tao_dynamic_aperture_namelist(),
+            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n',
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)
@@ -779,6 +751,8 @@ class bmadLattice(frameworkLattice):
             "  ltt%random_seed = 1\n"
             "  ltt%print_info_messages = F\n"
             "  bmad_com%absolute_time_tracking = T\n"
+            # lost beyond 1 m where there is no aperture, as Xsuite and ImpactX
+            "  bmad_com%max_aperture_limit = 1.0\n"
             f"  beam_init%position_file = '{beam}'\n"
             "/\n",
             encoding="utf-8",
@@ -1097,7 +1071,9 @@ class bmadLattice(frameworkLattice):
             f"  x_knot = {{{table(times)}}}, interpolation = linear\n"
         )
 
-    def _run_long_term_tracking(self, output: str, beam: str, turns: int, every: int) -> dict:
+    def _run_long_term_tracking(
+        self, output: str, beam: str, turns: int, every: int, complete: bool = True
+    ) -> dict:
         """
         Track `turns` turns of `beam` with Bmad's ``long_term_tracking``, from the namelist :meth:`_write_ltt_init` writes.
         The beam comes out at the line's start every `every` turns; see :meth:`_ltt_beam_files`.
@@ -1110,6 +1086,8 @@ class bmadLattice(frameworkLattice):
             Position file to start from, beside the lattice
         turns: int
         every: int
+        complete: bool
+            Raise if it stopped early, as it does once every particle is lost
 
         Returns
         -------
@@ -1119,7 +1097,7 @@ class bmadLattice(frameworkLattice):
         Raises
         ------
         RuntimeError
-            If it exits non-zero or writes no beam for the last turn.
+            If it exits non-zero, or if `complete` and it writes no beam for the last turn.
         """
         workdir = Path(self.lattice_file).parent
         for stale in self._ltt_beam_files(output).values():
@@ -1133,7 +1111,7 @@ class bmadLattice(frameworkLattice):
             cwd=workdir,
         )
         files = self._ltt_beam_files(output)
-        if turns not in files:
+        if complete and turns not in files:
             tail = "".join(logfile.read_text().splitlines(True)[-20:]).strip()
             raise RuntimeError(
                 f"long_term_tracking wrote no beam for turn {turns} of "
