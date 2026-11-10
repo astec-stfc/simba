@@ -1,4 +1,4 @@
-"""Bmad's turn-by-turn hand-back."""
+"""Bmad's frequency-map grid, turn by turn through ``long_term_tracking``."""
 
 import contextlib
 import math
@@ -9,9 +9,9 @@ import warnings
 import numpy as np
 import pytest
 
+from helpers import BMAD_LTT, BMAD_SO
 from simba.Codes.Bmad.Bmad import bmadLattice
-
-BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+from simba.Framework_objects import frameworkLattice
 
 PC = 1e9
 QUAD_L = 0.5
@@ -66,8 +66,8 @@ def _tao(path, **kwargs):
     by command saves the beam only at the first element of a repeated name.
     """
     pytest.importorskip("pytao")
-    if not os.path.exists(BMAD_SO):
-        pytest.skip("Bmad libtao not installed")
+    if not os.path.exists(BMAD_LTT):
+        pytest.skip("Bmad is not built")
     from pytao import Tao
 
     init = f"{os.path.splitext(path)[0]}.init"
@@ -93,8 +93,15 @@ def _load_beam(tao, beam, saved_at):
     tao.cmd("set global track_type = beam", raises=False)
 
 
+class Executables(dict):
+    """The local ``long_term_tracking``, outside a container."""
+
+    def build_command(self, command, workdir):
+        return command
+
+
 class FakeBmad:
-    """The real turn loop; only the framework around it, read for scalars, is faked."""
+    """The real grid tracking; only the framework around it, read for scalars, is faked."""
 
     # `_ALIVE` is a pydantic private attribute, so the class holds a
     # descriptor rather than the value.
@@ -108,9 +115,17 @@ class FakeBmad:
     read_closed_orbit = bmadLattice.read_closed_orbit
     da_grid = bmadLattice.da_grid
     apply_programs = bmadLattice.apply_programs
+    _programs = bmadLattice._programs
+    _run_long_term_tracking = bmadLattice._run_long_term_tracking
+    _write_ltt_init = bmadLattice._write_ltt_init
+    _ltt_beam_files = bmadLattice._ltt_beam_files
+    _read_ascii_beam = bmadLattice._read_ascii_beam
+    run_command = frameworkLattice.run_command
 
     objectname = "ring"
     programs = ()
+    _ramper_lines = ""
+    executables = Executables(long_term_tracking=[BMAD_LTT])
 
     def __init__(self, tao, lattice_file, turns=TURNS):
         self.tao = tao
@@ -281,27 +296,6 @@ def test_the_grid_file_round_trips_through_tao(directory):
         ]
     )
     assert back == pytest.approx(rows, rel=1e-12, abs=1e-18)
-
-
-def test_the_hand_back_cannot_go_through_set_beam_beginning(directory):
-    """Why the loop writes a file: `set beam beginning = END` reports no error
-    but the beam at END is identical every turn. If Tao fixes this, simplify."""
-    path = _write_lattice(directory, "handback.bmad", repeats=1, geometry="closed")
-    lattice = FakeBmad(_tao(path), path)
-    beam = os.path.join(directory, "handback.beam")
-    lattice._write_grid_beam_file(beam)
-
-    tao = lattice.tao
-    _load_beam(tao, beam, "END")
-    seen = []
-    for _ in range(3):
-        tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-        seen.append(
-            np.asarray(tao.bunch1("END", coordinate="x", which="model", ix_bunch=1))
-        )
-        tao.cmd("set beam beginning = END", raises=False)
-
-    assert np.array_equal(seen[0], seen[1]) and np.array_equal(seen[1], seen[2])
 
 
 def test_tao_has_no_multi_turn_beam_tracking(directory):

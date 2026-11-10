@@ -250,6 +250,7 @@ class Executables:
         self.genesis = None
         self.opal = None
         self.tao = None
+        self.long_term_tracking = None
         self.madx = None
         self.bdsim = None
         self.settings["sim_codes_location"] = self.sim_codes_location
@@ -406,3 +407,7 @@ class Executables:
         ncpu = self.getNCPU(ncpu, scaling)
         default = [self.sim_codes_location + "Bmad/lib/libtao.so"]
         self._define("tao", "tao", default, location, ncpu, override_location)
+        default = [self.sim_codes_location + "Bmad/bin/long_term_tracking"]
+        self._define(
+            "long_term_tracking", "long_term_tracking", default, location, ncpu, override_location
+        )

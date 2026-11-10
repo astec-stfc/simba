@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 import simba.Modules.Beams as rbf
-from helpers import fodo_machine, read_beam, skip_missing
+from helpers import fodo_machine, read_beam, skip_missing, use_local_bmad
 from simba.Codes.Generators import frameworkGenerator
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.DeviceProgram import DeviceProgram
@@ -279,7 +279,7 @@ def test_the_rest_energy_survives_a_beam_not_yet_read():
 
 
 TURNS = 10
-CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx"]
+CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx", "bmad"]
 
 
 def _beam(subdir, name, turn=None):
@@ -328,6 +328,8 @@ def _track(tmp_path, code, tracking, seed_beam):
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
     shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    if code == "bmad":
+        use_local_bmad(framework)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         framework.track()
@@ -372,9 +374,9 @@ def test_no_rf_means_no_energy_change(code, runs, seed_beam):
     assert np.allclose(final, start, rtol=1e-5, atol=0)
 
 
-@pytest.mark.parametrize("code", ["xsuite", "ocelot", "impactx"])
+@pytest.mark.parametrize("code", ["xsuite", "ocelot", "impactx", "bmad"])
 def test_the_thick_codes_agree_on_the_ramped_orbit(code, runs):
-    """Measured 1.0e-7 m, 2.7e-6 m and 5.6e-8 m against elegant, for a 1.6e-4 m effect."""
+    """Measured 1.0e-7 m, 2.7e-6 m, 5.6e-8 m and 8e-8 m against elegant, for a 1.6e-4 m effect."""
     a, b = runs(code, True)["final"]["x"], runs("elegant", True)["final"]["x"]
     assert np.abs(a - b).max() < 1e-5
 
@@ -385,10 +387,13 @@ def test_madx_agrees_up_to_its_thin_lenses(runs):
     assert np.abs(a - b).max() < 5e-5
 
 
-@pytest.mark.parametrize("code", ["madx", "impactx"])
+@pytest.mark.parametrize("code", ["madx", "impactx", "bmad"])
 def test_absolute_time_agrees_with_elegant_every_turn(code, runs):
-    """These carry absolute time (measured 4e-16 s and 8e-17 s from elegant); Xsuite's ``t`` is
-    relative and Ocelot's a turn ahead, so they are left out."""
+    """These carry absolute time (measured 4e-16 s, 8e-17 s and 9e-18 s from elegant); Xsuite's
+    ``t`` is relative and Ocelot's a turn ahead, so they are left out.
+
+    Bmad's ``long_term_tracking`` had slipped 5.4e-12 s by turn 9, timing quads by a
+    ``delta_ref_time`` it does not ramp; see ``bmadLattice._clock_slips``."""
     madx, elegant = runs(code, True)["turns"], runs("elegant", True)["turns"]
     assert set(madx) == set(elegant) == set(range(1, TURNS + 1))
     for turn in madx:

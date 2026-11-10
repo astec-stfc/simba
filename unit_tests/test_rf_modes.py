@@ -9,7 +9,7 @@ import pytest
 from scipy.constants import c
 
 import simba.Framework as fw
-from helpers import fodo_machine, read_beam, skip_missing
+from helpers import fodo_machine, read_beam, skip_missing, use_local_bmad
 from simba.Codes.Bmad.Bmad import bmadLattice
 from simba.Codes.Elegant.Elegant import elegantLattice
 from simba.Codes.Generators import frameworkGenerator
@@ -86,7 +86,7 @@ def test_a_phase_wraps_into_one_turn():
         (madxLattice, "synchronous"),
         (ocelotLattice, "synchronous"),
         (impactxLattice, "synchronous"),
-        (bmadLattice, None),
+        (bmadLattice, "fixed"),
     ],
     ids=lambda c: getattr(c, "__name__", str(c)),
 )
@@ -245,6 +245,8 @@ def _track(tmp_path, code, tracking, seed_beam, frequency=HARMONIC):
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
     shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    if code == "bmad":
+        use_local_bmad(framework)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         framework.track()
@@ -282,14 +284,14 @@ def test_the_two_modes_differ(runs):
 
 
 @pytest.mark.parametrize("mode", ["fixed", "follow"])
-@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx"])
+@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx", "bmad"])
 def test_every_code_runs_the_rf_it_is_asked_for(code, mode, runs):
     """Against elegant; worst measured is MAD-X, 23 eV in 9500 on turn 10."""
     gains, reference = runs(code, mode)[1], runs("elegant", mode)[1]
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
-@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx"])
+@pytest.mark.parametrize("code", ["xsuite", "madx", "ocelot", "impactx", "bmad"])
 def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
     """7.2 deg a turn takes the gain from 10 to 20 keV; followers stayed at 10."""
     gains, reference = runs(code, "off_harmonic")[1], runs("elegant", "off_harmonic")[1]
@@ -297,7 +299,7 @@ def test_off_the_harmonic_every_code_slips_as_elegant_does(code, runs):
     assert np.allclose(gains, reference, rtol=0, atol=40)
 
 
-@pytest.mark.parametrize("code", ["ocelot", "impactx"])
+@pytest.mark.parametrize("code", ["ocelot", "impactx", "bmad"])
 def test_a_cavity_leaves_a_rings_reference_alone(code, runs):
     """Ocelot's cavity map and ImpactX's ``ShortRF`` moved the reference by
     ``V cos(phi)``, so the gain stayed at 10052 eV where elegant's falls to 9050."""
@@ -386,9 +388,9 @@ def test_a_cavity_the_code_never_has_is_named_once():
 
 @pytest.mark.parametrize(
     "cls, per_radian",
-    [(madxLattice, 1 / (2 * np.pi)), (elegantLattice, 180 / np.pi)],
-    ids=["madx", "elegant"],
+    [(madxLattice, 1 / (2 * np.pi)), (bmadLattice, 1 / (2 * np.pi)), (elegantLattice, 180 / np.pi)],
+    ids=["madx", "bmad", "elegant"],
 )
 def test_each_code_says_its_own_units(cls, per_radian):
-    """MAD-X's LAG is in turns; the rest are in degrees."""
+    """MAD-X's LAG and Bmad's ``phi0`` are in turns; the rest are in degrees."""
     assert cls.rf_phase_per_radian == pytest.approx(per_radian)
