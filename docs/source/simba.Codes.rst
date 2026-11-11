@@ -21,6 +21,7 @@ Subpackages
    simba.Codes.OPAL
    simba.Codes.Ocelot
    simba.Codes.Wake_T
+   simba.Codes.WarpX
    simba.Codes.Xsuite
 
 Submodules

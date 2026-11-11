@@ -33,7 +33,7 @@ def _stage(length=0.012):
                   plasma={"density": 1e23, "density_profile": False}, simulation=BOX | {"dt_bunch": "1e-12"})
 
 
-def _framework(tmp_path, element, offset_z=0.0, cp=1e9, hipace_settings=None):
+def _framework(tmp_path, element, offset_z=0.0, cp=1e9, hipace_settings=None, code="hipace", beam=None):
     end = element.physical.length
     m1 = Marker(name="M1", machine_area="L", hardware_class="Marker", physical={"middle": {"z": 0.0}})
     m3 = Marker(name="M3", machine_area="L", hardware_class="Marker", physical={"middle": {"z": end}})
@@ -42,22 +42,22 @@ def _framework(tmp_path, element, offset_z=0.0, cp=1e9, hipace_settings=None):
                     layout={"default_layout": "line1", "layouts": {"line1": ["L"]}})
     export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
     settings = fw.FrameworkSettings()
-    settings.files = {"L": {"code": "hipace", "charge": {"space_charge_mode": "False"}, "input": {},
+    settings.files = {"L": {"code": code, "charge": {"space_charge_mode": "False"}, "input": {},
                             "output": {"start_element": "M1", "end_element": "M3"}}}
     settings.layout = machine.layout
     settings.section = {"sections": {"L": names}}
     settings.element_list = f"{tmp_path}/lattice"
     if hipace_settings:
-        settings["global"] = {**(settings.get("global") or {}), "HIPACEsettings": hipace_settings}
+        settings["global"] = {**(settings.get("global") or {}), f"{code.upper()}settings": hipace_settings}
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
-    frameworkGenerator(
-        global_parameters={"master_subdir": framework.subdirectory}, filename="M1.openpmd.hdf5",
-        number_of_particles=1000, initial_momentum=cp, offset_z=offset_z,
-        sigma_x=2e-6, sigma_px=10, sigma_y=2e-6, sigma_py=10, sigma_z=5e-6, sigma_pz=1e3,
-        gaussian_cutoff_x=3, gaussian_cutoff_y=3, gaussian_cutoff_z=3,
-        gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3, charge=10e-12,
-    ).write()
+    frameworkGenerator(**{
+        "global_parameters": {"master_subdir": framework.subdirectory}, "filename": "M1.openpmd.hdf5",
+        "number_of_particles": 1000, "initial_momentum": cp, "offset_z": offset_z,
+        "sigma_x": 2e-6, "sigma_px": 10, "sigma_y": 2e-6, "sigma_py": 10, "sigma_z": 5e-6, "sigma_pz": 1e3,
+        "gaussian_cutoff_x": 3, "gaussian_cutoff_y": 3, "gaussian_cutoff_z": 3,
+        "gaussian_cutoff_px": 3, "gaussian_cutoff_py": 3, "gaussian_cutoff_pz": 3, "charge": 10e-12,
+    } | (beam or {})).write()
     return framework
 
 

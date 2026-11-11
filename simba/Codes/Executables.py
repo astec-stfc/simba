@@ -253,6 +253,8 @@ class Executables:
         self.madx = None
         self.bdsim = None
         self.hipace = None
+        self.warpx = None
+        self.warpx_3d = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command(location=self.runtime)
         self.define_astra_command(location=self.runtime)
@@ -265,6 +267,7 @@ class Executables:
         self.define_madx_command(location=self.runtime)
         self.define_bdsim_command(location=self.runtime)
         self.define_hipace_command()
+        self.define_warpx_command()
 
     def __getitem__(self, item):
         if os.name == "nt" and self.runtime is None and item in WINDOWS_UNSUPPORTED_CODES:
@@ -409,6 +412,18 @@ class Executables:
         exe = os.environ.get("HIPACE_EXE", self.sim_codes_location + "HiPACE/bin/hipace")
         default = ["mpiexec", "-np", str(ncpu), exe] if ncpu > 1 else [exe]
         self._define("hipace", "hipace", default, location, ncpu, override_location)
+
+    def define_warpx_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """
+        Define the WarpX RZ executable (plasma stages), ``$WARPX_EXE`` if set, and the 3D one
+        (beam transport), ``$WARPX_3D_EXE``, under ``mpiexec`` if `ncpu` > 1; set :attr:`~warpx`
+        and :attr:`~warpx_3d`.
+        """
+        ncpu = self.getNCPU(ncpu, scaling)
+        for name, env, binary in (("warpx", "WARPX_EXE", "warpx.rz"), ("warpx_3d", "WARPX_3D_EXE", "warpx.3d")):
+            exe = os.environ.get(env, self.sim_codes_location + "WarpX/bin/" + binary)
+            default = ["mpiexec", "-np", str(ncpu), exe] if ncpu > 1 else [exe]
+            self._define(name, name, default, location, ncpu, override_location)
 
     def define_tao_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
         """Define the Tao library and set :attr:`~tao`."""

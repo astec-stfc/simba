@@ -20,10 +20,13 @@ def _val(value) -> np.ndarray:
     return np.asarray(value.val if isinstance(value, UnitValue) else value, dtype=float)
 
 
-def write_hipace_beam_file(self, filename: str, zstart: float = 0.0) -> tuple[float, float]:
+def write_hipace_beam_file(
+    self, filename: str, zstart: float = 0.0, dtype: type = np.float64
+) -> tuple[float, float]:
     """
     Write the beam as species ``beam`` of an openPMD file for HiPACE++'s
-    ``beam.injection_type = from_file``. HiPACE++ reads through openPMD-api.
+    ``beam.injection_type = from_file``, or WarpX's ``injection_style = external_file``.
+    Both read through openPMD-api, which loads arrays only as their stored type.
 
     Parameters
     ----------
@@ -33,6 +36,9 @@ def write_hipace_beam_file(self, filename: str, zstart: float = 0.0) -> tuple[fl
         File to write
     zstart: float
         Lattice z placed at the box's z = 0
+    dtype: type
+        Array type: the reader's particle precision, ``np.float32`` for a
+        single-precision WarpX
 
     Returns
     -------
@@ -68,11 +74,18 @@ def write_hipace_beam_file(self, filename: str, zstart: float = 0.0) -> tuple[fl
             record = species.create_group(name)
             record.attrs.update({"unitDimension": np.array(dimension), "timeOffset": np.float32(0)})
             for axis, data in components.items():
-                record.create_dataset(axis, data=data).attrs["unitSI"] = 1.0
-        record = species.create_dataset("weighting", data=weighting)
+                record.create_dataset(axis, data=data.astype(dtype)).attrs["unitSI"] = 1.0
+        record = species.create_dataset("weighting", data=weighting.astype(dtype))
         record.attrs.update(
             {"unitSI": 1.0, "unitDimension": np.array(_NONE), "timeOffset": np.float32(0)}
         )
+        # WarpX reads positionOffset unconditionally.
+        record = species.create_group("positionOffset")
+        record.attrs.update({"unitDimension": np.array(_LENGTH), "timeOffset": np.float32(0)})
+        for axis in "xyz":
+            record.create_group(axis).attrs.update({
+                "value": 0.0, "shape": np.array([len(charge)], dtype=np.uint64), "unitSI": 1.0,
+            })
         # Constant records, as HiPACE++ writes them; it weights by `weighting` first.
         for name, value, dimension in (("charge", charge[0], _CHARGE), ("mass", mass[0], _MASS)):
             species.create_group(name).attrs.update({
