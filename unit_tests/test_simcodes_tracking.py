@@ -20,6 +20,7 @@ CODES = [
     pytest.param("ocelot", None, id="ocelot"),
     pytest.param("xsuite", None, id="xsuite"),
     pytest.param("cheetah", None, id="cheetah"),
+    pytest.param("slipstream", None, id="slipstream"),
     pytest.param(
         "rftrack", None, id="rftrack",
         marks=pytest.mark.skipif(importlib.util.find_spec("RF_Track") is None, reason="RF-Track is not installed"),
