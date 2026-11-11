@@ -18,7 +18,7 @@ from copy import deepcopy
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement
 from laura.models.element_list import flatten_occurrence, split_occurrence
-from laura.exporters.yaml_exporter import export_machine, export_elements
+from laura.exporters.yaml_exporter import export_machine_combined_file, export_elements
 
 from .Modules import Beams as rbf
 from .Modules import Twiss as rtf
@@ -624,6 +624,7 @@ class Framework(BaseModel):
         filename: str | None = None,
         directory: str = ".",
         elements: dict | None = None,
+        lattice_files: dict | None = None,
     ) -> None:
         """
         Save lattice settings to a file.
@@ -636,12 +637,16 @@ class Framework(BaseModel):
             Output directory.
         elements: dict or None
             Replaces the ``elements`` entry of the saved settings.
+        lattice_files: dict or None
+            Replaces the ``layout``, ``section`` and ``element_list`` entries
+            it gives, as returned by :meth:`save_lattice`.
         """
         if filename is None:
             filename = "settings.def"
         settings = self.settings.copy()
         if elements is not None:
             settings["elements"] = elements
+        settings.update(lattice_files or {})
         settings = convert_numpy_types(settings)
         with open(os.path.join(directory, filename), "w") as yaml_file:
             yaml.default_flow_style = True
@@ -833,12 +838,22 @@ class Framework(BaseModel):
         Parameters
         ----------
         lattice: str or None
-            Lattice line to export; if None, the whole machine.
+            Lattice line to export; if None, the whole machine, written to
+            ``<directory>/<stem>/`` as ``summary.yaml`` plus ``_sections.yaml``,
+            ``_layouts.yaml`` and, if the machine has any,
+            ``_functional_definitions.yaml``.
         filename: str or None
             Its stem names the output, with ``_<lattice>_lattice`` appended for a line;
             defaults to the settings filename.
         directory: str
             Output directory.
+
+        Returns
+        -------
+        dict or None
+            For the whole machine, the absolute paths written, as the ``layout``,
+            ``section``, ``element_list`` and ``functional_definitions`` settings
+            that load it back.
         """
         if filename is None:
             if self.settingsFilename is not None:
@@ -848,8 +863,15 @@ class Framework(BaseModel):
         else:
             pre, ext = os.path.splitext(os.path.basename(filename))
         if lattice is None:
-            filename = pre
-            export_machine(os.path.join(directory, filename), self.machine)
+            path = os.path.abspath(os.path.join(directory, pre))
+            export_machine_combined_file(path, self.machine)
+            written = {
+                "layout": os.path.join(path, "_layouts.yaml"),
+                "section": os.path.join(path, "_sections.yaml"),
+                "element_list": os.path.join(path, "summary.yaml"),
+                "functional_definitions": os.path.join(path, "_functional_definitions.yaml"),
+            }
+            return {key: p for key, p in written.items() if os.path.isfile(p)}
         else:
             if self.latticeObjects[lattice].elements is None:
                 warn(f"No elements found in {lattice} to save")
@@ -1767,11 +1789,10 @@ class Framework(BaseModel):
         if self.verbose:
             pbar.set_description(base_description + ": Finished! ")
             pbar.close()
-        self.save_lattice(directory=self.subdirectory, filename="lattice.yaml")
         self.save_settings(
             directory=self.subdirectory,
             filename="settings.def",
-            elements={"filename": "lattice.yaml"},
+            lattice_files=self.save_lattice(directory=self.subdirectory, filename="lattice.yaml"),
         )
         if save_summary:
             self.save_summary_files()
