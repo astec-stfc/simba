@@ -8,6 +8,7 @@ from functools import cache
 import numpy as np
 import pytest
 
+from laura.translator.utils.bmad import preload_bmad_gsl
 from simba.Modules.Matrices import (
     fractional_tune,
     momentum_compaction,
@@ -117,6 +118,7 @@ def madx_ring(bend=()):
 
 
 BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+preload_bmad_gsl(BMAD_SO)  # before any Tao; see preload_bmad_gsl
 
 
 def bmad_ring_file(rf=False):

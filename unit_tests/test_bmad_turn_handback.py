@@ -9,9 +9,11 @@ import warnings
 import numpy as np
 import pytest
 
+from laura.translator.utils.bmad import preload_bmad_gsl
 from simba.Codes.Bmad.Bmad import bmadLattice
 
 BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+preload_bmad_gsl(BMAD_SO)  # before any Tao; see preload_bmad_gsl
 
 PC = 1e9
 QUAD_L = 0.5

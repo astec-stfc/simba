@@ -18,6 +18,7 @@ package. The user can install the following codes from the links below:
 * `CSRTrack <https://www.desy.de/xfel-beam/csrtrack/>`_ :cite:`CSRTrack`
 * `OPAL <https://amas.web.psi.ch/opal/Documentation/master/OPAL_Manual.html>`_
 * `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
+* `HiPACE++ <https://hipace.readthedocs.io>`_ (``$HIPACE_EXE``, else ``<simcodes>/HiPACE/bin/hipace``)
 
 Note that the following python-based simulation packages are **optional** dependencies of ``SIMBA``,
 installable via the ``simcodes`` extra (``pip install simba-accelerator[simcodes]``). They run in-process

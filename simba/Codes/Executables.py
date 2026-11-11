@@ -252,6 +252,7 @@ class Executables:
         self.tao = None
         self.madx = None
         self.bdsim = None
+        self.hipace = None
         self.settings["sim_codes_location"] = self.sim_codes_location
         self.define_ASTRAgenerator_command(location=self.runtime)
         self.define_astra_command(location=self.runtime)
@@ -263,6 +264,7 @@ class Executables:
         self.define_tao_command(location=self.runtime)
         self.define_madx_command(location=self.runtime)
         self.define_bdsim_command(location=self.runtime)
+        self.define_hipace_command()
 
     def __getitem__(self, item):
         if os.name == "nt" and self.runtime is None and item in WINDOWS_UNSUPPORTED_CODES:
@@ -400,6 +402,13 @@ class Executables:
         ncpu = self.getNCPU(ncpu, scaling)
         default = [self.sim_codes_location + "BDSIM/bdsim-build/bin/bdsim"]
         self._define("bdsim", "bdsim", default, location, ncpu, override_location)
+
+    def define_hipace_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
+        """Define the HiPACE++ executable, ``$HIPACE_EXE`` if set, under ``mpiexec`` if `ncpu` > 1, and set :attr:`~hipace`."""
+        ncpu = self.getNCPU(ncpu, scaling)
+        exe = os.environ.get("HIPACE_EXE", self.sim_codes_location + "HiPACE/bin/hipace")
+        default = ["mpiexec", "-np", str(ncpu), exe] if ncpu > 1 else [exe]
+        self._define("hipace", "hipace", default, location, ncpu, override_location)
 
     def define_tao_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
         """Define the Tao library and set :attr:`~tao`."""

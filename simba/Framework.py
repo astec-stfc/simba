@@ -339,6 +339,10 @@ class Framework(BaseModel):
             override_location=location,
             ncpu=ncpu,
         )
+        executables.define_hipace_command(
+            override_location=location,
+            ncpu=ncpu,
+        )
         executables.define_ASTRAgenerator_command(override_location=location)
         self.executables_ready = True
         return executables

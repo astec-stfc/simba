@@ -16,6 +16,7 @@ from warnings import warn
 import numpy as np
 from laura.models.simulation import TwissMatchSimulationElement
 from laura.translator.converters.converter import translate_elements
+from laura.translator.utils.bmad import preload_bmad_gsl
 from laura.translator.utils.functions import sanitize_string
 
 from ... import exceptions
@@ -803,6 +804,7 @@ class bmadLattice(frameworkLattice):
             )
         from pytao import Tao
 
+        preload_bmad_gsl(self.libtao)
         with contextlib.chdir(Path(self.lattice_file).parent):
             self.tao = Tao(
                 init_file=Path(self.tao_init_file).name,
