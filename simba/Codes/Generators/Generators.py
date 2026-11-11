@@ -495,6 +495,9 @@ class frameworkGenerator(BaseModel):
         beam.Particles.pz = UnitValue(pz, units="kg*m/s")
         beam.Particles.status = UnitValue(np.full(len(x), 5), units="")
         beam.Particles.set_total_charge(self.charge)
+        beam.Particles.nmacro = UnitValue(
+            np.full(len(x), abs(self.charge) / constants.elementary_charge / len(x)), units=""
+        )
         beam.set_species(self.species)
         beam.Particles.t = UnitValue(
             -z / (beam.Particles.Bz.val * constants.speed_of_light), units="s"
