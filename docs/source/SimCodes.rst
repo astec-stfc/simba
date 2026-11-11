@@ -37,6 +37,11 @@ whether a container runtime is used for the other codes:
   ``simba/Codes/Slipstream/slipstream_defaults.yaml``. Its CSR and LSC kernels are quadratic in the particle
   count unless ``fast_collective_effects: true`` is set there.
 
+`RF-Track <https://gitlab.cern.ch/rf-track>`_ also runs in-process, but is not in the ``simcodes`` extra as it
+is distributed under a CERN proprietary licence; install it yourself with ``pip install rf_track``. It tracks
+in ``s`` through an ``RF_Track.Lattice``, writing the beam at screens and at the end of the line; cathode
+(time-domain ``Volume``) tracking is not supported yet.
+
 :mod:`SIMBA` does, however, require these codes to be accessible. This functionality is provided in various ways.
 
 Creating a SimCodes Directory

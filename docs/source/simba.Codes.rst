@@ -8,10 +8,12 @@ Subpackages
    :maxdepth: 4
 
    simba.Codes.ASTRA
+   simba.Codes.BDSIM
    simba.Codes.Bmad
    simba.Codes.CSRTrack
    simba.Codes.Cheetah
    simba.Codes.Elegant
+   simba.Codes.FBPIC
    simba.Codes.GPT
    simba.Codes.Generators
    simba.Codes.Genesis
@@ -19,6 +21,7 @@ Subpackages
    simba.Codes.MADX
    simba.Codes.OPAL
    simba.Codes.Ocelot
+   simba.Codes.RFTrack
    simba.Codes.Slipstream
    simba.Codes.Wake_T
    simba.Codes.Xsuite

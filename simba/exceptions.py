@@ -90,6 +90,18 @@ class CrystalWithoutChannellingWarning(PhysicsWarning):
         )
 
 
+class UnmodelledElementsWarning(UnsupportedWarning):
+    """Elements in a line whose code passes particles through them as drifts."""
+
+    def __init__(self, line: str, code: str, elements: list):
+        super().__init__(
+            f"{_line(line)} is run by {code}, which models only its interaction and "
+            f"drifts the particles straight through everything else, so these elements "
+            f"have no effect: {', '.join(elements)}. Give them a line of their own in "
+            "another code."
+        )
+
+
 class BunchLengthWarning(PhysicsWarning):
     """BDSIM's matrix integrators, which time every particle as the reference."""
 
@@ -129,6 +141,17 @@ class RadiationUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class CollectiveUnsupportedWarning(UnsupportedWarning):
+    """CSR or LSC asked for, in a code simba has no switch for it in."""
+
+    def __init__(self, line: str, code: str, effect: str, alternatives: str):
+        super().__init__(
+            f"{_line(line)} asks for {effect} (csr_enable/lsc_enable on the line "
+            f"or its elements), but simba has no {effect} switch for {code}, so "
+            f"it is not modelled. {alternatives}"
+        )
+
+
 class UnreadableSettingWarning(SettingWarning):
     """A tracking entry simba cannot read, and so drops."""
 
@@ -143,6 +166,17 @@ class ProgramsUnsupportedWarning(UnsupportedWarning):
         super().__init__(
             f"{_line(line)} programs {', '.join(elements)} over turns, but "
             f"{code} has no way to change an element between turns here. "
+            f"{alternatives}"
+        )
+
+
+class GradientsUnsupportedWarning(UnsupportedWarning):
+    """Gradients asked for in a code that cannot differentiate its tracking."""
+
+    def __init__(self, line: str, code: str, parameters: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} has gradient parameters {', '.join(parameters)}, but "
+            f"{code} cannot differentiate its tracking, so none are computed. "
             f"{alternatives}"
         )
 

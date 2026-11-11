@@ -185,6 +185,47 @@ def test_madx_periodic_optics_come_from_the_thick_ring(tmp_path, seed_beam):
     assert coarse_orbit == pytest.approx(fine_orbit, abs=1e-12)
 
 
+def test_xsuite_finds_the_closed_orbit_of_a_misaligned_ring_without_rf(tmp_path, seed_beam):
+    """#30: with no RF the 6D search failed, or settled on a spurious delta that
+    the bend's dispersion turned into x; the orbit is 4D."""
+    skip_missing("xsuite")
+    quads = fodo_quads()
+    for quad, k1l in zip(quads, (-0.5, 0.5)):
+        quad.magnetic.k1l = k1l
+    quads[0].physical.error = {"position": {"x": 1e-3}}
+    bend = Dipole(
+        name="BEND1", machine_area="FODO", magnetic={"length": 1.0, "angle": 0.1},
+        physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": 2.0}},
+    )
+    machine, _, section = fodo_machine(tmp_path, closed=True, middle=[quads[0], bend, quads[1]])
+    settings = fw.FrameworkSettings()
+    settings.files = {
+        "FODO": {
+            "code": "xsuite",
+            "charge": {"space_charge_mode": "False"},
+            "input": {},
+            "output": {"start_element": "M1", "end_element": "M3"},
+            "tracking": {"periodic": True, "turns": 1},
+        }
+    }
+    settings.layout = machine.layout
+    settings.section = section
+    settings.element_list = f"{tmp_path}/lattice"
+    framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
+    framework.loadSettings(settings=settings)
+    shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    framework.track()
+    ring = framework.latticeObjects["FODO"]
+
+    orbit = ring.read_closed_orbit()
+    assert abs(orbit[0]) > 1e-5, "the error must move the orbit"
+    assert orbit[5] == pytest.approx(0.0, abs=1e-15)
+    particle = ring.find_closed_orbit().copy()
+    ring.line.track(particle)
+    assert [particle.x[0], particle.px[0]] == pytest.approx(orbit[:2], abs=1e-12)
+    assert ring.ring_parameters().get("tune_x") is not None
+
+
 def close(final, expected, rtol):
     return all(
         np.abs(got - want).max() < rtol * np.abs(want).max()
