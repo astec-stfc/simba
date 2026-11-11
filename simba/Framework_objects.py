@@ -468,8 +468,8 @@ class frameworkLattice(BaseModel):
     """(t, s, p) of the input beam's reference, so codes that track relative to it can
     write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
 
-    remote_setup: Dict = {}
-    """Settings for running executables remotely."""
+    remote_setup: Dict = Field({}, repr=False)
+    """Settings for running executables remotely; holds the SSH password."""
 
     files: List = []
     """Files needed to run the lattice."""
@@ -2996,8 +2996,8 @@ class frameworkLattice(BaseModel):
         TimeoutError
             If the server is unreachable.
         """
-        if not all(name in self.remote_setup for name in ["host", "username", "password"]):
-            raise KeyError("remote_setup must contain 'host', 'username' and 'password'")
+        if not all(name in self.remote_setup for name in ["host", "username"]):
+            raise KeyError("remote_setup must contain 'host' and 'username'")
         import paramiko
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -3005,14 +3005,14 @@ class frameworkLattice(BaseModel):
             ssh.connect(
                 self.remote_setup["host"]["address"],
                 username=self.remote_setup["username"],
-                password=self.remote_setup["password"],
+                password=self.remote_setup.get("password"),
             )
             return ssh
         except paramiko.SSHException:
             ssh.connect(
                 self.remote_setup["host"]["address"],
                 username=self.remote_setup["username"],
-                password=self.remote_setup["password"],
+                password=self.remote_setup.get("password"),
                 allow_agent=False, look_for_keys=False
             )
             return ssh
