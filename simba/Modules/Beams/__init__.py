@@ -28,6 +28,7 @@ from . import xsuite
 from . import opal
 from . import genesis
 from . import bdsim
+from . import ptarmigan
 
 try:
     from . import plot

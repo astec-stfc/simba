@@ -90,6 +90,18 @@ class CrystalWithoutChannellingWarning(PhysicsWarning):
         )
 
 
+class UnmodelledElementsWarning(UnsupportedWarning):
+    """Elements in a line whose code passes particles through them as drifts."""
+
+    def __init__(self, line: str, code: str, elements: list):
+        super().__init__(
+            f"{_line(line)} is run by {code}, which models only its interaction and "
+            f"drifts the particles straight through everything else, so these elements "
+            f"have no effect: {', '.join(elements)}. Give them a line of their own in "
+            "another code."
+        )
+
+
 class BunchLengthWarning(PhysicsWarning):
     """BDSIM's matrix integrators, which time every particle as the reference."""
 

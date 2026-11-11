@@ -14,3 +14,4 @@ from .Codes.MADX.MADX import madxLattice                # noqa F401
 from .Codes.Bmad.Bmad import bmadLattice  # noqa F401
 from .Codes.RFTrack.RFTrack import rftrackLattice  # noqa F401
 from .Codes.BDSIM.BDSIM import bdsimLattice  # noqa F401
+from .Codes.Ptarmigan.Ptarmigan import ptarmiganLattice  # noqa F401
