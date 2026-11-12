@@ -353,6 +353,96 @@ def test_yaml_checker_builds_a_framework(tmp_path, monkeypatch):
         yaml_checker.main([str(tmp_path / "missing.def")])
 
 
+def test_an_unknown_def_key_warns(tmp_path):
+    """A misspelt top-level key (`fiels:`) was dropped without a word."""
+    import yaml
+    path = tmp_path / "typo.def"
+    # settingsFilename is in every saved .def: FrameworkSettings is a Munch, so it is saved as a key
+    path.write_text(yaml.safe_dump({"fiels": {}, "settingsFilename": "typo.def", "files": {}}))
+    with pytest.warns(UserWarning, match="fiels") as record:
+        fw.FrameworkSettings().loadSettings(str(path))
+    assert not any("settingsFilename" in str(w.message) for w in record)
+
+
+def test_apply_changes_to_an_unknown_name_raises_and_changes_nothing(sample_framework):
+    with pytest.raises(ValueError, match="NO-SUCH-ELEMENT"):
+        sample_framework.apply_changes(
+            {"E1": {"machine_area": "B1"}, "NO-SUCH-ELEMENT": {"k1l": 1.0}}
+        )
+    assert sample_framework.elementObjects["E1"].machine_area == "A1"
+
+
+def test_apply_changes_raises_when_a_parameter_cannot_be_set(sample_framework):
+    """It printed "### ERROR" and carried on."""
+    with pytest.raises(AttributeError, match="E1"):
+        sample_framework.apply_changes({"E1": {"no_such_group": {"k1l": 1.0}}})
+
+
+def test_an_unknown_framework_keyword_warns(tmp_path):
+    """`simcodes_location=` (from the docs) was accepted and ignored."""
+    with pytest.warns(UserWarning, match="simcodes_location"):
+        fw.Framework(directory=str(tmp_path), simcodes_location=str(tmp_path), verbose=False)
+
+
+def test_a_laura_error_is_not_hidden_by_a_retry(framework_with_machine, monkeypatch):
+    """A failed LAURA(..., eager_mode=...) was retried without eager_mode, and the
+    first error, usually the useful one, was lost."""
+    calls = []
+
+    def failing_laura(**kwargs):
+        calls.append(kwargs)
+        raise ValueError("the real error")
+
+    monkeypatch.setattr(fw, "LAURA", failing_laura)
+    with pytest.raises(ValueError, match="the real error"):
+        framework_with_machine.loadSettings(settings=framework_with_machine.settings)
+    for name in ("layout", "section", "element_list"):
+        setattr(framework_with_machine, name, None)
+    with pytest.raises(ValueError, match="the real error"):
+        framework_with_machine.setupLAURA()
+    assert len(calls) == 2
+
+
+def test_s_values_skip_the_generator_and_do_not_hide_errors(framework_with_machine, monkeypatch):
+    assert len(framework_with_machine.getSValues()) == len(
+        framework_with_machine.getSValuesElements()
+    )
+    monkeypatch.setattr(
+        type(framework_with_machine.latticeObjects["FODO"]), "getSValues",
+        lambda self: 1 / 0,
+    )
+    with pytest.raises(ZeroDivisionError):
+        framework_with_machine.getSValues()
+
+
+def test_path_arc_lengths_warns_when_laura_cannot_give_them(framework_with_machine, monkeypatch):
+    class Broken:
+        def arc_lengths(self):
+            raise ValueError("no path")
+
+    monkeypatch.setattr(framework_with_machine, "_default_layout", lambda: Broken())
+    with pytest.warns(UserWarning, match="no path"):
+        assert framework_with_machine.path_arc_lengths() == {}
+
+
+def test_copylink_raises_when_the_copy_fails(tmp_path):
+    """A missing GPT field file was printed and the run went on without it."""
+    from simba.FrameworkHelperFunctions import copylink
+    with pytest.raises(FileNotFoundError):
+        copylink(str(tmp_path / "missing.gdf"), str(tmp_path / "out.gdf"))
+    (tmp_path / "field.gdf").write_text("x")
+    copylink(str(tmp_path / "field.gdf"), str(tmp_path / "field.gdf"))  # onto itself: nothing to do
+
+
+def test_an_unknown_name_in_brackets_raises(sample_framework):
+    """framework["NAME"] returned None for a misspelt name, so the error came
+    later, as an AttributeError on None."""
+    assert sample_framework["E1"].name == "E1"
+    assert sample_framework["directory"] == sample_framework.directory
+    with pytest.raises(KeyError, match="NO-SUCH"):
+        sample_framework["NO-SUCH"]
+
+
 @pytest.fixture
 def tracked_directory(framework_with_machine, simple_generator):
     framework = framework_with_machine

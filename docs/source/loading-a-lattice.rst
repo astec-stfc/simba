@@ -136,7 +136,7 @@ been prepared.
         master_lattice="/path/to/laura-lattices/CLARA",
         directory="./example",
         generator_defaults="clara.yaml",
-        simcodes_location=simcodes_location,
+        simcodes=simcodes_location,
         clean=True,
         verbose=True,
         )

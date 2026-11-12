@@ -262,6 +262,9 @@ class Framework(BaseModel):
     """Whether :attr:`executables` are ready."""
 
     def model_post_init(self, __context):
+        ignored = sorted(set(self.model_extra or {}) - {"layout", "section", "element_list"})
+        if ignored:
+            warn(f"Framework ignores unknown keywords {ignored}")
         gptlicense = os.environ.get("GPTLICENSE", "")
         astra_use_wsl = os.environ.get("WSL_ASTRA", 1)
         self.global_parameters = {
@@ -302,10 +305,7 @@ class Framework(BaseModel):
 
     def setupLAURA(self) -> None:
         """Set up the LAURA :attr:`machine`."""
-        try:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
-        except Exception:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
+        self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
 
     def prepare_executables(
             self,
@@ -558,27 +558,16 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            try:
-                self.machine = LAURA(
-                    layout=self.settings["layout"],
-                    section=self.settings["section"],
-                    functional_definitions=self.settings["functional_definitions"],
-                    resolve_functional=self.settings["resolve_functional"],
-                    element_list=self.settings["element_list"],
-                    master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
-                    eager_mode=self.eager_mode,
-                )
-            except Exception:
-                self.machine = LAURA(
-                    layout=self.settings["layout"],
-                    section=self.settings["section"],
-                    functional_definitions=self.settings["functional_definitions"],
-                    resolve_functional=self.settings["resolve_functional"],
-                    element_list=self.settings["element_list"],
-                    master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
-                )
+            self.machine = LAURA(
+                layout=self.settings["layout"],
+                section=self.settings["section"],
+                functional_definitions=self.settings["functional_definitions"],
+                resolve_functional=self.settings["resolve_functional"],
+                element_list=self.settings["element_list"],
+                master_lattice=self.global_parameters["master_lattice"],
+                exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                eager_mode=self.eager_mode,
+            )
 
             if self.settings.get("default_layout"):
                 path = self.settings["default_layout"]
@@ -935,16 +924,22 @@ class Framework(BaseModel):
         verbose: bool
             Print each change.
         """
+        unknown = [
+            e for e in changes
+            if e not in self.elementObjects and e not in self.groupObjects and e != "generator"
+        ]
+        if unknown:
+            raise ValueError(f"No element or group called {unknown}; nothing was changed")
         for e, d in list(changes.items()):
             if e in self.elementObjects or e == "generator":
                 flat = flatten_changes_dict(d)
                 for param in flat:
                     try:
                         self.modifyElement(e, param[0], param[1])
-                        if verbose:
-                            print("modifying ", e, "[", param[0], "]", " = ", param[1])
                     except AttributeError as ex:
-                        print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
+                        raise AttributeError(f"Cannot set {e} [{param[0]}] = {param[1]}: {ex}") from ex
+                    if verbose:
+                        print("modifying ", e, "[", param[0], "]", " = ", param[1])
             if e in self.groupObjects:
                 for k, v in list(d.items()):
                     self.groupObjects[e].change_Parameter(k, v)
@@ -1072,7 +1067,11 @@ class Framework(BaseModel):
         dict or Any or :class:`~laura.models.element.Element`
             The parameter, or the element (also if it lacks ``param``), or ``{}`` if there is no such element.
         """
-        if self.__getitem__(element) is not None:
+        try:
+            found = self.__getitem__(element) is not None
+        except KeyError:
+            found = False
+        if found:
             if param is not None:
                 param = param.lower()
                 try:
@@ -1524,8 +1523,8 @@ class Framework(BaseModel):
         else:
             try:
                 return getattr(self, key)
-            except Exception:
-                return None
+            except AttributeError:
+                raise KeyError(f"No element, line, group or attribute called {key!r}") from None
 
     @property
     def elements(self) -> list:
@@ -1564,7 +1563,8 @@ class Framework(BaseModel):
             return {
                 flatten_occurrence(name): s for name, s in layout.arc_lengths().items()
             }
-        except Exception:
+        except Exception as ex:
+            warn(f"LAURA could not give arc lengths ({ex!r}); each line is placed after the one before")
             return {}
 
     def getSValues(self) -> list:
@@ -1582,14 +1582,14 @@ class Framework(BaseModel):
         offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
-        for lo in self.latticeObjects.values():
-            try:
-                start = offsets.get(flatten_occurrence(lo.start), s0)
-                latticeS = [a + start for a in lo.getSValues()]
-                allS = allS + latticeS
+        for name, lo in self.latticeObjects.items():
+            if name == "generator":
+                continue
+            start = offsets.get(flatten_occurrence(lo.start), s0)
+            latticeS = [a + start for a in lo.getSValues()]
+            allS = allS + latticeS
+            if allS:
                 s0 = allS[-1]
-            except Exception:
-                pass
         return allS
 
     def getSValuesElements(self) -> list:

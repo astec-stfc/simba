@@ -12,14 +12,9 @@ def cumtrapz(x=[], y=[]):
 
 
 def save_ocelot_twiss_hdf(self, filename: str, twiss: dict = {}):
-    f = h5py.File(filename, 'w')
-    for grp_name in twiss:
-        try:
+    with h5py.File(filename, "w") as f:
+        for grp_name in twiss:
             f.create_dataset(grp_name, data=twiss[grp_name])
-        except Exception:
-            pass
-    f.close()
-    return
 
 
 def read_ocelot_twiss_files_hdf(self, filename, reset=True):
