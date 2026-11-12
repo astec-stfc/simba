@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 from copy import copy
 from beamphysics.units import nice_array, nice_scale_prefix
 
-CMAP0 = copy(plt.get_cmap("viridis"))
-CMAP0.set_under("white")
+CMAP0 = plt.get_cmap("viridis").with_extremes(under="white")
 CMAP1 = copy(plt.get_cmap("plasma"))
 
 
