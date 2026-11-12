@@ -1,0 +1,9 @@
+# Passed to slipstream's LinacTracker; override with settings["global"]["SLIPSTREAMsettings"].
+# Any other LinacTracker argument (compile, n_kicks_bend, fast_collective_effects, ...) can be added there.
+device: cpu
+dtype: float64
+# kicks per quadrupole or sextupole: one is fine for a short magnet, 16% off in x for a 1 m quadrupole with k1 L = 1
+n_kicks: 10
+n_kicks_bend: 4
+integration_order: 4
+always_change_p0: true

@@ -1035,9 +1035,16 @@ class xsuiteLattice(frameworkLattice):
         )
 
     def find_closed_orbit(self):
-        """``line.find_closed_orbit()``, once a run."""
+        """
+        ``line.find_closed_orbit()``, once a run. Without RF there is no
+        longitudinal closed orbit: the 6D search fails or settles on a
+        spurious ``delta``, so the orbit comes from the 4D twiss.
+        """
         if self._closed_orbit is None:
-            self._closed_orbit = self.line.find_closed_orbit()
+            if self.rf_voltage:
+                self._closed_orbit = self.line.find_closed_orbit()
+            else:
+                self._closed_orbit = self.line.twiss(method="4d").particle_on_co
         return self._closed_orbit
 
     def read_closed_orbit(self):
