@@ -277,17 +277,17 @@ class cheetahLattice(frameworkLattice):
             pin = deepcopy(self.pin)
             pin.particles = cheetah_particles(lab, E0, p0c, t0)
             pin.energy = sqrt(p0c**2 + E0**2)
-            start = None if self.reference_start is None else (t0, self.reference_start[1], p0c)
+            clock = None if self.reference_start is None else self.reference_clock(segment, (t0, self.reference_start[1], p0c))
             twiss = {k: [] for k in twiss_keys}
             for beam in segment.beam_along_segment_generator(pin):
                 for k in twiss_keys:
                     twiss[k].append(getattr(beam, k))
             beams = {
-                e.name: cheetah_lab_coordinates(e.get_read_beam(), E0, start)
+                e.name: cheetah_lab_coordinates(e.get_read_beam(), E0, clock)
                 for e in segment.elements if isinstance(e, Screen)
             }
             if not end_is_screen:
-                beams[self.end] = cheetah_lab_coordinates(beam, E0, start)
+                beams[self.end] = cheetah_lab_coordinates(beam, E0, clock)
             return {k: stack(v) for k, v in twiss.items()}, beams
 
         incoming = self.incoming_tangents or {"parameters": [], "values": [], "tangent": np.zeros((len(lab), 6, 0))}
@@ -312,13 +312,30 @@ class cheetahLattice(frameworkLattice):
             "beams": {n: stack([t[1][n] for t in tangents], -1).numpy() for n in tangents[0][1]},
         }
 
+    def reference_clock(self, segment, start: tuple) -> tuple:
+        """
+        The reference's time of flight through ``segment``, element by element, as Cheetah gains energy:
+        a :func:`~simba.Modules.Beams.cheetah.reference_clock` from ``start = (t0, s0, p0)``.
+        """
+        from cheetah.accelerator import Cavity
+        from torch import cos, deg2rad
+        from ...Modules.Beams.cheetah import reference_clock
+
+        elements = segment.flattened().elements
+        charge = -float(self.pin.species.num_elementary_charges)
+        return reference_clock(
+            [e.length for e in elements],
+            [charge * e.voltage * cos(deg2rad(e.phase)) if isinstance(e, Cavity) else 0.0 for e in elements],
+            self.rest_energy, start,
+        )
+
     def s_and_z(self, s: np.ndarray) -> tuple:
         """Cheetah's ``s`` along :attr:`segment` as the lattice's ``(s, z)``."""
         svals = s - s[0]
         return svals + self.entrance_s, self.getZAtS(svals)
 
     @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
+    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str, t_reference: float) -> None:
         """
         Write a Cheetah beam as openPMD; the end's also becomes the framework beam.
 
@@ -330,6 +347,8 @@ class cheetahLattice(frameworkLattice):
             openPMD file to write
         name: str
             Element name
+        t_reference: float
+            When the reference reaches it [s]
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
@@ -343,7 +362,7 @@ class cheetahLattice(frameworkLattice):
             zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
-            start=self.reference_start,
+            t_reference=t_reference,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
         if name == self.end:
@@ -352,6 +371,7 @@ class cheetahLattice(frameworkLattice):
     def postProcess(self) -> None:
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
         from cheetah.accelerator import Screen
+        from ...Modules.Beams.cheetah import clock_time
 
         def sanitized(n: str) -> str:
             s = "".join(c if c.isalnum() or c == "_" else "_" for c in n)
@@ -364,13 +384,14 @@ class cheetahLattice(frameworkLattice):
                 screens.update({original.get(element.name, element.name): element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
+        clock = self.reference_clock(self.segment, self.reference_start)  # as the gradients' (track_tangents)
         beam_tangents = {}
         for name, scr in screens.items():
             if name == self.start:
                 continue
             basename = self.output_basename(name)
             outname = f'{self.global_parameters["master_subdir"]}/{basename}.openpmd.hdf5'
-            self.screen_threaded_function.scatter(scr, outname, name)
+            self.screen_threaded_function.scatter(scr, outname, name, float(clock_time(scr.s, clock)))
             if self.tangents is not None:
                 # track_tangents keys a screen by Cheetah's (sanitized) element name, the line end by its own
                 tangents = self.tangents["beams"]

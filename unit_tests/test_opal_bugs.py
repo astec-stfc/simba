@@ -50,7 +50,7 @@ def test_screens_read_their_monitor_file_first(tmp_path, monitor, spositions, de
     _write_opal_h5(tmp_path / "line.h5", [1.0, 2.0, 3.0])
     if monitor:
         _write_opal_h5(tmp_path / "SCR_opal.h5", [9.0])
-    lattice = SimpleNamespace(global_parameters={"master_subdir": str(tmp_path)})
+    lattice = SimpleNamespace(global_parameters={"master_subdir": str(tmp_path)}, start_time=0.0)
     beam = opalLattice.read_element_beam(
         lattice, "SCR", str(tmp_path / "line.h5"), spositions, default_step
     )

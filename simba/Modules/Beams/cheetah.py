@@ -34,23 +34,46 @@ def reference_time(s, p, mass, start):
     return t0 + (s - s0) * inv_beta / constants.speed_of_light
 
 
-def cheetah_lab_coordinates(parray, E0_eV, start=None):
+def reference_clock(lengths, gains, mass, start):
+    """
+    :func:`~simba.FrameworkHelperFunctions.reference_clock` in torch, so it differentiates: the
+    reference's (s, t) at each element's entrance and the last one's exit, as two tensors.
+    """
+    from torch import as_tensor, sqrt, stack
+    t, s, p = (as_tensor(v, dtype=float64) for v in start)
+    knots = [(s, t)]
+    for length, gain in zip(lengths, gains):
+        p1 = sqrt((sqrt(p**2 + mass**2) + gain) ** 2 - mass**2)
+        t = reference_time(s + length, p1, mass, (t, s, p))
+        s, p = s + length, p1
+        knots.append((s, t))
+    return tuple(stack(k) for k in zip(*knots))
+
+
+def clock_time(s, clock):
+    """``np.interp(s, *clock)`` in torch, for a :func:`reference_clock`."""
+    from torch import clamp, ones_like, where, zeros_like
+    knots, times = clock
+    # how far through each element s is, 0 to 1, in torch ops alone (no index from the data, which jvp hides)
+    width = knots[1:] - knots[:-1]
+    through = clamp((s - knots[:-1]) / where(width > 0, width, ones_like(width)), 0, 1)
+    return times[0] + (where(width > 0, through, zeros_like(through)) * (times[1:] - times[:-1])).sum()
+
+
+def cheetah_lab_coordinates(parray, E0_eV, clock=None):
     """
     A Cheetah beam's particles as an (n, 6) tensor of :data:`~simba.Modules.gradients.lab_coordinates`,
     kept in torch so it differentiates.
 
-    ``t`` is ``(s + tau) / c``, or on an open line, with ``start = (t0, s0, p0)``, the reference's
-    time of flight from it (:func:`reference_time`) plus ``tau / c``.
+    ``t`` is ``(s + tau) / c``, or on an open line, with a :func:`reference_clock`, the reference's
+    time of flight to ``s`` plus ``tau / c``.
     """
     from torch import sqrt, stack
     p0c = sqrt(parray.energy**2 - E0_eV**2)
     cpx = parray.px * p0c
     cpy = parray.py * p0c
     cpz = sqrt(parray.energies**2 - E0_eV**2 - cpx**2 - cpy**2)
-    t_reference = (
-        parray.s / constants.speed_of_light if start is None
-        else reference_time(parray.s, p0c, E0_eV, start)
-    )
+    t_reference = parray.s / constants.speed_of_light if clock is None else clock_time(parray.s, clock)
     t = t_reference + parray.tau / constants.speed_of_light
     return stack([parray.x, cpx, parray.y, cpy, t, cpz], dim=-1)
 
@@ -69,7 +92,7 @@ def cheetah_particles(lab, E0_eV, p0c, t0):
     return stack([x, cpx / p0c, y, cpy / p0c, tau, p, ones_like(x)], dim=-1)
 
 
-def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None):
     # Cheetah's Aperture does not remove a lost particle: it sets its survival probability to 0.
     # 0.5 is the threshold Cheetah's own openPMD writer uses to decide alive or lost.
     alive = parray.survival_probabilities.numpy() > 0.5
@@ -77,7 +100,9 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, 
     self.set_mass_and_charge(constants.m_e, charges, len(charges))
     # one rest energy for every particle of the Cheetah beam, lost ones included (simba's Cheetah beams are electrons)
     E0_eV = as_tensor(float(np.mean(self.E0_eV)), dtype=float64)
-    x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV, start).detach().numpy()[alive].T
+    x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV).detach().numpy()[alive].T
+    if t_reference is not None:  # when the reference got here, element by element (reference_clock), not s / c
+        t = t_reference + parray.tau.numpy()[alive] / constants.speed_of_light
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")
     self._beam.t = UnitValue(t, "s")

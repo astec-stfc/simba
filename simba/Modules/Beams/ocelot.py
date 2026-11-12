@@ -1,18 +1,14 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
-from ...FrameworkHelperFunctions import reference_time
 from ocelot.cpbd.beam import ParticleArray
 
 
-def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None, start=None):
+def particle_array_to_beam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None):
     n = len(parray.x())
     self.set_mass_and_charge(constants.m_e, -constants.elementary_charge, n)
     self._beam.x = UnitValue(parray.x(), units="m")
     self._beam.y = UnitValue(parray.y(), units="m")
-    if t_reference is None and start is not None:
-        # open line: the reference's time of flight from start = (t0, s0, p0)
-        t_reference = reference_time(s, parray.p0c * 1e9, float(np.mean(self.E0_eV)), start)
     if t_reference is None:
         t_reference = (zstart + parray.s) / constants.speed_of_light
     self._beam.t = UnitValue(

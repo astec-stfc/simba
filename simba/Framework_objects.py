@@ -478,7 +478,7 @@ class frameworkLattice(BaseModel):
 
     reference_start: tuple | None = None
     """(t, s, p) of the input beam's reference, so codes that track relative to it can
-    write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
+    write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_clock`."""
 
     remote_setup: Dict = Field({}, repr=False)
     """Settings for running executables remotely; holds the SSH password."""

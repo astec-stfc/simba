@@ -27,14 +27,17 @@ def write_csv_file(self, filename, data):
         [writer.writerow(line) for line in data]
 
 
-def read_astra_beam_file(self, filename, normaliseZ=False, keepLost=False):
+def read_astra_beam_file(self, filename, normaliseZ=False, keepLost=False, zplane=None):
     self.reset_dicts()
     data = read_csv_file(self, filename)
     self.filename = filename
-    interpret_astra_data(self, data, normaliseZ=normaliseZ, keepLost=keepLost)
+    interpret_astra_data(self, data, normaliseZ=normaliseZ, keepLost=keepLost, zplane=zplane)
 
 
-def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
+def interpret_astra_data(self, data, normaliseZ=False, keepLost=False, zplane=None):
+    """``zplane``: the screen the file is from, in ASTRA's z. ASTRA writes it when the bunch's mean z
+    is on it (or at the time step after, inside a field), not its reference particle: the snapshot is
+    drifted on to when the reference is on it, so that each t is when that particle crosses it."""
     if not keepLost:
         data = [d for d in data if d[-1] >= 0]
     x, y, z, cpx, cpy, cpz, clock, charge, index, status = np.transpose(data)
@@ -60,6 +63,15 @@ def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
         len(index),
     )
 
+    if zplane is not None:
+        shift, bz = zplane - zref, np.asarray(self.Bz)
+        z = np.where(status == -1, z, z + shift * bz / bz[0])  # one on the cathode has not left it
+        self._beam.z = UnitValue(z, units="m")
+        self._beam.toffset = UnitValue(float(self._beam.toffset) + shift / (bz[0] * constants.speed_of_light), units="s")
+        zref = zplane
+        self._beam.s = UnitValue(zref, units="m")
+        self.reference_particle = np.array(data[0], dtype=float)
+        self.reference_particle[[2, 6]] = zref, 1e9 * float(self._beam.toffset)
     self._beam.t = UnitValue(
         [
             (
@@ -119,8 +131,12 @@ def write_astra_beam_file(
     index: int = None,
     status: int = 5,
     normaliseZ: bool = False,
-    zoffset: float = 0.0
+    zoffset: float = 0.0,
+    zplane: float = None,
 ):
+    """``zplane``: where the beam's t are when each particle crosses, as ASTRA's z, for a beam with no reference
+    particle (one that has one is on it). ASTRA starts every particle where its z puts it at the reference's
+    clock, so that is when the reference is at its z, not when it crosses."""
     if filename is None:
         fn = os.path.splitext(self.filename)
         filename = fn[0].removesuffix(".ocelot").removesuffix(".openpmd") + ".astra"
@@ -166,6 +182,7 @@ def write_astra_beam_file(
             statusvector,
         ]
     ).transpose()
+    clock_shift = 0.0
     if self.reference_particle is not None:
         ref_particle = self.reference_particle
     else:
@@ -188,13 +205,21 @@ def write_astra_beam_file(
         self.reference_particle_index = nearest_idx
         """ set the closest mean vector to be in position 0 in the array """
         array = np.roll(array, -1 * nearest_idx, axis=0)
+        gap = 0.0 if zplane is None else zplane + zoffset - array[0, 2]
+        if gap:  # not 0/0 for a reference on a cathode
+            clock_shift = 1e9 * gap / (np.asarray(self.Bz)[nearest_idx] * constants.speed_of_light)
 
-    """ASTRA stores z and pz of non-reference particles relative to the reference particle."""
+    """ASTRA stores z, pz and the clock of non-reference particles relative to the reference particle."""
     array[1:, 2] = array[1:, 2] - ref_particle[2]
     if normaliseZ is not False:
         array[0, 2] = 0
     if isinstance(normaliseZ, (int, float)):
         array[0, 2] += normaliseZ
     array[1:, 5] = array[1:, 5] - ref_particle[5]
-    array[0, 6] = array[0, 6] + ref_particle[6]
+    # the reference's clock is absolute. A beam read from ASTRA keeps t relative to its reference and the reference's clock in
+    # toffset; any other's t is absolute.
+    array[1:, 6] = array[1:, 6] - array[0, 6]
+    if self._beam.toffset is not None:
+        array[0, 6] += 1e9 * float(self._beam.toffset)
+    array[0, 6] -= clock_shift
     np.savetxt(filename, array, fmt=("%.12e",) * 8 + ("%d", "%d"))

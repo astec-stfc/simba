@@ -5,6 +5,7 @@
 
 from ... import exceptions
 from ...Framework_objects import frameworkLattice, getGrids
+from ...FrameworkHelperFunctions import reference_clock
 from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
@@ -546,6 +547,9 @@ class ocelotLattice(frameworkLattice):
                     twiss_disp_correction=False,
                     print_progress=False,
                 )
+            for process in list(navi.process_table.kick_proc_list):
+                process.z0 = navi.z0
+                process.apply(self.pout, 0)
 
         self._periodic = None
         self.run_turns(track_pass, start_turn)
@@ -999,10 +1003,16 @@ class ocelotLattice(frameworkLattice):
             navi_locations_start += [loc]
             navi_locations_end += [loc]
         recorded = self.screens_and_markers_and_bpms + self.apertures
+        if pass_index is None and write_beams:  # a linac: the reference's time of flight, element by element, as Ocelot gains energy
+            sequence = self.lat_obj.sequence
+            clock = reference_clock(
+                [e.l for e in sequence], [1e9 * e.element.create_delta_e(e.l) for e in sequence],
+                self.rest_energy, self.reference_start,
+            )
 
         def t_reference(s):
             if pass_index is None:
-                return None
+                return float(np.interp(self.entrance_s + s, *clock))
             return self.reference_time(s, pass_index)
 
         file_turn = turn if self.bundles_turns else None
@@ -1020,7 +1030,6 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_in[w.name]),
                     file_turn=file_turn,
-                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]
@@ -1037,7 +1046,6 @@ class ocelotLattice(frameworkLattice):
                     beam_turn=beam_turn,
                     t_reference=t_reference(sval_out[self.end_name]),
                     file_turn=file_turn,
-                    start=self.reference_start,
                 )
             ]
             navi_locations_start += [loc]

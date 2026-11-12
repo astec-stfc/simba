@@ -11,6 +11,7 @@ except ImportError:
 
 from ... import exceptions
 from ...Framework_objects import frameworkLattice, getGrids
+from ...FrameworkHelperFunctions import reference_clock
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from copy import deepcopy
@@ -173,6 +174,11 @@ class xsuiteLattice(frameworkLattice):
 
     reference_at_start: Any | None = None
     """The line's reference particle before tracking: a ramp moves it"""
+
+    linac_clock: tuple | None = None
+    zeta_lag: dict = {}
+    """{element: the bunch's mean lag behind the reference (s) that centring zeta, one element at a time, took out}"""
+    """(s, t) of the reference along a line whose reference energy changes; see :meth:`set_linac_clock`"""
 
     end_monitor: Any | None = None
     """The beam at the end of each pass but the last of a multi-pass run; the
@@ -629,6 +635,16 @@ class xsuiteLattice(frameworkLattice):
         self.line.particle_ref = particle_ref
         self.names = self.line.element_names
 
+    def set_linac_clock(self) -> None:
+        """:attr:`linac_clock`: the reference's time of flight, element by element; its momentum steps at each ``ReferenceEnergyIncrease``."""
+        from xtrack import ReferenceEnergyIncrease
+
+        mass = float(self.line.particle_ref.mass0)
+        s = np.append(self.line.get_s_elements(), self.line.get_length())
+        steps = [e.Delta_p0c if isinstance(e, ReferenceEnergyIncrease) else 0.0 for e in self.line.elements]
+        energy = np.hypot(self.reference_start[2] + np.cumsum([0.0, *steps]), mass)
+        self.linac_clock = reference_clock(np.diff(s), np.diff(energy), mass, self.reference_start)
+
     @property
     def revolution_period(self) -> float:
         """
@@ -772,6 +788,8 @@ class xsuiteLattice(frameworkLattice):
         if self.wakefield_enable and self.trackBeam:
             self.install_wakes()
         self.line.build_tracker(_context=self.context)
+        if not self.fixed_reference:
+            self.set_linac_clock()
         if self.radiation not in (None, "off"):
             self.line.configure_radiation(model=self.radiation)
         self.line.freeze_energy(state=False, force=True)
@@ -781,6 +799,7 @@ class xsuiteLattice(frameworkLattice):
         if self.line.energy_program is not None:
             self.line.enable_time_dependent_vars = True
         self.reference_at_start = self.line.particle_ref.copy()
+        self.zeta_lag = {}
         self._closed_orbit = None
         # Particles.copy(), not deepcopy: deepcopy also copies a GPU context, which the
         # line's elements then refuse ("Incompatible context for argument `particles`")
@@ -800,10 +819,15 @@ class xsuiteLattice(frameworkLattice):
             self.tws = self._twiss()
             return
 
+        lag = 0.0
         for el, name in zip(self.line.elements, self.line.element_names):
-            pin.zeta -= pin.zeta.mean()  # Center zeta (numpy or cupy)
+            shift = float(pin.zeta.mean())
+            pin.zeta -= shift  # Center zeta (numpy or cupy)
+            lag -= shift / (float(pin.beta0[0]) * speed_of_light)
+            self.zeta_lag[name] = lag
             self._track_element(el, pin)  # Track in-place
             self.beam_data.update({name: self.bunch_statistics(pin)})
+        self.zeta_lag[self.end_name] = lag
         self.beam_data.update({"_end_point": self.bunch_statistics(pin)})
         self.pout = _to_cpu(pin)
         self.check_space_charge_grids(self.pout)
@@ -1199,10 +1223,12 @@ class xsuiteLattice(frameworkLattice):
         t_reference = None
         if self.uses_reference_clock:
             t_reference = self.reference_time(s - self.entrance_s, self.last_pass(turn))
+        elif self.linac_clock is not None:
+            t_reference = float(np.interp(s, *self.linac_clock)) + self.zeta_lag.get(name, 0.0)
         beam = deepcopy(self.global_parameters["beam"])
         beam.read_xsuite_beam_file(
             payload, zstart=zstart, s=s, ref_index=self.ref_idx,
-            t_reference=t_reference, start=self.reference_start, context=xo.ContextCpu(),  # read with numpy
+            t_reference=t_reference, context=xo.ContextCpu(),  # read with numpy
         )
         beam.turn = turn
         self.write_beam_file(beam, name, name_turn)

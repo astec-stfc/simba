@@ -416,6 +416,7 @@ class astraLattice(frameworkLattice):
                     )
                 ).strip('"'),
                 normaliseZ=False,
+                zplane=self.to_local(scr.physical.middle)[2],
             )
             if not self.in_local_frame:
                 rbf.hdf5.rotate_beamXZ(
@@ -532,5 +533,6 @@ class astraLattice(frameworkLattice):
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + astrabeamfilename,
             normaliseZ=False,
+            zplane=self.to_local(self.startObject.physical.start)[2],
         )
         return astrabeamfilename

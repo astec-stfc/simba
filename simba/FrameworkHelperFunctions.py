@@ -18,11 +18,26 @@ def saveFile(filename, lines=[], mode="w"):
 
 def reference_time(s, p, mass, start=None):
     """Time the reference particle reaches s with momentum p (eV/c, mass in eV), having
-    left start = (t0, s0, p0); without a start it left s=0 at t=0 with p."""
+    left start = (t0, s0, p0) and gained energy uniformly in between, as in one cavity
+    (for a line, :func:`reference_clock`); without a start it left s=0 at t=0 with p."""
     t0, s0, p0 = start if start is not None else (0.0, 0.0, p)
     energy, energy0 = np.hypot(p, mass), np.hypot(p0, mass)
     inv_beta = (p - p0) / (energy - energy0) if abs(energy - energy0) > 1e-6 * energy else energy / p
     return t0 + (s - s0) * inv_beta / speed_of_light
+
+
+def reference_clock(lengths, gains, mass, start):
+    """(s, t) of the reference at each element's entrance and the last one's exit, having left
+    start = (t0, s0, p0); element i, lengths[i] m long, adds gains[i] eV of total energy along it,
+    uniformly (0 but in a cavity). Between the knots, np.interp."""
+    t, s, p = start
+    knots = [(s, t)]
+    for length, gain in zip(lengths, gains):
+        p1 = float(np.sqrt((np.hypot(p, mass) + gain) ** 2 - mass**2))
+        t = reference_time(s + length, p1, mass, (t, s, p))
+        s, p = s + length, p1
+        knots.append((s, t))
+    return tuple(np.array(knots).T)
 
 
 def isevaluable(self, s):

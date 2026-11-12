@@ -584,7 +584,19 @@ class madxLattice(frameworkLattice):
             + ", ".join([f"{k} = {v}" for k, v in others.items()])
             + f", at = {at + L / 2.0};"
         )
-        return matrixstr + "\n" + cavstr, energy + de
+        return matrixstr + "\n" + cavstr + "\n" + self._cavity_time_saved(elemname, L, at, energy, energy + de), energy + de
+
+    def _cavity_time_saved(self, elemname: str, L: float, at: float, energy: float, energy_out: float) -> str:
+        """
+        A zero-length ``MATRIX`` after the thin ``RFCAVITY``, whose ``kick5`` gives the design particle back
+        the time it saves by speeding up along the cavity: the ``MATRIX`` has no time terms, so MAD-X crosses
+        it at the segment's ``beta0``, the cavity entrance's (segments end at each cavity).
+        ``T = -c dt``, and the energy gain is linear in ``s``, so ``int E/p ds = L dp/dE``.
+        """
+        m0 = self.rest_energy
+        p0, p1 = np.sqrt(energy**2 - m0**2), np.sqrt(energy_out**2 - m0**2)
+        saved = L * energy / p0 - L * (p1 - p0) / (energy_out - energy)
+        return f"{elemname}_TOF: matrix, l = 0, kick5 = {saved}, at = {at + L / 2.0};"
 
     def tw_matrix_cavity(
         self,
@@ -663,7 +675,7 @@ class madxLattice(frameworkLattice):
             + ", ".join([f"{k} = {v}" for k, v in others.items()])
             + f", at = {at + L / 2.0};"
         )
-        return matrixstr + "\n" + cavstr, energy_out
+        return matrixstr + "\n" + cavstr + "\n" + self._cavity_time_saved(elemname, L, at, energy, energy_out), energy_out
 
     def slice_cavity(self, cavstring: str, length: float, at: float) -> str:
         """

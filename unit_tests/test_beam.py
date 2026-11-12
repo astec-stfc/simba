@@ -672,6 +672,75 @@ def test_openpmd_alive_status_becomes_astra_standard_particle(simple_beam, tmp_p
     assert set(np.loadtxt(tmp_path / "b.astra")[:, -1]) == {5}
 
 
+def test_astra_file_keeps_the_reference_clock(simple_beam, tmp_path):
+    """The reference's clock is its own t and the others' are relative to it. The writer
+    doubled the reference's clock of a beam read from openPMD, where t is absolute, so
+    each ASTRA line in a chain doubled the bunch's time; one read from ASTRA was right."""
+    simple_beam.Particles.t = UnitValue(np.array(simple_beam.Particles.t.val) + 1e-8, "s")
+    simple_beam.Particles.status = np.ones(len(simple_beam.x))
+    simple_beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    beam = rbf.beam()
+    beam.read_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    t = 1e9 * np.array(beam.Particles.t.val)
+    beam.write_astra_beam_file(str(tmp_path / "b.astra"))
+    data = np.loadtxt(tmp_path / "b.astra")
+    t = np.roll(t, -beam.reference_particle_index)
+    assert data[0, 6] == pytest.approx(t[0], rel=1e-11)
+    np.testing.assert_allclose(data[1:, 6], t[1:] - t[0], atol=1e-9)  # ns, 12 digits
+    back = rbf.beam()
+    back.read_astra_beam_file(str(tmp_path / "b.astra"))
+    back.write_astra_beam_file(str(tmp_path / "c.astra"))  # from ASTRA, t relative (and from z): the same reference clock
+    assert np.loadtxt(tmp_path / "c.astra")[0, 6] == pytest.approx(data[0, 6], rel=1e-11)
+    # a reference particle in SI, as the SDDS and openPMD readers give one (ELEGANT's chicane before an ASTRA line), is not ns
+    from pmd_beamphysics import ParticleGroup
+    from simba.Modules.Beams.openpmd import read_particle_group
+    indexed = rbf.beam()
+    read_particle_group(indexed, ParticleGroup(h5=str(tmp_path / "b.openpmd.hdf5")), reference_particle_index=0)
+    indexed.write_astra_beam_file(str(tmp_path / "d.astra"))
+    assert np.loadtxt(tmp_path / "d.astra")[0, 6] == pytest.approx(1e9 * indexed.Particles.t.val[0], rel=1e-11)
+
+
+
+def test_astra_screen_times_are_at_the_screen(tmp_path):
+    """ASTRA writes a screen when the bunch's mean z is on it; its reference particle, 76 um behind here,
+    is not. Each t is when that particle crosses the screen, not where the reference happens to be: they
+    were 0.25 ps early through JFEL (and 67 fs late after the chicane, where the reference was ahead)."""
+    from scipy.constants import c, m_e, e as qe
+    rng = np.random.default_rng(1)
+    n, screen, clock = 1000, 5.0101, 16.755  # m, ns
+    dz = rng.normal(76e-6, 50e-6, n)  # from the reference
+    dz[0] = 0.0
+    pz = 35e6 * (1 + rng.normal(0, 4e-3, n))
+    rows = np.zeros((n, 10))
+    rows[:, 2] = np.r_[screen - 76e-6, dz[1:]]
+    rows[:, 5] = np.r_[pz[0], pz[1:] - pz[0]]
+    rows[0, 6] = clock
+    rows[:, 7], rows[:, 8], rows[:, 9] = -1e-4, 1, 5
+    np.savetxt(tmp_path / "s.astra", rows)
+    z = screen - 76e-6 + dz
+    beta = pz / np.hypot(pz, m_e * c**2 / qe)
+    beam = rbf.beam()
+    beam.read_astra_beam_file(str(tmp_path / "s.astra"), zplane=screen)
+    t = float(beam.Particles.toffset) + np.array(beam.Particles.t.val)
+    np.testing.assert_allclose(t, 1e-9 * clock + (screen - z) / (beta * c), rtol=0, atol=1e-18)
+    beam.write_astra_beam_file(str(tmp_path / "again.astra"))  # the reference on the screen, at its time there
+    again = np.loadtxt(tmp_path / "again.astra")
+    assert again[0, 2] == pytest.approx(screen, abs=1e-12)
+    assert again[0, 6] == pytest.approx(1e9 * t[0], rel=1e-12)
+
+
+def test_astra_reference_clock_is_when_it_is_at_its_z(simple_beam, tmp_path):
+    """ASTRA starts every particle where its z puts it at the reference's clock; that was the reference's time
+    at the plane instead, 0.1 to 0.3 ps out for a 1 mm bunch."""
+    from scipy.constants import c
+    plane, snapshot = 0.3, 2e-9  # m, s
+    z, bz = np.array(simple_beam.z.val), np.array(simple_beam.Bz.val)
+    simple_beam.Particles.t = UnitValue(snapshot + (plane - z) / (bz * c), "s")
+    assert simple_beam.reference_particle is None
+    simple_beam.write_astra_beam_file(str(tmp_path / "b.astra"), zplane=plane)
+    assert np.loadtxt(tmp_path / "b.astra")[0, 6] == pytest.approx(1e9 * snapshot, abs=1e-9)  # 1 fs
+
+
 def test_apply_mask(simple_beam):
     mask = np.array(simple_beam.x) > 0
     simple_beam.Particles.apply_mask(mask)
