@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import re
+import sys
 from shutil import copyfile, SameFileError
 from warnings import warn
 import numpy as np
@@ -109,6 +110,13 @@ def _convert_one(index):
     convert(items[index])
 
 
+def _one_torch_thread():
+    """A forked worker's torch runs on one thread: torch's thread pool, started before the fork, is not
+    in the child, which waits for it forever. torch's DataLoader does the same for its forked workers."""
+    if "torch" in sys.modules:
+        sys.modules["torch"].set_num_threads(1)
+
+
 def convert_outputs(convert, items, workers: int = 1) -> None:
     """
     Call ``convert(item)`` for each item, in ``workers`` forked processes if more than 1.
@@ -135,8 +143,10 @@ def convert_outputs(convert, items, workers: int = 1) -> None:
         return
     _CONVERSION = (convert, items)
     try:
-        with multiprocessing.get_context("fork").Pool(workers) as pool:
+        with multiprocessing.get_context("fork").Pool(workers, initializer=_one_torch_thread) as pool:
             pool.map(_convert_one, range(len(items)), chunksize=max(1, len(items) // (4 * workers)))
+            pool.close()
+            pool.join()
     finally:
         _CONVERSION = None
 

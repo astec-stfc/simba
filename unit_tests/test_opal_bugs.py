@@ -42,14 +42,17 @@ def _write_opal_h5(filename, times):
         (False, {"SCR": 1}, None, 2.0),  # no monitor file: the dump nearest in s
         (False, {}, -1, 3.0),  # neither: the default step (the end object's last dump)
         (False, {}, None, None),  # nothing at all
+        ("empty", {"SCR": 1}, None, 2.0),  # a monitor the bunch never crossed: as if there were none
+        ("empty", {}, None, None),
     ],
 )
 def test_screens_read_their_monitor_file_first(tmp_path, monitor, spositions, default_step, expected_t):
     """Screens were read from the nearest whole-bunch dump, up to 3 mm (10 ps) off the
-    plane, and looked up by z, which lags OPAL's s by ~6 mm after the injector dogleg."""
+    plane, and looked up by z, which lags OPAL's s by ~6 mm after the injector dogleg.
+    OPAL writes a monitor at the point where the line starts with no Step#0."""
     _write_opal_h5(tmp_path / "line.h5", [1.0, 2.0, 3.0])
     if monitor:
-        _write_opal_h5(tmp_path / "SCR_opal.h5", [9.0])
+        _write_opal_h5(tmp_path / "SCR_opal.h5", [] if monitor == "empty" else [9.0])
     lattice = SimpleNamespace(global_parameters={"master_subdir": str(tmp_path)})
     beam = opalLattice.read_element_beam(
         lattice, "SCR", str(tmp_path / "line.h5"), spositions, default_step

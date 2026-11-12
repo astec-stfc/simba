@@ -92,6 +92,28 @@ def test_convert_outputs_converts_every_item(tmp_path, workers):
     assert sorted(p.name for p in tmp_path.iterdir()) == names
 
 
+def test_convert_outputs_runs_torch_after_the_parent_started_torch_s_threads():
+    """A forked worker running torch waited forever once torch's thread pool had started in the parent
+    (Cheetah's postProcess after its tracking). In a subprocess, so that a hang fails the test."""
+    import os
+    import signal
+    import subprocess
+    import sys
+    script = (
+        "import torch\n"
+        "from simba.FrameworkHelperFunctions import convert_outputs\n"
+        "torch.rand(4_000_000, dtype=torch.float64).sqrt().sum()\n"
+        "convert_outputs(lambda i: torch.rand(4_000_000, dtype=torch.float64).sqrt().sum(), range(6), workers=3)\n"
+    )
+    run = subprocess.Popen([sys.executable, "-c", script], start_new_session=True)
+    try:
+        assert run.wait(timeout=120) == 0
+    finally:
+        if run.poll() is None:
+            os.killpg(run.pid, signal.SIGKILL)  # the parent and its hung workers
+            pytest.fail("convert_outputs hung")
+
+
 def test_convert_outputs_raises_a_workers_error(tmp_path):
     def convert(n):
         if n == "BAD":

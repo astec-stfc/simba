@@ -46,7 +46,7 @@ from .Modules.EnergyRamp import (
 )
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
+from .FrameworkHelperFunctions import convert_outputs, expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
 from .Modules.gradients import lab_array, lab_coordinates, saved_tangent, write_gradients
 from .Modules.units import UnitValue
@@ -67,8 +67,10 @@ from pydantic import (
     Field,
 )
 from typing import (
+    Callable,
     ClassVar,
     Dict,
+    Iterable,
     List,
     Any,
     Set,
@@ -2599,9 +2601,21 @@ class frameworkLattice(BaseModel):
         """
         Whether a beam recorded at ``name`` gets an :meth:`output_beam_file`.
 
-        Not at the start of the line: that is the input beam, the previous line's end.
+        Always at the end of the line; never at the start (that is the input beam, the
+        previous line's end) or at a BPM; nowhere else with ``end_beams_only``.
         """
-        return name != self.start
+        if name == self.start:
+            return False
+        if name in (self.end, self.end_name):
+            return True
+        if self.global_parameters.get("end_beams_only", False):
+            return False
+        element = self.elements.get(flatten_occurrence(name))
+        return element is None or element.hardware_type.lower() != "beam_position_monitor"
+
+    def convert_outputs(self, convert: Callable, items: Iterable) -> None:
+        """:func:`~simba.FrameworkHelperFunctions.convert_outputs` in ``conversion_workers`` processes."""
+        convert_outputs(convert, items, self.global_parameters.get("conversion_workers", 1))
 
     def get_prefix(self) -> str:
         """The ``input: prefix`` of the file block, defaulting to the master subdirectory."""
@@ -2913,6 +2927,14 @@ class frameworkLattice(BaseModel):
             + self.getElementType("beam_position_monitor"),
             key=lambda x: x.physical.start.z,
         )
+
+    @property
+    def output_elements(self) -> list:
+        """The screens and markers that :meth:`writes_output`, but not the end, written as the final beam."""
+        return [
+            e for e in self.screens_and_markers_and_bpms
+            if self.writes_output(e.name) and e.name not in (self.end, self.end_name)
+        ]
 
     @property
     def apertures(self) -> list:

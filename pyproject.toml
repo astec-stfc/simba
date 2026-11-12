@@ -25,7 +25,6 @@ dependencies = [
     "PyQt5>=5.1",
     "PyYAML>=5.3",
     "mpl-axes-aligner>=1.1",
-    "lox>=0.11",
     "fastKDE>=2.1.5",
     "pydantic>=2.5.3",
     "attrs>=23.2.0",
@@ -61,6 +60,9 @@ simcodes = [
     "cheetah-accelerator>=0.8.4",
     "Wake-T>=0.8.0",
     "cpymad>=1.19.0",
+    "pybdsim>=3.9.0",
+    "uproot>=5.0",
+    "orjson>=3.9",
 ]
 
 # FBPIC on a GPU also needs cupy built for the local CUDA version

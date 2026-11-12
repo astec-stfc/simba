@@ -6,7 +6,6 @@ tqdm>=4
 PyQt5>=5.1
 PyYAML>=5.3
 mpl-axes-aligner>=1.1
-lox>=0.11
 fastKDE>=2.1.5
 pydantic>=2.5.3
 attrs>=23.2.0

@@ -189,8 +189,11 @@ class Framework(BaseModel):
     delete_output_files: bool = False
     """Delete code output files after tracking."""
 
-    conversion_workers: int = 1
-    """Processes for converting screen outputs to openPMD (elegant only, for now); 1 converts them one by one."""
+    conversion_workers: int = 4
+    """Forked processes for converting screen outputs to openPMD; 1 converts them one by one."""
+
+    end_beams_only: bool = False
+    """Write output beams only at the end of each line, not at its screens and markers."""
 
     global_parameters: Dict = {}
     """Global parameters shared with all lattices and elements."""
@@ -272,6 +275,7 @@ class Framework(BaseModel):
             "GPTLICENSE": gptlicense,
             "delete_tracking_files": self.delete_output_files,
             "conversion_workers": self.conversion_workers,
+            "end_beams_only": self.end_beams_only,
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,

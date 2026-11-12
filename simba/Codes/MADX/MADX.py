@@ -1375,11 +1375,15 @@ class madxLattice(frameworkLattice):
         turn: int, optional
             Turn number
         """
-        if not self.writes_output(name):
-            return
-        bm.turn = self.beam_turn(turn)
-        self.write_beam_file(bm, name, turn)
-        self.output_beams[self.output_basename(name, turn=turn)] = bm
+        self.write_output_beams([(name, bm, turn)])
+
+    def write_output_beams(self, beams: list) -> None:
+        """:meth:`write_output_beam` for each ``(name, beam, turn)``, the files in parallel."""
+        beams = [b for b in beams if self.writes_output(b[0])]
+        for name, bm, turn in beams:
+            bm.turn = self.beam_turn(turn)
+            self.output_beams[self.output_basename(name, turn=turn)] = bm
+        self.convert_outputs(lambda b: self.write_beam_file(b[1], b[0], b[2]), beams)
 
     def run(self) -> None:
         """
@@ -1666,6 +1670,7 @@ class madxLattice(frameworkLattice):
                 tbar = tbar0 + (madx_turn - 1) * seg_len / (
                     coords["beta0"] * speed_of_light
                 )
+            outputs = []
             for name, s_local in observe:
                 data = self.extract_observation(trackdata, s_local, turn=madx_turn)
                 if len(data["x"]) == 0:
@@ -1684,7 +1689,8 @@ class madxLattice(frameworkLattice):
                 # the end of the line is written once more below, from the
                 # last turn; see `track_segment_beam` for the same guard
                 if name != self.end_name or name_turn is not None:
-                    self.write_output_beam(name, bm, turn=name_turn)
+                    outputs.append((name, bm, name_turn))
+            self.write_output_beams(outputs)
 
             data = self.extract_observation(trackdata, seg_len, turn=madx_turn)
             if len(data["x"]) == 0:
@@ -1872,6 +1878,7 @@ class madxLattice(frameworkLattice):
         trackdata = self.run_track(madx, coords, observe)
         charge_per_particle = charge_total / npart
 
+        outputs = []
         for name, s_local in observe:
             if not record:
                 continue
@@ -1895,7 +1902,8 @@ class madxLattice(frameworkLattice):
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
             if name != self.end_name or name_turn is not None:
-                self.write_output_beam(name, bm, turn=name_turn)
+                outputs.append((name, bm, name_turn))
+        self.write_output_beams(outputs)
 
         data = self.extract_observation(trackdata, seg_len + self._madx_shift[segnames[-1]])
         nlost = npart - len(data["x"])
@@ -1994,6 +2002,7 @@ class madxLattice(frameworkLattice):
                 ref_index=ref_index,
             )
 
+        outputs = []
         for name, s_local in observe:
             if not record:
                 continue
@@ -2007,7 +2016,8 @@ class madxLattice(frameworkLattice):
                 name, bm, spos, elem.physical.middle.z, turn=name_turn
             )
             if name != self.end_name or name_turn is not None:
-                self.write_output_beam(name, bm, turn=name_turn)
+                outputs.append((name, bm, name_turn))
+        self.write_output_beams(outputs)
 
         endelem = self._elements_with_drifts[segnames[-1]]
         bm_end = transformed_beam_at(

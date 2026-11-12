@@ -12,7 +12,7 @@ from simba import exceptions
 from simba.Modules import constants
 
 pytest.importorskip("pybdsim")
-from simba.Codes.BDSIM.BDSIM import bdsimLattice  # noqa: E402
+from simba.Codes.BDSIM.BDSIM import bdsimLattice, match_samplers  # noqa: E402
 
 needs_bdsim = pytest.mark.skipif(shutil.which("bdsim") is None, reason="BDSIM not installed")
 
@@ -20,16 +20,23 @@ needs_bdsim = pytest.mark.skipif(shutil.which("bdsim") is None, reason="BDSIM no
 @pytest.mark.parametrize(
     "tracking, physics_list, options",
     [
-        (None, "", {"stopSecondaries": 1}),
-        ({"physics_list": "em"}, "em", {"physicsList": '"em"', "stopSecondaries": 1}),
+        (None, "", {"stopSecondaries": 1, "samplersSplitLevel": 1}),
+        ({"physics_list": "em"}, "em", {"physicsList": '"em"', "stopSecondaries": 1, "samplersSplitLevel": 1}),
         (
             {"physics_list": "em", "options": {"defaultRangeCut": 1e-3, "physicsVerbose": "1"}},
             "em",
-            {"defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"', "stopSecondaries": 1},
+            {
+                "defaultRangeCut": 1e-3, "physicsVerbose": '"1"', "physicsList": '"em"',
+                "stopSecondaries": 1, "samplersSplitLevel": 1,
+            },
         ),
         # secondaries asked for are tracked, and the options can always say otherwise
-        ({"physics_list": "em", "secondaries": ["photon"]}, "em", {"physicsList": '"em"'}),
-        ({"options": {"stopSecondaries": 0}}, "", {"stopSecondaries": 0}),
+        ({"physics_list": "em", "secondaries": ["photon"]}, "em", {"physicsList": '"em"', "samplersSplitLevel": 1}),
+        (
+            {"options": {"stopSecondaries": 0, "samplersSplitLevel": 0}},
+            "",
+            {"stopSecondaries": 0, "samplersSplitLevel": 0},
+        ),
     ],
 )
 def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, physics_list, options):
@@ -38,6 +45,16 @@ def test_the_physics_list_and_options_come_from_the_tracking_block(tracking, phy
     line.secondaries = bdsimLattice.secondaries.fget(line)
     assert line.physics_list == physics_list
     assert bdsimLattice.bdsim_options.fget(line) == options
+
+
+def test_a_marker_without_a_sampler_shares_one_at_the_same_s():
+    """Of two markers side by side BDSIM keeps one sampler; at s = 0 the Primary is the beam."""
+    svals = {"M-START": 0.0, "M-APER": 16.2, "M-MARK": 16.2, "SCR": 17.3, "M-LOST": 18.0}
+    names = list(svals)
+    available = {"Primary", "M_MARK", "SCR"}
+    assert match_samplers(names, names, svals, available) == {
+        "M-START": "Primary", "M-APER": "M_MARK", "M-MARK": "M_MARK", "SCR": "SCR", "M-LOST": "M_LOST",
+    }
 
 
 def _collimator_line(tmp_path, tracking, npart=400, element=None, seed=None):
@@ -98,6 +115,23 @@ def test_without_a_physics_list_material_does_nothing_and_says_so(tmp_path):
     beam, caught = _collimator_line(tmp_path, {}, npart=100)
     assert len(beam.x) == 100
     assert any(isinstance(m, exceptions.MaterialWithoutPhysicsWarning) for m in caught)
+
+
+@needs_bdsim
+def test_a_marker_at_the_entrance_gets_the_primary_beam(tmp_path):
+    """BDSIM adds no sampler to a marker with nothing before it."""
+    from laura.models.element import Marker
+
+    import simba.Modules.Beams as rbf
+
+    m2 = Marker(name="M2", machine_area="LINE", hardware_class="Marker",
+                physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}})
+    _collimator_line(tmp_path, {}, element=m2, npart=50)
+    beam, seed = rbf.beam(), rbf.beam()
+    rbf.openpmd.read_openpmd_beam_file(beam, str(tmp_path / "run" / "M2.openpmd.hdf5"))
+    rbf.openpmd.read_openpmd_beam_file(seed, str(tmp_path / "seed.openpmd.hdf5"))
+    assert float(np.atleast_1d(beam.s)[0]) == pytest.approx(0.0)
+    assert np.allclose(np.sort(beam.x.val), np.sort(seed.x.val))
 
 
 @needs_bdsim
@@ -227,6 +261,16 @@ def test_the_reference_particle_is_found_by_its_event():
     assert beam.x.val[beam.reference_particle_index] == 1.0
     assert list(beam.particle_species) == ["electron", "electron", "electron", "photon"]
     assert float(beam.Particles.total_charge) == pytest.approx(-3e-15)
+
+
+def test_s_is_the_machine_position_not_the_lines():
+    """BDSIM's ``S`` starts at the line's entrance; ``sstart`` puts it back on the machine."""
+    import simba.Modules.Beams as rbf
+    from simba.Modules.Beams import bdsim
+
+    beam = rbf.beam()
+    bdsim.interpret_bdsim_sampler(beam, _sampler((0, 0, 11, 1.0), (1, 0, 11, 1.0)), sstart=80.296)
+    assert float(beam.s) == pytest.approx(81.296)
 
 
 def test_a_lost_reference_and_unknown_secondaries_are_reported():
