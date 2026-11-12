@@ -386,11 +386,12 @@ class opalLattice(frameworkLattice):
         self.files.append(f"{self.global_parameters['master_subdir']}/{initobj}.opal")
         self.write()
 
-    def read_element_beam(self, name, opalbeamname, spositions, default_step=None):
+    def read_element_beam(self, name, opalbeamname, spositions, default_step=None, at=None):
         """
         The beam at element ``name``: from its MONITOR file if OPAL wrote one,
         else from the dump in ``opalbeamname`` at step ``spositions[name]``,
-        else ``default_step``; ``None`` if there is neither.
+        else ``default_step``; ``None`` if there is neither. A monitor's beam is
+        moved to the plane through ``at``, a world position, if given.
         """
         monitor = f'{self.global_parameters["master_subdir"]}/{name}_opal.h5'
         if os.path.exists(monitor):
@@ -401,7 +402,14 @@ class opalLattice(frameworkLattice):
             return None
         beam = rbf.beam()
         beam.read_opal_beam_file(filename=filename, step=step)
-        beam._beam.t = UnitValue(beam._beam.t.val + self.start_time, "s")
+        t = beam._beam.t.val + self.start_time
+        if at is not None and filename == monitor:
+            with h5py.File(monitor, "r") as f:
+                ref = np.asarray(f["Step#0"].attrs["RefPartR"], dtype=float)
+                direction = np.asarray(f["Step#0"].attrs["RefPartP"], dtype=float)
+            past = (ref - self.to_local(at) + self.to_local(self.startObject.physical.start)) @ direction
+            t = t - past / np.linalg.norm(direction) / (np.asarray(beam._beam.Bz) * speed_of_light)
+        beam._beam.t = UnitValue(t, "s")
         return beam
 
     def postProcess(self):
@@ -416,7 +424,7 @@ class opalLattice(frameworkLattice):
         unmonitored = {n: s for n, s in svals.items() if not os.path.exists(f"{subdir}/{n}_opal.h5")}
         spositions = find_opal_s_positions(opalbeamname, unmonitored, tolerance=0.05) if unmonitored else {}
         for elem in self.screens_and_bpms:
-            beam = self.read_element_beam(elem.name, opalbeamname, spositions)
+            beam = self.read_element_beam(elem.name, opalbeamname, spositions, at=elem.physical.middle)
             if beam is not None:
                 zpos = self.local_z(elem.physical.middle)
                 beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")
@@ -426,7 +434,7 @@ class opalLattice(frameworkLattice):
                     f'{self.output_basename(elem.name)}.openpmd.hdf5',
                 )
         beam = self.read_element_beam(
-            self.endObject.name, opalbeamname, spositions, default_step=-1
+            self.endObject.name, opalbeamname, spositions, default_step=-1, at=self.endObject.physical.end
         )
         zpos = self.local_z(self.endObject.physical.end)
         beam._beam.z = UnitValue(beam._beam.z.val + zpos, "m")

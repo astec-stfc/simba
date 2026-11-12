@@ -39,7 +39,7 @@ def _track_lattice(tmp_path, code, container_runtime, middle_elements, before_tr
     return os.path.join(framework.subdirectory, "M3.openpmd.hdf5")
 
 
-def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e3, cheetah_settings=None, before_track=None):
+def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e3, cheetah_settings=None, before_track=None, files=None):
     m1 = Marker(name="M1", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": 0.0}})
     end_z = middle_elements[-1].physical.middle.z + middle_elements[-1].physical.length
     m3 = Marker(name="M3", machine_area="FODO", hardware_class="Marker", physical={"middle": {"x": 0.0, "y": 0.0, "z": end_z}})
@@ -50,13 +50,15 @@ def _run_lattice(tmp_path, code, container_runtime, middle_elements, sigma_pz=1e
     export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
 
     settings = fw.FrameworkSettings()
+    files = files or {"FODO": (code, "M1", "M3")}  # name: (code, start element, end element), tracked in turn
     settings.files = {
-        "FODO": {
-            "code": code,
+        name: {
+            "code": c,
             "charge": {"space_charge_mode": "False"},
             "input": {},
-            "output": {"start_element": "M1", "end_element": "M3"},
+            "output": {"start_element": start, "end_element": end},
         }
+        for name, (c, start, end) in files.items()
     }
     settings.layout = machine.layout
     settings.section = {"sections": {"FODO": element_names}}
@@ -246,6 +248,118 @@ def test_output_timestamps_after_a_cavity(tmp_path, code):
     inv_beta = np.mean(after.energy.val / after.cpz.val)  # per particle, and pz: the angles are worth 1 fs here
     flight = np.mean(end.t.val) - np.mean(after.t.val)
     assert flight == pytest.approx(3.5 * inv_beta / c, abs=1e-15)
+
+
+def _chicane_line(tmp_path, code, container_runtime=None, files=None, before_track=None):
+    """Four 0.1 rad rectangular dipoles: 4 m of path from M1 to screen M2 in 3.989 m of z, then 1.5 m of drift to M3."""
+    from laura.models.element import Dipole, Drift, Quadrupole, Screen
+    from laura.models.element_list import MachineModel
+    for c in {code, *(f[0] for f in (files or {}).values())} - {None}:
+        skip_missing(c)
+
+    def dipole(name, angle, e1, e2):
+        return Dipole(
+            name=name, hardware_class="Magnet", machine_area="FODO", physical={"length": 0.2},
+            magnetic={"length": 0.2, "k0l": angle, "entrance_edge_angle": e1, "exit_edge_angle": e2},
+            simulation={"csr_enable": False},  # CSR took 1.7 keV off the bunch in ImpactX: 18 fs in the drift after
+        )
+
+    def drift(name, length):
+        return Drift(name=name, machine_area="FODO", physical={"length": length})
+
+    line = [
+        Marker(name="M1", machine_area="FODO", hardware_class="Marker"), drift("O1", 0.5),
+        dipole("D1", 0.1, 0.0, 0.1), drift("O2", 1.0), dipole("D2", -0.1, -0.1, 0.0), drift("O3", 0.5),
+        dipole("D3", -0.1, 0.0, -0.1), drift("O4", 1.0), dipole("D4", 0.1, 0.1, 0.0), drift("O5", 0.2),
+        Screen(name="M2", machine_area="FODO", hardware_class="Diagnostic"),  # ASTRA and OPAL write only at diagnostics
+    ]
+    # LAURA lays the line out, then the elements go in at the positions it found, as _run_lattice wants them
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        placed = MachineModel(
+            elements={e.name: e for e in line}, section={"sections": {"FODO": [e.name for e in line]}},
+            layout={"layouts": {"L": ["FODO"]}, "default_layout": "L"},
+        ).elements
+    stated = []
+    for element in line[1:]:
+        if isinstance(element, Drift):
+            continue
+        p, data = placed[element.name].physical, element.model_dump(exclude_none=True)
+        data["physical"].update(middle=p.middle.model_dump(), rotation=p.rotation.model_dump())
+        stated.append(type(element).model_validate(data))
+    assert placed["M2"].physical.s == pytest.approx(4.0) and placed["M2"].physical.middle.x == pytest.approx(0.0, abs=1e-12)
+    end = placed["M2"].physical.middle.z
+    stated.append(Quadrupole(  # no strength: a drift from M2, then 0.5 m more to M3
+        name="Q0", machine_area="FODO", magnetic={"length": 1.0, "k1l": 0.0},
+        physical={"length": 1.0, "middle": {"x": 0.0, "y": 0.0, "z": end + 0.5}},
+    ))
+    return _run_lattice(tmp_path, code, container_runtime, stated, before_track=before_track, files=files)
+
+
+def _chicane_flights(framework):
+    """Each bunch's flight M1 to M2 and M2 to M3, and what 4 m and then 1.5 m take at its speed."""
+    from scipy.constants import c
+    from simba.Modules.Beams import load_file
+    start, after, end = (load_file(os.path.join(framework.subdirectory, f"{n}.openpmd.hdf5")) for n in ("M1", "M2", "M3"))
+    inv_beta = np.mean(start.energy.val / start.cp.val)
+    return (
+        (np.mean(after.t.val) - np.mean(start.t.val), 4.0 * inv_beta / c),
+        (np.mean(end.t.val) - np.mean(after.t.val), 1.5 * inv_beta / c),
+    )
+
+
+def _bmad_libtao():
+    # the library the other tests start Tao from: pytao can start only one per process
+    libtao = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
+    if not os.path.exists(libtao):
+        pytest.skip("Bmad libtao not installed")
+    return libtao
+
+
+@pytest.mark.parametrize("code,container_runtime", [
+    ("ocelot", None), ("xsuite", None), ("cheetah", None), ("impactx", None), ("madx", None), ("bmad", None),
+    pytest.param("elegant", "docker", id="elegant", marks=needs_container),
+    pytest.param("astra", "docker", id="astra", marks=needs_container),
+    pytest.param("opal", "docker", id="opal", marks=needs_container),
+])
+def test_output_timestamps_through_a_chicane(tmp_path, code, container_runtime):
+    """Through a chicane the bunch takes its path, not its z, over beta c: 4 m against 3.989 m here, 37 ps.
+    LAURA's surveyed sections restarted s after a bend, OPAL's rbend took the arc for its straight length,
+    and ELEGANT's beam gave its s as z, which put the next code's start 93 ps out after JFEL's chicane.
+    Here ASTRA bent the wrong way, 18 ps, and drew the faces of D2 and D4 askew; OPAL's dipoles took the
+    momentum for their kinetic energy, 4 ps, and its monitors sat 0.5 mm off its screens, 1.8 ps; Ocelot
+    wrote nothing at M3."""
+    libtao = _bmad_libtao() if code == "bmad" else None
+
+    def use_libtao(framework):
+        framework["FODO"].libtao = libtao
+
+    framework = _chicane_line(tmp_path, code, container_runtime, before_track=use_libtao if libtao else None)
+    (chicane, chicane_expected), (drift, drift_expected) = _chicane_flights(framework)
+    # the angles add 0.5 fs of path through the chicane and 0.1 fs through the drift; ASTRA's and OPAL's
+    # soft-edge fringes, from the 32 mm gap, take 70 fs and 35 fs off the arc (-4 fs and +4 fs at 8 mm)
+    assert chicane == pytest.approx(chicane_expected, abs=1.5e-13 if code in ("astra", "opal") else 2e-15)
+    assert drift == pytest.approx(drift_expected, abs=2e-15)
+
+
+@needs_container
+def test_timestamps_carry_from_elegant_through_a_chicane_into_astra(tmp_path):
+    """ELEGANT tracks the chicane and ASTRA the drift after it, from where ELEGANT left the bunch."""
+    from simba.Modules.Beams import load_file
+    framework = _chicane_line(
+        tmp_path, None, "docker", files={"CHICANE": ("elegant", "M1", "M2"), "DRIFT": ("astra", "M2", "M3")}
+    )
+    (chicane, chicane_expected), (drift, drift_expected) = _chicane_flights(framework)
+    # the angles add 0.5 fs of path through the chicane and 0.1 fs through the drift
+    assert chicane == pytest.approx(chicane_expected, abs=2e-15)
+    assert drift == pytest.approx(drift_expected, abs=2e-15)
+    def z(beam):  # where the reference was when it crossed; the bunch's mean is up to 3 mm off it here
+        ref = beam.reference_particle_index
+        return np.mean(beam.z.val) if ref is None else np.asarray(beam.z.val)[ref]
+
+    after, end = (load_file(os.path.join(framework.subdirectory, f"{n}.openpmd.hdf5")) for n in ("M2", "M3"))
+    assert z(after) == pytest.approx(3.98868, abs=1e-4)  # z, not the 4 m of s
+    assert z(end) == pytest.approx(3.98868 + 1.5, abs=1e-4)
 
 
 def test_waket_tracks(tmp_path):

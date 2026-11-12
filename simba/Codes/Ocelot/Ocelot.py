@@ -526,6 +526,9 @@ class ocelotLattice(frameworkLattice):
                     twiss_disp_correction=False,
                     print_progress=False,
                 )
+            for process in list(navi.process_table.kick_proc_list):
+                process.z0 = navi.z0
+                process.apply(self.pout, 0)
 
         self._periodic = None
         self.run_turns(track_pass, start_turn)
