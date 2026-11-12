@@ -60,11 +60,11 @@ def read_SDDS_beam_file(
     cpy = beamprops["yp"] * cpz
     self.set_momenta(cpx, cpy, cpz)
     if "Charge" in elegantData and len(elegantData["Charge"]) > 0:
-        self._beam.set_total_charge(elegantData["Charge"][0])
-    elif charge is None:
+        charge = elegantData["Charge"][0]
+    if charge is None:
         self._beam.set_total_charge(self._beam.total_charge)
     else:
-        self._beam.set_total_charge(charge)
+        self._beam.set_total_charge(-abs(charge))
     self._beam.nmacro = UnitValue(
         np.abs(self._beam.charge / self._beam.particle_charge)
     )

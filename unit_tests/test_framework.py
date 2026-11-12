@@ -2,6 +2,7 @@ import os
 import pytest
 import shutil
 import types
+import warnings
 from pydantic import ValidationError
 import simba.Framework as fw
 from simba.Framework_objects import chicane
@@ -144,6 +145,14 @@ def test_framework_settings_and_tracking(framework_with_machine, simple_generato
     framework.set_lattice_prefix("FODO", f"{simple_generator}/")
     framework.track()
     assert os.path.isfile(os.path.join(framework.directory, "M3.openpmd.hdf5"))
+    # the settings.def saved beside the run loads the lattice saved with it
+    saved = os.path.join(framework.subdirectory, "lattice")
+    rerun = fw.Framework(directory=str(simple_generator / "rerun"))
+    rerun.loadSettings(filename=os.path.join(framework.subdirectory, "settings.def"))
+    assert rerun.settings["element_list"] == os.path.join(saved, "summary.yaml")
+    assert rerun.settings["section"] == os.path.join(saved, "_sections.yaml")
+    assert rerun.settings["layout"] == os.path.join(saved, "_layouts.yaml")
+    assert rerun.machine.sections["FODO"].names == ["M1", "QUAD1F", "QUAD1D", "M3"]
     with pytest.raises(FileNotFoundError):
         framework.loadSettings(filename="non_existent.def")
     with pytest.raises(ValueError):
@@ -243,6 +252,17 @@ def test_detect_changes(sample_framework, kwargs):
     changes = fw_obj.detect_changes(**kwargs)
     assert "E1" in changes
     assert "machine_area" in str(changes["E1"])
+
+def test_the_whole_machine_is_saved_as_one_summary_file(framework_with_machine, tmp_path):
+    framework_with_machine.save_lattice(directory=str(tmp_path), filename="lattice.yaml")
+    saved = tmp_path / "lattice"
+    assert sorted(os.listdir(saved)) == ["_layouts.yaml", "_sections.yaml", "summary.yaml"]
+    reloaded = LAURA(
+        layout=str(saved / "_layouts.yaml"),
+        section=str(saved / "_sections.yaml"),
+        element_list=str(saved / "summary.yaml"),
+    )
+    assert reloaded.sections["FODO"].names == ["M1", "QUAD1F", "QUAD1D", "M3"]
 
 def test_save_and_load_changes_file(sample_framework, tmp_path):
     fw_obj = sample_framework
@@ -421,3 +441,76 @@ def test_an_unknown_name_in_brackets_raises(sample_framework):
     assert sample_framework["directory"] == sample_framework.directory
     with pytest.raises(KeyError, match="NO-SUCH"):
         sample_framework["NO-SUCH"]
+
+
+@pytest.fixture
+def tracked_directory(framework_with_machine, simple_generator):
+    framework = framework_with_machine
+    framework["FODO"].lsc_enable = False
+    framework["FODO"].csr_enable = False
+    framework.set_lattice_prefix("FODO", f"{simple_generator}/")
+    framework.track()
+    return framework.directory
+
+
+def test_load_directory_is_quiet_unless_asked(tracked_directory, capsys):
+    capsys.readouterr()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fwdir = fw.load_directory(tracked_directory, beams=True)
+    assert [str(w.message) for w in caught] == []
+    assert capsys.readouterr().out == ""
+    assert len(fwdir.beams) > 0
+
+
+def test_load_directory_reads_the_settings_file_it_is_given(tracked_directory):
+    shutil.copy(
+        os.path.join(tracked_directory, "settings.def"),
+        os.path.join(tracked_directory, "other.def"),
+    )
+    fwdir = fw.load_directory(tracked_directory, settings="other.def")
+    assert fwdir.framework.settings.settingsFilename.endswith("other.def")
+
+
+def test_find_master_lattice_from_saved_settings(tmp_path):
+    # #22: a run's settings.def keeps the .def's relative element_list; the master
+    # lattice is the ancestor of the original .def where that path resolves
+    (tmp_path / "ML" / "YAML").mkdir(parents=True)
+    (tmp_path / "ML" / "Lattices").mkdir()
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "settings.def").write_text(
+        f"settingsFilename: {tmp_path / 'ML' / 'Lattices' / 'x.def'}\nelement_list: ./YAML/\n"
+    )
+    assert fw._find_master_lattice(str(run / "settings.def")) == str(tmp_path / "ML")
+    (run / "settings.def").write_text("element_list: ./YAML/\n")
+    assert fw._find_master_lattice(str(run / "settings.def")) is None
+
+
+def test_change_lattice_code_is_saved(framework_with_machine, tmp_path):
+    # #23: settings.def kept the .def's code after change_Lattice_Code
+    framework = framework_with_machine
+    framework.change_Lattice_Code("FODO", "elegant")
+    assert type(framework["FODO"]).__name__ == "elegantLattice"
+    assert framework["FODO"].code == "elegant"
+    framework.save_settings(directory=str(tmp_path))
+    saved = fw.FrameworkSettings(str(tmp_path / "settings.def"))
+    assert saved["files"]["FODO"]["code"] == "elegant"
+
+
+def test_remote_password_is_not_saved_or_shown(framework_with_machine, tmp_path):
+    framework = framework_with_machine
+    block = framework.settings.files["FODO"]
+    block["code"] = "elegant"
+    block["remote"] = {"server": "apclara1", "username": "u", "password": "s3cret"}
+    framework.read_Lattice("FODO", block)
+    line = framework["FODO"]
+    assert line.remote_setup["password"] == "s3cret"
+    framework.save_settings(directory=str(tmp_path))
+    assert "s3cret" not in (tmp_path / "settings.def").read_text()
+    assert "s3cret" not in repr(line) + str(line)
+    assert "s3cret" not in str(fw.Framework(directory=str(tmp_path), password="s3cret"))
+    # no password: SSH keys / agent
+    block["remote"] = {"server": "apclara1", "username": "u"}
+    framework.read_Lattice("FODO", block)
+    assert framework["FODO"].remote_setup["password"] is None

@@ -68,9 +68,15 @@ def _machine(tmp_path):
 
 @pytest.fixture(scope="module")
 def seed_beam(tmp_path_factory):
-    """Generated once, as ``frameworkGenerator`` is unseeded. At s = 100 m,
-    so an s taken from it rather than the lattice shows."""
+    """Generated once, from a fixed seed: ``frameworkGenerator`` draws from NumPy's
+    global generator, so an unseeded beam depends on the draws of every test before
+    it, and ``test_the_reference_is_the_incoming_beams_before_sampling`` fails for a
+    beam whose every-other-particle mean is within 1e-6 of the full mean (about 3 %
+    of beams; seed 3 gives 2.6e-5). The global state is put back afterwards.
+    At s = 100 m, so an s taken from it rather than the lattice shows."""
     directory = tmp_path_factory.mktemp("seed")
+    state = np.random.get_state()
+    np.random.seed(3)
     frameworkGenerator(
         global_parameters={"master_subdir": str(directory)},
         filename="M1.openpmd.hdf5", initial_momentum=5e6,
@@ -80,6 +86,7 @@ def seed_beam(tmp_path_factory):
         gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3,
         charge=1e-15, number_of_particles=64,
     ).write()
+    np.random.set_state(state)
     path = os.path.join(str(directory), "M1.openpmd.hdf5")
     beam = _read(path)
     beam.s = 100.0
