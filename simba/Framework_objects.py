@@ -15,7 +15,10 @@ Classes:
 import math
 import os
 import subprocess
-from warnings import warn
+from warnings import warn, catch_warnings, simplefilter
+import shutil
+import tempfile
+from functools import reduce
 import stat
 import yaml
 from copy import deepcopy
@@ -43,8 +46,10 @@ from .Modules.EnergyRamp import (
 )
 from .Modules.MathParser import MathParser
 from .Framework_Settings import FrameworkSettings
-from .FrameworkHelperFunctions import expand_substitution
+from .FrameworkHelperFunctions import expand_substitution, set_deep_attr
 from .Modules import Beams as rbf
+from .Modules.gradients import lab_array, lab_coordinates, saved_tangent, write_gradients
+from .Modules.units import UnitValue
 from .Codes import Executables as exes
 from .Modules import constants
 from .Modules.constants import speed_of_light
@@ -446,6 +451,10 @@ class frameworkLattice(BaseModel):
     ref_idx: int | None = None
     """Index of the incoming beam's reference particle; see :meth:`load_input_beam`."""
 
+    incoming_tangents: Dict | None = None
+    """``parameters``, ``values`` and the (n, 6, P) ``tangent`` an upstream line left with
+    the input beam file; see :meth:`check_incoming_tangents`."""
+
     native_time: ClassVar[tuple[str, str]] = ("t", "s")
     """The code's own longitudinal time coordinate, as ``(name, units)``; see :meth:`native_time_scale`."""
 
@@ -458,6 +467,9 @@ class frameworkLattice(BaseModel):
     _input_particle: dict | None = None
     """The incoming reference particle's ``t`` and ``z``, if any; see :attr:`reference_t0`."""
 
+    _input_shift: np.ndarray | None = None
+    """(n, 6) nudge to the input beam's lab coordinates; see :meth:`finite_difference_tangents`."""
+
     _section: SectionLatticeTranslator = None
     """LAURA section translator."""
 
@@ -468,8 +480,8 @@ class frameworkLattice(BaseModel):
     """(t, s, p) of the input beam's reference, so codes that track relative to it can
     write absolute times; see :func:`~simba.FrameworkHelperFunctions.reference_time`."""
 
-    remote_setup: Dict = {}
-    """Settings for running executables remotely."""
+    remote_setup: Dict = Field({}, repr=False)
+    """Settings for running executables remotely; holds the SSH password."""
 
     files: List = []
     """Files needed to run the lattice."""
@@ -524,6 +536,9 @@ class frameworkLattice(BaseModel):
 
     supports_ramp: ClassVar[bool] = False
     """Whether this code can track an energy ramp; see :class:`~simba.Modules.EnergyRamp.EnergyRamp`."""
+
+    supports_gradients: ClassVar[bool] = False
+    """Whether this code can differentiate its tracking; see :attr:`gradient_parameters`."""
 
     electrons_only: ClassVar[bool] = False
     """Whether this code tracks only electrons; other beams are refused by :meth:`check_species`."""
@@ -1079,6 +1094,247 @@ class frameworkLattice(BaseModel):
             self.objectname, self.code, [p.element for p in self.programs],
             self.codes_that_can("supports_programs"),
         ))
+
+    @property
+    def gradient_parameters(self) -> list:
+        """
+        The ``ELEMENT:keyword`` entries of ``global: gradients: parameters`` whose element is in this line::
+
+            global:
+              gradients:
+                parameters: [QUAD1F:k1l, CAV1:phase]
+        """
+        gradients = self.settings["global"].get("gradients") or {}
+        return [p for p in gradients.get("parameters") or [] if p.split(":")[0] in self.elements]
+
+    @property
+    def finite_difference_step(self) -> float | None:
+        """
+        The relative step of :meth:`finite_difference_tangents`, from the file block, or None when off::
+
+            gradients:
+              finite_difference: true     # or {step: 1.0e-3}; the default step is 1e-4
+        """
+        stated = (self.file_block.get("gradients") or {}).get("finite_difference")
+        if not stated:
+            return None
+        return 1e-4 if stated is True else float(stated["step"])
+
+    @property
+    def carries_gradients(self) -> bool:
+        """This code differentiates its tracking, or this line asks for :meth:`finite_difference_tangents`."""
+        return self.supports_gradients or self.finite_difference_step is not None
+
+    def check_gradients_supported(self) -> None:
+        """Warn when gradients were asked for in this line and it cannot carry them."""
+        if not self.gradient_parameters or self.carries_gradients:
+            return
+        warn(exceptions.GradientsUnsupportedWarning(
+            self.objectname, self.code, self.gradient_parameters,
+            self.codes_that_can("supports_gradients"),
+        ))
+
+    def check_incoming_tangents(self, n_particles: int) -> None:
+        """
+        Drop :attr:`incoming_tangents`, with a warning, where this code cannot carry them on,
+        and refuse the input steps they cannot follow.
+
+        Parameters
+        ----------
+        n_particles: int
+            Particles in the input beam file, which the tangents must match row for row.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            On sampling, rematching, or a tangent that does not match the beam.
+        """
+        if self.incoming_tangents is None:
+            return
+        if not self.carries_gradients:
+            warn(exceptions.GradientsUnsupportedWarning(
+                self.objectname, self.code, self.incoming_tangents["parameters"],
+                self.codes_that_can("supports_gradients"),
+            ))
+            self.incoming_tangents = None
+            return
+        if int(self.sample_interval) > 1:
+            raise exceptions.GradientChainError(self.objectname, "it samples the beam (sample_interval)")
+        if any(v for plane in self.initial_twiss.values() for v in plane.values()):
+            raise exceptions.GradientChainError(self.objectname, "it rematches the beam to input: twiss")
+        if len(self.incoming_tangents["tangent"]) != n_particles:
+            raise exceptions.GradientChainError(
+                self.objectname,
+                f"its {n_particles} particles do not match the {len(self.incoming_tangents['tangent'])} "
+                "the tangents were computed for",
+            )
+
+    def resume_tangents(self, filepath: str, values: dict, upstream: list) -> Dict | None:
+        """
+        The tangent saved with the input beam by the run that wrote it, for the first line
+        :meth:`~simba.Framework.Framework.track` runs; see :func:`~simba.Modules.gradients.saved_tangent`.
+
+        Parameters
+        ----------
+        filepath: str
+            The input beam file.
+        values: dict
+            ``ELEMENT:keyword`` -> value now, for every gradient parameter in the machine.
+        upstream: list
+            The gradient parameters in the lines that feed this one, which the saved tangent should carry.
+
+        Warns
+        -----
+        :class:`~simba.exceptions.GradientsNotResumedWarning`
+            If the saved tangent lacks some of ``upstream``, or there is none.
+        :class:`~simba.exceptions.StaleGradientsWarning`
+            If the beam was tracked with other values.
+        """
+        saved = saved_tangent(filepath)
+        missing = [p for p in upstream if saved is None or p not in saved["parameters"]]
+        if missing:
+            warn(exceptions.GradientsNotResumedWarning(self.objectname, saved and saved["file"], missing))
+        if saved is None:
+            return None
+        changed = {
+            p: (old, values[p]) for p, old in zip(saved["parameters"], saved["values"])
+            if p in values and not np.isclose(old, values[p], rtol=1e-12, atol=0)
+        }
+        if changed:
+            warn(exceptions.StaleGradientsWarning(self.objectname, saved["file"], changed))
+        return saved
+
+    def finite_difference_tangents(self) -> None:
+        """
+        Carry gradients through a code that cannot differentiate (:attr:`finite_difference_step`),
+        by re-running the line in a scratch directory nudged either side along each column:
+        every input particle along its :attr:`incoming_tangents` for an upstream parameter, the
+        parameter itself for one of this line's :attr:`gradient_parameters`.
+
+        Each pair of runs gives its column at every beam file the line writes and along its
+        Twiss, through a reference that follows the beam and through collective effects, so
+        long as the code's output is smooth. With the real run in the middle, each pair is also
+        checked for a jump or kink: the second difference must be small next to the first.
+
+        The tangents at each beam file go on to the line that reads it
+        next, and with the Twiss ones to ``<line>_gradients.<code>.hdf5``.
+
+        Raises
+        ------
+        :class:`~simba.exceptions.GradientChainError`
+            If a run loses particles or changes its Twiss sampling, or the line tracks more
+            than one turn.
+
+        Warns
+        -----
+        :class:`~simba.exceptions.GradientNotSmoothWarning`
+            For each column whose output is not smooth at this step.
+        """
+        from .Modules import Twiss as rtf
+        step = self.finite_difference_step
+        local = self.gradient_parameters
+        if step is None or self.supports_gradients or not (local or self.incoming_tangents):
+            return
+        if self.turns > 1:
+            raise exceptions.GradientChainError(self.objectname, "finite differences follow only one turn")
+        subdir = self.global_parameters["master_subdir"]
+        names = [e.name for e in self.screens_and_markers_and_bpms if e.name not in (self.start, self.end)]
+        names = [name for name in names + [self.end] if os.path.isfile(self.output_beam_file(name))]
+
+        def outputs(line, directory):
+            beams = {name: self.lab_particles(line.output_beam_file(name)) for name in names}
+            twiss = rtf.load_directory(directory, preglob=line.objectname)
+            twiss = {k: np.asarray(v.val) for k, v in dict(twiss).items() if isinstance(v, rtf.twissParameter)}
+            twiss = {k: v for k, v in twiss.items() if len(v) and v.dtype.kind in "fi"}
+            return beams, twiss, {k: twiss.pop(k, np.array([])) for k in ("s", "z")}
+
+        *real, grid = outputs(self, subdir)
+        scratch = tempfile.mkdtemp(dir=subdir)
+
+        def rerun(shift=None, parameter=None, value=None):
+            line = deepcopy(self)
+            line.global_parameters["master_subdir"] = scratch
+            line.global_parameters["tangents"] = {}
+            line.set_prefix(self.prefix)
+            line._input_shift = shift
+            if parameter is not None:
+                name, key = parameter.split(":")
+                set_deep_attr(line.elements[name], key, value)
+            with catch_warnings():
+                simplefilter("ignore")  # the real run has warned already
+                line.preProcess()
+                line.write()
+                line.run()
+                line.postProcess()
+            beams, twiss, sampling = outputs(line, scratch)
+            if any(len(beams[name]) != len(real[0][name]) for name in names):
+                raise exceptions.GradientChainError(self.objectname, "it loses particles")
+            if np.shape(sampling["s"]) != np.shape(grid["s"]):
+                raise exceptions.GradientChainError(self.objectname, "its Twiss sampling moves")
+            return beams, twiss
+
+        def derivative(h, column, **plus_minus):
+            plus, minus = (rerun(**{k: v[i] for k, v in plus_minus.items()}) for i in (0, 1))
+            rough = [
+                k for p, m, r in zip(plus, minus, real) for k in p
+                # smooth: f(h) - 2 f(0) + f(-h) ~ f'' h^2, well below f(h) - f(-h) ~ 2 f' h;
+                # the floor is round-off in values this large
+                if np.any(np.abs(p[k] - 2 * r[k] + m[k]).max(0)
+                          > 1e-2 * np.abs(p[k] - m[k]).max(0) + 1e-9 * np.abs(r[k]).max(0))
+            ]
+            if rough:
+                warn(exceptions.GradientNotSmoothWarning(self.objectname, column, rough))
+            return [{k: (p[k] - m[k]) / (2 * h) for k in p} for p, m in zip(plus, minus)]
+
+        try:
+            columns = []
+            if self.incoming_tangents is not None:
+                spread = np.std(self.lab_particles(
+                    self.read_input_file(self.prefix, self.input_particle_definition, read_file=False)
+                ), axis=0)
+                for column, direction in zip(
+                    self.incoming_tangents["parameters"], np.moveaxis(self.incoming_tangents["tangent"], -1, 0)
+                ):
+                    # the largest nudge is step times its coordinate's spread
+                    scale = np.max(np.abs(direction) / spread)
+                    h = step / scale if scale else 1.0
+                    columns.append(derivative(h, column, shift=(h * direction, -h * direction)))
+            values = []
+            for parameter in local:
+                name, key = parameter.split(":")
+                value = float(reduce(getattr, key.split("."), self.elements[name]))
+                h = step * max(abs(value), 1.0)
+                values.append(value)
+                columns.append(derivative(h, parameter, parameter=(parameter, parameter), value=(value + h, value - h)))
+        finally:
+            shutil.rmtree(scratch)
+        beams, twiss = ({k: np.stack([c[i][k] for c in columns], -1) for k in columns[0][i]} for i in (0, 1))
+        incoming = self.incoming_tangents or {"parameters": [], "values": []}
+        parameters = list(incoming["parameters"]) + local
+        values = list(incoming["values"]) + values
+        for name in names:
+            # for the line that reads this file next; see check_incoming_tangents
+            self.global_parameters.get("tangents", {})[os.path.abspath(self.output_beam_file(name))] = {
+                "parameters": parameters, "values": values, "tangent": beams[name],
+            }
+        write_gradients(
+            f"{subdir}/{self.objectname}_gradients.{self.code}.hdf5",
+            parameters,
+            values,
+            {**twiss, **grid},
+            {self.output_basename(name): beams[name] for name in names},
+            code=self.code,
+            lattice=self.objectname,
+            coordinates=list(lab_coordinates),
+            method="finite_difference",
+        )
+
+    @staticmethod
+    def lab_particles(filename: str) -> np.ndarray:
+        """An openPMD beam file's particles as an (n, 6) array of :data:`~simba.Modules.gradients.lab_coordinates`."""
+        beam = rbf.beam()
+        rbf.openpmd.read_openpmd_beam_file(beam, filename)
+        return lab_array(beam)
 
     def check_programs_fit(self) -> None:
         """Warn about knots past the last turn, or a non-zero last knot held for the rest of the run."""
@@ -2324,15 +2580,14 @@ class frameworkLattice(BaseModel):
         newbeam = deepcopy(bm)
         nb = newbeam._beam
         idx = slice(None, None, interval)
-        for key in ["x", "y", "z", "t", "px", "py", "pz", "nmacro", "status",
-                    "particle_mass", "particle_rest_energy",
-                    "particle_rest_energy_eV", "particle_charge"]:
-            if hasattr(nb, key) and getattr(nb, key) is not None:
-                val = getattr(nb, key)
-                try:
-                    setattr(nb, key, UnitValue(np.array(val.val)[idx], units=val.units))
-                except Exception:
-                    pass
+        n = len(bm.x)
+        for key in type(nb).model_fields:
+            val = getattr(nb, key, None)
+            if key in ("charge", "offset") or val is None:
+                continue
+            arr = np.asarray(getattr(val, "val", val))
+            if arr.ndim == 1 and len(arr) == n:
+                setattr(nb, key, UnitValue(arr[idx], units=val.units) if isinstance(val, UnitValue) else arr[idx])
         charge = np.array(bm.charge.val)
         kept = charge[idx]
         nb.charge = UnitValue(kept * (np.sum(charge) / np.sum(kept)), units="C")
@@ -2455,6 +2710,11 @@ class frameworkLattice(BaseModel):
         """
         filepath = self.read_input_file(prefix, particle_definition)
         full = self.global_parameters["beam"]
+        if self._input_shift is not None:
+            x, cpx, y, cpy, t, cpz = (lab_array(full) + self._input_shift).T
+            full._beam.z = UnitValue(full._beam.z - full._beam.Bz * speed_of_light * self._input_shift[:, 4], "m")
+            full._beam.x, full._beam.y, full._beam.t = UnitValue(x, "m"), UnitValue(y, "m"), UnitValue(t, "s")
+            full.set_momenta(cpx, cpy, cpz)
         self._input_reference = {
             coord: float(np.mean(getattr(full, coord).val)) for coord in ("cp", "t", "z")
         }
@@ -2464,6 +2724,12 @@ class frameworkLattice(BaseModel):
             if index is not None and 0 <= index < len(full.t.val)
             else None
         )
+        self.incoming_tangents = self.global_parameters.get("tangents", {}).get(os.path.abspath(filepath))
+        resume = dict(self.global_parameters.get("resume_tangents", {}))
+        self.global_parameters.get("resume_tangents", {}).clear()  # only the first line resumes
+        if self.incoming_tangents is None and resume:
+            self.incoming_tangents = self.resume_tangents(filepath, **resume)
+        self.check_incoming_tangents(len(full.x.val))
         if int(self.sample_interval) > 1:
             self.global_parameters["beam"] = self.sample_beam(self.global_parameters["beam"])
         self.check_species()
@@ -2996,8 +3262,8 @@ class frameworkLattice(BaseModel):
         TimeoutError
             If the server is unreachable.
         """
-        if not all(name in self.remote_setup for name in ["host", "username", "password"]):
-            raise KeyError("remote_setup must contain 'host', 'username' and 'password'")
+        if not all(name in self.remote_setup for name in ["host", "username"]):
+            raise KeyError("remote_setup must contain 'host' and 'username'")
         import paramiko
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -3005,14 +3271,14 @@ class frameworkLattice(BaseModel):
             ssh.connect(
                 self.remote_setup["host"]["address"],
                 username=self.remote_setup["username"],
-                password=self.remote_setup["password"],
+                password=self.remote_setup.get("password"),
             )
             return ssh
         except paramiko.SSHException:
             ssh.connect(
                 self.remote_setup["host"]["address"],
                 username=self.remote_setup["username"],
-                password=self.remote_setup["password"],
+                password=self.remote_setup.get("password"),
                 allow_agent=False, look_for_keys=False
             )
             return ssh
@@ -3165,6 +3431,7 @@ class frameworkLattice(BaseModel):
         self.check_nsuperperiods_supported()
         self.check_programs_supported()
         self.check_programs_fit()
+        self.check_gradients_supported()
         self.check_ramp()
         self._apply_radiation_to_section()
         self._apply_fixed_reference_to_section()
@@ -3934,7 +4201,7 @@ class chicane(frameworkGroup):
         """
         Set the chicane bending angle, re-laying out the dipoles and everything between them.
 
-        Dipoles keep their z extent (:meth:`_z_extent`) and lengths become the arc.
+        Dipoles keep their entrance and exit along the axis (:meth:`_design_spans`) and lengths become the arc.
 
         Parameters
         ----------
@@ -3965,17 +4232,17 @@ class chicane(frameworkGroup):
         ]
         obj = [e for _, e in sorted(between, key=lambda se: se[0])]
 
-        z_extents = [self._z_extent(d, i) for i, d in enumerate(dipoles)]
+        spans = self._design_spans(dipoles)
 
-        x, phi, s_cursor = 0.0, 0.0, ss[0] - z_extents[0] / 2.0
+        x, phi, s_cursor = 0.0, 0.0, spans[0][0]
         dipole_number = 0
         for e in obj:
             s_here = spos(e)
             if e.name in dipole_names:
-                lz = z_extents[dipole_number]
+                s_entry, s_exit = spans[dipole_number]
+                lz = s_exit - s_entry
                 ang = a * self.ratios[dipole_number]
-                x += (s_here - lz / 2.0 - s_cursor) * np.tan(phi)
-                s_entry = s_here - lz / 2.0
+                x += (s_entry - s_cursor) * np.tan(phi)
                 p0, p1 = phi, phi + ang
                 if abs(ang) > 1e-12:
                     # radius fixed by having to cross `lz` in z while turning p0 -> p1
@@ -3986,14 +4253,14 @@ class chicane(frameworkGroup):
                     mid_s = s_entry + r * (np.sin(pm) - np.sin(p0))
                 else:
                     dx, arc = 0.0, lz
-                    mid_u, mid_s = x, s_here
+                    mid_u, mid_s = x, s_entry + lz / 2.0
                 e.physical.middle = to_global(mid_u, mid_s)
                 e.physical.global_rotation.theta = theta0 - p0
                 e.magnetic.angle = ang
                 e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
                 e.physical.length = arc
-                x, phi, s_cursor = x + dx, p1, s_here + lz / 2.0
+                x, phi, s_cursor = x + dx, p1, s_exit
                 dipole_number += 1
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
@@ -4031,17 +4298,22 @@ class chicane(frameworkGroup):
             self._axis = (rotation, float(d0.global_rotation.theta), entrance)
         return self._axis
 
-    def _z_extent(self, dipole, index: int) -> float:
+    def _design_spans(self, dipoles: list) -> list:
         """
-        The z a dipole spans, held fixed as the angle changes: its design (zero-angle) length.
+        ``(s_entry, s_exit)`` of each dipole along the axis, held fixed as the angle changes.
 
-        Cached on first use because :meth:`set_angle` overwrites the length with the arc.
+        From the dipoles' entrance and exit, not their length: a bend's length is its arc.
+        Cached on first use because :meth:`set_angle` moves them.
         """
-        if not hasattr(self, "_design_z_extents"):
-            self._design_z_extents = {}
-        if dipole.name not in self._design_z_extents:
-            self._design_z_extents[dipole.name] = float(dipole.magnetic.length)
-        return self._design_z_extents[dipole.name]
+        if not hasattr(self, "_design_s_spans"):
+            rotation, _, origin = self._design_axis
+            along = rotation.T[2]
+            self._design_s_spans = [
+                tuple(float(np.dot(np.asarray(p.array, dtype=float) - origin, along))
+                      for p in (d.physical.start, d.physical.end))
+                for d in dipoles
+            ]
+        return self._design_s_spans
 
     def __str__(self):
         return str(

@@ -21,8 +21,8 @@ Given a :mod:`LAURA` ``MachineModel``, which contains:
 
 :mod:`SIMBA` can be used to interact with this structure.
 
-The simulation of the lattice is defined in a separate ``YAML`` file, for example ``CLARA.def``
-for the CLARA :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.041602` accelerator:
+The simulation of the lattice is defined in a separate ``YAML`` file, for example this one, adapted from
+``CLARA/Lattices/clara400_v13_combined.def`` in laura-lattices, for the CLARA :cite:`PhysRevAccelBeams.23.044801` :cite:`PhysRevAccelBeams.27.041602` accelerator:
 
 .. code-block:: yaml
 
@@ -136,15 +136,15 @@ been prepared.
         master_lattice="/path/to/laura-lattices/CLARA",
         directory="./example",
         generator_defaults="clara.yaml",
-        simcodes_location=simcodes_location,
+        simcodes=simcodes_location,
         clean=True,
         verbose=True,
         )
     # Load a lattice definition file. These can be found in Masterlattice/Lattices by default.
-    framework.loadSettings("Lattices/CLARA.def")
-    # Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector cannot be done in Elegant)
+    framework.loadSettings("Lattices/clara400_v13_combined.def")
+    # Put every line except Linac in ASTRA (the injector cannot be done in Elegant)
     framework.change_Lattice_Code("All", "ASTRA", exclude=["Linac"])
-    # Again, but put the VBC in Elegant for CSR
+    # Then put FEBE back in Elegant
     framework.change_Lattice_Code("FEBE", "Elegant")
     # This is the code that generates the laser distribution (ASTRA or GPT)
     framework.change_generator("ASTRA")
@@ -152,7 +152,6 @@ been prepared.
     framework.generator.load_defaults("clara_400_2ps_Gaussian")
     # Set the thermal emittance for the generator
     framework.generator.thermal_emittance = 0.0005
-    # This is a scaling parameter
     # This defines the number of particles to create at the gun (this is "ASTRA generator" which creates distributions)
     framework.generator.number_of_particles = 512
     # Track the lattice

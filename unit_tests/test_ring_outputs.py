@@ -68,9 +68,15 @@ def _machine(tmp_path):
 
 @pytest.fixture(scope="module")
 def seed_beam(tmp_path_factory):
-    """Generated once, as ``frameworkGenerator`` is unseeded. At s = 100 m,
-    so an s taken from it rather than the lattice shows."""
+    """Generated once, from a fixed seed: ``frameworkGenerator`` draws from NumPy's
+    global generator, so an unseeded beam depends on the draws of every test before
+    it, and ``test_the_reference_is_the_incoming_beams_before_sampling`` fails for a
+    beam whose every-other-particle mean is within 1e-6 of the full mean (about 3 %
+    of beams; seed 3 gives 2.6e-5). The global state is put back afterwards.
+    At s = 100 m, so an s taken from it rather than the lattice shows."""
     directory = tmp_path_factory.mktemp("seed")
+    state = np.random.get_state()
+    np.random.seed(3)
     frameworkGenerator(
         global_parameters={"master_subdir": str(directory)},
         filename="M1.openpmd.hdf5", initial_momentum=5e6,
@@ -80,6 +86,7 @@ def seed_beam(tmp_path_factory):
         gaussian_cutoff_px=3, gaussian_cutoff_py=3, gaussian_cutoff_pz=3,
         charge=1e-15, number_of_particles=64,
     ).write()
+    np.random.set_state(state)
     path = os.path.join(str(directory), "M1.openpmd.hdf5")
     beam = _read(path)
     beam.s = 100.0
@@ -858,3 +865,25 @@ def test_xsuite_zeta_scales_with_beta0():
     line = _Clocked("xsuite")
     late = line.reference_time(1.5, 1) + 1e-12
     assert line.time_to_native(late, 1.5, 1) == pytest.approx(-0.95 * 299792458.0 * 1e-12)
+
+
+def test_sampling_takes_every_per_particle_array():
+    """Sampling went through a fixed list of keys and skipped any it could not
+    slice: `clock` (one per particle on an ASTRA beam) was not in the list, and a
+    unitless `nmacro` array failed, so both stayed the full beam's length."""
+    from simba.Modules.units import UnitValue
+    beam = frameworkGenerator(
+        initial_momentum=5e6, sigma_x=1e-4, sigma_px=1e3, sigma_y=1e-4, sigma_py=1e3,
+        sigma_z=1e-3, sigma_pz=1e3, charge=100e-12, number_of_particles=400,
+    ).generate()
+    n = len(beam.x)
+    beam.Particles.clock = UnitValue(np.arange(n, dtype=float), "s")
+    beam.Particles.nmacro = np.full(n, 3.0)
+    every_fourth = SimpleNamespace(sample_interval=4)
+    every_fourth.sampled_index = lambda i: frameworkLattice.sampled_index(every_fourth, i)
+    sampled = frameworkLattice.sample_beam(every_fourth, beam)._beam
+    for key in ["x", "px", "t", "clock", "nmacro", "particle_mass", "charge"]:
+        assert len(np.atleast_1d(getattr(getattr(sampled, key), "val", getattr(sampled, key)))) == n // 4, key
+    np.testing.assert_array_equal(np.asarray(sampled.clock.val), np.arange(0, n, 4))
+    assert float(np.sum(sampled.charge.val)) == pytest.approx(float(np.sum(beam.charge.val)))
+    assert np.ndim(getattr(sampled.particle_rest_energy, "val", sampled.particle_rest_energy)) == 0
