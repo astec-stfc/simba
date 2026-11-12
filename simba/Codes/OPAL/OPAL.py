@@ -219,6 +219,7 @@ class opalLattice(frameworkLattice):
         output = section.to_opal(
             energy=self.global_parameters["beam"].centroids.mean_cpz.val / 1e6,
             breakstr=self.breakstr,
+            particle=self.global_parameters["beam"].species,
         )
         command_file = (
                 self.global_parameters["master_subdir"] + "/" + self.objectname + ".in"
