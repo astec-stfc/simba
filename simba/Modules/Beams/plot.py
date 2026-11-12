@@ -25,8 +25,7 @@ try:
     SciPy_installed = True
 except Exception:
     SciPy_installed = False
-CMAP0 = copy(plt.get_cmap("viridis"))
-CMAP0.set_under("white")
+CMAP0 = plt.get_cmap("viridis").with_extremes(under="white")
 CMAP1 = copy(plt.get_cmap("plasma"))
 
 

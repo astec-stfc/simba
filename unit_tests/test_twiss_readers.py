@@ -76,6 +76,26 @@ def test_cheetah_reader_with_several_files(tmp_path):
     assert t.cp.val[0] == pytest.approx(np.sqrt(10e6**2 - t.E0_eV**2))
 
 
+def test_ocelot_beam_twiss_is_zero_without_a_beam():
+    # #24: a periodic Ocelot run writes zero eigen-emittances; 0/0 gave NaN and warned
+    with np.errstate(all="raise"):
+        out = ocelot._per_emittance([0.0, 2.0], [0.0, 1.0])
+    assert out.tolist() == [0.0, 2.0]
+
+
+@pytest.mark.parametrize("save", ["madx", "ocelot"])
+def test_the_twiss_writers_do_not_drop_what_they_cannot_store(save, tmp_path):
+    """An entry h5py could not store was skipped without a word."""
+    from simba.Modules.Twiss.madx import save_madx_twiss_hdf
+    writer = save_madx_twiss_hdf if save == "madx" else ocelot.save_ocelot_twiss_hdf
+    filename = str(tmp_path / "twiss.hdf5")
+    writer(None, filename, {"s": np.arange(3.0), "element_name": np.array([b"A", b"B", b"C"])})
+    with h5py.File(filename, "r") as f:
+        assert sorted(f) == ["element_name", "s"]
+    with pytest.raises(TypeError):
+        writer(None, filename, {"s": np.arange(3.0), "element_name": np.array(["A", "B", "C"])})
+
+
 def test_astra_reader_momentum_spread_and_alpha(tmp_path):
     """One row at 35 MeV with alpha = -0.7 in both planes and 160 keV rms energy spread."""
     t = twiss()

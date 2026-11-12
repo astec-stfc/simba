@@ -7,6 +7,7 @@ Classes:
 """
 
 import gc
+import glob
 import os
 import pickle
 import yaml
@@ -15,6 +16,7 @@ from typing import Any, Dict, Literal
 from pprint import pprint
 import numpy as np
 from copy import deepcopy
+from functools import reduce
 from laura import LAURA
 from laura.models.element import PhysicalBaseElement
 from laura.models.element_list import flatten_occurrence, split_occurrence
@@ -260,6 +262,9 @@ class Framework(BaseModel):
     """Whether :attr:`executables` are ready."""
 
     def model_post_init(self, __context):
+        ignored = sorted(set(self.model_extra or {}) - {"layout", "section", "element_list"})
+        if ignored:
+            warn(f"Framework ignores unknown keywords {ignored}")
         gptlicense = os.environ.get("GPTLICENSE", "")
         astra_use_wsl = os.environ.get("WSL_ASTRA", 1)
         self.global_parameters = {
@@ -270,10 +275,13 @@ class Framework(BaseModel):
             "astra_use_wsl": astra_use_wsl,
             "master_lattice": self.master_lattice,
             "container_runtime": self.container_runtime,
+            "tangents": {},
+            "resume_tangents": {},
         }
         if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
-            warn("Either `simcodes` location or `container_runtime` must be either 'docker' or 'apptainer' to set up executables;"
-                 "Cannot run simulations without either of these - please set one or the other")
+            warn("Neither `simcodes` nor `container_runtime` ('docker' or 'apptainer') is set, so the external codes "
+                 "(ASTRA, elegant, GPT, Genesis, OPAL, CSRTrack, Tao, BDSIM) cannot run; "
+                 "Python codes such as ocelot and cheetah still work. Set one of them to use the external codes.")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
@@ -297,10 +305,7 @@ class Framework(BaseModel):
 
     def setupLAURA(self) -> None:
         """Set up the LAURA :attr:`machine`."""
-        try:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
-        except Exception:
-            self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list)
+        self.machine = LAURA(layout=self.layout, section=self.section, element_list=self.element_list, eager_mode=self.eager_mode)
 
     def prepare_executables(
             self,
@@ -553,27 +558,16 @@ class Framework(BaseModel):
             else {}
         )
         if self.settings.layout:
-            try:
-                self.machine = LAURA(
-                    layout=self.settings["layout"],
-                    section=self.settings["section"],
-                    functional_definitions=self.settings["functional_definitions"],
-                    resolve_functional=self.settings["resolve_functional"],
-                    element_list=self.settings["element_list"],
-                    master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
-                    eager_mode=self.eager_mode,
-                )
-            except Exception:
-                self.machine = LAURA(
-                    layout=self.settings["layout"],
-                    section=self.settings["section"],
-                    functional_definitions=self.settings["functional_definitions"],
-                    resolve_functional=self.settings["resolve_functional"],
-                    element_list=self.settings["element_list"],
-                    master_lattice=self.global_parameters["master_lattice"],
-                    exclude_keys=["controls", "electrical", "manufacturer", "reference"],
-                )
+            self.machine = LAURA(
+                layout=self.settings["layout"],
+                section=self.settings["section"],
+                functional_definitions=self.settings["functional_definitions"],
+                resolve_functional=self.settings["resolve_functional"],
+                element_list=self.settings["element_list"],
+                master_lattice=self.global_parameters["master_lattice"],
+                exclude_keys=["controls", "electrical", "manufacturer", "reference"],
+                eager_mode=self.eager_mode,
+            )
 
             if self.settings.get("default_layout"):
                 path = self.settings["default_layout"]
@@ -930,16 +924,22 @@ class Framework(BaseModel):
         verbose: bool
             Print each change.
         """
+        unknown = [
+            e for e in changes
+            if e not in self.elementObjects and e not in self.groupObjects and e != "generator"
+        ]
+        if unknown:
+            raise ValueError(f"No element or group called {unknown}; nothing was changed")
         for e, d in list(changes.items()):
             if e in self.elementObjects or e == "generator":
                 flat = flatten_changes_dict(d)
                 for param in flat:
                     try:
                         self.modifyElement(e, param[0], param[1])
-                        if verbose:
-                            print("modifying ", e, "[", param[0], "]", " = ", param[1])
                     except AttributeError as ex:
-                        print(f"### ERROR modifying {e} [{param[0]}] = {param[1]}: {ex}")
+                        raise AttributeError(f"Cannot set {e} [{param[0]}] = {param[1]}: {ex}") from ex
+                    if verbose:
+                        print("modifying ", e, "[", param[0], "]", " = ", param[1])
             if e in self.groupObjects:
                 for k, v in list(d.items()):
                     self.groupObjects[e].change_Parameter(k, v)
@@ -1028,6 +1028,9 @@ class Framework(BaseModel):
                 if currentLattice.remote_setup and not nowarn:
                     warn(f"Resetting lattice {latticename} to local tracking;"
                          f"call setup_remote_execution to run remotely")
+                currentLattice.file_block["code"] = code.lower()
+                if latticename in (self.settings.get("files") or {}):
+                    self.settings["files"][latticename]["code"] = code.lower()
                 self.latticeObjects[latticename] = getattr(
                     frameworkLattices, code.lower() + "Lattice"
                 )(
@@ -1064,7 +1067,11 @@ class Framework(BaseModel):
         dict or Any or :class:`~laura.models.element.Element`
             The parameter, or the element (also if it lacks ``param``), or ``{}`` if there is no such element.
         """
-        if self.__getitem__(element) is not None:
+        try:
+            found = self.__getitem__(element) is not None
+        except KeyError:
+            found = False
+        if found:
             if param is not None:
                 param = param.lower()
                 try:
@@ -1516,8 +1523,8 @@ class Framework(BaseModel):
         else:
             try:
                 return getattr(self, key)
-            except Exception:
-                return None
+            except AttributeError:
+                raise KeyError(f"No element, line, group or attribute called {key!r}") from None
 
     @property
     def elements(self) -> list:
@@ -1556,7 +1563,8 @@ class Framework(BaseModel):
             return {
                 flatten_occurrence(name): s for name, s in layout.arc_lengths().items()
             }
-        except Exception:
+        except Exception as ex:
+            warn(f"LAURA could not give arc lengths ({ex!r}); each line is placed after the one before")
             return {}
 
     def getSValues(self) -> list:
@@ -1574,14 +1582,14 @@ class Framework(BaseModel):
         offsets = self.path_arc_lengths()
         s0 = 0
         allS = []
-        for lo in self.latticeObjects.values():
-            try:
-                start = offsets.get(flatten_occurrence(lo.start), s0)
-                latticeS = [a + start for a in lo.getSValues()]
-                allS = allS + latticeS
+        for name, lo in self.latticeObjects.items():
+            if name == "generator":
+                continue
+            start = offsets.get(flatten_occurrence(lo.start), s0)
+            latticeS = [a + start for a in lo.getSValues()]
+            allS = allS + latticeS
+            if allS:
                 s0 = allS[-1]
-            except Exception:
-                pass
         return allS
 
     def getSValuesElements(self) -> list:
@@ -1637,6 +1645,20 @@ class Framework(BaseModel):
         if isinstance(end, str):
             names.add(end)
         return names
+
+    def _feeder_lines(self, lattice_name: str) -> list:
+        """The lines upstream of ``lattice_name``, nearest first: the one that writes its input beam, then that one's, and so on."""
+        chain, latt = [], self.latticeObjects[lattice_name]
+        while True:
+            feeder = next((
+                name for name in self.lines
+                if name != lattice_name and name not in chain
+                and latt.input_particle_definition in self._line_output_names(name)
+            ), None)
+            if feeder is None:
+                return chain
+            chain.append(feeder)
+            latt = self.latticeObjects[feeder]
 
     def _mark_colliding_outputs(self, files: list) -> None:
         """Tell each line which of its outputs another line also writes, as beam files are named by element alone.
@@ -1715,6 +1737,7 @@ class Framework(BaseModel):
         # Lattice objects are rebuilt by change_Lattice_Code after the generator
         # is created, so hand it over here rather than only at construction.
         self._propagate_generator()
+        self.global_parameters["tangents"].clear()
         self.tracking = True
         self.progress = 0
         if files is None:
@@ -1730,6 +1753,21 @@ class Framework(BaseModel):
             index = files.index(endfile)
             files = files[: index + 1]
         self._mark_colliding_outputs(files)
+        # the first line may pick its gradients up from its input beam's run; see load_input_beam.
+        # Updated in place: each lattice holds a shallow copy of global_parameters
+        parameters = (self.settings["global"].get("gradients") or {}).get("parameters") or []
+        self.global_parameters["resume_tangents"].clear()
+        if files[0] != "generator" and parameters:
+            self.global_parameters["resume_tangents"].update(
+                values={
+                    p: float(reduce(getattr, p.split(":")[1].split("."), self.elementObjects[p.split(":")[0]]))
+                    for p in parameters if p.split(":")[0] in self.elementObjects
+                },
+                upstream=[
+                    p for name in self._feeder_lines(files[0])
+                    for p in self.latticeObjects[name].gradient_parameters
+                ],
+            )
         if self.verbose:
             pbar = tqdm(total=len(files) * 4)
         percentage_step = 100 / len(files)
@@ -1769,6 +1807,9 @@ class Framework(BaseModel):
                     pbar.set_description(
                         base_description + ": track        "
                     )  # noqa E701
+                # its beams are about to change, so its old gradients no longer describe them
+                for old in glob.glob(f'{self.global_parameters["master_subdir"]}/{lattice_name}_gradients.*.hdf5'):
+                    os.remove(old)
                 latt.run()
                 self.progress = base_percentage + 0.75 * percentage_step
             if self.verbose:
@@ -1781,6 +1822,8 @@ class Framework(BaseModel):
                 latt.postProcess()
                 self.progress = base_percentage + 1 * percentage_step
                 if lattice_name != "generator":
+                    # first: it reruns the line, rewriting the end-of-line file the other species are added to
+                    latt.finite_difference_tangents()
                     latt.carry_other_species()
                     for name, elem in latt.elementObjects.items():
                         if name in self.elementObjects:
@@ -1959,6 +2002,27 @@ class Framework(BaseModel):
         self.pushRunSettings()
 
 
+def _find_master_lattice(settings_file: str) -> str | None:
+    """
+    Guess the master lattice a saved ``settings.def`` was written against.
+
+    Its ``element_list`` is relative to the master lattice, and its ``settingsFilename`` is the
+    original ``.def``; returns the nearest ancestor of that ``.def`` in which ``element_list`` exists.
+    """
+    with open(settings_file) as stream:
+        settings = yaml.safe_load(stream) or {}
+    original, element_list = settings.get("settingsFilename"), settings.get("element_list")
+    if not original or not isinstance(element_list, str) or os.path.isabs(element_list):
+        return None
+    path = os.path.dirname(os.path.abspath(original))
+    while not os.path.exists(os.path.join(path, element_list)):
+        parent = os.path.dirname(path)
+        if parent == path:
+            return None
+        path = parent
+    return path
+
+
 class frameworkDirectory(BaseModel):
     """Load the Beam and Twiss files of a finished tracking run."""
 
@@ -1987,7 +2051,8 @@ class frameworkDirectory(BaseModel):
     """Particle rest mass; defaults to the beams' own, or the electron's."""
 
     framework: Framework | None = None
-    """The run's :class:`~simba.Framework.Framework`; built from :attr:`settings` if not given."""
+    """The run's :class:`~simba.Framework.Framework`; built from :attr:`settings` if not given,
+    with this loader's :attr:`verbose` and any keywords that are not this loader's own fields."""
 
     def __init__(
         self,
@@ -2002,8 +2067,16 @@ class frameworkDirectory(BaseModel):
             directory = (
                 "." if self.directory is None else os.path.abspath(self.directory)
             )
-            self.framework = Framework(**kwargs)
-            self.framework.loadSettings(os.path.join(directory, self.settings))
+            settings_file = os.path.join(directory, self.settings)
+            if kwargs.get("master_lattice") is None:
+                kwargs["master_lattice"] = _find_master_lattice(settings_file)
+            # the loader's own options (settings filename, beams, ...) are not Framework's
+            own = type(self).model_fields.keys() - {"directory"}
+            self.framework = Framework(
+                verbose=self.verbose,
+                **{k: v for k, v in kwargs.items() if k not in own},
+            )
+            self.framework.loadSettings(settings_file)
         else:
             if self.directory is None:
                 directory = os.path.abspath(self.framework.subdirectory)

@@ -1272,33 +1272,30 @@ class madxLattice(frameworkLattice):
         }
 
     def initial_twiss_conditions(self, bm: rbf.beam) -> Dict:
-        """Initial Twiss conditions for the model Twiss, from the beam"""
+        """
+        Initial Twiss conditions for the model Twiss, from the beam, or
+        beta = 1 m and alpha = 0 (with a warning) if the beam gives none.
+        """
+        init = {
+            "betx": 1.0, "alfx": 0.0, "bety": 1.0, "alfy": 0.0,
+            "dx": 0.0, "dpx": 0.0, "dy": 0.0, "dpy": 0.0, "mux": 0.0, "muy": 0.0,
+        }
         try:
-            return {
+            beam = {
                 "betx": float(bm.twiss.beta_x_corrected),
                 "alfx": float(bm.twiss.alpha_x_corrected),
                 "bety": float(bm.twiss.beta_y_corrected),
                 "alfy": float(bm.twiss.alpha_y_corrected),
-                "dx": 0.0,
-                "dpx": 0.0,
-                "dy": 0.0,
-                "dpy": 0.0,
-                "mux": 0.0,
-                "muy": 0.0,
             }
-        except Exception:
-            return {
-                "betx": 1.0,
-                "alfx": 0.0,
-                "bety": 1.0,
-                "alfy": 0.0,
-                "dx": 0.0,
-                "dpx": 0.0,
-                "dy": 0.0,
-                "dpy": 0.0,
-                "mux": 0.0,
-                "muy": 0.0,
-            }
+        except Exception as ex:
+            reason = repr(ex)
+        else:
+            if all(np.isfinite(list(beam.values()))) and beam["betx"] > 0 and beam["bety"] > 0:
+                init.update(beam)
+                return init
+            reason = f"the beam's Twiss is {beam}"
+        warn(f"{self.objectname}: the model Twiss starts from beta = 1 m, alpha = 0 ({reason})")
+        return init
 
     @staticmethod
     def rescale_twiss_init(init: Dict, ratio: float) -> Dict:

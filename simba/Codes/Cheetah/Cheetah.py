@@ -4,16 +4,16 @@ SIMBA Cheetah module: builds and tracks a Cheetah segment. See `Cheetah github`_
     .. _Cheetah github: https://github.com/desy-ml/cheetah
 """
 from ...Framework_objects import frameworkLattice
-from ...FrameworkHelperFunctions import reference_clock, set_deep_attr
+from ...FrameworkHelperFunctions import set_deep_attr
 from ...Modules import Beams as rbf
-from ...Modules.gradients import write_gradients
+from ...Modules.gradients import lab_array, lab_coordinates, write_gradients
 from ... import exceptions
 
 import os
 import numpy as np
 from yaml import safe_load
 from copy import deepcopy
-from functools import partial, reduce
+from functools import reduce
 from warnings import warn
 from typing import Dict, Any, ClassVar
 import h5py
@@ -169,14 +169,16 @@ class cheetahLattice(frameworkLattice):
         )
 
     def run(self) -> None:
-        """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``, :attr:`tangents` if :attr:`gradient_parameters`)."""
+        """Track :attr:`pin` and set :attr:`pout` (and :attr:`tws` if ``save_twiss``, :attr:`tangents` if there are any gradients)."""
         pin = deepcopy(self.pin)
         if choose_cheetah_tracking_method and self.cheetahglobal["cheetah_tracking_method"] == "auto":
             choose_cheetah_tracking_method(self.segment, pin)
         self.pout = self.segment.track(pin)
         if self.cheetahglobal["save_twiss"]:
             self.tws = self.segment.get_beam_attrs_along_segment(twiss_keys, pin)
-        self.tangents = self.track_tangents() if self.gradient_parameters else None
+        self.tangents = (
+            self.track_tangents() if self.gradient_parameters or self.incoming_tangents else None
+        )
 
     def cheetah_derivatives(self, parameter: str) -> Dict[str, Any]:
         """
@@ -216,51 +218,90 @@ class cheetahLattice(frameworkLattice):
             ))
         return derivatives
 
+    def reference_from(self, lab) -> tuple:
+        """
+        :attr:`reference_p0c` and :attr:`reference_t0` as torch functions of the incoming
+        particles, so tangents see an upstream change move this line's reference as the
+        forward run does.
+
+        Parameters
+        ----------
+        lab: torch.Tensor
+            (n, 6) incoming :data:`~simba.Modules.gradients.lab_coordinates`
+
+        Returns
+        -------
+        tuple
+            ``(p0c, t0)`` in eV and s
+        """
+        from torch import as_tensor, float64
+        p0c = (
+            lab[:, [1, 3, 5]].norm(dim=-1).mean() if self.design_p0c is None
+            else as_tensor(self.design_p0c, dtype=float64)
+        )
+        t0 = lab[:, 4].mean() if not self.fixed_reference else as_tensor(self.reference_t0, dtype=float64)
+        return p0c, t0
+
     def track_tangents(self) -> Dict:
         """
         Forward-mode derivatives (``torch.func.jvp``) of the twiss along :attr:`segment` and of
-        the beam at each screen and the line end, one pass per :attr:`gradient_parameters`.
+        the beam at each screen and the line end. One pass per column: first the parameters
+        whose :attr:`incoming_tangents` an upstream line left, then this line's
+        :attr:`gradient_parameters`.
 
         Returns
         -------
         Dict
             ``parameters`` and their ``values``; ``twiss``: key -> (n_s, P) array, with the
             ``s`` -> (n_s,) it is sampled at; ``beams``: element name -> (n, 6, P) array of
-            :data:`~simba.Modules.Beams.cheetah.lab_coordinates`
+            :data:`~simba.Modules.gradients.lab_coordinates`
         """
-        from torch import stack, tensor, float64
+        from torch import as_tensor, eye, float64, sqrt, stack, zeros, zeros_like
         from torch.func import jvp
         from cheetah.accelerator import Screen
-        from ...Modules.Beams.cheetah import cheetah_lab_coordinates
+        from ...Modules.Beams.cheetah import cheetah_lab_coordinates, cheetah_particles
 
-        base = dict(self.segment.named_buffers())
+        E0 = self.rest_energy
         end_is_screen = isinstance(self.segment.elements[-1], Screen)
+        local = [self.cheetah_derivatives(p) for p in self.gradient_parameters]
+        lab = as_tensor(lab_array(self.global_parameters["beam"]), dtype=float64)
 
-        def track(segment, derivatives, t):
-            for path, derivative in derivatives.items():
-                module, _, leaf = path.rpartition(".")
-                setattr(segment.get_submodule(module), leaf, base[path] + t * derivative)
+        def track(t, lab):
+            segment = deepcopy(self.segment)
+            for tp, derivatives in zip(t, local):
+                for path, derivative in derivatives.items():
+                    module, _, leaf = path.rpartition(".")
+                    sub = segment.get_submodule(module)
+                    setattr(sub, leaf, getattr(sub, leaf) + tp * derivative)
+            p0c, t0 = self.reference_from(lab)
+            pin = deepcopy(self.pin)
+            pin.particles = cheetah_particles(lab, E0, p0c, t0)
+            pin.energy = sqrt(p0c**2 + E0**2)
+            clock = None if self.reference_start is None else self.reference_clock(segment, (t0, self.reference_start[1], p0c))
             twiss = {k: [] for k in twiss_keys}
-            for beam in segment.beam_along_segment_generator(deepcopy(self.pin)):
+            for beam in segment.beam_along_segment_generator(pin):
                 for k in twiss_keys:
                     twiss[k].append(getattr(beam, k))
             beams = {
-                e.name: cheetah_lab_coordinates(e.get_read_beam(), self.rest_energy)
+                e.name: cheetah_lab_coordinates(e.get_read_beam(), E0, clock)
                 for e in segment.elements if isinstance(e, Screen)
             }
             if not end_is_screen:
-                beams[self.end] = cheetah_lab_coordinates(beam, self.rest_energy)
+                beams[self.end] = cheetah_lab_coordinates(beam, E0, clock)
             return {k: stack(v) for k, v in twiss.items()}, beams
 
-        zero, one = tensor(0.0, dtype=float64), tensor(1.0, dtype=float64)
+        incoming = self.incoming_tangents or {"parameters": [], "values": [], "tangent": np.zeros((len(lab), 6, 0))}
+        upstream = as_tensor(incoming["tangent"], dtype=float64)
+        none = zeros(len(local), dtype=float64)
+        columns = [(none, upstream[..., j]) for j in range(upstream.shape[-1])]
+        columns += [(eye(len(local), dtype=float64)[p], zeros_like(lab)) for p in range(len(local))]
         tangents = []
-        for parameter in self.gradient_parameters:
-            derivatives = self.cheetah_derivatives(parameter)
-            (twiss, _), tangent = jvp(partial(track, deepcopy(self.segment), derivatives), (zero,), (one,))
+        for column in columns:
+            (twiss, _), tangent = jvp(track, (none, lab), column)
             tangents.append(tangent)
         return {
-            "parameters": self.gradient_parameters,
-            "values": [
+            "parameters": incoming["parameters"] + self.gradient_parameters,
+            "values": incoming["values"] + [
                 reduce(getattr, p.split(":")[1].split("."), self.elements[p.split(":")[0]])
                 for p in self.gradient_parameters
             ],
@@ -270,6 +311,23 @@ class cheetahLattice(frameworkLattice):
             },
             "beams": {n: stack([t[1][n] for t in tangents], -1).numpy() for n in tangents[0][1]},
         }
+
+    def reference_clock(self, segment, start: tuple) -> tuple:
+        """
+        The reference's time of flight through ``segment``, element by element, as Cheetah gains energy:
+        a :func:`~simba.Modules.Beams.cheetah.reference_clock` from ``start = (t0, s0, p0)``.
+        """
+        from cheetah.accelerator import Cavity
+        from torch import cos, deg2rad
+        from ...Modules.Beams.cheetah import reference_clock
+
+        elements = segment.flattened().elements
+        charge = -float(self.pin.species.num_elementary_charges)
+        return reference_clock(
+            [e.length for e in elements],
+            [charge * e.voltage * cos(deg2rad(e.phase)) if isinstance(e, Cavity) else 0.0 for e in elements],
+            self.rest_energy, start,
+        )
 
     def s_and_z(self, s: np.ndarray) -> tuple:
         """Cheetah's ``s`` along :attr:`segment` as the lattice's ``(s, z)``."""
@@ -312,7 +370,8 @@ class cheetahLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
-        from cheetah.accelerator import Cavity, Screen
+        from cheetah.accelerator import Screen
+        from ...Modules.Beams.cheetah import clock_time
 
         def sanitized(n: str) -> str:
             s = "".join(c if c.isalnum() or c == "_" else "_" for c in n)
@@ -325,25 +384,24 @@ class cheetahLattice(frameworkLattice):
                 screens.update({original.get(element.name, element.name): element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
-        # the reference's time of flight, element by element, as Cheetah gains energy
-        elements = self.segment.flattened().elements
-        charge = -float(self.pin.species.num_elementary_charges)
-        clock = reference_clock(
-            [float(e.length) for e in elements],
-            [charge * float(e.voltage) * np.cos(np.radians(float(e.phase))) if isinstance(e, Cavity) else 0.0 for e in elements],
-            self.rest_energy, self.reference_start,
-        )
+        clock = self.reference_clock(self.segment, self.reference_start)  # as the gradients' (track_tangents)
         beam_tangents = {}
         for name, scr in screens.items():
             if name == self.start:
                 continue
             basename = self.output_basename(name)
             outname = f'{self.global_parameters["master_subdir"]}/{basename}.openpmd.hdf5'
-            self.screen_threaded_function.scatter(scr, outname, name, float(np.interp(float(scr.s), *clock)))
+            self.screen_threaded_function.scatter(scr, outname, name, float(clock_time(scr.s, clock)))
             if self.tangents is not None:
                 # track_tangents keys a screen by Cheetah's (sanitized) element name, the line end by its own
                 tangents = self.tangents["beams"]
                 beam_tangents[basename] = tangents[name] if name in tangents else tangents[sanitized(name)]
+                # for the line that reads this file next; see check_incoming_tangents
+                self.global_parameters.get("tangents", {})[os.path.abspath(outname)] = {
+                    "parameters": self.tangents["parameters"],
+                    "values": self.tangents["values"],
+                    "tangent": beam_tangents[basename],
+                }
         self.screen_threaded_function.gather()
         if self.cheetahglobal["save_twiss"] and self.tws is not None:
             twsname = f'{self.global_parameters["master_subdir"]}/{self.objectname}_twiss.cheetah.hdf5'
@@ -356,7 +414,6 @@ class cheetahLattice(frameworkLattice):
                     twsgrp.create_dataset(key, data=data)
                 twsgrp.create_dataset("z", data=z)
         if self.tangents is not None:
-            from ...Modules.Beams.cheetah import lab_coordinates
             s, z = self.s_and_z(self.tangents["twiss"]["s"])
             write_gradients(
                 f'{self.global_parameters["master_subdir"]}/{self.objectname}_gradients.cheetah.hdf5',

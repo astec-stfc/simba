@@ -12,6 +12,25 @@ import numpy as np
 _PATCHED = False
 
 
+def _element_maps(lattice, energy: float):
+    """
+    Each transfer map's ``(B, R, T)`` along ``lattice``, with a drift's ``T`` for each
+    element tracked by its own map, which Ocelot gives none.
+    """
+    from ocelot.cpbd.high_order import t_nnn
+    from ocelot.cpbd.tm_utils import sym_matrix
+    from ocelot.cpbd.transformations.second_order import SecondTM
+
+    for element in lattice.sequence:
+        own = element._tm_class_type is not SecondTM
+        for Rb, Bb, Tb, tm in zip(element.R(energy), element.B(energy), element.T(energy), element.tms):
+            if own and tm.length:
+                # symmetric, as get_rotated_T gives every other element's
+                Tb = sym_matrix(t_nnn(tm.length, 0.0, 0.0, 0.0, energy))
+            yield Bb, Rb, Tb
+            energy += tm.get_delta_e()
+
+
 def turn_map_with_cavity_drifts(lattice, energy: float) -> tuple:
     """
     ``(B, R, T)`` as ``MagneticLattice.transfer_maps`` gives them, but with a drift's
@@ -24,20 +43,25 @@ def turn_map_with_cavity_drifts(lattice, energy: float) -> tuple:
     energy: float
         Reference energy, in GeV.
     """
-    from ocelot.cpbd.high_order import t_nnn
-    from ocelot.cpbd.tm_utils import sym_matrix, transfer_maps_mult
-    from ocelot.cpbd.transformations.second_order import SecondTM
+    from ocelot.cpbd.tm_utils import transfer_maps_mult
 
     B, R, T = np.zeros((6, 1)), np.eye(6), np.zeros((6, 6, 6))
-    for element in lattice.sequence:
-        own = element._tm_class_type is not SecondTM
-        for Rb, Bb, Tb, tm in zip(element.R(energy), element.B(energy), element.T(energy), element.tms):
-            if own and tm.length:
-                # symmetric, as get_rotated_T gives every other element's
-                Tb = sym_matrix(t_nnn(tm.length, 0.0, 0.0, 0.0, energy))
-            B, R, T = transfer_maps_mult(B, R, T, Bb, Rb, Tb)
-            energy += tm.get_delta_e()
+    for Bb, Rb, Tb in _element_maps(lattice, energy):
+        B, R, T = transfer_maps_mult(B, R, T, Bb, Rb, Tb)
     return B, R, T
+
+
+def track_turn_with_cavity_drifts(lattice, energy: float, X) -> tuple:
+    """
+    ``(X after one turn, the one-turn map linearised along its path)``, applying each
+    element's second-order map in turn as Ocelot tracks, so unlike the composed
+    :func:`turn_map_with_cavity_drifts` nothing past second order is dropped.
+    """
+    X, J = np.asarray(X, dtype=float).copy(), np.eye(6)
+    for Bb, Rb, Tb in _element_maps(lattice, energy):
+        J = (Rb + 2 * np.einsum("ijk,k->ij", Tb, X)) @ J
+        X = Bb.ravel() + Rb @ X + np.einsum("ijk,j,k->i", Tb, X, X)
+    return X, J
 
 
 def _gain_ratios(g0: float, g1: float) -> tuple:
