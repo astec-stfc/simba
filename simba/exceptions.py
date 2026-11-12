@@ -90,6 +90,18 @@ class CrystalWithoutChannellingWarning(PhysicsWarning):
         )
 
 
+class UnmodelledElementsWarning(UnsupportedWarning):
+    """Elements in a line whose code passes particles through them as drifts."""
+
+    def __init__(self, line: str, code: str, elements: list):
+        super().__init__(
+            f"{_line(line)} is run by {code}, which models only its interaction and "
+            f"drifts the particles straight through everything else, so these elements "
+            f"have no effect: {', '.join(elements)}. Give them a line of their own in "
+            "another code."
+        )
+
+
 class BunchLengthWarning(PhysicsWarning):
     """BDSIM's matrix integrators, which time every particle as the reference."""
 
@@ -126,6 +138,17 @@ class RadiationUnsupportedWarning(UnsupportedWarning):
             f"{_line(line)} asks for radiation: {radiation}, but simba has no "
             f"radiation switch for {code}, so it is not applied and {code} "
             f"keeps its own default (it {default}). {alternatives}"
+        )
+
+
+class CollectiveUnsupportedWarning(UnsupportedWarning):
+    """CSR or LSC asked for, in a code simba has no switch for it in."""
+
+    def __init__(self, line: str, code: str, effect: str, alternatives: str):
+        super().__init__(
+            f"{_line(line)} asks for {effect} (csr_enable/lsc_enable on the line "
+            f"or its elements), but simba has no {effect} switch for {code}, so "
+            f"it is not modelled. {alternatives}"
         )
 
 
