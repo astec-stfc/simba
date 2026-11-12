@@ -1,7 +1,6 @@
 unit_step: 0.1
 smooth: 0.1
 random_mesh: True
-nbin_csr: 10
 smooth_param: 0.1
 mbin_csr: 5
 sigmamin_csr: 0.000010

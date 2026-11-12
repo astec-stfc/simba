@@ -74,3 +74,44 @@ def test_cheetah_reader_with_several_files(tmp_path):
     assert t.mux.val[-1] == pytest.approx(1.0)  # beta = 1 m over 1 m
     assert t.kinetic_energy.val[0] == pytest.approx(10e6 - t.E0_eV)
     assert t.cp.val[0] == pytest.approx(np.sqrt(10e6**2 - t.E0_eV**2))
+
+
+@pytest.mark.parametrize("save", ["madx", "ocelot"])
+def test_the_twiss_writers_do_not_drop_what_they_cannot_store(save, tmp_path):
+    """An entry h5py could not store was skipped without a word."""
+    from simba.Modules.Twiss.madx import save_madx_twiss_hdf
+    writer = save_madx_twiss_hdf if save == "madx" else ocelot.save_ocelot_twiss_hdf
+    filename = str(tmp_path / "twiss.hdf5")
+    writer(None, filename, {"s": np.arange(3.0), "element_name": np.array([b"A", b"B", b"C"])})
+    with h5py.File(filename, "r") as f:
+        assert sorted(f) == ["element_name", "s"]
+    with pytest.raises(TypeError):
+        writer(None, filename, {"s": np.arange(3.0), "element_name": np.array(["A", "B", "C"])})
+
+
+def test_astra_reader_momentum_spread_and_alpha(tmp_path):
+    """One row at 35 MeV with alpha = -0.7 in both planes and 160 keV rms energy spread."""
+    t = twiss()
+    e_kin, rms_e, gamma = 35.0, 160.0, 1 + 35.0 / (t.E0_eV / 1e6)
+    sx, enx = 0.5, 0.8  # mm, pi mm mrad
+    ex = enx / gamma
+    beta, alpha = sx**2 / ex, -0.7
+    sxp = np.sqrt((1 + alpha**2) / beta * ex)
+    col7 = -alpha * ex / sx  # <x x'>/sigma_x [mrad]
+    row = [1.0, 1.0, 0.0, sx, sxp, enx, col7]
+    for plane in "XY":
+        np.savetxt(tmp_path / f"run.{plane}emit.001", [row])
+    np.savetxt(tmp_path / "run.Zemit.001", [[1.0, 1.0, e_kin, 1.0, rms_e, 1.0, 0.0]])
+    t.read_astra_twiss_files(str(tmp_path / "run.Zemit.001"))
+    b = np.sqrt(1 - gamma**-2)
+    for key in ["alpha_x", "alpha_y", "alpha_x_beam", "alpha_y_beam"]:
+        assert getattr(t, key).val[0] == pytest.approx(alpha)
+    assert t.sigma_cp.val[0] == pytest.approx(1e3 * rms_e / b)
+    assert t.sigma_p.val[0] == pytest.approx(t.sigma_cp.val[0] / t.cp.val[0])
+
+
+def test_astra_reader_says_when_astra_wrote_nothing(tmp_path):
+    for plane in "XYZ":
+        (tmp_path / f"run.{plane}emit.001").touch()
+    with pytest.raises(ValueError, match="ASTRA wrote no Xemit statistics for run"):
+        twiss().read_astra_twiss_files(str(tmp_path / "run.Zemit.001"))

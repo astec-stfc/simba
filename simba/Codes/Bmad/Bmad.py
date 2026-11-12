@@ -94,6 +94,9 @@ class bmadLattice(frameworkLattice):
     code: str = "bmad"
     """String indicating the lattice type"""
 
+    supports_csr: ClassVar[bool] = True
+    supports_lsc: ClassVar[bool] = True
+
     radiates_by_default: ClassVar[bool] = True
     """Bmad lattices from LAURA radiate by default."""
 
@@ -211,7 +214,7 @@ class bmadLattice(frameworkLattice):
         """
         if getattr(self, "_input_species", None) is None:
             return
-        space_charge = str((self.file_block.get("charge") or {}).get("space_charge_mode", "")).lower() == "3d"
+        space_charge = self.space_charge_mode == "3d" or self.lsc_enable
         effects = [name for name, on in (("CSR", self.csr_enable), ("space charge", space_charge)) if on]
         if effects:
             warn(exceptions.CollectiveSpeciesWarning(
@@ -674,7 +677,8 @@ class bmadLattice(frameworkLattice):
         ``bmad_com[csr_and_space_charge_on]`` alone computes nothing: each
         element also needs a ``csr_method`` / ``space_charge_method``. Set them
         on every element by wildcard: :attr:`csr_enable` gives Bmad's 1D CSR, and
-        ``charge: space_charge_mode: 3d`` its 3D space charge.
+        ``charge: space_charge_mode: 3d`` its 3D space charge. Else :attr:`lsc_enable`
+        gives ``slice`` space charge.
 
         Parameters
         ----------
@@ -686,15 +690,15 @@ class bmadLattice(frameworkLattice):
         str
             Lines to append to the lattice
         """
-        charge = self.file_block.get("charge") or {}
-        space_charge = str(charge.get("space_charge_mode", "")).lower() == "3d"
         lines = []
         if self.csr_enable:
             lines.append("*[csr_method] = 1_dim")
-        if space_charge:
+        if self.space_charge_mode == "3d":
             lines.append("*[space_charge_method] = fft_3d")
-            if "bmad_com[csr_and_space_charge_on] = T" not in lattice:
-                lines.append("bmad_com[csr_and_space_charge_on] = T")
+        elif self.lsc_enable:
+            lines.append("*[space_charge_method] = slice")
+        if lines and "bmad_com[csr_and_space_charge_on] = T" not in lattice:
+            lines.append("bmad_com[csr_and_space_charge_on] = T")
         if lines and "space_charge_com[ds_track_step]" not in lattice:
             lines.append(f"space_charge_com[ds_track_step] = {self.collective_step}")
         return "".join(f"{line}\n" for line in lines)

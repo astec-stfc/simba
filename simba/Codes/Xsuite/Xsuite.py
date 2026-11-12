@@ -206,9 +206,6 @@ class xsuiteLattice(frameworkLattice):
     wake_slices: int = 1000
     """Slices across the bunch for each wake, as Ocelot's ``wake_sampling``"""
 
-    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
-    """``charge: space_charge_mode`` values that mean no space charge"""
-
     program_attributes: ClassVar[dict] = {
         "Magnet": ("knl[0]", "ksl[0]"),
         "Multipole": ("knl[0]", "ksl[0]"),
@@ -303,12 +300,6 @@ class xsuiteLattice(frameworkLattice):
                     start_at_turn=0,
                     stop_at_turn=self.turns * self.passes_per_turn,
                 )
-
-    @property
-    def space_charge_mode(self) -> str:
-        """``charge: space_charge_mode``, lower-cased; ``""`` if not given."""
-        charge = self.file_block.get("charge") or {}
-        return str(charge.get("space_charge_mode", "")).lower()
 
     @property
     def space_charge(self) -> bool:
@@ -1043,9 +1034,16 @@ class xsuiteLattice(frameworkLattice):
         )
 
     def find_closed_orbit(self):
-        """``line.find_closed_orbit()``, once a run."""
+        """
+        ``line.find_closed_orbit()``, once a run. Without RF there is no
+        longitudinal closed orbit: the 6D search fails or settles on a
+        spurious ``delta``, so the orbit comes from the 4D twiss.
+        """
         if self._closed_orbit is None:
-            self._closed_orbit = self.line.find_closed_orbit()
+            if self.rf_voltage:
+                self._closed_orbit = self.line.find_closed_orbit()
+            else:
+                self._closed_orbit = self.line.twiss(method="4d").particle_on_co
         return self._closed_orbit
 
     def read_closed_orbit(self):

@@ -19,14 +19,11 @@ def save_madx_twiss_hdf(self, filename: str, twiss: dict = {}) -> None:
     filename: str
         Output filename
     twiss: dict
-        Twiss parameter name to array; entries h5py can't store are skipped
+        Twiss parameter name to array; strings must be bytes (numpy ``S``)
     """
     with h5py.File(filename, "w") as f:
         for grp_name in twiss:
-            try:
-                f.create_dataset(grp_name, data=twiss[grp_name])
-            except Exception:
-                pass
+            f.create_dataset(grp_name, data=twiss[grp_name])
 
 
 def read_madx_twiss_files(self, filename, reset=True):

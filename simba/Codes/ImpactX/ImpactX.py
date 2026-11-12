@@ -53,6 +53,8 @@ class impactxLattice(frameworkLattice):
     code: str = "impactx"
     """The lattice object type."""
 
+    supports_csr: ClassVar[bool] = True
+
     supports_turns: ClassVar[bool] = True
     """One ``track_particles`` a pass, which carries on from the last."""
 
@@ -94,9 +96,6 @@ class impactxLattice(frameworkLattice):
 
     native_time: ClassVar[tuple[str, str]] = ("t", "m")
     """``c (t - reference_time)``: positive behind the reference."""
-
-    space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off")
-    """``charge: space_charge_mode`` values that mean no space charge."""
 
     space_charge_step: float = 0.1
     """Metres between space-charge kicks, as Xsuite's: each thick element's ``nslice``."""
@@ -140,12 +139,6 @@ class impactxLattice(frameworkLattice):
         map: RF focusing, but no RF curvature.
         """
         return bool((self.file_block.get("tracking") or {}).get("field_maps", False))
-
-    @property
-    def space_charge_mode(self) -> str:
-        """``charge: space_charge_mode``, lower-cased; ``""`` if not given."""
-        charge = self.file_block.get("charge") or {}
-        return str(charge.get("space_charge_mode", "")).lower()
 
     def writeElements(self) -> None:
         """Build :attr:`dicts`, crested by :meth:`autophase` with :attr:`field_maps`."""

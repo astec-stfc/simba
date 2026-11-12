@@ -97,7 +97,7 @@ def cdist(a, b):
 
 
 def find_nearest_vector(self, nodes, node):
-    return cdist([node], nodes).argmin()
+    return int(cdist([node], nodes).argmin())
 
 
 def rms(self, x, axis=None):

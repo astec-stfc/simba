@@ -48,6 +48,9 @@ class elegantLattice(frameworkLattice):
     code: str = "elegant"
     """The lattice object type."""
 
+    supports_csr: ClassVar[bool] = True
+    supports_lsc: ClassVar[bool] = True
+
     electrons_only: ClassVar[bool] = True
     """elegant can track other species with ``&change_particle``, but simba
     does not write it, so anything else would be tracked as electrons."""

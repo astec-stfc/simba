@@ -7,7 +7,6 @@ The GPT header commands (``GptSetFile``, ``GptTout``, ...) live in
 
 import os
 import re
-import subprocess
 import numpy as np
 from warnings import warn
 from laura.models.diagnostic import DiagnosticElement
@@ -18,7 +17,7 @@ from ...Modules import Beams as rbf
 from ...Modules.constants import elementary_charge, electron_mass, speed_of_light
 from ...Modules.units import UnitValue
 from ...Modules.gdf_beam import gdf_beam
-from typing import ClassVar, Dict, Literal, Any
+from typing import ClassVar, Dict, Any
 from laura.translator.converters.codes.gpt import (
     GptSetFile,
     GptAccuracy,
@@ -41,11 +40,18 @@ def _without_spaces(path: str) -> str:
     return buffer.value if ctypes.windll.kernel32.GetShortPathNameW(path, buffer, 260) else path
 
 
+GPT_V_MIN_MARGIN = 0.99
+"""Factor on the slowest particle's speed that closes an aperture's ``dtmaxt`` window: about 1%
+of the travel time to the aperture as slack (0.3 ns at 10 m)."""
+
+
 class gptLattice(frameworkLattice):
     """A :class:`~simba.Framework_objects.frameworkLattice` written as a GPT input file."""
 
     code: str = "gpt"
     """String indicating the lattice object type"""
+
+    supports_csr: ClassVar[bool] = True
 
     tracks_multiple_species: ClassVar[bool] = True
     """GPT takes each particle's charge and mass from the ``q`` and ``m`` columns of its GDF input."""
@@ -106,41 +112,6 @@ class gptLattice(frameworkLattice):
             filename='"' + self.objectname + '_floor.gdf"'
         )
 
-    @property
-    def space_charge_mode(self) -> str | None:
-        """
-        Space charge mode from :attr:`file_block`, else :attr:`globalSettings`.
-
-        Returns
-        -------
-        str | None
-        """
-        if (
-            "charge" in self.file_block
-            and "space_charge_mode" in self.file_block["charge"]
-        ):
-            return self.file_block["charge"]["space_charge_mode"]
-        elif (
-            "charge" in self.globalSettings
-            and "space_charge_mode" in self.globalSettings["charge"]
-        ):
-            return self.globalSettings["charge"]["space_charge_mode"]
-        else:
-            return None
-
-    @space_charge_mode.setter
-    def space_charge_mode(self, mode: Literal["2d", "3d", "2D", "3D"]) -> None:
-        """
-        Set the space charge mode in :attr:`file_block`.
-
-        Parameters
-        ----------
-        mode: Literal["2d", "3d", "2D", "3D"]
-        """
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        self.file_block["charge"]["space_charge_mode"] = mode
-
     def writeElements(self) -> str:
         """
         Build the :attr:`headers` and render the section as GPT input.
@@ -151,14 +122,11 @@ class gptLattice(frameworkLattice):
             GPT input file text
         """
         self.headers["accuracy"] = GptAccuracy(accuracy=self.accuracy)
-        if "charge" not in self.file_block:
-            self.file_block["charge"] = {}
-        if "charge" not in self.globalSettings:
-            self.globalSettings["charge"] = {}
-        space_charge_dict = self.file_block["charge"] | self.globalSettings["charge"]
+        space_charge_dict = (self.globalSettings.get("charge") or {}) | (self.file_block.get("charge") or {})
+        space_charge_dict["space_charge_mode"] = self.space_charge_mode or "False"
         space_charge = self.global_parameters | space_charge_dict
         self.headers["spacecharge"] = GptSpaceCharge(**space_charge)
-        if self.particle_definition == "laser" and self.space_charge_mode is not None:
+        if self.particle_definition == "laser" and self.space_charge_mode:
             self.headers["spacecharge"].npart = len(self.global_parameters["beam"].x)
         if (
             self.csr_enable
@@ -178,10 +146,47 @@ class gptLattice(frameworkLattice):
             startz=self.local_z(self.startObject.physical.start),
             endz=self.local_z(self.endObject.physical.end),
             Brho=self.global_parameters["beam"].Brho,
-            dtmin=self.dtmin
+            dtmin=self.dtmin,
+            aperture_dtmax=True,
         )
         self.section.gpt_screen_positions = section.gpt_screen_positions
-        return text
+        return self._bunch_timing() + text if "bunch_t_head" in text else text
+
+    def _bunch_timing(self) -> str:
+        """
+        The GPT variables timing LAURA's ``dtmaxt`` windows around each aperture, which
+        hold the time step down while the bunch passes so that GPT does not step over it.
+
+        ``s`` of a particle is that of the start element plus its z from there. Without
+        ``t`` in the beam file every particle starts at t = 0, so the window stays open
+        to the end. ``bunch_v_min`` is :data:`GPT_V_MIN_MARGIN` of the slowest particle's
+        speed.
+
+        Returns
+        -------
+        str
+            ``bunch_t_head``, ``bunch_t_tail`` and ``bunch_v_min`` as GPT assignments
+        """
+        beam = self.global_parameters["beam"]
+        start = self.startObject.physical
+        z_ref = self.local_z(start.middle)
+        s_ref = z_ref if start.s is None else start.s + {
+            "start": 0.5, "middle": 0.0, "end": -0.5
+        }[start.s_point] * start.length
+        v_min = max(float(np.min(np.asarray(beam.Bz))), 1e-6) * speed_of_light * GPT_V_MIN_MARGIN
+        if self.particle_definition == "laser":
+            t = np.asarray(beam.t)
+            s_head = s_tail = s_ref - z_ref  # emitted at z = 0
+            t_head, t_tail = float(np.min(t)), float(np.max(t))
+        else:
+            s = s_ref + np.asarray(beam.z) - z_ref
+            s_head, s_tail = float(np.max(s)), float(np.min(s))
+            t_head = t_tail = 0.0
+        return (
+            f"bunch_t_head = {t_head - s_head / speed_of_light};\n"
+            f"bunch_t_tail = {t_tail - s_tail / v_min};\n"
+            f"bunch_v_min = {v_min};\n"
+        )
 
     def write(self) -> None:
         """Write :meth:`writeElements` to ``<master_subdir>/<objectname>.in``."""
@@ -291,17 +296,17 @@ class gptLattice(frameworkLattice):
             mr = [gpt[0].replace("gpt", "mr")]
             gdfa = [gpt[0].replace("gpt", "gdfa")]
             env = gpt_environment(self.global_parameters)
-            subprocess.call(
+            self.run_command(
                 mr + ["-o", self.objectname + "_crest_out.gdf",
                       self.objectname + "_crest.mr"]
                 + gpt + [self.objectname + "_crest.in"],
-                cwd=subdir, env=env,
+                base + "_crest.log", cwd=subdir, env=env,
             )
-            subprocess.call(
+            self.run_command(
                 gdfa + ["-o", self.objectname + "_crest_avg.gdf",
                         self.objectname + "_crest_out.gdf",
                         "crestscan", "avgG", "numpar"],
-                cwd=subdir, env=env,
+                base + "_crest_gdfa.log", cwd=subdir, env=env,
             )
             return self._read_crest_scan(base + "_crest_avg.gdf", z_eval)
 
@@ -547,27 +552,11 @@ class gptLattice(frameworkLattice):
                     output += c + " "
                 output += "\n"
                 batfile.write(output)
-        with open(
-            os.path.abspath(
-                self.global_parameters["master_subdir"] + "/" + self.objectname + ".log"
-            ),
-            "w",
-        ) as f:
-            subprocess.call(
-                main_command,
-                stdout=f,
-                cwd=self.global_parameters["master_subdir"],
-                env=my_env,
-            )
-            subprocess.call(
-                post_command, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
-            subprocess.call(
-                post_command_t, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
-            subprocess.call(
-                post_command_traj, stdout=f, cwd=self.global_parameters["master_subdir"]
-            )
+        subdir = self.global_parameters["master_subdir"]
+        log = os.path.abspath(f"{subdir}/{self.objectname}")
+        self.run_command(main_command, log + ".log", cwd=subdir, env=my_env)
+        for command in (post_command, post_command_t, post_command_traj):
+            self.run_command(command, log + "_gdfa.log", cwd=subdir)
 
     def postProcess(self) -> None:
         """Write the beam at each screen and the end from the GPT output, via :meth:`gdf_to_hdf5`."""
