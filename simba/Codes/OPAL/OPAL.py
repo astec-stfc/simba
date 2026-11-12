@@ -204,6 +204,10 @@ class opalLattice(frameworkLattice):
     generator: Any = None
     """The framework's beam generator, set by the framework; used by :attr:`all_in_one`."""
 
+    start_time: float = 0.0
+    """When the particles were where the file :meth:`hdf5_to_opal` wrote puts them [s]: OPAL's time 0, so
+    every time it reports is after it. 0 for a bunch OPAL emits or generates."""
+
     def model_post_init(self, __context):
         super().model_post_init(__context)
         self.particle_definition = self.input_particle_definition
@@ -397,6 +401,7 @@ class opalLattice(frameworkLattice):
             return None
         beam = rbf.beam()
         beam.read_opal_beam_file(filename=filename, step=step)
+        beam._beam.t = UnitValue(beam._beam.t.val + self.start_time, "s")
         return beam
 
     def postProcess(self):
@@ -478,10 +483,16 @@ class opalLattice(frameworkLattice):
 
     def hdf5_to_opal(self):
         emitted = self.emitted
+        beam, start = self.global_parameters["beam"], self.local_z(self.startObject.physical.start)
+        # each t is when the particle crosses the start, z where it is at one moment: OPAL's time 0. OPAL
+        # restarted every line at 0 (0.11 us off by the end of JFEL's linac)
+        self.start_time = 0.0 if emitted else float(
+            np.mean(beam.t.val - (start - beam.z.val) / (beam.Bz.val * speed_of_light))
+        )
         rbf.opal.write_opal_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + os.path.basename(self.particle_definition) + '.opal',
-            subz=self.local_z(self.startObject.physical.start),
+            subz=start,
             emitted=emitted,
         )
 

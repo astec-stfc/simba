@@ -247,32 +247,17 @@ class bmadLattice(frameworkLattice):
                 "but times it by its momentum, so cannot get both right.",
             )
 
-    def _reference_value(self, values, fallback: float = None) -> float:
-        """The reference particle's value, if the beam has one; else
-        ``fallback`` (the incoming beam's mean, before sampling), else the
-        mean of ``values``."""
-        values = np.asarray(values)
-        if not values.size:
-            raise ValueError("Cannot create a Bmad lattice without beam particles")
-        if self.ref_idx is not None and 0 <= self.ref_idx < len(values):
-            return float(values[self.ref_idx])
-        if fallback is not None:
-            return float(fallback)
-        return float(np.mean(values))
-
     def _reference_p0c(self) -> float:
-        """A ring's :attr:`design_p0c`, else the reference particle's ``cp``
-        in eV, else :attr:`reference_p0c`."""
-        if self.design_p0c is not None:
-            return self.design_p0c
-        beam = self.global_parameters["beam"]
-        return self._reference_value(beam.cp.val, self.reference_p0c)
+        """A ring's :attr:`design_p0c`, else :attr:`reference_p0c` (the incoming mean), as every code's."""
+        return self.reference_p0c
 
     def _write_bmad_beam_file(self) -> None:
         """Write the beam to :attr:`input_beam_file` in Bmad's ASCII format."""
         beam = self.global_parameters["beam"]
+        if not np.size(beam.x.val):
+            raise ValueError("Cannot create a Bmad lattice without beam particles")
         p0c = self._reference_p0c()
-        z = beam.z.val - self._reference_value(beam.z.val, self.reference_z0)
+        z = beam.z.val - self.reference_z0
         particles = np.column_stack(
             (
                 beam.x.val,
@@ -329,18 +314,8 @@ class bmadLattice(frameworkLattice):
             ))
 
     def _reference_energy(self) -> float:
-        """
-        Reference energy: :attr:`reference_energy` if :attr:`design_p0c` is set, else the reference particle's.
-
-        Returns
-        -------
-        float
-        """
-        if self.design_p0c is not None:
-            return self.reference_energy
-        return self._reference_value(
-            self.global_parameters["beam"].energy.val, self.reference_energy
-        )
+        """Total energy at :meth:`_reference_p0c`, in eV."""
+        return self.reference_energy
 
     def _bmad_initial_twiss(self) -> TwissMatchSimulationElement | None:
         """

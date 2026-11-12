@@ -4,7 +4,7 @@ SIMBA Cheetah module: builds and tracks a Cheetah segment. See `Cheetah github`_
     .. _Cheetah github: https://github.com/desy-ml/cheetah
 """
 from ...Framework_objects import frameworkLattice
-from ...FrameworkHelperFunctions import set_deep_attr
+from ...FrameworkHelperFunctions import reference_clock, set_deep_attr
 from ...Modules import Beams as rbf
 from ...Modules.gradients import write_gradients
 from ... import exceptions
@@ -277,7 +277,7 @@ class cheetahLattice(frameworkLattice):
         return svals + self.entrance_s, self.getZAtS(svals)
 
     @lox.thread(40)
-    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str) -> None:
+    def screen_threaded_function(self, scr: DiagnosticElement, outname: str, name: str, t_reference: float) -> None:
         """
         Write a Cheetah beam as openPMD; the end's also becomes the framework beam.
 
@@ -289,6 +289,8 @@ class cheetahLattice(frameworkLattice):
             openPMD file to write
         name: str
             Element name
+        t_reference: float
+            When the reference reaches it [s]
         """
         from ...Modules.Beams import cheetah as rbf_cheetah
         beam = rbf.beam()
@@ -302,7 +304,7 @@ class cheetahLattice(frameworkLattice):
             zstart=zstart,
             s=scr.s.numpy(),
             ref_index=self.ref_idx,
-            start=self.reference_start,
+            t_reference=t_reference,
         )
         rbf.openpmd.write_openpmd_beam_file(beam, outname)
         if name == self.end:
@@ -310,7 +312,7 @@ class cheetahLattice(frameworkLattice):
 
     def postProcess(self) -> None:
         """Write the screen and end beams as openPMD, and the twiss HDF5 if ``save_twiss``."""
-        from cheetah.accelerator import Screen
+        from cheetah.accelerator import Cavity, Screen
 
         def sanitized(n: str) -> str:
             s = "".join(c if c.isalnum() or c == "_" else "_" for c in n)
@@ -323,13 +325,21 @@ class cheetahLattice(frameworkLattice):
                 screens.update({original.get(element.name, element.name): element.get_read_beam()})
         if not isinstance(self.segment.elements[-1], Screen):
             screens.update({self.end: self.pout})
+        # the reference's time of flight, element by element, as Cheetah gains energy
+        elements = self.segment.flattened().elements
+        charge = -float(self.pin.species.num_elementary_charges)
+        clock = reference_clock(
+            [float(e.length) for e in elements],
+            [charge * float(e.voltage) * np.cos(np.radians(float(e.phase))) if isinstance(e, Cavity) else 0.0 for e in elements],
+            self.rest_energy, self.reference_start,
+        )
         beam_tangents = {}
         for name, scr in screens.items():
             if name == self.start:
                 continue
             basename = self.output_basename(name)
             outname = f'{self.global_parameters["master_subdir"]}/{basename}.openpmd.hdf5'
-            self.screen_threaded_function.scatter(scr, outname, name)
+            self.screen_threaded_function.scatter(scr, outname, name, float(np.interp(float(scr.s), *clock)))
             if self.tangents is not None:
                 # track_tangents keys a screen by Cheetah's (sanitized) element name, the line end by its own
                 tangents = self.tangents["beams"]

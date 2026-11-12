@@ -1,7 +1,6 @@
 import numpy as np
 from .. import constants
 from ..units import UnitValue
-from ...FrameworkHelperFunctions import reference_time
 from torch import tensor, ones, get_default_device, float64, as_tensor
 
 
@@ -34,7 +33,7 @@ def cheetah_lab_coordinates(parray, E0_eV):
     return stack([parray.x, cpx, parray.y, cpy, t, cpz], dim=-1)
 
 
-def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, start=None):
+def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, t_reference=None):
     # Cheetah's Aperture does not remove a lost particle: it sets its survival probability to 0.
     # 0.5 is the threshold Cheetah's own openPMD writer uses to decide alive or lost.
     alive = parray.survival_probabilities.numpy() > 0.5
@@ -43,10 +42,7 @@ def interpret_cheetah_ParticleBeam(self, parray, zstart=0, s=0, ref_index=None, 
     # one rest energy for every particle of the Cheetah beam, lost ones included (simba's Cheetah beams are electrons)
     E0_eV = as_tensor(float(np.mean(self.E0_eV)), dtype=float64)
     x, cpx, y, cpy, t, cpz = cheetah_lab_coordinates(parray, E0_eV).detach().numpy()[alive].T
-    if start is not None:
-        # open line: the reference's time of flight from start = (t0, s0, p0), not s / c
-        mass = float(np.mean(self.E0_eV))
-        t_reference = reference_time(float(parray.s), np.sqrt(float(parray.energy) ** 2 - mass**2), mass, start)
+    if t_reference is not None:  # when the reference got here, not s / c
         t = t_reference + parray.tau.numpy()[alive] / constants.speed_of_light
     self._beam.x = UnitValue(x, "m")
     self._beam.y = UnitValue(y, "m")

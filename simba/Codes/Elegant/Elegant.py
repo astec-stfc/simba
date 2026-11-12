@@ -27,6 +27,7 @@ from ...Framework_objects import (
 from ...FrameworkHelperFunctions import convert_outputs, saveFile
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
+from ...Modules.units import UnitValue
 from ...Modules.SDDSFile import SDDS_Types, SDDSFile
 from typing import Dict, List, Any
 from laura.models.diagnostic import DiagnosticElement
@@ -1075,7 +1076,7 @@ class elegantLattice(frameworkLattice):
             if screen.hardware_type != "Beam_Position_Monitor":
                 warn(f"{screen.name}: elegant wrote no beam file, nothing to convert")
             return
-        xyzoffset = [0.0, 0.0, self.output_s(screen.name)]
+        xyzoffset = [0.0, 0.0, screen.physical.middle.z]
         wanted = self.output_turns()
         # one load for every page
         sdds_file = SDDSFile(index=1)
@@ -1097,6 +1098,7 @@ class elegantLattice(frameworkLattice):
                 ref_index=ref_index,
                 sdds_file=sdds_file,
             )
+            beam._beam.s = UnitValue(self.output_s(screen.name), units="m")
             beam.turn = self.beam_turn(turn)
             self.write_beam_file(beam, screen.name, turn)
         if self.global_parameters["delete_tracking_files"]:
