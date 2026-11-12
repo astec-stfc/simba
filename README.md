@@ -21,6 +21,14 @@ The codes currently supported by ``SIMBA`` are:
 * [Cheetah](https://www.github.com/desy-ml/cheetah/)
 * [Wake-T](https://www.github.com/AngelFP/Wake-T/)
 * [Xsuite](https://www.github.com/xsuite/)
+* [ImpactX](https://impactx.readthedocs.io)
+* [MAD-X](https://mad.web.cern.ch/mad/)
+* [Bmad](https://www.classe.cornell.edu/bmad/)
+* [OPAL](https://amas.web.psi.ch/opal/)
+* [Genesis](https://github.com/svenreiche/Genesis-1.3-Version4)
+* [BDSIM](https://github.com/bdsim-collaboration/bdsim)
+* [FBPIC](https://github.com/fbpic/fbpic)
+* [Slipstream](https://www.github.com/astec-stfc/slipstream/) (linac tracking; install it separately)
 
 A range of other codes are also currently under active development. 
 
@@ -88,7 +96,8 @@ files for simulation codes.
 Defining the Lattice Simulation
 -------------------------------
 
-The simulation of the lattice is defined in a separate ``YAML`` file, for example ``CLA-Injector.def``:
+The simulation of the lattice is defined in a separate ``YAML`` file, for example this one, adapted from
+``CLARA/Lattices/clara400_v13_combined.def`` in laura-lattices:
 
 ```yaml
 generator:
@@ -163,10 +172,10 @@ framework = fw.Framework(
     verbose=True,
     )
 # Load a lattice definition file. These can be found in Masterlattice/Lattices by default.
-framework.loadSettings("Lattices/CLARA.def")
-# Change all lattice codes to ASTRA/Elegant/GPT with exclusions (injector cannot be done in Elegant)
+framework.loadSettings("Lattices/clara400_v13_combined.def")
+# Put every line except Linac in ASTRA (the injector cannot be done in Elegant)
 framework.change_Lattice_Code("All", "ASTRA", exclude=["Linac"])
-# Again, but put the VBC in Elegant for CSR
+# Then put FEBE back in Elegant
 framework.change_Lattice_Code("FEBE", "Elegant")
 # This is the code that generates the laser distribution (ASTRA or GPT)
 framework.change_generator("ASTRA")
@@ -174,7 +183,6 @@ framework.change_generator("ASTRA")
 framework.generator.load_defaults("clara_400_2ps_Gaussian")
 # Set the thermal emittance for the generator
 framework.generator.thermal_emittance = 0.0005
-# This is a scaling parameter
 # This defines the number of particles to create at the gun (this is "ASTRA generator" which creates distributions)
 framework.generator.number_of_particles = 512
 # Track the lattice

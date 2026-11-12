@@ -321,6 +321,41 @@ def plot(self, keys=None, bins=None, type="density", **kwargs):
         return marginal_plot(self, key1=xkey, key2=ykey, bins=bins, **kwargs)
 
 
+def _screen_image_data(beam, keys, scale, iscale, use_scipy, subtract_mean, **kwargs):
+    """Density estimate of ``keys`` for plotScreenImage and getScreenImage: 1D axes
+    v1 and v2, the PDF indexed [y, x] (as fastKDE returns it), the nice_array
+    factors f1 and f2, and the axis labels."""
+    key1, key2 = keys
+    if not isinstance(subtract_mean, (list, tuple)):
+        subtract_mean = [subtract_mean, subtract_mean]
+    if not isinstance(scale, (list, tuple)):
+        scale = [scale, scale]
+
+    x, f1, p1 = nice_array(
+        scale[0] * (getattr(beam, key1) - subtract_mean[0] * np.mean(getattr(beam, key1)))
+    )
+    y, f2, p2 = nice_array(
+        scale[1] * (getattr(beam, key2) - subtract_mean[1] * np.mean(getattr(beam, key2)))
+    )
+
+    u1, u2 = [getattr(beam, k).units for k in keys]
+    labelx = f"{key1} ({p1 + u1})"
+    labely = f"{key2} ({p2 + u2})"
+
+    if fastKDE_installed and not use_scipy:
+        myPDF, (v1, v2) = fastKDE.pdf(x, y, use_xarray=False, **kwargs)
+    elif SciPy_installed:
+        v1, v2 = np.linspace(x.min(), x.max(), 100), np.linspace(y.min(), y.max(), 100)
+        X, Y = np.meshgrid(v1, v2)
+        kernel = stats.gaussian_kde(np.vstack([x, y]))
+        myPDF = kernel(np.vstack([X.ravel(), Y.ravel()])).reshape(X.shape)
+    else:
+        raise Exception("fastKDE or SciPy required")
+
+    myPDF = myPDF / myPDF.max() * iscale
+    return v1, v2, myPDF, f1, f2, labelx, labely
+
+
 def plotScreenImage(
     beam,
     keys=["x", "y"],
@@ -341,48 +376,13 @@ def plotScreenImage(
     labelsize=None,     # axis label font size
     **kwargs,
 ):
-    import numpy as np
-    import os
-    import matplotlib.pyplot as plt
-    from scipy import stats
-
-    # --- Process inputs ---
-    key1, key2 = keys
     if not isinstance(subtract_mean, (list, tuple)):
         subtract_mean = [subtract_mean, subtract_mean]
-    if not isinstance(scale, (list, tuple)):
-        scale = [scale, scale]
     if not isinstance(size, (list, tuple)):
         size = [size, size]
-
-    # --- Get arrays from beam ---
-    x, f1, p1 = nice_array(
-        scale[0] * (getattr(beam, key1) - subtract_mean[0] * np.mean(getattr(beam, key1)))
+    v1, v2, myPDF, f1, f2, labelx, labely = _screen_image_data(
+        beam, keys, scale, iscale, use_scipy, subtract_mean, **kwargs
     )
-    y, f2, p2 = nice_array(
-        scale[1] * (getattr(beam, key2) - subtract_mean[1] * np.mean(getattr(beam, key2)))
-    )
-
-    u1, u2 = [getattr(beam, k).units for k in keys]
-    labelx = f"{key1} ({p1 + u1})"
-    labely = f"{key2} ({p2 + u2})"
-
-    # --- Compute PDF ---
-    if fastKDE_installed and not use_scipy:
-        myPDF, axes = fastKDE.pdf(x, y, use_xarray=False, **kwargs)
-        v1, v2 = axes
-    elif SciPy_installed:
-        xmin, xmax = x.min(), x.max()
-        ymin, ymax = y.min(), y.max()
-        v1, v2 = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-        positions = np.vstack([v1.ravel(), v2.ravel()])
-        values = np.vstack([x, y])
-        kernel = stats.gaussian_kde(values)
-        myPDF = np.reshape(kernel(positions).T, v1.shape)
-    else:
-        raise Exception("fastKDE or SciPy required")
-
-    myPDF = myPDF / myPDF.max() * iscale
 
     # --- Figure / Axes creation ---
     if ax is None:
@@ -483,7 +483,8 @@ def plotScreenImage(
         ax.set_xlabel(labelx)
         ax.set_ylabel(labely)
 
-    file, ext = os.path.splitext(os.path.basename(beam.filename))
+    if title:
+        (ax_histx if marginals else ax).set_title(title)
 
     # --- Save file ---
     if isinstance(filename, str):
@@ -505,49 +506,11 @@ def getScreenImage(
     subtract_mean=[False, False],
     **kwargs,
 ):
-    # Do the self-consistent density estimate
-    key1, key2 = keys
-    if not isinstance(subtract_mean, (list, tuple)):
-        subtract_mean = [subtract_mean, subtract_mean]
-    if not isinstance(scale, (list, tuple)):
-        scale = [scale, scale]
-    if not isinstance(size, (list, tuple)):
-        size = [size, size]
-
-    x, f1, p1 = nice_array(
-        scale[0] * (beam[key1] - subtract_mean[0] * np.mean(beam[key1]))
+    """The density estimate that plotScreenImage draws, without drawing it.
+    ``size`` is not used."""
+    v1, v2, myPDF, _, _, labelx, labely = _screen_image_data(
+        beam, keys, scale, iscale, use_scipy, subtract_mean, **kwargs
     )
-    y, f2, p2 = nice_array(
-        scale[1] * (beam[key2] - subtract_mean[1] * np.mean(beam[key2]))
-    )
-
-    u1, u2 = [beam[k].units for k in keys]
-    ux = p1 + u1
-    uy = p2 + u2
-
-    labelx = f"{key1} ({ux})"
-    labely = f"{key2} ({uy})"
-
-    if fastKDE_installed and not use_scipy:
-        myPDF, axes = fastKDE.pdf(x, y, use_xarray=False, **kwargs)
-        v1, v2 = axes
-    elif SciPy_installed:
-        xmin = x.min()
-        xmax = x.max()
-        ymin = y.min()
-        ymax = y.max()
-        v1, v2 = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-        positions = np.vstack([v1.ravel(), v2.ravel()])
-        values = np.vstack([x, y])
-        kernel = stats.gaussian_kde(values)
-        myPDF = np.reshape(kernel(positions).T, v1.shape)
-    else:
-        raise Exception("fastKDE or SciPy required")
-    # normalise the PDF to 1
-    myPDF = myPDF / myPDF.max() * iscale
-
-    xmin, xmax = [min(v1.flatten()), max(v1.flatten())]
-    ymin, ymax = [min(v2.flatten()), max(v2.flatten())]
     return v1, v2, myPDF, colormap, labelx, labely
 
 def get_wigner_data(
