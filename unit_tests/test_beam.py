@@ -662,14 +662,48 @@ def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):
     assert set(np.array(newbeam.Particles.status)) == {-1}
 
 
+def _openpmd_with_status(beam, path, status):
+    """``beam`` written as an openPMD file whose particles have openPMD's ``status`` flags."""
+    from beamphysics import ParticleGroup
+    beam.Particles.status = np.full(len(beam.x), 5)
+    beam.write_openpmd_beam_file(str(path))
+    particles = ParticleGroup(str(path))
+    particles.data["status"] = np.asarray(status)
+    os.remove(path)
+    particles.write(str(path))
+    return particles
+
+
 def test_openpmd_alive_status_becomes_astra_standard_particle(simple_beam, tmp_path):
     """openPMD alive (1) is ASTRA's passive particle; it has to reach ASTRA as 5."""
-    simple_beam.Particles.status = np.ones(len(simple_beam.x))
-    simple_beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    _openpmd_with_status(simple_beam, tmp_path / "b.openpmd.hdf5", np.ones(len(simple_beam.x)))
     newbeam = rbf.beam()
     newbeam.read_beam_file(str(tmp_path / "b.openpmd.hdf5"))
     newbeam.write_astra_beam_file(str(tmp_path / "b.astra"))
     assert set(np.loadtxt(tmp_path / "b.astra")[:, -1]) == {5}
+
+
+def test_openpmd_written_beam_is_alive(simple_beam, tmp_path):
+    """SIMBA keeps ASTRA's flags (5 is a live particle); openPMD-beamphysics counts status 1 as alive."""
+    from beamphysics import ParticleGroup
+    simple_beam.Particles.status = np.full(len(simple_beam.x), 5)
+    simple_beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    assert ParticleGroup(str(tmp_path / "b.openpmd.hdf5")).n_alive == len(simple_beam.x)
+
+
+def test_openpmd_round_trip_keeps_status(simple_beam, tmp_path):
+    """openPMD in, openPMD out: alive, at the cathode and lost particles keep their flags."""
+    from beamphysics import ParticleGroup
+    status = np.ones(len(simple_beam.x), dtype=int)
+    status[:3] = [0, 2, 3]  # at the cathode, and two lost
+    original = _openpmd_with_status(simple_beam, tmp_path / "in.openpmd.hdf5", status)
+    newbeam = rbf.beam()
+    newbeam.read_beam_file(str(tmp_path / "in.openpmd.hdf5"))
+    assert list(np.array(newbeam.Particles.status)[:4]) == [-1, 2, 3, 5]
+    newbeam.write_openpmd_beam_file(str(tmp_path / "out.openpmd.hdf5"))
+    out = ParticleGroup(str(tmp_path / "out.openpmd.hdf5"))
+    assert out.n_alive == original.n_alive == len(status) - 3
+    assert np.array_equal(out.status, status)
 
 
 def test_apply_mask(simple_beam):

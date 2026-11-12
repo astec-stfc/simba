@@ -34,6 +34,21 @@ PRIMARY_SPECIES_ATTR = "simbaPrimarySpecies"
 file holds more than one; the rest are :attr:`~simba.Modules.Beams.beam.others`."""
 
 
+def _astra_status(status):
+    """openPMD's status flags as ASTRA's, which SIMBA keeps. openPMD's BeamPhysics extension says 1 is alive
+    (ASTRA's standard particle, 5), 0 at a cathode (ASTRA's -1), and any other value dead."""
+    status = np.asarray(status)
+    return np.select([status == 1, status == 0], [5, -1], status)
+
+
+def _openpmd_status(status):
+    """ASTRA's status flags as openPMD's, the inverse of :func:`_astra_status`. ASTRA's passive particle (1)
+    is not counted in a beam's statistics, so it is 2 (not alive), as openPMD-beamphysics writes it;
+    lost (negative) and probe particles are not 1 either."""
+    status = np.asarray(status)
+    return np.select([status == 5, status == -1, status == 1], [1, 0, 2], status)
+
+
 def read_particle_group(self, particles, s=None, reference_particle_index=None):
     """Populate a SIMBA beam from an openPMD ``ParticleGroup``."""
     self._beam.x = UnitValue(particles.x, units="m")
@@ -44,7 +59,7 @@ def read_particle_group(self, particles, s=None, reference_particle_index=None):
     self._beam.charge = UnitValue(particles.weight, units="C")
     self._beam.total_charge = UnitValue(particles.charge, units="C")
     self._beam.nmacro = UnitValue(particles.weight / constants.elementary_charge)
-    self._beam.status = UnitValue(np.where(particles.status == 1, 5, particles.status))
+    self._beam.status = UnitValue(_astra_status(particles.status))
     self.set_species(particles.species)
     self._beam.s = UnitValue(s, units="m") if s is not None else None
     self.longitudinal_reference = "t"
@@ -290,7 +305,7 @@ def _write_species(self, h5file_particles, pos, toffset):
         "pz": self.cpz,
         "t": self.t + UnitValue(toffset, units="s"),
         "weight": _weight(self),
-        "status": self._beam.status,
+        "status": _openpmd_status(self._beam.status),
         "species": [self.species],
     }
     particles = ParticleGroup(data=data)
