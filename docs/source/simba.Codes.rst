@@ -22,6 +22,7 @@ Subpackages
    simba.Codes.OPAL
    simba.Codes.Ocelot
    simba.Codes.RFTrack
+   simba.Codes.Slipstream
    simba.Codes.Wake_T
    simba.Codes.Xsuite
 

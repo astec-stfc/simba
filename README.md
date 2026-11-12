@@ -28,6 +28,7 @@ The codes currently supported by ``SIMBA`` are:
 * [Genesis](https://github.com/svenreiche/Genesis-1.3-Version4)
 * [BDSIM](https://github.com/bdsim-collaboration/bdsim)
 * [FBPIC](https://github.com/fbpic/fbpic)
+* [Slipstream](https://www.github.com/astec-stfc/slipstream/) (linac tracking; install it separately)
 
 A range of other codes are also currently under active development. 
 
