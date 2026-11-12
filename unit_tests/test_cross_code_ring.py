@@ -393,6 +393,7 @@ def test_ocelot_reports_the_tune_through_simba_not_just_through_ocelot():
         read_optics_summary = ocelotLattice.read_optics_summary
         _ocelot_periodic = ocelotLattice._ocelot_periodic
         read_one_turn_map = ocelotLattice.read_one_turn_map
+        _closed_orbit_and_map = ocelotLattice._closed_orbit_and_map
         objectname = "ring"
         lat_obj = lattice
         _periodic = None

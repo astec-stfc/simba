@@ -55,6 +55,12 @@ def read_ocelot_twiss_files(self, filename, reset=True):
         interpret_ocelot_data(self, lattice_name, fdat)
 
 
+def _per_emittance(value, eigemit):
+    """``value / eigemit``, 0 where ``eigemit`` is 0 (no beam, e.g. a periodic run)."""
+    value, eigemit = np.asarray(value, dtype=float), np.asarray(eigemit, dtype=float)
+    return np.divide(value, eigemit, out=np.zeros(np.broadcast(value, eigemit).shape), where=eigemit != 0)
+
+
 def _uncorrected_emittance(uu, pp_, up, disp, dispp, varp, betagamma):
     """
     Add the dispersive contribution back into Ocelot's dispersion-subtracted
@@ -157,16 +163,14 @@ def interpret_ocelot_data(self, lattice_name, fdat):
         eta_xp_beam=fdat["Dxp"],
         eta_y_beam=fdat["Dy"],
         eta_yp_beam=fdat["Dyp"],
-        beta_x_beam=fdat["xx"] / fdat["eigemit_1"],
-        beta_y_beam=fdat["yy"] / fdat["eigemit_2"],
-        alpha_x_beam=-1
-        * np.sign(fdat["xpx"])
-        * np.sqrt(fdat["xx"])
-        * np.sqrt(fdat["pxpx"])
-        / fdat["eigemit_1"],
-        alpha_y_beam=-1
-        * np.sign(fdat["ypy"])
-        * np.sqrt(fdat["yy"])
-        * np.sqrt(fdat["pypy"])
-        / fdat["eigemit_2"],
+        beta_x_beam=_per_emittance(fdat["xx"], fdat["eigemit_1"]),
+        beta_y_beam=_per_emittance(fdat["yy"], fdat["eigemit_2"]),
+        alpha_x_beam=_per_emittance(
+            -np.sign(fdat["xpx"]) * np.sqrt(fdat["xx"]) * np.sqrt(fdat["pxpx"]),
+            fdat["eigemit_1"],
+        ),
+        alpha_y_beam=_per_emittance(
+            -np.sign(fdat["ypy"]) * np.sqrt(fdat["yy"]) * np.sqrt(fdat["pypy"]),
+            fdat["eigemit_2"],
+        ),
     )

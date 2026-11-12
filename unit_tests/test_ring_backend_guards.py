@@ -147,6 +147,16 @@ class OcelotStub:
     def _ocelot_periodic(self):
         return [types.SimpleNamespace(mux=2 * 3.141592653589793 * 1.25, muy=2 * 3.141592653589793 * 0.5)]
 
+    def read_one_turn_map(self):
+        """Fractional tunes 0.25 and 0.5, as the phase advances above."""
+        import numpy as np
+
+        matrix = np.eye(6)
+        for i, q in ((0, 0.25), (2, 0.5)):
+            c, s = np.cos(2 * np.pi * q), np.sin(2 * np.pi * q)
+            matrix[i:i + 2, i:i + 2] = [[c, s], [-s, c]]
+        return matrix
+
     def chromaticity(self):
         raise ValueError("off-momentum map is unstable")
 

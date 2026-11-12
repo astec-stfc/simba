@@ -10,7 +10,7 @@ from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
 from ...Modules.rf_focusing import tw1_focusing_matrix
 from .bendmaps import transport_bend_maps
-from .cavitymaps import stable_cavity_maps, turn_map_with_cavity_drifts
+from .cavitymaps import stable_cavity_maps, track_turn_with_cavity_drifts
 from .latticefile import fast_lattice_files
 from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
@@ -82,6 +82,27 @@ def _sw_focusing_matrix(
     r21 = -Ep / Ef * (cos_phi / np.sqrt(2.0) + np.sqrt(1.0 / 8.0) / cos_phi) * sin_a
     r22 = Ei / Ef * (cos_a + np.sqrt(2.0) * cos_phi * sin_a)
     return np.array([[r11, r12], [r21, r22]])
+
+
+def _closed_orbit(lattice, energy: float, delta: float) -> tuple:
+    """
+    ``(transverse closed orbit at delta, one-turn map linearised about it)``, by Newton's
+    method on :func:`~.cavitymaps.track_turn_with_cavity_drifts`; ``(None, None)`` if it
+    does not converge, as when the ring has no closed orbit.
+    """
+    X = np.zeros(6)
+    X[5] = delta
+    for _ in range(20):
+        Y, J = track_turn_with_cavity_drifts(lattice, energy, X)
+        try:
+            step = np.linalg.solve(J[:4, :4] - np.eye(4), (Y - X)[:4])
+        except np.linalg.LinAlgError:
+            return None, None
+        X[:4] -= step
+        if np.abs(step).max() < 1e-14:
+            Y, J = track_turn_with_cavity_drifts(lattice, energy, X)
+            return X, J
+    return None, None
 
 
 class ocelotLattice(frameworkLattice):
@@ -572,9 +593,11 @@ class ocelotLattice(frameworkLattice):
         from ocelot.cpbd.beam import Twiss
         from ocelot.cpbd.optics import periodic_twiss, twiss as ocelot_twiss
 
+        from ocelot.cpbd.optics import lattice_transfer_map
+
         tws0 = Twiss()
         tws0.E = self.reference_energy / 1e9
-        R = self.read_one_turn_map()
+        R = array(lattice_transfer_map(self.lat_obj, tws0.E), dtype=float)
         R[5, 5] = 1.0
         tws0 = periodic_twiss(tws0, R)
         self._periodic = (ocelot_twiss(self.lat_obj, tws0=tws0) or []) if tws0 is not None else []
@@ -621,28 +644,43 @@ class ocelotLattice(frameworkLattice):
 
     def read_closed_orbit(self):
         """
-        Ocelot's periodic Twiss carries the orbit on its first element.
+        The transverse fixed point of the second-order one-turn map, on momentum.
+
+        Not Ocelot's periodic Twiss: that is linear about the axis, so ignores misalignments.
         """
-        periodic = self._ocelot_periodic()
-        if not periodic:
-            return None
-        first = periodic[0]
-        return array(
-            [first.x, first.xp, first.y, first.yp, 0.0, 0.0], dtype=float
-        )
+        orbit, _ = self._closed_orbit_and_map()
+        if orbit is None:
+            warn(f"Ocelot found no closed orbit for {self.objectname}")
+        return orbit
+
+    def _closed_orbit_and_map(self) -> tuple:
+        """
+        ``(closed orbit, one-turn map linearised about it)``, so off-axis sextupoles
+        reach the tune; ``(None, the map about the axis)`` if there is no closed orbit.
+        """
+        energy = self.reference_energy / 1e9
+        orbit, matrix = _closed_orbit(self.lat_obj, energy, 0.0)
+        if orbit is None:
+            return None, track_turn_with_cavity_drifts(self.lat_obj, energy, np.zeros(6))[1]
+        return orbit, matrix
 
     def read_optics_summary(self) -> dict:
         """
         Ocelot keeps the phase advance on the Twiss objects; chromaticity comes
-        from :meth:`chromaticity`.
+        from :meth:`chromaticity`. The phase advance is about the axis, so gives
+        integer tune; fractional tune is the one-turn map's, about the closed orbit.
         """
+        from ...Modules.Matrices import fractional_tune
+
         periodic = self._ocelot_periodic()
         if not periodic:
             return {}
-        summary = {
-            "tune_x_total": float(periodic[-1].mux) / (2 * pi),
-            "tune_y_total": float(periodic[-1].muy) / (2 * pi),
-        }
+        matrix = self.read_one_turn_map()
+        summary = {}
+        for plane in "xy":
+            axis = float(getattr(periodic[-1], f"mu{plane}")) / (2 * pi)
+            shift = (fractional_tune(matrix, plane) - axis + 0.5) % 1 - 0.5
+            summary[f"tune_{plane}_total"] = axis + shift
         try:
             summary["chromaticity_x"], summary["chromaticity_y"] = self.chromaticity()
         except Exception as error:
@@ -652,24 +690,16 @@ class ocelotLattice(frameworkLattice):
     def chromaticity(self, step: float = 1e-4) -> tuple:
         """
         ``(xi_x, xi_y)`` per unit ``dp/p``, by central difference of the tunes at
-        ``p = +-step``, each from the second-order one-turn map linearised about
-        its closed orbit there.
+        ``p = +-step``, each from the one-turn map linearised about its closed
+        orbit there.
         """
-        from numpy import einsum, eye, zeros
-        from numpy.linalg import solve
         from ...Modules.Matrices import fractional_tune
 
-        B, R, T = turn_map_with_cavity_drifts(self.lat_obj, self.reference_energy / 1e9)
-        B = B.ravel()
         tunes = []
         for p in (step, -step):
-            X = zeros(6)
-            X[5] = p
-            for _ in range(5):  # Newton on the transverse closed orbit
-                J = R + 2 * einsum("ijk,k->ij", T, X)
-                residual = B + R @ X + einsum("ijk,j,k->i", T, X, X) - X
-                X[:4] -= solve(J[:4, :4] - eye(4), residual[:4])
-            J = R + 2 * einsum("ijk,k->ij", T, X)
+            X, J = _closed_orbit(self.lat_obj, self.reference_energy / 1e9, p)
+            if X is None:
+                raise ValueError(f"no closed orbit at dp/p = {p}")
             tunes.append([fractional_tune(J, plane) for plane in "xy"])
         beta0 = self.reference_p0c / self.reference_energy
         return tuple(
@@ -679,17 +709,14 @@ class ocelotLattice(frameworkLattice):
 
     def read_one_turn_map(self):
         """
-        One-turn map from ``cpbd.optics.lattice_transfer_map`` (analytic, no tracking).
+        One-turn map, linearised about the closed orbit through each element's second-order map.
 
         Returns
         -------
         numpy.ndarray
             The 6x6 map.
         """
-        from ocelot.cpbd.optics import lattice_transfer_map
-
-        energy_gev = self.reference_energy / 1e9
-        return array(lattice_transfer_map(self.lat_obj, energy_gev), dtype=float)
+        return array(self._closed_orbit_and_map()[1], dtype=float)
 
     def postProcess(self) -> None:
         """
