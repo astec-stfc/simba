@@ -1032,6 +1032,9 @@ class Framework(BaseModel):
                 if currentLattice.remote_setup and not nowarn:
                     warn(f"Resetting lattice {latticename} to local tracking;"
                          f"call setup_remote_execution to run remotely")
+                currentLattice.file_block["code"] = code.lower()
+                if latticename in (self.settings.get("files") or {}):
+                    self.settings["files"][latticename]["code"] = code.lower()
                 self.latticeObjects[latticename] = getattr(
                     frameworkLattices, code.lower() + "Lattice"
                 )(
