@@ -877,6 +877,7 @@ class FakeBmad(FakeLine):
     """``bmadLattice.apply_programs``, which drives Tao by ``set element``."""
 
     apply_programs = bmadLattice.apply_programs
+    _programs = bmadLattice._programs
     program_attributes = bmadLattice.program_attributes
     _bmad_type = bmadLattice._bmad_type
 
@@ -909,7 +910,7 @@ class FakeBmad(FakeLine):
 
 
 class TestBmad:
-    """Programs only inside the Tao turn loops, hence no ``supports_turns``."""
+    """Tao's last turn; ``long_term_tracking``'s turns are rampers, from the same ``_programs``."""
 
     @staticmethod
     def line(**kwargs):

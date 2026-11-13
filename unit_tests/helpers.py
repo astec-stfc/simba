@@ -15,6 +15,16 @@ from simba.Framework_objects import frameworkLattice
 
 ELEGANT = shutil.which("elegant")
 needs_elegant = pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
+BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
+BMAD_LTT = os.path.expanduser("~/Documents/bmad-ecosystem/production/bin/long_term_tracking")
+
+
+def use_local_bmad(framework, line="FODO"):
+    """Point ``line`` at the local Bmad build, its turns too; skip if it is not built."""
+    if not os.path.exists(BMAD_LTT):
+        pytest.skip("Bmad is not built")
+    framework[line].libtao = BMAD_SO
+    framework.executables.long_term_tracking = [BMAD_LTT]
 
 
 def skip_missing(code):

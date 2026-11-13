@@ -100,10 +100,10 @@ class bmadLattice(frameworkLattice):
     """Bmad lattices from LAURA radiate by default."""
 
     supports_dynamic_aperture: ClassVar[bool] = True
-    """Tao's own scan; see :meth:`_tao_dynamic_aperture_namelist`."""
+    """Survival along :meth:`da_rays` through ``long_term_tracking``; see :meth:`run_dynamic_aperture`."""
 
     supports_frequency_map: ClassVar[bool] = True
-    """By tracking the grid a turn at a time; see :meth:`_track_grid_turn_by_turn`."""
+    """The grid through ``long_term_tracking``; see :meth:`_track_grid_turn_by_turn`."""
 
     supports_radiation: ClassVar[bool] = True
     """``bmad_com[radiation_damping_on]``/``[radiation_fluctuations_on]``, written by LAURA."""
@@ -112,7 +112,25 @@ class bmadLattice(frameworkLattice):
     """``parameter[geometry] = closed``, written by LAURA; Twiss from the one-turn map."""
 
     supports_programs: ClassVar[bool] = True
-    """By ``set element`` inside the Tao turn loops; see :meth:`apply_programs`."""
+    """As ``ramper`` elements in ``long_term_tracking`` (:meth:`_rampers`), by ``set
+    element`` in Tao (:meth:`apply_programs`)."""
+
+    supports_ramp: ClassVar[bool] = True
+    """A ``ramper`` on every element's ``p0c``; see :meth:`_rampers`."""
+
+    supports_turns: ClassVar[bool] = True
+    """Bmad's ``long_term_tracking`` tracks every turn but the last, Tao the last, for
+    the screens; see :meth:`_run_long_term_tracking`."""
+
+    native_rf: ClassVar[str] = "fixed"
+    """Turns are tracked in absolute time (``bmad_com%absolute_time_tracking``), so each
+    cavity is a free-running oscillator."""
+
+    rf_phase_per_radian: ClassVar[float] = 1 / (2 * np.pi)
+    """``phi0`` is in turns; see :meth:`cavity_phase`."""
+
+    rf_phase_sign: ClassVar[float] = -1.0
+    """Measured against elegant's ``follow`` ramp: an rfcavity's phase goes as ``2 pi phi0 - w t``."""
 
     tracks_multiple_species: ClassVar[bool] = True
     """Each Bmad particle has its own ``species``; only those with the tracked one's mass,
@@ -161,6 +179,21 @@ class bmadLattice(frameworkLattice):
     _POSITION_FILE_CMD: ClassVar[str] = "set beam_init position_file = {path}"
     """Tao command pointing at a particle file"""
 
+    _STALE_CLOCK_KEYS: ClassVar[frozenset] = frozenset({
+        "quadrupole", "sbend", "rbend", "sol_quad", "solenoid", "sextupole", "octupole",
+        "thick_multipole", "hkicker", "vkicker", "kicker", "ac_kicker", "elseparator",
+        "monitor", "instrument", "pipe", "rcollimator", "ecollimator",
+    })
+    """Element types Bmad's ``bmad_standard`` tracking times by their ``delta_ref_time``
+    (``track1_bmad``); drifts, cavities and wigglers time each particle afresh.
+    See :meth:`_clock_slips`."""
+
+    _clock: tuple | None = None
+    """This run's :meth:`_clock_slips`, if ramped."""
+
+    _ramper_lines: str = ""
+    """This run's :meth:`_rampers`, made before :meth:`_set_last_turn` moves Tao on to turn N."""
+
     _PHASE_SPACE: ClassVar[tuple] = ("x", "px", "y", "py", "z", "pz")
     """Bmad's six phase-space coordinates"""
 
@@ -193,6 +226,11 @@ class bmadLattice(frameworkLattice):
         self.load_input_beam(self.get_prefix(), self.particle_definition)
         beam = self.global_parameters["beam"]
         self._input_species = beam.particle_species if beam.is_mixed else None
+        if self._input_species is not None and self.turns > 1:
+            raise NotImplementedError(
+                f"Line '{self.objectname}': Bmad cannot track a beam of several "
+                "species for more than one turn"
+            )
         self._warn_collective_species()
         self.input_beam_file = str(
             Path(self.global_parameters["master_subdir"])
@@ -261,8 +299,10 @@ class bmadLattice(frameworkLattice):
         return float(np.mean(values))
 
     def _reference_p0c(self) -> float:
-        """A ring's :attr:`design_p0c`, else the reference particle's ``cp``
-        in eV, else :attr:`reference_p0c`."""
+        """The :attr:`ramp`'s first turn, else a ring's :attr:`design_p0c`, else the
+        reference particle's ``cp`` in eV, else :attr:`reference_p0c`."""
+        if self.ramped:
+            return self.ramp_p0c(1)
         if self.design_p0c is not None:
             return self.design_p0c
         beam = self.global_parameters["beam"]
@@ -330,12 +370,14 @@ class bmadLattice(frameworkLattice):
 
     def _reference_energy(self) -> float:
         """
-        Reference energy: :attr:`reference_energy` if :attr:`design_p0c` is set, else the reference particle's.
+        Reference energy: the :attr:`ramp`'s first turn's, else :attr:`reference_energy` if :attr:`design_p0c` is set, else the reference particle's.
 
         Returns
         -------
         float
         """
+        if self.ramped:
+            return float(np.hypot(self._reference_p0c(), self.rest_energy))
         if self.design_p0c is not None:
             return self.reference_energy
         return self._reference_value(
@@ -359,26 +401,6 @@ class bmadLattice(frameworkLattice):
             alpha_x=float(twiss.alpha_x.val),
             beta_y=float(twiss.beta_y.val),
             alpha_y=float(twiss.alpha_y.val),
-        )
-
-    def _tao_dynamic_aperture_namelist(self) -> str:
-        """
-        The ``&tao_dynamic_aperture`` block for the Tao init file, written on every run.
-
-        Tao searches ``n_angle`` rays, so the result is a boundary, not a survival grid.
-        """
-        xs, ys = self.da_grid()
-        return (
-            "\n&tao_dynamic_aperture\n"
-            "  ix_universe = 1\n"
-            "  pz = 0.0\n"
-            "  da_param%min_angle = 0.0\n"
-            f"  da_param%max_angle = {np.pi}\n"
-            f"  da_param%n_angle = {max(3, int(self.da_settings.get('n_angle', 9)))}\n"
-            f"  da_param%n_turn = {self.turns}\n"
-            f"  da_param%x_init = {float(xs[-1])}\n"
-            f"  da_param%y_init = {float(ys[-1])}\n"
-            "/\n"
         )
 
     def _write_position_file(self, path: str, rows, states=None) -> None:
@@ -420,14 +442,16 @@ class bmadLattice(frameworkLattice):
                 f"{body}\n"
             )
 
-    def _write_grid_beam_file(self, path: str) -> list:
+    def _write_grid_beam_file(self, path: str, points: list | None = None) -> list:
         """
-        Write one particle per frequency-map grid point, offset from the closed orbit.
+        Write one particle per start, offset from the closed orbit.
 
         Parameters
         ----------
         path: str
             File to write
+        points: list | None
+            ``(x, y)`` starts; the frequency-map grid (:meth:`_grid_points`) if None
 
         Returns
         -------
@@ -437,8 +461,7 @@ class bmadLattice(frameworkLattice):
         orbit = self.read_closed_orbit()
         if orbit is None:
             orbit = np.zeros(6)
-        xs, ys = self.da_grid()
-        points = [(float(x), float(y)) for y in ys for x in xs]
+        points = self._grid_points() if points is None else points
         self._write_position_file(
             path,
             [
@@ -475,13 +498,13 @@ class bmadLattice(frameworkLattice):
 
     def _track_grid_turn_by_turn(self) -> dict:
         """
-        Track the grid one turn at a time, feeding the bunch at ``END`` back in as the position file.
+        Track the grid with ``long_term_tracking``, as the beam is: same programs, ramp and RF.
 
         Returns
         -------
         dict
             ``x``/``px``/``y``/``py``/``state``, each ``n_particles x turns``. Empty
-            if Tao could not be driven.
+            if it could not be tracked, or every particle was lost.
         """
         if self.tao is None:
             warn(
@@ -489,41 +512,39 @@ class bmadLattice(frameworkLattice):
                 "can be tracked."
             )
             return {}
-        history = {name: [] for name in ("x", "px", "y", "py", "state")}
+        grid_file = Path(self.lattice_file).with_suffix(".fma.beam")
         try:
-            with contextlib.chdir(Path(self.lattice_file).parent):
-                grid_file = str(Path(self.lattice_file).with_suffix(".fma.beam"))
-                self._write_grid_beam_file(grid_file)
-                self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
-                self.tao.cmd("set beam add_saved_at = END")
-                self.tao.cmd("set global track_type = beam", raises=False)
-                for turn in range(1, self.turns + 1):
-                    self.apply_programs(turn)
-                    self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-                    bunch = {
-                        name: np.asarray(
-                            self.tao.bunch1(
-                                "END", coordinate=name, which="model", ix_bunch=1
-                            )
-                        )
-                        for name in self._PHASE_SPACE + ("state",)
-                    }
-                    for name in history:
-                        history[name].append(bunch[name])
-                    self._write_position_file(
-                        grid_file,
-                        np.column_stack([bunch[name] for name in self._PHASE_SPACE]),
-                        states=bunch["state"],
-                    )
-                    self.tao.cmd(self._POSITION_FILE_CMD.format(path=grid_file))
+            self._write_grid_beam_file(str(grid_file))
+            # ASCII: Bmad's own px/py, which the openPMD file leaves as momenta
+            files = self._run_long_term_tracking(
+                f"{self.objectname}.fma.turns", grid_file.name, self.turns, 1
+            )
         except Exception as error:
-            warn(f"Tao turn-by-turn tracking failed for {self.objectname}: {error}")
+            warn(f"long_term_tracking failed on the grid of {self.objectname}: {error}")
             return {}
-        return {name: np.asarray(values).T for name, values in history.items()}
+        bunches = [self._read_ascii_beam(files[turn]) for turn in range(1, self.turns + 1)]
+        return {name: np.column_stack([b[name] for b in bunches]) for name in bunches[0]}
+
+    def _read_ascii_beam(self, path: Path) -> dict:
+        """
+        ``x``/``px``/``y``/``py``/``state`` from a beam file in Bmad's ASCII form, one entry per particle.
+
+        ``state`` is :attr:`_ALIVE` for a live particle, else 0.
+        """
+        lines = path.read_text().splitlines()
+        columns = next(line for line in lines if line.startswith("#!")).split()[1:]
+        rows = [line.split() for line in lines if line.strip() and not line.startswith("#")]
+        beam = {
+            name: np.array([float(row[columns.index(name)]) for row in rows])
+            for name in ("x", "px", "y", "py")
+        }
+        state = columns.index("state")
+        beam["state"] = np.array([self._ALIVE if row[state] == "Alive" else 0 for row in rows])
+        return beam
 
     def apply_programs(self, turn: int) -> None:
         """
-        ``set element`` each programmed element's attribute for `turn`, inside the Tao turn loop.
+        ``set element`` each programmed element's attribute for `turn` in Tao.
 
         Parameters
         ----------
@@ -532,6 +553,21 @@ class bmadLattice(frameworkLattice):
         """
         if self.tao is None:
             return
+        for program, name, attribute, before in self._programs():
+            self.tao.cmd(
+                f"set element {name} {attribute} = {program.value_at(turn, before)}",
+                raises=False,
+            )
+
+    def _programs(self):
+        """
+        Each program Bmad can set, with the value Tao's design gives before its first knot.
+
+        Yields
+        ------
+        tuple
+            ``(program, Bmad name, attribute, design value or None)``
+        """
         for program in self.programs:
             etype = (
                 self._bmad_type(program.element)
@@ -542,18 +578,35 @@ class bmadLattice(frameworkLattice):
                 continue
             name = sanitize_string(program.element)
             before = None
-            if turn < program.first_turn:
+            if program.first_turn > 1:
                 design = self.tao.ele_gen_attribs(name, which="design", raises=False)
                 before = (design or {}).get(attribute.upper())
                 if before is None:
                     warn(
                         f"Line '{self.objectname}': Tao has no design {attribute} for "
-                        f"'{program.element}', so turn {turn} takes the first knot's value."
+                        f"'{program.element}', so the turns before {program.first_turn} "
+                        "take the first knot's value."
                     )
-            self.tao.cmd(
-                f"set element {name} {attribute} = {program.value_at(turn, before)}",
-                raises=False,
-            )
+            yield program, name, attribute, before
+
+    def _phi0_sign(self, name: str) -> float:
+        """+1 for an ``rfcavity``, whose phase goes as ``2 pi phi0 - w t``; -1 for an ``lcavity``'s ``2 pi phi0 + w t``."""
+        key = self.tao.ele_head(sanitize_string(name))["key"]
+        return -1.0 if key.lower() == "lcavity" else 1.0
+
+    def cavity_phase(self, name: str) -> float | None:
+        """A cavity's ``phi0`` from Tao, signed by :meth:`_phi0_sign` so that every cavity moves alike."""
+        if self.tao is None:
+            return None
+        attribs = self.tao.ele_gen_attribs(sanitize_string(name), raises=False) or {}
+        if "PHI0" not in attribs:
+            return None
+        return self._phi0_sign(name) * float(attribs["PHI0"])
+
+    def set_cavity_phase(self, name: str, phase: float) -> None:
+        """Set a cavity's ``phi0`` in Tao; the inverse of :meth:`cavity_phase`."""
+        phi0 = self._phi0_sign(name) * phase
+        self.tao.cmd(f"set element {sanitize_string(name)} phi0 = {float(phi0)!r}")
 
     def _bmad_type(self, name: str) -> str:
         """
@@ -600,45 +653,37 @@ class bmadLattice(frameworkLattice):
 
     def run_dynamic_aperture(self) -> list:
         """
-        Tao's dynamic-aperture scan; needs lattice apertures.
+        Track one particle per point of :meth:`da_rays` through ``long_term_tracking`` and record survival.
 
         Returns
         -------
         list
-            ``(x, y, turns)`` along the aperture boundary; the turn count is
-            :attr:`turns` for every point.
+            ``(x, y, turns_survived)`` per start.
         """
         if self.tao is None:
             warn(
                 f"Line '{self.objectname}': Tao must be run before a "
-                "dynamic-aperture scan can be read."
+                "dynamic-aperture scan."
             )
             return []
+        starts = self.da_rays()
+        beam = Path(self.lattice_file).with_suffix(".da.beam")
         try:
-            with contextlib.chdir(Path(self.lattice_file).parent):
-                self.tao.cmd("set universe 1 dynamic_aperture_calc on")
-                rows = self.tao.cmd("pipe da_aperture")
-        except Exception as error:
-            warn(f"Tao dynamic aperture failed for {self.objectname}: {error}")
-            return []
-        aperture = []
-        for row in rows:
-            fields = str(row).split(";")
-            if len(fields) < 4:
-                continue
-            try:
-                aperture.append(
-                    (float(fields[2]), float(fields[3]), self.turns)
-                )
-            except ValueError:
-                continue
-        if not aperture:
-            warn(
-                f"Line '{self.objectname}': Tao returned no aperture points. "
-                "Does the lattice have apertures?"
+            self._write_grid_beam_file(str(beam), starts)
+            files = self._run_long_term_tracking(
+                f"{self.objectname}.da.turns", beam.name, self.turns, 1, complete=False
             )
-        self.dynamic_aperture = aperture
-        return aperture
+        except Exception as error:
+            warn(f"long_term_tracking failed on the rays of {self.objectname}: {error}")
+            return []
+        survived = sum(
+            self._read_ascii_beam(files[turn])["state"] == self._ALIVE
+            for turn in range(1, self.turns + 1) if turn in files
+        )
+        self.dynamic_aperture = [
+            (float(x), float(y), int(turns)) for (x, y), turns in zip(starts, survived)
+        ]
+        return self.dynamic_aperture
 
     def write(self) -> None:
         """Write the Bmad lattice and Tao init file to `master_subdir`."""
@@ -660,12 +705,59 @@ class bmadLattice(frameworkLattice):
         tao_path = path.with_suffix(".tao.init")
         tao_path.write_text(
             f'&tao_design_lattice\n  design_lattice(1)%file = "{path.name}"\n/\n'
+            '&tao_params\n  global%lat_sigma_calc_uses_emit_from = "beam"\n/\n'
             f'&tao_beam_init\n  beam_init%position_file = "{self.objectname}.bmad.beam"\n'
-            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n'
-            + self._tao_dynamic_aperture_namelist(),
+            f'  beam_saved_at = "{self._saved_at(lattice)}"\n/\n',
             encoding="utf-8",
         )
         self.tao_init_file = str(tao_path)
+
+    def _write_ltt_init(self, output: Path, beam: str, turns: int, every: int) -> Path:
+        """
+        A ``long_term_tracking`` namelist beside `output`, and its lattice: the Bmad lattice and :attr:`_ramper_lines`.
+
+        Parameters
+        ----------
+        output: Path
+            Beam file it writes, numbered by turn: openPMD if ``.h5``, else Bmad's ASCII
+        beam: str
+            Position file to start from
+        turns: int
+            Turns to track
+        every: int
+            Write the beam every this many turns
+
+        Returns
+        -------
+        Path
+            The namelist
+        """
+        lattice = Path(self.lattice_file)
+        rampers = self._ramper_lines
+        ltt_lattice = lattice.with_suffix(".ltt.bmad")
+        ltt_lattice.write_text(f"call, file = {lattice.name}\n{rampers}", encoding="utf-8")
+        init = output.with_suffix(".init")
+        init.write_text(
+            "&params\n"
+            f"  ltt%lat_file = '{ltt_lattice.name}'\n"
+            + ("  ltt%ramping_on = T\n" if rampers else "")
+            + "  ltt%simulation_mode = 'BEAM'\n"
+            "  ltt%tracking_method = 'BMAD'\n"
+            f"  ltt%n_turns = {turns}\n"
+            f"  ltt%beam_output_file = '{output.name}'\n"
+            f"  ltt%beam_output_every_n_turns = {every}\n"
+            "  ltt%only_live_particles_out = F\n"
+            "  ltt%add_closed_orbit_to_init_position = F\n"
+            "  ltt%random_seed = 1\n"
+            "  ltt%print_info_messages = F\n"
+            "  bmad_com%absolute_time_tracking = T\n"
+            # lost beyond 1 m where there is no aperture, as Xsuite and ImpactX
+            "  bmad_com%max_aperture_limit = 1.0\n"
+            f"  beam_init%position_file = '{beam}'\n"
+            "/\n",
+            encoding="utf-8",
+        )
+        return init
 
     def _collective_methods(self, lattice: str) -> str:
         """
@@ -792,7 +884,7 @@ class bmadLattice(frameworkLattice):
         return saved_at if len(saved_at) <= self._SAVED_AT_LIMIT else "*"
 
     def run(self) -> None:
-        """Track the beam through PyTao."""
+        """Track the beam through PyTao; turns before the last through :meth:`_run_long_term_tracking`."""
         if (
             self.lattice_file is None
             or self.input_beam_file is None
@@ -815,7 +907,239 @@ class bmadLattice(frameworkLattice):
                 location = self._exit_location(name)
                 if location != name:
                     self.tao.cmd(f"set beam add_saved_at = {location}")
+            self._clock = self._clock_slips() if self.ramped else None
+            self._ramper_lines = ""
+            if self.turns > 1:
+                self.begin_rf_phases()
+                self._ramper_lines = self._rampers()
+                turns = self.turns - 1
+                self._run_long_term_tracking(
+                    f"{self.objectname}.ltt.h5", Path(self.input_beam_file).name,
+                    turns, 1 if self.write_turns else turns,
+                )
+                self._set_last_turn()
             self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+            if self.turns > 1:
+                # the optics read after want it off
+                self.tao.cmd("set bmad_com absolute_time_tracking = F")
+
+    def _set_last_turn(self) -> None:
+        """
+        Set Tao up for turn N as :meth:`_rampers` would, on the beam ``long_term_tracking`` left after turn N-1.
+
+        Tao, unlike ``long_term_tracking``, re-times the lattice for a new ``p0c``, so
+        each cavity's phase is moved back by the shift in its ``ref_time_start``, and
+        on by however far ahead :meth:`_clock_slips` left the beam's clock.
+        """
+        turn = self.turns
+        index = self.pass_index(turn)
+        self.apply_programs(turn)
+        self.apply_rf_phases(index)
+        if self.ramped:
+            cavities = {name: sanitize_string(name) for name in self.live_cavities()}
+            before = {
+                name: float(self.tao.ele_gen_attribs(tao_name)["REF_TIME_START"])
+                for name, tao_name in cavities.items()
+            }
+            self.tao.cmd(f"set element beginning p0c = {float(self.pass_p0c()[index])!r}")
+            for name, tao_name in cavities.items():
+                attribs = self.tao.ele_gen_attribs(tao_name)
+                late = self._clock[0][index] - (float(attribs["REF_TIME_START"]) - before[name])
+                self.set_cavity_phase(
+                    name, self.cavity_phase(name) + float(attribs["RF_FREQUENCY"]) * late
+                )
+        self.tao.cmd(
+            self._POSITION_FILE_CMD.format(path=self._ltt_beam_files()[turn - 1].name)
+        )
+        # carry on long_term_tracking's clock
+        self.tao.cmd("set bmad_com absolute_time_tracking = T")
+
+    def _rampers(self) -> str:
+        """
+        ``ramper`` elements on absolute time, so ``long_term_tracking`` moves the ramp, programs and RF phases turn by turn.
+
+        It sets each element from its rampers at the bunch's mean time mid-element, so
+        programs and RF phases are :meth:`pass_staircase` tables around the reference's
+        arrival there, on its own clock (:meth:`_clock_ahead`). The ramp is one table for
+        all elements, held from pass start to pass start.
+
+        Returns
+        -------
+        str
+            Bmad lattice lines; empty if nothing varies.
+        """
+        passes = self.turns * self.passes_per_turn
+        s_in = self.getSValues(as_dict=True, at_entrance=True)
+        s_out = self.getSValues(as_dict=True)
+
+        def arrivals(element):
+            s = 0.5 * (s_in[element] + s_out[element])
+            return np.array([
+                self.reference_time(s, j) + self._clock_ahead(element, j)
+                for j in range(passes)
+            ])
+
+        tables = []
+        if self.ramped:
+            starts = self.pass_start_times()
+            periods = np.diff(np.append(starts, 2 * starts[-1] - starts[-2]))
+            # steps 1% of a pass early, so a bunch up to that early or late still
+            # reads its own pass; a zero-length element right at the end reads the next pass's
+            edges = starts - periods / 100 + self._clock[0][:passes]
+            times = np.column_stack((edges, edges + periods * (1 - 1e-6))).ravel()
+            tables.append(("*[p0c]", times, np.repeat(self.pass_p0c(), 2)))
+        for program, name, attribute, before in self._programs():
+            values = [program.value_at(turn, before) for turn in range(1, self.turns + 1)]
+            tables.append(
+                (f"{name}[{attribute}]", *self.pass_staircase(arrivals(program.element), values))
+            )
+        corrections = self._rf_corrections or {}
+        cavities = self.live_cavities() if self.ramped else corrections
+        for element in cavities:
+            phase = self.cavity_phase(element)
+            if phase is None:
+                continue
+            phase = phase + self.rf_phase_shifts(corrections.get(element, np.zeros(passes)))
+            if self.ramped:
+                ahead = [self._clock_ahead(element, j) for j in range(passes)]
+                phase = phase + float(self.elements[element].cavity.frequency) * np.array(ahead)
+            phi0 = self._phi0_sign(element) * phase
+            tables.append(
+                (f"{sanitize_string(element)}[phi0]", *self.pass_staircase(arrivals(element), phi0))
+            )
+        return "".join(
+            self._ramper(f"simba_ramper{index}", *table)
+            for index, table in enumerate(tables, start=1)
+        )
+
+    def _clock_slips(self) -> tuple:
+        """
+        How far ``long_term_tracking``'s clock runs ahead of the reference under a ramp.
+
+        It ramps ``p0c`` but not ``delta_ref_time``, by which Bmad times the elements in
+        :attr:`_STALE_CLOCK_KEYS`, so on pass ``j`` each puts the clock
+        ``delta_ref_time (1 - beta_0 / beta_j)`` ahead, turn on turn.
+        Read from Tao before it is re-timed.
+
+        Returns
+        -------
+        tuple
+            ``(ahead, slip, within)``: seconds ahead at the start of each pass, and after
+            the last; ``1 - beta_0 / beta_j`` per pass; and by Tao name, the stale
+            ``delta_ref_time`` up to the element's middle.
+        """
+        names = self.tao.lat_list("*", "ele.name")
+        keys = self.tao.lat_list("*", "ele.key")
+        ref_time = np.asarray(self.tao.lat_list("*", "ele.ref_time"), dtype=float)
+        stale = np.diff(ref_time, prepend=ref_time[0]) * np.array(
+            [key.lower() in self._STALE_CLOCK_KEYS for key in keys]
+        )
+        within = {}
+        for name, middle in zip(names, np.cumsum(stale) - stale / 2):
+            within.setdefault(name, float(middle))
+        beta = self.pass_beta0()
+        slip = 1 - beta[0] / beta
+        ahead = np.concatenate(([0.0], np.cumsum(np.sum(stale) * slip)))
+        return ahead, slip, within
+
+    def _clock_ahead(self, element: str, index: int) -> float:
+        """Seconds ``long_term_tracking``'s clock is ahead mid-`element` on pass `index`; see :meth:`_clock_slips`."""
+        if self._clock is None:
+            return 0.0
+        ahead, slip, within = self._clock
+        return float(ahead[index] + slip[index] * within.get(sanitize_string(element), 0.0))
+
+    @staticmethod
+    def _ramper(name: str, target: str, times, values) -> str:
+        """
+        One linear ``ramper`` of `target` against ``time``.
+
+        The parser evaluates every ramper at time 0, and errs off the end of a table, so
+        each is held a second beyond its ends and time 0.
+        """
+        times = [min(times[0], 0.0) - 1.0, *times, max(times[-1], 0.0) + 1.0]
+        values = [values[0], *values, values[-1]]
+
+        def table(numbers):
+            return ",\n    ".join(
+                ", ".join(repr(float(x)) for x in numbers[i:i + 8])
+                for i in range(0, len(numbers), 8)
+            )
+
+        return (
+            f"{name}: ramper = {{{target}: {{{table(values)}}}}}, var = {{time}},\n"
+            f"  x_knot = {{{table(times)}}}, interpolation = linear\n"
+        )
+
+    def _run_long_term_tracking(
+        self, output: str, beam: str, turns: int, every: int, complete: bool = True
+    ) -> dict:
+        """
+        Track `turns` turns of `beam` with Bmad's ``long_term_tracking``, from the namelist :meth:`_write_ltt_init` writes.
+        The beam comes out at the line's start every `every` turns; see :meth:`_ltt_beam_files`.
+
+        Parameters
+        ----------
+        output: str
+            Beam file name, beside the lattice; see :meth:`_write_ltt_init`
+        beam: str
+            Position file to start from, beside the lattice
+        turns: int
+        every: int
+        complete: bool
+            Raise if it stopped early, as it does once every particle is lost
+
+        Returns
+        -------
+        dict[int, Path]
+            The beam files, by turn
+
+        Raises
+        ------
+        RuntimeError
+            If it exits non-zero, or if `complete` and it writes no beam for the last turn.
+        """
+        workdir = Path(self.lattice_file).parent
+        for stale in self._ltt_beam_files(output).values():
+            stale.unlink()
+        init = self._write_ltt_init(workdir / output, beam, turns, every)
+        command = self.executables["long_term_tracking"] + [init.name]
+        logfile = init.with_suffix(".log")
+        self.run_command(
+            self.executables.build_command(command, str(workdir.resolve())),
+            str(logfile),
+            cwd=workdir,
+        )
+        files = self._ltt_beam_files(output)
+        if complete and turns not in files:
+            tail = "".join(logfile.read_text().splitlines(True)[-20:]).strip()
+            raise RuntimeError(
+                f"long_term_tracking wrote no beam for turn {turns} of "
+                f"{self.objectname}.\nLast lines of {logfile}:\n{tail}"
+            )
+        return files
+
+    def _ltt_beam_files(self, output: str | None = None) -> dict:
+        """
+        ``long_term_tracking``'s beam files, by turn: ``<name>.ltt-NN.h5``, zero-padded to its turn count.
+
+        Parameters
+        ----------
+        output: str | None
+            The ``ltt%beam_output_file`` they were numbered from; the tracking run's if None
+
+        Returns
+        -------
+        dict[int, Path]
+        """
+        output = Path(output or f"{self.objectname}.ltt.h5")
+        workdir = Path(self.lattice_file).parent
+        stem, suffix = f"{output.stem}-", output.suffix
+        return {
+            int(path.name[len(stem):-len(suffix)]): path
+            for path in workdir.glob(f"{stem}*{suffix}")
+            if path.name[len(stem):-len(suffix)].isdigit()
+        }
 
     def _exit_location(self, element: str) -> str:
         """
@@ -849,7 +1173,7 @@ class bmadLattice(frameworkLattice):
             return element
         return max(slaves, key=lambda location: int(location.split(">>")[-1]))
 
-    def _particles_at(self, element: str, zstart: float = 0) -> tuple:
+    def _particles_at(self, element: str, zstart: float = 0, late: float = 0.0) -> tuple:
         """
         Live particles at an element; Bmad keeps lost ones, frozen where they died.
 
@@ -859,6 +1183,8 @@ class bmadLattice(frameworkLattice):
             Element name
         zstart: float
             Position of the element along the machine
+        late: float
+            Seconds to take off each particle's ``t``; see :meth:`_clock_slips`
 
         Returns
         -------
@@ -867,12 +1193,30 @@ class bmadLattice(frameworkLattice):
             for a beam of several species, each live particle's species (else None).
         """
         data = self.tao.bunch_data(self._exit_location(element))
-        alive = np.asarray(data["status"]) == self._ALIVE
         species = getattr(self, "_input_species", None)
         if species is not None:
-            # Tao names one species for the whole bunch, whichever it picks; all
-            # species here share the tracked one's mass
             data["species"] = self.global_parameters["beam"].species
+        return self._live_particles(data, zstart, species, late)
+
+    def _live_particles(self, data: dict, zstart: float, species=None, late: float = 0.0) -> tuple:
+        """
+        As :meth:`_particles_at`, from a bunch's ``data`` (Tao's ``bunch_data``, or a ``ParticleGroup``'s).
+
+        Parameters
+        ----------
+        data: dict
+            ParticleGroup data, lost particles included
+        zstart: float
+            Position of the element along the machine
+        species: array | None
+            Each particle's species, for a beam of several
+        late: float
+            Seconds to take off each particle's ``t``
+        """
+        if late:
+            data = {**data, "t": np.asarray(data["t"]) - late}
+        alive = np.asarray(data["status"]) == self._ALIVE
+        if species is not None:
             species = np.asarray(species)[alive]
         ref_idx = (
             int(np.count_nonzero(alive[: self.ref_idx]))
@@ -1030,12 +1374,28 @@ class bmadLattice(frameworkLattice):
         }
         end = self.end_name
         outputs[end] = ("END", self.endObject.physical.end.z)
+        if self.bundles_turns:
+            # the line's end on the turns before the last, where long_term_tracking left them
+            files = self._ltt_beam_files()
+            for turn in range(1, self.turns):
+                beam = deepcopy(source_beam)
+                particles, ref_idx, _ = self._live_particles(
+                    rbf.openpmd.ParticleGroup(str(files[turn])).data, outputs[end][1],
+                    late=self._clock[0][turn] if self._clock is not None else 0.0,
+                )
+                rbf.openpmd.read_particle_group(
+                    beam, particles, s=s_values[end], reference_particle_index=ref_idx
+                )
+                beam.turn = turn
+                self.write_beam_file(beam, end, turn)
+        _, last_turn = self.output_turns()[-1]
+        late = self._clock[0][self.turns - 1] if self._clock is not None else 0.0
         final_beam = None
         for output_name, (tao_element, zstart) in outputs.items():
             if not self.writes_output(output_name):
                 continue
             beam = deepcopy(source_beam)
-            particles, ref_idx, species = self._particles_at(tao_element, zstart=zstart)
+            particles, ref_idx, species = self._particles_at(tao_element, zstart, late)
             rbf.openpmd.read_particle_group(
                 beam,
                 particles,
@@ -1045,15 +1405,8 @@ class bmadLattice(frameworkLattice):
             if species is not None:
                 # the writer splits the species back out
                 beam.set_particle_species(species, primary=source_beam.species)
-            # one pass, whatever `turns` says
-            beam.turn = 1
-            rbf.openpmd.write_openpmd_beam_file(
-                beam,
-                str(
-                    Path(self.global_parameters["master_subdir"])
-                    / f"{self.output_basename(output_name)}.openpmd.hdf5"
-                ),
-            )
+            beam.turn = self.beam_turn(last_turn)
+            self.write_beam_file(beam, output_name, last_turn)
             if output_name == end:
                 final_beam = beam
         save_bmad_twiss_hdf(
@@ -1064,3 +1417,6 @@ class bmadLattice(frameworkLattice):
             twiss=self._twiss_data(),
         )
         self.global_parameters["beam"] = final_beam
+        if self.turns > 1 and self.global_parameters["delete_tracking_files"]:
+            for path in self._ltt_beam_files().values():
+                path.unlink()

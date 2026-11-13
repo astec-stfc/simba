@@ -315,8 +315,9 @@ How each code does it
        :math:`-(K_0L - \mathrm{ANGLE})`, and ``ANGLE`` defaults to ``KNL[0]``.
        A program on one warns and is not applied; model the device as a kicker.
    * - Bmad
-     - ``set element`` inside the Tao turn loops, which are the only place Bmad
-       counts turns here.
+     - A ``ramper`` on the attribute in ``long_term_tracking``, a staircase in
+       absolute time around the reference's arrival at the element; ``set
+       element`` in Tao for the last turn.
 
 .. _energy-ramp:
 
@@ -373,7 +374,7 @@ clock.
 
 A ramp warns, and is otherwise tracked as written, when:
 
-* the code cannot ramp (Bmad -- to be implemented);
+* the code cannot ramp;
 * the run is one turn, or stops part-way up the ramp;
 * the beam does not start on it (more than 0.1% off);
 * there is no RF cavity, or the cavities' total voltage is less than the
@@ -416,10 +417,14 @@ How each code does it
        normalised, so the magnets follow. The exact solenoid's ``bz`` is a
        field, so it is scaled with the reference's momentum each turn.
    * - Bmad
-     - Not supported yet; its tracking path here is single-pass.
+     - A ``ramper`` on every element's ``p0c`` in ``long_term_tracking``, held
+       from pass start to pass start. Bmad ramps ``p0c`` but not the reference
+       time each element was built with, so several element types (quadrupoles,
+       bends, kickers, ...) leave the bunch's clock running ahead turn on turn;
+       SIMBA models that slip and corrects the RF phases and output times for it.
 
-``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all five
-codes. Over a 2% ramp with no RF, the ramp moves the orbit by about 1.2e-4 m.
+``unit_tests/test_energy_ramp.py`` tracks one ramped ring through all six
+codes; Bmad agrees with elegant to 8e-8 m. Over a 2% ramp with no RF, the ramp moves the orbit by about 1.2e-4 m.
 Xsuite, Ocelot and ImpactX agree with elegant to 1e-7 m, 3e-6 m and 6e-8 m.
 MAD-X, whose lenses are thin, agrees to 2e-5 m.
 
@@ -484,6 +489,10 @@ own. The reference reaches a cavity at
      - synchronous
      - each ``ShortRF``'s ``phase`` between passes; the lattice is rebuilt
        every pass.
+   * - Bmad
+     - fixed
+     - a ``ramper`` on each cavity's ``phi0`` in ``long_term_tracking``, which
+       tracks in absolute time; ``set element`` in Tao for the last turn.
 
 .. note::
    **Ocelot's cavity moves the reference.** Its cavity map always adds
@@ -556,11 +565,11 @@ A code that cannot honour a setting warns and carries on.
      - yes
      - yes
    * - Bmad
-     - ring studies only
+     - yes
      - yes
      - yes (on by default)
      - yes
-     - no
+     - yes
      - yes
      - yes
      - no
@@ -626,17 +635,15 @@ The two paths are the same tracking, and ``unit_tests/test_madx_native_turns.py`
 holds them to it turn by turn. The override is what lets that test run both.
 
 .. note::
-   Ocelot, Bmad and ImpactX still count turns in Python, and none has a native
+   Ocelot and ImpactX still count turns in Python, and neither has a native
    turn count to switch to.
 
-   **Bmad.** Tao has no multi-turn beam tracking: ``beam_init`` carries no turn
-   count, ``tao.track_beam`` is one pass, and the only turn counts in Tao are
-   the dynamic-aperture scan's (which SIMBA already uses) and a
-   ``multi_turn_orbit`` plot curve, which tracks a single particle rather than a
-   beam. For general multi-turn Bmad tracking the tool is ``long_term_tracking``
-   in ``bsim`` — ``ltt%n_turns`` with ``ltt%particle_output_every_n_turns``, the
-   direct analogue of ``FFILE`` above — which is a separate executable, not
-   pytao. SIMBA does not use it today.
+   **Bmad** has no switch either: its turns are always native. Tao has no
+   multi-turn beam tracking (``beam_init`` carries no turn count), so turns 1 to
+   N-1 go through Bmad's ``long_term_tracking`` executable, which writes the beam
+   at the ring's start after each turn. Tao then tracks the last turn from that
+   beam, so the screens inside the ring and the Twiss output are the last
+   turn's. The ``long_term_tracking`` executable is set in ``Executables.yaml``.
 
    **Ocelot.** ``ocelot.cpbd.track.track()`` takes no turn argument, and
    ``track_nturns``, despite the name, takes a list of single particles and is
@@ -700,17 +707,16 @@ Beyond the usual beam and Twiss output:
     ``(0, y_max)``. ``dynamic_aperture_boundary()`` reduces it to one ``(x, y)``
     per ray: the last survivor before the first loss. A ray that loses nothing
     ends on the ellipse, as in elegant, so make the box larger than the aperture.
-    Bmad uses Tao's own angle search instead.
+    Where the lattice has no aperture, Xsuite, ImpactX and Bmad lose a particle
+    beyond 1 m.
 
 ``run_frequency_map()``
     ``(x, y, Qx, Qy, D)`` per surviving grid point, ``D`` being the two-window tune
     diffusion index. Uses NAFF where ``nafflib`` is installed.
 
-    Most codes track the grid for all the turns in one call. Bmad cannot — see the
-    note above — so simba writes the grid as an explicit Bmad particle file, tracks
-    one turn, and writes the resulting bunch back over the same file for the next.
-    The per-particle ``state`` column is written too, so a particle lost on turn 7
-    stays lost and the row order still maps each particle to its grid point.
+    Most codes track the grid for all the turns in one call. Bmad's goes through
+    ``long_term_tracking``, with the same programs, ramp and RF as the beam, and
+    is read back from its ASCII beam file each turn.
 
 ``track_reference_particle()``
     One particle's ``x``/``px``/``y``/``py`` on every turn — what a ring study

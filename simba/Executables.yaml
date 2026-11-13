@@ -18,6 +18,7 @@ apclara1:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  long_term_tracking: [$simcodes$/Bmad/bin/long_term_tracking]
   bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara2:
   astragenerator: ['/opt/ASTRA/generator.sh']
@@ -29,6 +30,7 @@ apclara2:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  long_term_tracking: [$simcodes$/Bmad/bin/long_term_tracking]
   bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 apclara3:
   astragenerator: ['/opt/ASTRA/generator.sh']
@@ -40,6 +42,7 @@ apclara3:
   gpt: ['/opt/GPT3.3.6/bin/gpt', '-j',$ncpu$]
   madx: ['madx']
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  long_term_tracking: [$simcodes$/Bmad/bin/long_term_tracking]
   bdsim: ['/opt/BDSIM/bin/bdsim.exe']
 posix:
   astragenerator: [$simcodes$/ASTRA/generator]
@@ -52,6 +55,7 @@ posix:
   genesis: [$simcodes$/Genesis/genesis4]
   madx: [$simcodes$/MADX/madx]
   tao: [$simcodes$/Bmad/lib/libtao.so]
+  long_term_tracking: [$simcodes$/Bmad/bin/long_term_tracking]
   bdsim: ["source", $simcodes$BDSIM/root/bin/thisroot.sh, ';', "source", "/usr/local/bin/geant4.sh", ';', "source", "/usr/local/bin/bdsim.sh", ';', "bdsim"]
 docker:
   image: ghcr.io/astec-stfc/simcodes-docker:master
