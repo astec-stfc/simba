@@ -23,3 +23,18 @@ def test_csr_stays_off_the_cavities():
            SBend(l=0.5, angle=0.0), Drift(l=1), SBend(l=0.5, angle=0.05), Drift(l=1)]
     fake = SimpleNamespace(lat_obj=SimpleNamespace(sequence=seq))
     assert ocelotLattice.csr_regions(fake) == [(seq[2], seq[6]), (seq[10], seq[11])]
+
+
+def test_csr_stays_off_an_undulator():
+    """A laser-heater chicane: CSR over each half, not the undulator between them,
+    where Ocelot would need the reference energy for its Runge-Kutta orbit."""
+    from types import SimpleNamespace
+
+    from ocelot import Drift, SBend, Undulator
+    from simba.Codes.Ocelot.Ocelot import ocelotLattice
+
+    seq = [SBend(l=0.1, angle=0.03), Drift(l=0.4), SBend(l=0.1, angle=-0.03), Drift(l=0.4),
+           Undulator(lperiod=0.05, nperiods=10, Kx=2.7), Drift(l=0.4),
+           SBend(l=0.1, angle=-0.03), Drift(l=0.4), SBend(l=0.1, angle=0.03), Drift(l=1)]
+    fake = SimpleNamespace(lat_obj=SimpleNamespace(sequence=seq))
+    assert ocelotLattice.csr_regions(fake) == [(seq[0], seq[3]), (seq[6], seq[9])]

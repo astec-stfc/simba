@@ -1160,14 +1160,14 @@ class ocelotLattice(frameworkLattice):
     def csr_regions(self) -> list:
         """
         ``(start, end)`` elements of each run of bends: from its first bend to the
-        element before the next cavity (or the end), so the CSR in the drifts after
-        a chicane is kept.
+        element before the next cavity or undulator (or the end), so the CSR in the
+        drifts after a chicane is kept.
         """
-        from ocelot.cpbd.elements import Bend, Cavity, RBend, SBend, TDCavity, TWCavity
+        from ocelot.cpbd.elements import Bend, Cavity, RBend, SBend, TDCavity, TWCavity, Undulator
         regions, start = [], None
         sequence = self.lat_obj.sequence
         for i, element in enumerate(sequence):
-            if isinstance(element, (Cavity, TWCavity, TDCavity)):
+            if isinstance(element, (Cavity, TWCavity, TDCavity, Undulator)):
                 if start is not None:
                     regions.append((sequence[start], sequence[i - 1]))
                 start = None
