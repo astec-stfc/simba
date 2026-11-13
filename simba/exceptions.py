@@ -152,6 +152,39 @@ class CollectiveUnsupportedWarning(UnsupportedWarning):
         )
 
 
+class LaserModulationUnsupportedWarning(UnsupportedWarning):
+    """A wiggler with a laser (a laser heater), in a code that ignores the laser."""
+
+    def __init__(self, line: str, code: str, wigglers: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} has a laser in {', '.join(wigglers)}, but {code} "
+            f"tracks it as a plain wiggler, so the laser energy modulation is "
+            f"not modelled. {alternatives}"
+        )
+
+
+class LaserTimeProfileUnsupportedWarning(UnsupportedWarning):
+    """A laser with a time profile, in a code whose laser pulse is Gaussian only."""
+
+    def __init__(self, line: str, code: str, wigglers: list, alternatives: str):
+        super().__init__(
+            f"{_line(line)} gives the laser in {', '.join(wigglers)} a time "
+            f"profile, but {code} only takes a Gaussian pulse: it uses "
+            f"pulse_duration_fwhm, and leaves the laser off without one. {alternatives}"
+        )
+
+
+class LaserPulseIgnoredWarning(PhysicsWarning):
+    """A laser heater in elegant with no time profile: elegant's laser is CW."""
+
+    def __init__(self, line: str, wiggler: str, reasons: list):
+        super().__init__(
+            f"{_line(line)}: elegant has no laser pulse length, so without a time "
+            f"profile (laser.field_definition) the laser in {wiggler} is CW at its "
+            f"peak power: {'; '.join(reasons)}."
+        )
+
+
 class UnreadableSettingWarning(SettingWarning):
     """A tracking entry simba cannot read, and so drops."""
 

@@ -11,6 +11,7 @@ from ...Modules.constants import speed_of_light
 from ...Modules.rf_focusing import tw1_focusing_matrix
 from .bendmaps import transport_bend_maps
 from .cavitymaps import stable_cavity_maps, track_turn_with_cavity_drifts
+from .laserheater import WigglerLaserModulator
 from .latticefile import fast_lattice_files
 from ..MADX.MADX import STEP_BACK_GAP
 from copy import deepcopy
@@ -120,6 +121,7 @@ class ocelotLattice(frameworkLattice):
     """The lattice object type."""
 
     supports_csr: ClassVar[bool] = True
+    supports_laser_modulation: ClassVar[bool] = True
     supports_lsc: ClassVar[bool] = True
 
     electrons_only: ClassVar[bool] = True
@@ -992,6 +994,15 @@ class ocelotLattice(frameworkLattice):
                 navi_processes += [self.physproc_beamtransform(tws=twsobj)]
                 navi_locations_start += [self.lat_obj.sequence[self.names.index(name)]]
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
+            if (
+                obj.hardware_type.lower() == "wiggler"
+                and getattr(obj, "laser", None) is not None
+                and obj.laser.peak_power
+            ):
+                i = self.names.index(name)
+                navi_processes += [WigglerLaserModulator(obj)]
+                navi_locations_start += [self.lat_obj.sequence[i]]
+                navi_locations_end += [self.lat_obj.sequence[i + 1]]
         sval_in = self.section_s_values(at_entrance=True)
         sval_out = self.section_s_values(at_entrance=False)
         for bend, loc, _ in self.physproc_radiation():

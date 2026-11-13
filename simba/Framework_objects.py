@@ -528,6 +528,14 @@ class frameworkLattice(BaseModel):
     supports_lsc: ClassVar[bool] = False
     """Whether simba can switch LSC on for this code; see :meth:`check_collective_supported`."""
 
+    supports_laser_modulation: ClassVar[bool] = False
+    """Whether this code applies a wiggler's laser (a laser heater); 
+    see :meth:`check_laser_modulation_supported`."""
+
+    supports_laser_time_profile: ClassVar[bool] = False
+    """Whether this code takes a laser's time profile (``laser.field_definition``); 
+    see :meth:`check_laser_modulation_supported`."""
+
     space_charge_modes_off: ClassVar[tuple] = ("", "false", "none", "0", "off", "no")
     """``charge: space_charge_mode`` values that mean no space charge; see :attr:`space_charge_mode`."""
 
@@ -1004,6 +1012,24 @@ class frameworkLattice(BaseModel):
                 warn(exceptions.CollectiveUnsupportedWarning(
                     self.objectname, self.code, effect, self.codes_that_can(flag)
                 ))
+
+    def check_laser_modulation_supported(self) -> None:
+        """Warn when a wiggler carries a laser and this code ignores it, or ignores its time profile."""
+        heaters = [
+            w for w in self.getElementType("wiggler")
+            if getattr(w, "laser", None) is not None and (w.laser.pulse_energy or 0) > 0
+        ]
+        if heaters and not self.supports_laser_modulation:
+            warn(exceptions.LaserModulationUnsupportedWarning(
+                self.objectname, self.code, [w.name for w in heaters],
+                self.codes_that_can("supports_laser_modulation"),
+            ))
+            return
+        profiled = [w.name for w in heaters if w.laser.field_definition is not None]
+        if profiled and not self.supports_laser_time_profile:
+            warn(exceptions.LaserTimeProfileUnsupportedWarning(
+                self.objectname, self.code, profiled, self.codes_that_can("supports_laser_time_profile")
+            ))
 
     @property
     def space_charge_mode(self) -> str:
@@ -3427,6 +3453,7 @@ class frameworkLattice(BaseModel):
         self.check_radiation()
         self.check_radiation_supported()
         self.check_collective_supported()
+        self.check_laser_modulation_supported()
         self.check_single_particle_supported()
         self.check_nsuperperiods_supported()
         self.check_programs_supported()

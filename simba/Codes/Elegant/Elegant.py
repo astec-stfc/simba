@@ -24,6 +24,7 @@ from ...Framework_objects import (
     elementkeywords,
     keyword_conversion_rules_elegant,
 )
+from ... import exceptions
 from ...FrameworkHelperFunctions import convert_outputs, saveFile
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
@@ -49,6 +50,8 @@ class elegantLattice(frameworkLattice):
     """The lattice object type."""
 
     supports_csr: ClassVar[bool] = True
+    supports_laser_modulation: ClassVar[bool] = True
+    supports_laser_time_profile: ClassVar[bool] = True
     supports_lsc: ClassVar[bool] = True
 
     electrons_only: ClassVar[bool] = True
@@ -732,9 +735,35 @@ class elegantLattice(frameworkLattice):
         super().preProcess()
         prefix = self.get_prefix()
         self.load_input_beam(prefix, self.particle_definition)
+        self.check_laser_pulse()
         if self.trackBeam:
             self.hdf5_to_sdds()
         self.createCommandFiles()
+
+    def check_laser_pulse(self) -> None:
+        """
+        Warn when a laser heater without a time profile has a pulse not much longer
+        than the bunch, or a timing offset: elegant's laser is then CW, so it over-heats
+        and ignores the offset.
+        """
+        for w in self.getElementType("wiggler"):
+            laser = getattr(w, "laser", None)
+            if laser is None or not laser.peak_power or laser.field_definition is not None:
+                continue
+            sigma_b = np.std(self.global_parameters["beam"].t.val)
+            reasons = []
+            sigma_l = laser.pulse_duration_fwhm / (2 * np.sqrt(np.log(2)))
+            overheat = np.sqrt(1 + 2 * (sigma_b / sigma_l) ** 2)
+            if overheat > 1.1:
+                reasons.append(
+                    f"a {laser.pulse_duration_fwhm * 1e12:.3g} ps FWHM pulse on a "
+                    f"{sigma_b * 1e12:.3g} ps rms bunch, so the heating (added variance) "
+                    f"is about {overheat:.2f}x a Gaussian pulse's"
+                )
+            if laser.initial_position:
+                reasons.append(f"initial_position = {laser.initial_position} m is ignored")
+            if reasons:
+                warn(exceptions.LaserPulseIgnoredWarning(self.objectname, w.name, reasons))
 
     def _ring_study_deck(self, suffix: str, *commands) -> str | None:
         """
