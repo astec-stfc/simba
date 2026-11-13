@@ -172,7 +172,7 @@ class rftrackLattice(frameworkLattice):
         for name, bunch in zip(screens, self.lattice.get_bunch_at_screens()):
             if name in (self.start, self.end) or name not in self.elementObjects or not bunch.size():
                 continue
-            self._write_beam(bunch, name, self.elementObjects[name].physical.middle.z)
+            self._write_beam(bunch, name, self.local_z(self.elementObjects[name].physical.middle))
         self.global_parameters["beam"] = self._write_beam(
-            self.pout, self.end, self.endObject.physical.end.z
+            self.pout, self.end, self.local_z(self.endObject.physical.end)
         )

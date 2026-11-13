@@ -91,3 +91,42 @@ def test_a_beam_from_the_cathode_is_tracked_through_a_volume(tmp_path, seed_beam
         if key == "t":  # the Volume's clock starts at the reference particle's emission
             want, got = want - want.mean(), got - got.mean()
         assert np.abs(got - want).max() < 5e-3 * want.std(), key
+
+
+def test_a_rotated_offset_line_writes_its_screens_at_local_z(tmp_path, seed_beam):
+    """Its beams are at z in the deck's frame, as GPT's and OPAL's are; not at world z (~100 m here)."""
+    from laura import LAURA
+    from laura.exporters.yaml_exporter import export_machine
+    from laura.models.element import Marker, Quadrupole
+    from test_local_frame import _phys
+    skip_missing("rftrack")
+    elements = [
+        Marker(name="M1", machine_area="L", hardware_class="Marker", physical=_phys(0)),
+        Screen(name="SCR1", machine_area="L", physical=_phys(1)),
+        Quadrupole(name="Q1", machine_area="L", magnetic={"length": 1.0, "k1l": 1.0}, physical=_phys(2.5, 1.0)),
+        Marker(name="M3", machine_area="L", hardware_class="Marker", physical=_phys(3)),
+    ]
+    names = [e.name for e in elements]
+    machine = LAURA(
+        element_list=elements,
+        layout={"default_layout": "l", "layouts": {"l": ["L"]}},
+        section={"sections": {"L": names}},
+    )
+    export_machine(path=f"{tmp_path}/lattice", machine=machine, overwrite=True)
+    settings = fw.FrameworkSettings()
+    settings.files = {"L": {
+        "code": "rftrack",
+        "charge": {"space_charge_mode": "False"},
+        "input": {},
+        "output": {"start_element": "M1", "end_element": "M3"},
+    }}
+    settings.layout = machine.layout
+    settings.section = {"sections": {"L": names}}
+    settings.element_list = f"{tmp_path}/lattice"
+    framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
+    framework.loadSettings(settings=settings)
+    shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    framework.track()
+    for name, z in (("SCR1", 1.0), ("M3", 3.0)):
+        beam = read_beam(framework.subdirectory, name)
+        assert np.mean(beam.z.val) == pytest.approx(z, abs=1e-3), name
