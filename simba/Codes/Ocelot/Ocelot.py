@@ -548,6 +548,8 @@ class ocelotLattice(frameworkLattice):
                     twiss_disp_correction=False,
                     print_progress=False,
                 )
+            if self.mbi_navi is not None:
+                self.mbi_navi = next(p for p in navi.process_table.proc_list if isinstance(p, type(self.mbi_navi)))
 
         self._periodic = None
         self.run_turns(track_pass, start_turn)
