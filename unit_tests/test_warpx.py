@@ -275,22 +275,11 @@ def test_space_charge_runs_at_a_gev(tmp_path, monkeypatch):
 
 
 @needs_warpx_3d
-@pytest.mark.xfail(strict=True, reason="~8% of the beam is dropped at injection in the boosted frame (open)")
-def test_fel_line_keeps_the_beam(tmp_path, monkeypatch):
+def test_fel_line_keeps_the_beam_to_the_line_end(tmp_path, monkeypatch):
+    """Boosted frame and back-transformed snapshots: the whole beam comes out where the line ends. The box's back
+    allows for the bunch arriving (1 + v'/c) longer in the boosted frame (it lost its tail, 81 of 1000, before).
+    Needs double precision (single-precision BTD fails, WarpX's own FEL example too)."""
     out, _ = _run(tmp_path, _undulator(0.06), monkeypatch, cp=50e6, beam={},
                   n_cell=[16, 16, 0], inputs=RUN_INPUTS)
     assert np.mean(out.z.val) == pytest.approx(0.06, abs=1e-5)  # the last lab snapshot, at the line end
     assert len(out.x.val) == 1000
-
-
-@needs_warpx_3d
-def test_fel_line_ends_at_the_line_end(tmp_path, monkeypatch):
-    """Boosted frame and back-transformed snapshots: the beam comes out where the line ends.
-    Needs double precision (single-precision BTD fails, WarpX's own FEL example too)."""
-    import warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        out, framework = _run(tmp_path, _undulator(0.06), monkeypatch, cp=50e6, beam={},
-                              n_cell=[16, 16, 0], inputs=RUN_INPUTS)
-    assert np.mean(out.z.val) == pytest.approx(0.06, abs=1e-5)
-    assert len(out.x.val) > 800

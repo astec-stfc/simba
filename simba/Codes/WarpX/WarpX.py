@@ -275,8 +275,7 @@ class warpxLattice(frameworkLattice):
         if staged and "warpx.const_dt" not in params:
             params["warpx.const_dt"] = self._time_step(params)
         if "amr.blocking_factor" not in params:
-            # AMReX needs every grid dimension divisible by it (default 8): a LAURA grid of
-            # n_radial = 70 is not; take the largest power of two up to 8 that divides them all
+            # AMReX needs every grid dimension divisible by it (default 8)
             cells = [int(n) for n in params["amr.n_cell"]]
             params["amr.blocking_factor"] = max(b for b in (1, 2, 4, 8) if all(n % b == 0 for n in cells))
         if params["diag.diag_type"] == "Full":
@@ -293,9 +292,7 @@ class warpxLattice(frameworkLattice):
         ``gamma* = gamma / sqrt(1 + K^2/2)`` (``1 + K^2`` helical), the resonant
         wavelength, and a box holding the bunch plus the radiation's slippage over
         every undulator period. Its front (``top``) becomes WarpX's z = 0: WarpX
-        times the back-transformed snapshots from ``gamma beta z_max / c``, so a
-        box reaching past z = 0 pushes the first snapshot past the line (as in
-        WarpX's FEL example, which keeps the box behind z = 0).
+        times the back-transformed snapshots from ``gamma beta z_max / c``.
         """
         from laura.translator.converters.magnet import undulator_peak_field
         from laura.translator.utils.fields.onaxis import K_PER_TESLA_METRE
@@ -312,8 +309,7 @@ class warpxLattice(frameworkLattice):
         wavelength = period * factor / (2 * gamma**2)
         beam = self.global_parameters["beam"]
         margin = 0.1 * float(np.ptp(beam.z.val))
-        # Rigid injection needs the whole beam before the first undulator;
-        # a beam already reaching into it is drifted back, ballistically, until its head is clear.
+        # Rigid injection needs the whole beam before the first undulator
         shift = max(float(np.max(beam.z.val)) - (float(first.physical.start.z) - margin), 0.0)
         if shift:
             _drift(beam, -shift)
@@ -321,8 +317,11 @@ class warpxLattice(frameworkLattice):
         periods = sum(round(float(w.physical.length) / float(w.magnetic.period)) for w in wigglers)
         # The undulator starts on a cosine, so the orbit swings one way, 0 to 2 K / (gamma k_u)
         swing = 2 * k(first) / (gamma * 2 * np.pi / period)
-        return {"first": first, "gamma_star": gamma / np.sqrt(factor), "wavelength": wavelength,
-                "bottom": float(z.min()) - margin, "top": float(z.max()) + periods * wavelength + margin,
+        gamma_star = gamma / np.sqrt(factor)
+        stretch = 1 + (gamma**2 - gamma_star**2) / (gamma**2 + gamma_star**2)
+        top = float(z.max()) + periods * wavelength + margin
+        return {"first": first, "gamma_star": gamma_star, "wavelength": wavelength,
+                "bottom": top - (top - float(z.min()) + margin) * stretch, "top": top,
                 "swing": [swing, swing if helical else 0.0], "shift": shift}
 
     def _fel(self, params: dict, wigglers: list) -> dict:
