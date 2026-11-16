@@ -240,6 +240,23 @@ def test_astra_write_leaves_a_serialisable_reference_index(simple_beam, tmp_path
         simple_beam.model_dump()
 
 
+def test_astra_round_trip_keeps_the_particle_order(simple_beam, tmp_path):
+    """The writer rolls the reference to ASTRA's first row; reading with the index it returns
+    puts every particle back where it was, also through a second ASTRA section."""
+    coords = ("x", "cpx", "z", "cpz")
+    original = [np.array(getattr(simple_beam, c).val) for c in coords]
+    beam = simple_beam
+    for section in range(2):
+        filename = str(tmp_path / f"section{section}.astra")
+        index = beam.write_astra_beam_file(filename)
+        assert index > 0  # the bunch-mean particle is not the first, so the order was rolled
+        beam = rbf.beam()
+        rbf.astra.read_astra_beam_file(beam, filename, reference_index=index)
+        assert beam.reference_particle_index == index
+        for coord, values in zip(coords, original):
+            np.testing.assert_allclose(getattr(beam, coord).val, values, rtol=1e-10, atol=1e-15, err_msg=coord)
+
+
 def test_astra_beam(simple_beam):
     simple_beam.write_astra_beam_file("test.astra")
     astra_beam = rbf.beam("test.astra")

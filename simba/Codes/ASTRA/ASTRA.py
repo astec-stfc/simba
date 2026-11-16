@@ -71,6 +71,9 @@ class astraLattice(frameworkLattice):
     _toffset: float | None = None
     """Time offset of reference particle"""
 
+    _reference_index: int = 0
+    """Index of the input particle ASTRA was given as its reference (first row); undone on reading"""
+
     headers: Dict = {}
     """Headers to be included in the ASTRA lattice file"""
 
@@ -416,6 +419,7 @@ class astraLattice(frameworkLattice):
                     )
                 ).strip('"'),
                 normaliseZ=False,
+                reference_index=self._reference_index,
             )
             if not self.in_local_frame:
                 rbf.hdf5.rotate_beamXZ(
@@ -528,7 +532,7 @@ class astraLattice(frameworkLattice):
             ASTRA beam filename
         """
         astrabeamfilename = self.astra_headers["newrun"].output_particle_definition
-        rbf.astra.write_astra_beam_file(
+        self._reference_index = rbf.astra.write_astra_beam_file(
             self.global_parameters["beam"],
             self.global_parameters["master_subdir"] + "/" + astrabeamfilename,
             normaliseZ=False,

@@ -746,7 +746,7 @@ class beam(BaseModel):
 
     def write_astra_beam_file(self, *args, **kwargs):
         """Write an ASTRA beam file; see :func:`~simba.Modules.Beams.astra.write_astra_beam_file`."""
-        astra.write_astra_beam_file(self, *args, **kwargs)
+        return astra.write_astra_beam_file(self, *args, **kwargs)
 
     def write_xsuite_beam_file(self, *args, **kwargs):
         """Write an Xsuite beam file; see :func:`~simba.Modules.Beams.xsuite.write_xsuite_beam_file`."""

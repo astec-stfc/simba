@@ -27,28 +27,36 @@ def write_csv_file(self, filename, data):
         [writer.writerow(line) for line in data]
 
 
-def read_astra_beam_file(self, filename, normaliseZ=False, keepLost=False):
+def read_astra_beam_file(self, filename, normaliseZ=False, keepLost=False, reference_index=0):
+    """Read an ASTRA beam file. ``reference_index``: what :func:`write_astra_beam_file` returned
+    for the input of the run that wrote the file; the particles are put back in the input's order."""
     self.reset_dicts()
     data = read_csv_file(self, filename)
     self.filename = filename
-    interpret_astra_data(self, data, normaliseZ=normaliseZ, keepLost=keepLost)
+    interpret_astra_data(self, data, normaliseZ=normaliseZ, keepLost=keepLost, reference_index=reference_index)
 
 
-def interpret_astra_data(self, data, normaliseZ=False, keepLost=False):
+def interpret_astra_data(self, data, normaliseZ=False, keepLost=False, reference_index=0):
+    data = np.array(data, dtype=float)
+    ref = data[0].copy()
+    """z and pz are relative to the reference (ASTRA's first row); its clock is the time offset."""
+    data[1:, [2, 5]] += ref[[2, 5]]
+    data[0, 6] = 0
+    """Undo the writer's roll: particle i is the input's particle i."""
+    data = np.roll(data, reference_index, axis=0)
     if not keepLost:
-        data = [d for d in data if d[-1] >= 0]
+        keep = data[:, -1] >= 0
+        reference_index = int(np.count_nonzero(keep[:reference_index]))
+        data = data[keep]
     x, y, z, cpx, cpy, cpz, clock, charge, index, status = np.transpose(data)
-    zref = z[0]
+    zref = ref[2]
     # s-position of the beam is the z-position of the reference-particle (!)
     self._beam.s = UnitValue(zref, units="m")
     self.code = "ASTRA"
-    self.reference_particle = data[0]
-    self.reference_particle_index = 0
-    self._beam.toffset = UnitValue(1e-9 * data[0][6], units="z")
+    self.reference_particle = ref
+    self.reference_particle_index = reference_index
+    self._beam.toffset = UnitValue(1e-9 * ref[6], units="z")
     self.longitudinal_reference = "z"
-    z = self.normalise_to_ref_particle(z, subtractmean=False)
-    cpz = self.normalise_to_ref_particle(cpz, subtractmean=False)
-    clock = self.normalise_to_ref_particle(clock, subtractmean=True)
     self.set_momenta(cpx, cpy, cpz)
     self._beam.clock = UnitValue(1.0e-9 * clock, units="s")
     self._beam.charge = UnitValue(1.0e-9 * charge, units="C")
@@ -168,6 +176,7 @@ def write_astra_beam_file(
     ).transpose()
     if self.reference_particle is not None:
         ref_particle = self.reference_particle
+        nearest_idx = self.reference_particle_index or 0
     else:
         """ Offset the z position to the nominal starting position """
         array[:, 2] += zoffset
@@ -186,8 +195,8 @@ def write_astra_beam_file(
         ref_particle = array[nearest_idx]
         self.reference_particle = ref_particle
         self.reference_particle_index = nearest_idx
-        """ set the closest mean vector to be in position 0 in the array """
-        array = np.roll(array, -1 * nearest_idx, axis=0)
+    """ASTRA takes its first row as the reference: roll it there (read_astra_beam_file undoes it)."""
+    array = np.roll(array, -1 * nearest_idx, axis=0)
 
     """ASTRA stores z and pz of non-reference particles relative to the reference particle."""
     array[1:, 2] = array[1:, 2] - ref_particle[2]
@@ -198,3 +207,4 @@ def write_astra_beam_file(
     array[1:, 5] = array[1:, 5] - ref_particle[5]
     array[0, 6] = array[0, 6] + ref_particle[6]
     np.savetxt(filename, array, fmt=("%.12e",) * 8 + ("%d", "%d"))
+    return nearest_idx
