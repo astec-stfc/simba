@@ -245,7 +245,8 @@ class cheetahLattice(frameworkLattice):
     def track_tangents(self) -> Dict:
         """
         Forward-mode derivatives (``torch.func.jvp``) of the twiss along :attr:`segment` and of
-        the beam at each screen and the line end. One pass per column: first the parameters
+        the beam at each screen and the line end. One column per parameter, all batched in a
+        single ``torch.func.vmap``: first the parameters
         whose :attr:`incoming_tangents` an upstream line left, then this line's
         :attr:`gradient_parameters`.
 
@@ -256,8 +257,8 @@ class cheetahLattice(frameworkLattice):
             ``s`` -> (n_s,) it is sampled at; ``beams``: element name -> (n, 6, P) array of
             :data:`~simba.Modules.gradients.lab_coordinates`
         """
-        from torch import as_tensor, eye, float64, sqrt, stack, zeros, zeros_like
-        from torch.func import jvp
+        from torch import as_tensor, cat, eye, float64, sqrt, stack, zeros
+        from torch.func import jvp, vmap
         from cheetah.accelerator import Screen
         from ...Modules.Beams.cheetah import cheetah_lab_coordinates, cheetah_particles
 
@@ -293,12 +294,16 @@ class cheetahLattice(frameworkLattice):
         incoming = self.incoming_tangents or {"parameters": [], "values": [], "tangent": np.zeros((len(lab), 6, 0))}
         upstream = as_tensor(incoming["tangent"], dtype=float64)
         none = zeros(len(local), dtype=float64)
-        columns = [(none, upstream[..., j]) for j in range(upstream.shape[-1])]
-        columns += [(eye(len(local), dtype=float64)[p], zeros_like(lab)) for p in range(len(local))]
-        tangents = []
-        for column in columns:
-            (twiss, _), tangent = jvp(track, (none, lab), column)
-            tangents.append(tangent)
+        # one row per column: upstream tangents first, then a unit vector per local parameter
+        t_columns = cat([zeros(upstream.shape[-1], len(local), dtype=float64), eye(len(local), dtype=float64)])
+        lab_columns = cat([upstream.movedim(-1, 0), zeros(len(local), *lab.shape, dtype=float64)])
+
+        def column(t, l):
+            (twiss, _), tangent = jvp(track, (none, lab), (t, l))
+            return twiss["s"], tangent
+
+        # all columns at once; pass chunk_size to vmap if memory bites
+        s, (twiss_tangent, beam_tangent) = vmap(column)(t_columns, lab_columns)
         return {
             "parameters": incoming["parameters"] + self.gradient_parameters,
             "values": incoming["values"] + [
@@ -306,10 +311,10 @@ class cheetahLattice(frameworkLattice):
                 for p in self.gradient_parameters
             ],
             "twiss": {
-                "s": twiss["s"].numpy(),
-                **{k: stack([t[0][k] for t in tangents], -1).numpy() for k in twiss_keys if k != "s"},
+                "s": s[0].numpy(),
+                **{k: twiss_tangent[k].movedim(0, -1).numpy() for k in twiss_keys if k != "s"},
             },
-            "beams": {n: stack([t[1][n] for t in tangents], -1).numpy() for n in tangents[0][1]},
+            "beams": {n: t.movedim(0, -1).numpy() for n, t in beam_tangent.items()},
         }
 
     def s_and_z(self, s: np.ndarray) -> tuple:
