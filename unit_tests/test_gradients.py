@@ -135,6 +135,18 @@ def test_cheetah_gradients_match_finite_differences(tmp_path):
     _check_against_finite_differences(framework, "FODO", grads, 0)
 
 
+def test_cheetah_gradients_of_an_unpowered_quad(tmp_path):
+    # Cheetah's sqrt(k1) has an infinite derivative at k1 == 0, which made every tangent NaN
+    framework = _framework(tmp_path, [], {"FODO": ("cheetah", "M1", "M3")}, ["QUAD1F:k1l"])
+    framework.modifyElement("QUAD1F", "k1l", 0.0)
+    _track(framework, "FODO")
+
+    grads = read_gradients(os.path.join(framework.subdirectory, "FODO_gradients.cheetah.hdf5"))
+    assert np.isfinite(grads["Beams"]["M3"]).all()
+    assert np.isfinite(grads["Twiss"]["beta_x"]).all()
+    _check_against_finite_differences(framework, "FODO", grads, 0)
+
+
 def _split_fodo(tmp_path, code_b="cheetah", cavity=False, finite_difference=()):
     """
     The FODO cell as two lines, A (M1 to M2, holding QUAD1F) and B (M2 to M3, holding the

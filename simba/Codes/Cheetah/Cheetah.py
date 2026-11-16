@@ -273,7 +273,10 @@ class cheetahLattice(frameworkLattice):
                 for path, derivative in derivatives.items():
                     module, _, leaf = path.rpartition(".")
                     sub = segment.get_submodule(module)
-                    setattr(sub, leaf, getattr(sub, leaf) + tp * derivative)
+                    base = getattr(sub, leaf)
+                    # Cheetah's sqrt(k1) has an infinite derivative at exactly 0 (NaN tangents);
+                    # 1e-7 balances the shift (~k1 L^2) against sinc's cancellation (~1e-16 / (k1 L^2))
+                    setattr(sub, leaf, base.where(base != 0, 1e-7) + tp * derivative)
             p0c, t0 = self.reference_from(lab)
             pin = deepcopy(self.pin)
             pin.particles = cheetah_particles(lab, E0, p0c, t0)
