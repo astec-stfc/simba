@@ -966,18 +966,18 @@ class ocelotLattice(frameworkLattice):
                 self.mbi_navi, self.lat_obj.sequence[0], self.lat_obj.sequence[-1]
             )
         for name, obj in self.elements.items():
-            fieldstr = None
-            if "cavity" in obj.hardware_type.lower():
-                fieldstr = "wakefield_definition"
-            elif "wake" in obj.hardware_type.lower():
-                fieldstr = "field_definition"
+            wake_definition = (
+                getattr(obj.simulation, "wakefield_definition", None)
+                if any(t in obj.hardware_type.lower() for t in ("cavity", "wake"))
+                else None
+            )
             if (
-                fieldstr is not None
-                and self.wakefield_enable
-                and getattr(obj.simulation, fieldstr) is not None
+                self.wakefield_enable
+                and getattr(obj.simulation, "wakefield_enable", True)
+                and wake_definition is not None
             ):
                 wake, w_ind = self.physproc_wake(
-                    name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
+                    name, wake_definition, obj.cavity.n_cells
                 )
                 navi_processes += [wake]
                 navi_locations_start += [self.lat_obj.sequence[w_ind]]
