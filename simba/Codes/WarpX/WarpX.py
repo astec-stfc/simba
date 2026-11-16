@@ -315,7 +315,6 @@ class warpxLattice(frameworkLattice):
             _drift(beam, -shift)
         z = beam.z.val
         periods = sum(round(float(w.physical.length) / float(w.magnetic.period)) for w in wigglers)
-        # The undulator starts on a cosine, so the orbit swings one way, 0 to 2 K / (gamma k_u)
         swing = 2 * k(first) / (gamma * 2 * np.pi / period)
         gamma_star = gamma / np.sqrt(factor)
         stretch = 1 + (gamma**2 - gamma_star**2) / (gamma**2 + gamma_star**2)
