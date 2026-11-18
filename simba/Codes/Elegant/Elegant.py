@@ -35,8 +35,9 @@ from laura.translator.utils.functions import sanitize_string
 
 
 def elegant_element_name(name: str) -> str:
-    """The name ELEGANT knows an element by."""
-    return sanitize_string(name).upper()
+    """The name ELEGANT knows an element by: LAURA writes names to the lte as they
+    are (hyphens and all), and ELEGANT reads them in upper case."""
+    return name.upper()
 
 
 class elegantLattice(frameworkLattice):
@@ -633,7 +634,7 @@ class elegantLattice(frameworkLattice):
             self.commandFiles["run_setup"] = elegant_run_setup_command(
                 lattice=self.objectname + ".lte",
                 p_central=self.reference_p0c / self.rest_energy,
-                seed=seed,
+                random_number_seed=seed or None,
                 s_start=self.entrance_s,
                 use_beamline=self.objectname,
                 **({"always_change_p0": 0} if self.fixed_reference else {}),
@@ -1217,8 +1218,8 @@ class elegant_run_setup_command(elegantCommandFile):
     pcentral: float = 0.0
     """Central momentum in units of beta-gamma"""
 
-    seed: int = 0
-    """Seed for random number generators"""
+    random_number_seed: int | None = None
+    """Seed for random number generators; None leaves elegant's default (fixed), 0 is from the clock."""
 
     always_change_p0: int = 1
     """Match the reference momentum to the beam momentum after each element."""

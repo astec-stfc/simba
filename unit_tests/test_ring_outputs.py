@@ -14,7 +14,7 @@ import simba.Framework as fw
 import simba.Framework_lattices as lattices
 import simba.Modules.Beams as rbf
 import simba.Modules.Twiss as rtf
-from helpers import needs_elegant, skip_missing
+from helpers import BMAD_SO, needs_elegant, skip_missing, use_local_bmad
 from laura import LAURA
 from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Marker, Quadrupole
@@ -26,7 +26,15 @@ from simba.Modules import constants
 TURNS = 4
 RING_CODES = ["elegant", "xsuite", "madx", "ocelot", "impactx"]
 END_Z = 3.25 + 1.0
-BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
+TURN_CODES = RING_CODES + ["bmad"]
+"""Codes that write the line's end every turn; Bmad writes its other screens on the last turn only."""
+
+
+def _recorded(code, element):
+    """The turns ``element`` is written on, writing every turn."""
+    if code == "bmad" and element != "M3":
+        return [TURNS]
+    return list(range(1, TURNS + 1))
 
 
 def _machine(tmp_path):
@@ -121,6 +129,8 @@ def _framework(tmp_path, code, tracking, seed_beam, inputs=None):
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
     shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    if code == "bmad":
+        use_local_bmad(framework)
     return framework
 
 
@@ -163,27 +173,27 @@ def runs(tmp_path_factory, seed_beam):
     return get
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_a_marker_is_recorded_on_every_turn(code, element, runs):
-    assert _turns(runs(code), element) == list(range(1, TURNS + 1)), code
+    assert _turns(runs(code), element) == _recorded(code, element), code
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 def test_no_file_is_written_per_turn(code, runs):
     subdir = runs(code)
     per_turn = re.compile(rf"{SEPARATOR}\d+\.")
     assert not [name for name in os.listdir(subdir) if per_turn.search(name)]
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 def test_each_turn_says_its_turn(code, runs):
     subdir = runs(code)
-    for turn in range(1, TURNS + 1):
+    for turn in _recorded(code, "MID"):
         assert _turn(subdir, "MID", turn).turn == turn
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 @pytest.mark.parametrize(
     "tracking, turns, last",
     [({}, list(range(1, TURNS + 1)), TURNS), ({"write_turns": False}, [], TURNS), ({"turns": 1}, [], 1)],
@@ -196,7 +206,7 @@ def test_the_end_of_the_line_reads_as_its_last_turn(code, tracking, turns, last,
     assert _read(os.path.join(subdir, "M3.openpmd.hdf5")).turn == last
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 @pytest.mark.parametrize(
     "tracking",
     [{}, {"write_turns": False}, {"turns": 1}],
@@ -210,36 +220,38 @@ def test_the_input_beam_is_not_overwritten(code, tracking, runs, seed_beam):
 
 
 @needs_elegant
-@pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
+@pytest.mark.parametrize("code", [c for c in TURN_CODES if c != "elegant"])
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_records_the_same_turn_as_elegant(code, element, runs):
     """The mismatched beam's size changes turn to turn; each code's turn ``k``
     must be nearest elegant's. Nearest, as MAD-X's thin lenses are up to 4%
     out, as far as one turn is from the next."""
-    def sizes(subdir):
+    def sizes(subdir, turns):
         return np.array([
             [
                 _turn(subdir, element, turn).sigmas.sigma_x.val,
                 _turn(subdir, element, turn).sigmas.sigma_y.val,
             ]
-            for turn in range(1, TURNS + 1)
+            for turn in turns
         ])
 
-    ours, theirs = sizes(runs(code)), sizes(runs("elegant"))
-    for turn in range(TURNS):
-        distance = np.linalg.norm((theirs - ours[turn]) / theirs, axis=1)
-        assert np.argmin(distance) == turn, (code, element, turn + 1, distance)
+    turns = _recorded(code, element)
+    ours, theirs = sizes(runs(code), turns), sizes(runs("elegant"), range(1, TURNS + 1))
+    for turn, size in zip(turns, ours):
+        distance = np.linalg.norm((theirs - size) / theirs, axis=1)
+        assert np.argmin(distance) == turn - 1, (code, element, turn, distance)
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 def test_each_turn_tracks_on_from_the_last(code, runs):
-    """Not the input beam again; and a size that changes turn to turn is what
-    lets the test above tell the turns apart."""
+    """Not the input beam again: each particle has moved on from the turn before.
+
+    Not the bunch's size, which the unseeded beam can leave all but unchanged from one
+    turn to the next."""
     subdir = runs(code)
-    sizes = [
-        _turn(subdir, "MID", turn).sigmas.sigma_x.val for turn in range(1, TURNS + 1)
-    ]
-    assert np.min(np.abs(np.diff(sizes)) / sizes[0]) > 1e-2
+    x = [np.asarray(_turn(subdir, "M3", turn).x.val) for turn in range(1, TURNS + 1)]
+    steps = [np.max(np.abs(b - a)) / np.std(a) for a, b in zip(x, x[1:])]
+    assert min(steps) > 1e-2
 
 
 @pytest.mark.parametrize("tracking", [{}, {"turns": 1}], ids=["turns", "one_turn"])
@@ -410,9 +422,9 @@ CAN = {
              "nsuperperiods", "single_particle"},
     "impactx": {"turns", "periodic", "frequency_map", "dynamic_aperture", "nsuperperiods", "radiation",
                 "programs", "ramp"},
-    # single-pass here, so no turns to ramp over; its scans track a turn at a
-    # time through Tao, measured in test_bmad_turn_handback.py
-    "bmad": {"periodic", "frequency_map", "dynamic_aperture", "radiation", "programs"},
+    # turns through long_term_tracking; its scans track a turn at a time through
+    # Tao, measured in test_bmad_turn_handback.py
+    "bmad": {"turns", "periodic", "frequency_map", "dynamic_aperture", "radiation", "programs", "ramp"},
     # circular mode, round a line that closes geometrically
     "bdsim": {"turns"},
 }
@@ -440,7 +452,7 @@ def test_the_codes_that_can_are_read_off_the_codes(flag):
     assert sentence.count(",") + sentence.count(" and ") == len(can) - 1
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_writes_the_input_charge(code, element, runs, seed_beam):
     """No particle is lost here. Xsuite's was ``sum(q0)``, -1 C a particle."""
@@ -527,7 +539,7 @@ def test_xsuite_without_a_reference_has_one_z_per_particle():
     assert np.shape(beam.z.val) == (4,)
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 def test_s_is_the_lattices_not_the_incoming_beams(code, runs):
     subdir = runs(code)
     middle = _turn(subdir, "MID", TURNS)
@@ -782,22 +794,22 @@ def _clock(seed_beam, element_s, turn):
     return float(np.mean(beam.t.val)) + ((turn - 1) * END_Z + element_s) / (beta0 * c)
 
 
-@pytest.mark.parametrize("code", RING_CODES)
+@pytest.mark.parametrize("code", TURN_CODES)
 @pytest.mark.parametrize("element, element_s", [("MID", 2.0), ("M3", END_Z)])
 def test_t_is_on_the_reference_clock(code, element, element_s, runs, seed_beam):
     """The centroid moves 8 fs off the reference in four turns, as in elegant."""
     subdir = runs(code)
-    for turn in range(1, TURNS + 1):
+    for turn in _recorded(code, element):
         t = _turn(subdir, element, turn).t.val
         clock = _clock(seed_beam, element_s, turn)
         assert float(np.mean(t)) == pytest.approx(clock, abs=2e-14), (code, turn)
 
 
 @needs_elegant
-@pytest.mark.parametrize("code", [c for c in RING_CODES if c != "elegant"])
+@pytest.mark.parametrize("code", [c for c in TURN_CODES if c != "elegant"])
 @pytest.mark.parametrize("element", ["MID", "M3"])
 def test_every_code_gives_each_particle_the_t_elegant_does(code, element, runs):
-    for turn in range(1, TURNS + 1):
+    for turn in _recorded(code, element):
         ours = _turn(runs(code), element, turn).t.val
         theirs = _turn(runs("elegant"), element, turn).t.val
         np.testing.assert_allclose(ours, theirs, rtol=0, atol=1e-15)

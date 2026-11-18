@@ -9,7 +9,7 @@ import pytest
 
 import simba.Framework as fw
 import simba.Modules.Beams as rbf
-from helpers import fodo_machine, read_beam, skip_missing
+from helpers import fodo_machine, read_beam, skip_missing, use_local_bmad
 from simba.Codes.Generators import frameworkGenerator
 from simba.Framework_objects import frameworkLattice
 from simba.Modules.DeviceProgram import DeviceProgram
@@ -168,21 +168,24 @@ class FakeBeam:
 class FakeCavity:
     hardware_type = "RFCavity"
 
-    def __init__(self, voltage):
+    def __init__(self, voltage, frequency=None):
         self.simulation = type("S", (), {"field_amplitude": voltage})()
+        self.cavity = type("C", (), {"frequency": frequency})()
 
 
 class FakeLine:
     """A lattice stub carrying only what the ramp code reads."""
 
-    def __init__(self, tracking, supports=True, beam=None, voltage=None, code="xsuite"):
+    pass_length = 300.0
+
+    def __init__(self, tracking, supports=True, beam=None, voltage=None, code="xsuite", frequency=None):
         self.file_block = {"tracking": tracking}
         self.objectname = "RING"
         self.code = code
         self.supports_ramp = supports
         self.supports_nsuperperiods = True
         self.global_parameters = {"beam": beam}
-        self.elements = {} if voltage is None else {"CAV": FakeCavity(voltage)}
+        self.elements = {} if voltage is None else {"CAV": FakeCavity(voltage, frequency)}
 
     turns = frameworkLattice.turns
     nsuperperiods = frameworkLattice.nsuperperiods
@@ -200,6 +203,8 @@ class FakeLine:
     check_ramp = frameworkLattice.check_ramp
     codes_that_can = frameworkLattice.codes_that_can
     check_ramp_beam = frameworkLattice.check_ramp_beam
+    rf_mode = frameworkLattice.rf_mode
+    live_cavities = frameworkLattice.live_cavities
 
 
 RAMP = {"turns": [1, 10], "momentum": [5e6, 5.1e6]}
@@ -262,9 +267,29 @@ def test_too_little_voltage_warns():
         line.check_ramp_beam()
 
 
+def at_harmonic(harmonic):
+    """The frequency of ``harmonic`` of FakeLine's revolution at RAMP's start."""
+    beta = 5e6 / np.hypot(5e6, ELECTRON)
+    return harmonic * beta * 299792458.0 / FakeLine.pass_length
+
+
 @pytest.mark.filterwarnings("error")
 def test_enough_voltage_on_the_ramp_is_silent():
-    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6)
+    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6, frequency=at_harmonic(114))
+    line.check_ramp_beam()
+
+
+def test_following_rf_off_the_injection_harmonic_warns():
+    """Set for the flat-top's harmonic, as the RING's would be: 1 - beta at 100 MeV is 1.3e-5."""
+    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6, frequency=at_harmonic(114.0015))
+    with pytest.warns(UserWarning, match=r"harmonic 114\.0015.*slips \+0\.54 degrees"):
+        line.check_ramp_beam()
+
+
+@pytest.mark.filterwarnings("error")
+def test_fixed_rf_off_the_harmonic_is_left_alone():
+    line = FakeLine({"turns": 10, "ramp": RAMP, "rf": "fixed"}, beam=FakeBeam(), voltage=1e6,
+                    frequency=at_harmonic(114.0015))
     line.check_ramp_beam()
 
 
@@ -279,7 +304,7 @@ def test_the_rest_energy_survives_a_beam_not_yet_read():
 
 
 TURNS = 10
-CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx"]
+CODES = ["xsuite", "elegant", "ocelot", "madx", "impactx", "bmad"]
 
 
 def _beam(subdir, name, turn=None):
@@ -328,6 +353,8 @@ def _track(tmp_path, code, tracking, seed_beam):
     framework = fw.Framework(machine=machine, directory=str(tmp_path), clean=True, verbose=False)
     framework.loadSettings(settings=settings)
     shutil.copy(seed_beam, os.path.join(framework.subdirectory, "M1.openpmd.hdf5"))
+    if code == "bmad":
+        use_local_bmad(framework)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         framework.track()
@@ -372,9 +399,9 @@ def test_no_rf_means_no_energy_change(code, runs, seed_beam):
     assert np.allclose(final, start, rtol=1e-5, atol=0)
 
 
-@pytest.mark.parametrize("code", ["xsuite", "ocelot", "impactx"])
+@pytest.mark.parametrize("code", ["xsuite", "ocelot", "impactx", "bmad"])
 def test_the_thick_codes_agree_on_the_ramped_orbit(code, runs):
-    """Measured 1.0e-7 m, 2.7e-6 m and 5.6e-8 m against elegant, for a 1.6e-4 m effect."""
+    """Measured 1.0e-7 m, 2.7e-6 m, 5.6e-8 m and 8e-8 m against elegant, for a 1.6e-4 m effect."""
     a, b = runs(code, True)["final"]["x"], runs("elegant", True)["final"]["x"]
     assert np.abs(a - b).max() < 1e-5
 
@@ -385,10 +412,13 @@ def test_madx_agrees_up_to_its_thin_lenses(runs):
     assert np.abs(a - b).max() < 5e-5
 
 
-@pytest.mark.parametrize("code", ["madx", "impactx"])
+@pytest.mark.parametrize("code", ["madx", "impactx", "bmad"])
 def test_absolute_time_agrees_with_elegant_every_turn(code, runs):
-    """These carry absolute time (measured 4e-16 s and 8e-17 s from elegant); Xsuite's ``t`` is
-    relative and Ocelot's a turn ahead, so they are left out."""
+    """These carry absolute time (measured 4e-16 s, 8e-17 s and 9e-18 s from elegant); Xsuite's
+    ``t`` is relative and Ocelot's a turn ahead, so they are left out.
+
+    Bmad's ``long_term_tracking`` had slipped 5.4e-12 s by turn 9, timing quads by a
+    ``delta_ref_time`` it does not ramp; see ``bmadLattice._clock_slips``."""
     madx, elegant = runs(code, True)["turns"], runs("elegant", True)["turns"]
     assert set(madx) == set(elegant) == set(range(1, TURNS + 1))
     for turn in madx:

@@ -250,6 +250,7 @@ class Executables:
         self.genesis = None
         self.opal = None
         self.tao = None
+        self.long_term_tracking = None
         self.madx = None
         self.bdsim = None
         self.ptarmigan = None
@@ -410,7 +411,17 @@ class Executables:
         self._define("ptarmigan", "ptarmigan", ["ptarmigan"], location, ncpu, override_location)
 
     def define_tao_command(self, location=None, ncpu=1, scaling=None, override_location=None) -> None:
-        """Define the Tao library and set :attr:`~tao`."""
+        """Define the Tao library and set :attr:`~tao`; ``long_term_tracking`` too,
+        from the same settings section, or, given ``libtao.so``'s path, from the
+        ``bin/`` beside its ``lib/``."""
         ncpu = self.getNCPU(ncpu, scaling)
         default = [self.sim_codes_location + "Bmad/lib/libtao.so"]
         self._define("tao", "tao", default, location, ncpu, override_location)
+        if location is not None and not (isinstance(location, str) and location in self.settings):
+            libtao = location if isinstance(location, str) else location[0]
+            bmad = os.path.dirname(os.path.dirname(os.path.abspath(libtao)))
+            location = [os.path.join(bmad, "bin", "long_term_tracking")]
+        default = [self.sim_codes_location + "Bmad/bin/long_term_tracking"]
+        self._define(
+            "long_term_tracking", "long_term_tracking", default, location, ncpu, override_location
+        )

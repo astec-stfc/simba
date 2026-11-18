@@ -229,6 +229,7 @@ class xsuiteLattice(frameworkLattice):
             self.context = xo.ContextCupy()
         else:
             self.context = xo.ContextCpu()
+            self.context.allow_kernel_compilation = True
         self.grids = getGrids()
 
     def use_gpu(self) -> bool:
@@ -887,6 +888,13 @@ class xsuiteLattice(frameworkLattice):
         -------
         xtrack.TwissTable
         """
+        model = self.line._radiation_model
+        if model in ("quantum", "quantum-kick"):
+            self.line.configure_radiation(model="mean")
+            try:
+                return self._twiss()
+            finally:
+                self.line.configure_radiation(model=model)
         dependent = self.line.enable_time_dependent_vars
         if not dependent:
             return self._twiss_now()
