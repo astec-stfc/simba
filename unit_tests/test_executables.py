@@ -140,3 +140,11 @@ def test_a_code_that_fails_says_so(tmp_path):
         pytest.raises(RuntimeError, match="No charge defined for LSC"),
     ):
         Framework_objects.frameworkLattice.run_command(stub, ["elegant"], logfile)
+
+
+@pytest.mark.parametrize("location", ["/opt/bmad/lib/libtao.so", ["/opt/bmad/lib/libtao.so"]])
+def test_long_term_tracking_is_beside_a_given_libtao(tmp_path, location):
+    ex = Executables({"simcodes_location": str(tmp_path)})
+    ex.define_tao_command(location=location)
+    assert ex.tao == ["/opt/bmad/lib/libtao.so"]
+    assert ex.long_term_tracking == ["/opt/bmad/bin/long_term_tracking"]

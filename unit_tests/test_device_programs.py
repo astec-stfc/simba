@@ -8,7 +8,7 @@ import pytest
 
 from helpers import ELEGANT, needs_elegant
 from simba.Codes.Bmad.Bmad import bmadLattice
-from simba.Codes.Elegant.Elegant import elegantLattice
+from simba.Codes.Elegant.Elegant import elegant_element_name, elegantLattice
 from simba.Codes.MADX.MADX import madxLattice
 from simba.Codes.Ocelot.Ocelot import ocelotLattice
 from simba.Codes.Xsuite.Xsuite import xsuiteLattice
@@ -767,6 +767,10 @@ class TestElegantCommands:
         commands = elegant_line.program_commands()
         for command in commands.values():
             assert "name = KICK1" in command.write_Elegant()
+
+    def test_a_hyphenated_name_is_the_one_in_the_lte(self):
+        """LAURA writes names to the lte unsanitised; "no match given modulation" otherwise."""
+        assert elegant_element_name("ring-sec-rf-cav-01.1") == "RING-SEC-RF-CAV-01.1"
 
     def test_fire_on_pass_is_zero_based(self, elegant_line):
         """The program starts at turn 1 (pass 0); the waveform carries the wait."""

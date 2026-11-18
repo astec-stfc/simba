@@ -314,6 +314,19 @@ class RampTooSteepWarning(PhysicsWarning):
         )
 
 
+class OffHarmonicWarning(PhysicsWarning):
+    """A ramp with ``rf: follow`` and a cavity off a whole harmonic at injection."""
+
+    def __init__(self, line: str, cavity: str, harmonic: float):
+        slip = 360 * (harmonic - round(harmonic))
+        super().__init__(
+            f"{_line(line)} ramps with rf: follow, which scales {cavity}'s frequency "
+            f"from the one given, but that is harmonic {harmonic:.7g} of the revolution "
+            f"at injection, so its bucket slips {slip:+.3g} degrees a turn. Give the "
+            "frequency at the injection harmonic."
+        )
+
+
 class BadSuperperiodsWarning(SettingWarning):
     """An ``nsuperperiods`` that is not a positive whole number."""
 

@@ -124,8 +124,8 @@ class ocelotLattice(frameworkLattice):
     in :meth:`run` repeats the sector itself."""
 
     supports_radiation: ClassVar[bool] = True
-    """``cpbd.physics_proc.SpontanRadEffects`` with ``type="dipole"``, one per
-    bend; see :meth:`physproc_radiation`."""
+    """SIMBA's own ``DipoleRadiation`` process, one per bend; see
+    :meth:`physproc_radiation`."""
 
     supports_periodic: ClassVar[bool] = True
     """``cpbd.optics.twiss`` with ``tws0=None``, which defers to
@@ -806,7 +806,8 @@ class ocelotLattice(frameworkLattice):
 
     def physproc_radiation(self) -> list:
         """
-        One ``SpontanRadEffects`` per dipole, for :meth:`navi_setup`.
+        One :class:`~simba.Codes.Ocelot.radiation.DipoleRadiation` per dipole, for
+        :meth:`navi_setup`.
 
         ``mean`` gives only energy loss (damping); ``quantum`` adds the excitation an
         equilibrium emittance needs.
@@ -814,13 +815,13 @@ class ocelotLattice(frameworkLattice):
         Returns
         -------
         list
-            ``(process, element, radius)`` triples, empty when
-            :attr:`radiation` is off.
+            ``(process, start, end, radius)``: each process runs from its dipole's
+            entrance to the next element's. Empty when :attr:`radiation` is off.
         """
         model = self.radiation
         if model in (None, "off"):
             return []
-        from ocelot.cpbd.physics_proc import SpontanRadEffects
+        from .radiation import DipoleRadiation
 
         out = []
         for name in self.names:
@@ -835,13 +836,14 @@ class ocelotLattice(frameworkLattice):
                 continue
             if not angle or not length:
                 continue
-            proc = SpontanRadEffects(type="dipole")
-            proc.radius = abs(length / angle)
-            proc.energy_loss = True
-            proc.quant_diff = model == "quantum"
-            out.append(
-                (proc, self.lat_obj.sequence[self.names.index(name)], abs(length / angle))
-            )
+            sequence = self.lat_obj.sequence
+            index = self.names.index(name)
+            if index + 1 == len(sequence):
+                warn(f"Ocelot cannot radiate in {name}: nothing follows it to end the process at")
+                continue
+            bend = sequence[index]  # its own angle, so (1 + h x) is in Ocelot's frame
+            proc = DipoleRadiation(bend.angle / bend.l, quantum=model == "quantum")
+            out.append((proc, bend, sequence[index + 1], abs(length / angle)))
         return out
 
     def navi_setup(
@@ -967,10 +969,10 @@ class ocelotLattice(frameworkLattice):
                 navi_locations_end += [self.lat_obj.sequence[self.names.index(name)]]
         sval_in = self.section_s_values(at_entrance=True)
         sval_out = self.section_s_values(at_entrance=False)
-        for bend, loc, _ in self.physproc_radiation():
+        for bend, start, end, _ in self.physproc_radiation():
             navi_processes += [bend]
-            navi_locations_start += [loc]
-            navi_locations_end += [loc]
+            navi_locations_start += [start]
+            navi_locations_end += [end]
         recorded = self.screens_and_markers_and_bpms + self.apertures
 
         def t_reference(s):

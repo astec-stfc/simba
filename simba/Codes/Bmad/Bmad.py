@@ -506,14 +506,10 @@ class bmadLattice(frameworkLattice):
             ``x``/``px``/``y``/``py``/``state``, each ``n_particles x turns``. Empty
             if it could not be tracked, or every particle was lost.
         """
-        if self.tao is None:
-            warn(
-                f"Line '{self.objectname}': Tao must be run before the grid "
-                "can be tracked."
-            )
-            return {}
-        grid_file = Path(self.lattice_file).with_suffix(".fma.beam")
         try:
+            if self.tao is None:
+                self._start_tao()
+            grid_file = Path(self.lattice_file).with_suffix(".fma.beam")
             self._write_grid_beam_file(str(grid_file))
             # ASCII: Bmad's own px/py, which the openPMD file leaves as momenta
             files = self._run_long_term_tracking(
@@ -660,15 +656,11 @@ class bmadLattice(frameworkLattice):
         list
             ``(x, y, turns_survived)`` per start.
         """
-        if self.tao is None:
-            warn(
-                f"Line '{self.objectname}': Tao must be run before a "
-                "dynamic-aperture scan."
-            )
-            return []
         starts = self.da_rays()
-        beam = Path(self.lattice_file).with_suffix(".da.beam")
         try:
+            if self.tao is None:
+                self._start_tao()
+            beam = Path(self.lattice_file).with_suffix(".da.beam")
             self._write_grid_beam_file(str(beam), starts)
             files = self._run_long_term_tracking(
                 f"{self.objectname}.da.turns", beam.name, self.turns, 1, complete=False
@@ -748,10 +740,9 @@ class bmadLattice(frameworkLattice):
             f"  ltt%beam_output_every_n_turns = {every}\n"
             "  ltt%only_live_particles_out = F\n"
             "  ltt%add_closed_orbit_to_init_position = F\n"
-            "  ltt%random_seed = 1\n"
+            f"  ltt%random_seed = {self.runSettings.seed or 1}\n"  # 0 is "not set"; Bmad's 0 is the clock
             "  ltt%print_info_messages = F\n"
             "  bmad_com%absolute_time_tracking = T\n"
-            # lost beyond 1 m where there is no aperture, as Xsuite and ImpactX
             "  bmad_com%max_aperture_limit = 1.0\n"
             f"  beam_init%position_file = '{beam}'\n"
             "/\n",
@@ -885,6 +876,26 @@ class bmadLattice(frameworkLattice):
 
     def run(self) -> None:
         """Track the beam through PyTao; turns before the last through :meth:`_run_long_term_tracking`."""
+        from pytao import filter_tao_messages_context
+
+        self._start_tao()
+        with contextlib.chdir(Path(self.lattice_file).parent):
+            if self.turns == 1:
+                self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+                return
+            turns = self.turns - 1
+            self._run_long_term_tracking(
+                f"{self.objectname}.ltt.h5", Path(self.input_beam_file).name,
+                turns, 1 if self.write_turns else turns,
+            )
+            with filter_tao_messages_context(functions=["closed_orbit_calc"]):
+                self._set_last_turn()
+                self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
+            self.tao.cmd("set bmad_com absolute_time_tracking = F")
+
+    def _start_tao(self) -> None:
+        """Start Tao on the written lattice and beam, with the rampers (:meth:`_rampers`)
+        that :meth:`run` and the scans give ``long_term_tracking``."""
         if (
             self.lattice_file is None
             or self.input_beam_file is None
@@ -912,16 +923,6 @@ class bmadLattice(frameworkLattice):
             if self.turns > 1:
                 self.begin_rf_phases()
                 self._ramper_lines = self._rampers()
-                turns = self.turns - 1
-                self._run_long_term_tracking(
-                    f"{self.objectname}.ltt.h5", Path(self.input_beam_file).name,
-                    turns, 1 if self.write_turns else turns,
-                )
-                self._set_last_turn()
-            self.tao.track_beam("BEGINNING", "END", use_progress_bar=False)
-            if self.turns > 1:
-                # the optics read after want it off
-                self.tao.cmd("set bmad_com absolute_time_tracking = F")
 
     def _set_last_turn(self) -> None:
         """

@@ -127,6 +127,7 @@ class FakeBmad:
     programs = ()
     _ramper_lines = ""
     executables = Executables(long_term_tracking=[BMAD_LTT])
+    runSettings = type("RunSettings", (), {"seed": 0})()
 
     def __init__(self, tao, lattice_file, turns=TURNS):
         self.tao = tao

@@ -168,21 +168,24 @@ class FakeBeam:
 class FakeCavity:
     hardware_type = "RFCavity"
 
-    def __init__(self, voltage):
+    def __init__(self, voltage, frequency=None):
         self.simulation = type("S", (), {"field_amplitude": voltage})()
+        self.cavity = type("C", (), {"frequency": frequency})()
 
 
 class FakeLine:
     """A lattice stub carrying only what the ramp code reads."""
 
-    def __init__(self, tracking, supports=True, beam=None, voltage=None, code="xsuite"):
+    pass_length = 300.0
+
+    def __init__(self, tracking, supports=True, beam=None, voltage=None, code="xsuite", frequency=None):
         self.file_block = {"tracking": tracking}
         self.objectname = "RING"
         self.code = code
         self.supports_ramp = supports
         self.supports_nsuperperiods = True
         self.global_parameters = {"beam": beam}
-        self.elements = {} if voltage is None else {"CAV": FakeCavity(voltage)}
+        self.elements = {} if voltage is None else {"CAV": FakeCavity(voltage, frequency)}
 
     turns = frameworkLattice.turns
     nsuperperiods = frameworkLattice.nsuperperiods
@@ -200,6 +203,8 @@ class FakeLine:
     check_ramp = frameworkLattice.check_ramp
     codes_that_can = frameworkLattice.codes_that_can
     check_ramp_beam = frameworkLattice.check_ramp_beam
+    rf_mode = frameworkLattice.rf_mode
+    live_cavities = frameworkLattice.live_cavities
 
 
 RAMP = {"turns": [1, 10], "momentum": [5e6, 5.1e6]}
@@ -262,9 +267,29 @@ def test_too_little_voltage_warns():
         line.check_ramp_beam()
 
 
+def at_harmonic(harmonic):
+    """The frequency of ``harmonic`` of FakeLine's revolution at RAMP's start."""
+    beta = 5e6 / np.hypot(5e6, ELECTRON)
+    return harmonic * beta * 299792458.0 / FakeLine.pass_length
+
+
 @pytest.mark.filterwarnings("error")
 def test_enough_voltage_on_the_ramp_is_silent():
-    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6)
+    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6, frequency=at_harmonic(114))
+    line.check_ramp_beam()
+
+
+def test_following_rf_off_the_injection_harmonic_warns():
+    """Set for the flat-top's harmonic, as the RING's would be: 1 - beta at 100 MeV is 1.3e-5."""
+    line = FakeLine({"turns": 10, "ramp": RAMP}, beam=FakeBeam(), voltage=1e6, frequency=at_harmonic(114.0015))
+    with pytest.warns(UserWarning, match=r"harmonic 114\.0015.*slips \+0\.54 degrees"):
+        line.check_ramp_beam()
+
+
+@pytest.mark.filterwarnings("error")
+def test_fixed_rf_off_the_harmonic_is_left_alone():
+    line = FakeLine({"turns": 10, "ramp": RAMP, "rf": "fixed"}, beam=FakeBeam(), voltage=1e6,
+                    frequency=at_harmonic(114.0015))
     line.check_ramp_beam()
 
 

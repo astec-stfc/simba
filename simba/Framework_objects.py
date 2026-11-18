@@ -1840,7 +1840,8 @@ class frameworkLattice(BaseModel):
             warn(exceptions.OffDesignEnergyWarning(self.objectname, design, entering))
 
     def check_ramp_beam(self) -> None:
-        """Warn if the input beam is off the ramp's start, or the RF is too weak to follow it."""
+        """Warn if the input beam is off the ramp's start, the RF is too weak to follow it,
+        or, with ``rf: follow``, a cavity is off a whole harmonic at injection."""
         if not self.ramped:
             return
         ramp = self.ramp
@@ -1852,6 +1853,13 @@ class frameworkLattice(BaseModel):
         entering = self._input_mean("cp")
         if entering and abs(start / entering - 1) > 1e-3:
             warn(exceptions.OffRampWarning(self.objectname, start, entering))
+        if self.rf_mode == "follow":
+            beta = start / np.hypot(start, rest_energy)
+            period = self.passes_per_turn * self.pass_length / (beta * speed_of_light)
+        for name, element in self.live_cavities().items() if self.rf_mode == "follow" else ():
+            harmonic = float(element.cavity.frequency) * period
+            if abs(harmonic - round(harmonic)) > 1e-4:  # 0.036 degrees a turn
+                warn(exceptions.OffHarmonicWarning(self.objectname, name, harmonic))
         needed = float(np.max(np.abs(ramp.energy_gain_per_turn(self.turns, rest_energy))))
         if not needed:
             return
