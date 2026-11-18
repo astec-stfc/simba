@@ -1,7 +1,8 @@
 import multiprocessing
 import os
 import re
-from shutil import copyfile
+from shutil import copyfile, SameFileError
+from warnings import warn
 import numpy as np
 from .Modules.constants import speed_of_light
 from deepdiff import DeepDiff
@@ -76,14 +77,14 @@ def clean_directory(folder):
             if os.path.isfile(file_path):
                 os.unlink(file_path)
         except Exception as e:
-            print("clean_directory error:", e)
+            warn(f"clean_directory could not remove {file_path}: {e}")
 
 
 def copylink(source, destination):
     try:
         copyfile(source, destination)
-    except Exception as e:
-        print("copylink error!", e)
+    except SameFileError:
+        pass
 
 
 def gpt_environment(global_parameters):

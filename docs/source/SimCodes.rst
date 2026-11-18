@@ -29,6 +29,18 @@ whether a container runtime is used for the other codes:
 * `ImpactX <https://impactx.readthedocs.io>`_
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
+* `Slipstream <https://github.com/astec-stfc/slipstream>`_, which is not in the ``simcodes`` extra: install it
+  from its repository (it needs ``torch``). It tracks a line once, through ``LinacTracker``: quadrupoles, sextupoles,
+  dipoles (with CSR and LSC if the lattice enables them) and cavities (with their wakefields). Apertures, screens and
+  markers are drifts to it, and solenoids are drifts too. It has no space charge in this mode and writes no Twiss file.
+  ``SLIPSTREAMsettings`` under ``global`` passes arguments to ``LinacTracker``; the defaults are in
+  ``simba/Codes/Slipstream/slipstream_defaults.yaml``. Its CSR and LSC kernels are quadratic in the particle
+  count unless ``fast_collective_effects: true`` is set there.
+
+`RF-Track <https://gitlab.cern.ch/rf-track>`_ also runs in-process, but is not in the ``simcodes`` extra as it
+is distributed under a CERN proprietary licence; install it yourself with ``pip install rf_track``. It tracks
+in ``s`` through an ``RF_Track.Lattice``, writing the beam at screens and at the end of the line; cathode
+(time-domain ``Volume``) tracking is not supported yet.
 
 :mod:`SIMBA` does, however, require these codes to be accessible. This functionality is provided in various ways.
 

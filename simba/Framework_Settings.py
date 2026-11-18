@@ -1,5 +1,6 @@
 import os
 import yaml
+from warnings import warn
 from munch import Munch, unmunchify
 
 _mapping_tag = yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG
@@ -35,6 +36,10 @@ class FrameworkSettings(Munch):
         self.settingsFilename = filename
         with open(filename) as stream:
             settings = yaml.safe_load(stream)
+        unknown = sorted(set(settings) - self.isthistheissue - {"settingsFilename"})
+        if unknown:
+            warn(f"{filename}: unknown top-level keys {unknown} are ignored; "
+                 f"the keys read are {sorted(self.isthistheissue)}")
         for k, v in settings.items():
             if k in self.isthistheissue:
                 self.update({k: v})

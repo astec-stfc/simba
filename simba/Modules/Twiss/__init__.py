@@ -779,7 +779,7 @@ class twiss(BaseModel):
             Parameter name to value
         """
         twissdict = {}
-        for param in self.model_fields:
+        for param in type(self).model_fields:
             try:
                 twissdict[param] = getattr(self, param).val[idx]
             except Exception:
@@ -836,7 +836,7 @@ class twiss(BaseModel):
             else:
                 twissdict = {}
                 for param in [
-                    k for k in self.model_fields if isinstance(getattr(self, k), twissParameter) and getattr(self, k).dtype == "f"
+                    k for k in type(self).model_fields if isinstance(getattr(self, k), twissParameter) and getattr(self, k).dtype == "f"
                 ]:
                     twissdict[param] = self.interpolate(z=z, value=param, index="z")
                 return twissdict

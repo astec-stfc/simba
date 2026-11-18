@@ -109,3 +109,20 @@ def test_r56_adds_the_drift_and_two_thirds_of_a_dipole():
     dipole_length = elements["D1"].magnetic.length
     assert group.r56 == pytest.approx(2 * group.angle**2 * (group.drift_d1_to_d2 + 2 * dipole_length / 3))
     assert group.drift_d1_to_d2 > 0.9
+
+
+def test_set_angle_to_the_angle_a_bent_lattice_has_changes_nothing():
+    """#27: a dipole's length is its arc; its z extent is rho * sin(theta), not the length."""
+    group, elements, _ = _build(0.0)
+    group.set_angle(0.13)
+    before = _layout(elements)
+    # a fresh group sees the lattice already bent, as when it is loaded
+    fresh = chicane("bc", types.SimpleNamespace(elementObjects=elements, groupObjects={}),
+                    "chicane", list(NAMES[:4]))
+    fresh.set_angle(0.13)
+    for name, (pos, theta, length) in _layout(elements).items():
+        assert pos == pytest.approx(before[name][0], abs=1e-12), name
+        assert theta == pytest.approx(before[name][1], abs=1e-12), name
+        assert length == pytest.approx(before[name][2], abs=1e-12), name
+    fresh.set_angle(0.0)
+    assert elements["D1"].physical.length == pytest.approx(LZ, abs=1e-12)

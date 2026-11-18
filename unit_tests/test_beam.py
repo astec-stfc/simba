@@ -230,6 +230,16 @@ def test_centroids(simple_beam):
         )
     )
 
+def test_astra_write_leaves_a_serialisable_reference_index(simple_beam, tmp_path):
+    import warnings
+
+    simple_beam.write_astra_beam_file(str(tmp_path / "test.astra"))
+    assert type(simple_beam.reference_particle_index) is int
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        simple_beam.model_dump()
+
+
 def test_astra_beam(simple_beam):
     simple_beam.write_astra_beam_file("test.astra")
     astra_beam = rbf.beam("test.astra")
@@ -602,10 +612,64 @@ def test_hdf5_round_trip_keeps_status_and_reference_particle(simple_beam, tmp_pa
     assert np.allclose(newbeam.reference_particle, np.arange(10.0))
 
 
+def test_hdf5_writes_a_beam_no_code_has_read(simple_beam, tmp_path):
+    simple_beam.code = None  # a generated beam, or one read from openPMD
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
+    for key in ["x", "y", "z", "t", "cpx", "cpy", "cpz"]:
+        assert np.allclose(getattr(newbeam, key), getattr(simple_beam, key), rtol=1e-12, atol=0)
+    assert np.isclose(float(newbeam.Q), float(simple_beam.Q), rtol=1e-12, atol=0)
+
+
+@pytest.mark.parametrize("species", ["electron", "positron", "proton", "antiproton"])
+def test_hdf5_keeps_the_species(simple_beam, tmp_path, species):
+    simple_beam.set_species(species)
+    simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"))
+    for back in rbf.load_file(str(tmp_path / "b.hdf5")), rbf.beam(str(tmp_path / "b.hdf5")):
+        assert back.species == species
+        assert np.isclose(float(back.Q), float(simple_beam.Q), rtol=1e-12, atol=0)
+        assert np.allclose(back.E0_eV, simple_beam.E0_eV, rtol=1e-12)
+
+
+@pytest.mark.parametrize("name", ["b.hdf5", "b.astra", "b.gdf"])
+def test_reading_a_file_keeps_each_particles_species(simple_beam, tmp_path, name):
+    import copy
+    electrons = copy.deepcopy(simple_beam)
+    electrons.set_species("electron")
+    simple_beam.absorb([electrons])  # positrons first, so positron is the primary species
+    getattr(simple_beam, {".hdf5": "write_HDF5_beam_file", ".astra": "write_astra_beam_file",
+                          ".gdf": "write_gdf_beam_file"}[os.path.splitext(name)[1]])(str(tmp_path / name))
+    for back in rbf.load_file(str(tmp_path / name)), rbf.beam(str(tmp_path / name)):
+        assert back.species == "positron"
+        # counts, not order: ASTRA moves its reference particle to the first row
+        assert sorted(back.particle_species) == sorted(simple_beam.particle_species)
+        assert np.isclose(float(np.sum(back.Particles.charge)), 0, atol=1e-20)
+        assert np.isclose(float(back.Particles.total_charge), 0, atol=1e-20)
+
+
+def test_a_reader_that_does_not_name_the_species_keeps_it(simple_beam, tmp_path):
+    # GDF stores nmacro, not charge: make the fixture's nmacro (1) match its charge
+    simple_beam.Particles.nmacro = UnitValue(np.abs(simple_beam.Particles.charge.val) / e, "")
+    simple_beam.write_gdf_beam_file(str(tmp_path / "b.gdf"))  # a positron beam; the GDF reader sets no species
+    for back in rbf.load_file(str(tmp_path / "b.gdf")), rbf.beam(str(tmp_path / "b.gdf")):
+        assert back.species == "positron"
+        assert np.isclose(float(back.Q), float(simple_beam.Q), rtol=1e-9, atol=0)
+
+
 def test_hdf5_cathode_flag_sets_status(simple_beam, tmp_path):
     simple_beam.write_HDF5_beam_file(str(tmp_path / "b.hdf5"), cathode=True)
     newbeam = rbf.beam(str(tmp_path / "b.hdf5"))
     assert set(np.array(newbeam.Particles.status)) == {-1}
+
+
+def test_openpmd_alive_status_becomes_astra_standard_particle(simple_beam, tmp_path):
+    """openPMD alive (1) is ASTRA's passive particle; it has to reach ASTRA as 5."""
+    simple_beam.Particles.status = np.ones(len(simple_beam.x))
+    simple_beam.write_openpmd_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    newbeam = rbf.beam()
+    newbeam.read_beam_file(str(tmp_path / "b.openpmd.hdf5"))
+    newbeam.write_astra_beam_file(str(tmp_path / "b.astra"))
+    assert set(np.loadtxt(tmp_path / "b.astra")[:, -1]) == {5}
 
 
 def test_apply_mask(simple_beam):
@@ -644,6 +708,50 @@ def test_plot_single_key(simple_beam):
     matplotlib.use("Agg")
     from simba.Modules.Beams import plot
     plot.plot(simple_beam, keys="x")
+
+
+def _kde_backend(use_scipy):
+    import matplotlib
+    matplotlib.use("Agg")
+    from simba.Modules.Beams import plot
+    if not use_scipy and not plot.fastKDE_installed:
+        pytest.skip("fastKDE is not installed")
+    return plot
+
+
+@pytest.mark.parametrize("use_scipy", [True, False])
+def test_get_screen_image_is_what_plot_screen_image_draws(simple_beam, use_scipy):
+    """plotScreenImage read beam.filename for nothing, so an in-memory beam raised
+    TypeError; getScreenImage indexed the beam, which a SIMBA beam does not allow,
+    and its SciPy grid was laid out [x, y] where fastKDE's is [y, x]."""
+    plot = _kde_backend(use_scipy)
+    simple_beam.filename = None
+    # skewed in x, so a PDF the wrong way round shows
+    simple_beam.Particles.x = UnitValue(
+        np.random.default_rng(1).exponential(1e-2, len(simple_beam.x)), "m"
+    )
+    fig, ax = plot.plotScreenImage(simple_beam, keys=["x", "y"], use_scipy=use_scipy)
+    v1, v2, pdf, _, labelx, labely = plot.getScreenImage(
+        simple_beam, keys=["x", "y"], use_scipy=use_scipy
+    )
+    assert v1.ndim == v2.ndim == 1 and pdf.shape == (len(v2), len(v1))
+    assert np.array_equal(ax.collections[-1].get_array().reshape(pdf.shape), pdf)
+    assert (labelx, labely) == (ax.get_xlabel(), ax.get_ylabel())
+    x_peak = v1[pdf.sum(axis=0).argmax()]
+    y_peak = v2[pdf.sum(axis=1).argmax()]
+    assert x_peak < np.median(simple_beam.x) * 1e3  # x in mm, below its median
+    assert abs(y_peak) < 5  # y in mm, sigma 10 mm, centred
+
+
+@pytest.mark.parametrize("use_scipy", [True, False])
+@pytest.mark.parametrize("marginals", [False, True])
+def test_screen_image_title(simple_beam, marginals, use_scipy):
+    """`title` was accepted and ignored, and marginals crashed with SciPy."""
+    plot = _kde_backend(use_scipy)
+    fig, ax = plot.plotScreenImage(
+        simple_beam, keys=["x", "y"], use_scipy=use_scipy, marginals=marginals, title="screen 1"
+    )
+    assert [a.get_title() for a in fig.axes if a.get_title()] == ["screen 1"]
 
 
 def test_astra_write_with_index_array(simple_beam, tmp_path):

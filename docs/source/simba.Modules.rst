@@ -55,6 +55,14 @@ simba.Modules.gdf\_beam module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.gradients module
+------------------------------
+
+.. automodule:: simba.Modules.gradients
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.gdf\_emit module
 ------------------------------
 

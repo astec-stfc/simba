@@ -35,4 +35,4 @@ def test_a_weighted_beam_keeps_its_weighted_momentum_in_sdds(tmp_path):
     assert len(back.x) == len(beam.x)
     weighted = np.average(p, weights=q)
     assert abs(np.mean(np.asarray(back.cp, dtype=float)) - weighted) < 0.05 * abs(weighted - p.mean())
-    assert abs(float(back._beam.total_charge)) == abs(float(beam._beam.total_charge))
+    assert float(back._beam.total_charge) == float(beam._beam.total_charge)

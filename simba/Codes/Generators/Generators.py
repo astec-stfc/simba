@@ -86,6 +86,21 @@ class frameworkGenerator(BaseModel):
 
     and chosen with ``generator: {default: laser_3ps_gaussian}`` in ``settings.def``
     or ``framework.generator.load_defaults("laser_3ps_gaussian")``.
+
+    The built-in generator (``code`` ``"simba"``, ``"framework"`` or
+    ``"generic"``, see :meth:`generate`) differs from the external codes:
+
+    - It has no seed argument; it draws from numpy's global random state, so
+      call ``numpy.random.seed`` first for a repeatable beam.
+    - Each Gaussian is cut at its ``gaussian_cutoff_*`` (default 3 sigma). At
+      3 sigma the rms comes out at 0.9866 ``sigma_*`` and the emittance at
+      0.9733 of ``sigma_x * sigma_px``.
+    - A flat-top ``distribution_type_z`` spans ``offset_z ± gaussian_cutoff_z *
+      sigma_z`` with cosine edges ``0.1 * sigma_z`` wide, so ``sigma_z`` is not
+      its rms (about 1.7 ``sigma_z`` at the default cutoff).
+    - The emittance fields are not used: the transverse beam is set by
+      ``sigma_x``/``sigma_px``, ``sigma_y``/``sigma_py`` and
+      ``covariance_xxp``/``covariance_yyp``.
     """
     name: str = "generator"
     """Name of this generator."""
@@ -104,7 +119,7 @@ class frameworkGenerator(BaseModel):
     """Vertical beam sigma [m]"""
 
     sigma_z: float = 0.0
-    """Longitudinal beam size [m]"""
+    """Longitudinal beam size [m]; the rms only for a Gaussian profile."""
 
     sigma_px: float = 0.0
     """Horizontal beam momentum sigma [eV/c]"""
@@ -225,10 +240,10 @@ class frameworkGenerator(BaseModel):
     """Reference beam time [s]"""
 
     normalized_horizontal_emittance: float = 0e-6
-    """Normalised horizontal emittance [m-rad]"""
+    """Normalised horizontal emittance [m-rad]; not used by the built-in generator."""
 
     normalized_vertical_emittance: float = 0e-6
-    """Normalised vertical emittance [m-rad]"""
+    """Normalised vertical emittance [m-rad]; not used by the built-in generator."""
 
     image_filename: str = ""
     """Image file used to generate transverse beam distribution (GPT only)"""
@@ -451,6 +466,10 @@ class frameworkGenerator(BaseModel):
         return self.name
 
     def generate(self):
+        """
+        Sample a 6D beam with numpy's global random state; see the class
+        docstring for the cut-offs and the fields this ignores.
+        """
         if self.initial_momentum <= 0:
             raise ValueError("initial_momentum must be set to a non-zero value")
         q_over_c = UnitValue(
@@ -476,6 +495,9 @@ class frameworkGenerator(BaseModel):
         beam.Particles.pz = UnitValue(pz, units="kg*m/s")
         beam.Particles.status = UnitValue(np.full(len(x), 5), units="")
         beam.Particles.set_total_charge(self.charge)
+        beam.Particles.nmacro = UnitValue(
+            np.full(len(x), abs(self.charge) / constants.elementary_charge / len(x)), units=""
+        )
         beam.set_species(self.species)
         beam.Particles.t = UnitValue(
             -z / (beam.Particles.Bz.val * constants.speed_of_light), units="s"

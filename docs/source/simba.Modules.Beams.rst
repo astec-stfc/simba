@@ -100,6 +100,14 @@ simba.Modules.Beams.plot module
    :show-inheritance:
    :undoc-members:
 
+simba.Modules.Beams.rftrack module
+----------------------------------
+
+.. automodule:: simba.Modules.Beams.rftrack
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 simba.Modules.Beams.sdds module
 -------------------------------
 

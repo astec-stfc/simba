@@ -44,7 +44,7 @@ def read_particle_group(self, particles, s=None, reference_particle_index=None):
     self._beam.charge = UnitValue(particles.weight, units="C")
     self._beam.total_charge = UnitValue(particles.charge, units="C")
     self._beam.nmacro = UnitValue(particles.weight / constants.elementary_charge)
-    self._beam.status = UnitValue(particles.status)
+    self._beam.status = UnitValue(np.where(particles.status == 1, 5, particles.status))
     self.set_species(particles.species)
     self._beam.s = UnitValue(s, units="m") if s is not None else None
     self.longitudinal_reference = "t"

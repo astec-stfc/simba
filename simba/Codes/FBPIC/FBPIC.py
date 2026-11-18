@@ -1,15 +1,15 @@
 """
 SIMBA FBPIC Module
 
-Various objects and functions to handle Wake-T lattices and commands. See `FBPIC github`_ for more details.
+Various objects and functions to handle FBPIC lattices and commands. See `FBPIC github`_ for more details.
 
     .. _FBPIC github: https://github.com/fbpic/fbpic
 
 Classes:
     - :class:`~simba.Codes.FBPIC.FBPIC.fbpicLattice`: The FBPIC lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into an FBPIC lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into an FBPIC lattice object,
+      and for tracking through it.
 
 """
 
@@ -93,9 +93,9 @@ class fbpicLattice(frameworkLattice):
     """Boosted frame -- Lorentz factor"""
 
     number_of_modes: int = 2
-    """Number of modes for FBPIC `Simulation` class; see `FBPIC github`_ for more details.
+    """Number of modes for the `FBPIC Simulation class`_.
 
-    .. _FBPIC github: https://github.com/fbpic/fbpic/blob/dev/fbpic/main.py"""
+    .. _FBPIC Simulation class: https://github.com/fbpic/fbpic/blob/dev/fbpic/main.py"""
 
     boundaries: Dict = {'z': 'open', 'r': 'reflective'}
     """Boundaries for `FBPIC Simulation class`_"""

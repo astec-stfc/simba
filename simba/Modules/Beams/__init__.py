@@ -28,6 +28,7 @@ from . import xsuite
 from . import opal
 from . import genesis
 from . import bdsim
+from . import ptarmigan
 
 try:
     from . import plot
@@ -302,7 +303,6 @@ class beam(BaseModel):
         self.code = None
         if self.filename is not None:
             self.read_beam_file(self.filename, step=step)
-            self.set_species(self.species)
 
     def model_dump(self, *args, **kwargs) -> Dict:
         full_dump = super().model_dump(*args, **kwargs)
@@ -413,7 +413,7 @@ class beam(BaseModel):
         beams = [self, *others]
         n_before = len(self.x)
         defaults = {
-            "status": lambda b: np.ones(len(b.x)),
+            "status": lambda b: np.full(len(b.x), 5),
             "nmacro": lambda b: np.abs(np.asarray(b._beam.charge, dtype=float)) / constants.elementary_charge,
             "particle_rest_energy": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2,
             "particle_rest_energy_eV": lambda b: np.asarray(b._beam.particle_mass, dtype=float) * constants.speed_of_light**2 / constants.elementary_charge,
@@ -838,6 +838,14 @@ class beam(BaseModel):
                     gdf.read_gdf_beam_file(self, filename)
                 else:
                     warn("Could not load file")
+        names = self.particle_species
+        if names is not None and len(names) > 0:
+            if len(set(names)) > 1:
+                self.species = names[0]  # mixed: the primary species comes first (see absorb)
+            else:
+                self.set_species(names[0])
+        elif self._beam.x is not None:
+            self.set_species(self.species)
 
     if use_matplotlib:
 

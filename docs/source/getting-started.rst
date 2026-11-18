@@ -21,10 +21,9 @@ We would be remiss not to begin with a simple FODO:
 
 .. code-block:: python
 
-    from laura.models.element import Quadrupole, Marker  # noqa E402
-    from laura.models.elementList import MachineModel  # noqa E402
-    from laura.Exporters.YAML import export_machine
-    from laura import LAURA  # noqa E402
+    from laura.models.element import Quadrupole, Marker
+    from laura.exporters.yaml_exporter import export_machine
+    from laura import LAURA
 
     outdir = "/path/to/lattice/directory"
 
@@ -109,11 +108,12 @@ Generating an input beam
 ------------------------
 
 The simulation requires a macroparticle distribution to run. This can be generated using the 
-:ref:`frameworkGenerator <generator-class>` as follows:
+:ref:`frameworkGenerator <generator-class>` as follows. The beam is drawn from numpy's global random
+state, so call ``numpy.random.seed`` first if you need the same beam each run:
 
 .. code-block:: python
 
-    from simba.Codes.Generators imoutdirport frameworkGenerator
+    from simba.Codes.Generators import frameworkGenerator
     import simba.Modules.Beams as rbf
 
     gen = frameworkGenerator(
@@ -199,7 +199,8 @@ Running SIMBA
 With everything now prepared, :mod:`SIMBA` can be used to track through the simple FODO lattice.
 
 Note that, in order to run executables (i.e. **ASTRA**, **ELEGANT**) rather than simulation codes based only on 
-python (i.e. **Ocelot**, **Cheetah** etc.), the :mod:`SimCodes` directory must be set up; see
+python (i.e. **Ocelot**, **Cheetah** etc.), either the :mod:`SimCodes` directory must be set up or
+``container_runtime="docker"`` (or ``"apptainer"``) passed in place of ``simcodes``; see
 :ref:`SimCodes <simcodes>`.
 
 .. code-block:: python
@@ -234,7 +235,7 @@ Which produces the plot in :numref:`fig-ocelot-fodo`:
     
 The same lattice can also be tracked using a different code as follows:
 
-.. code-block: python
+.. code-block:: python
 
     framework.global_parameters["beam"] = beam
     framework.change_Lattice_Code("FODO", "elegant")

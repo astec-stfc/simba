@@ -17,12 +17,16 @@ It provides a wrapper for several well-known particle tracking codes:
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
+* `Slipstream <https://github.com/astec-stfc/slipstream>`_
 * `ImpactX <https://impactx.readthedocs.io>`_
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
 * `MAD-X <https://mad.web.cern.ch/mad/>`_
 * `Bmad <https://www.classe.cornell.edu/bmad/>`_
 * `OPAL <https://amas.web.psi.ch/opal/>`_
+* `RF-Track <https://gitlab.cern.ch/rf-track>`_
 * `Genesis <https://github.com/svenreiche/Genesis-1.3-Version4>`_
+* `BDSIM <https://github.com/bdsim-collaboration/bdsim>`_
+* `FBPIC <https://github.com/fbpic/fbpic>`_ :cite:`FBPIC`
 
 Setup
 -----

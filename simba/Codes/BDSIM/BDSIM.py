@@ -3,13 +3,13 @@ SIMBA BDSIM Module
 
 Various objects and functions to handle BDSIM lattices and commands. See `BDSIM github`_ for more details.
 
-    .. _Cheetah github: https://github.com/bdsim-collaboration/bdsim
+    .. _BDSIM github: https://github.com/bdsim-collaboration/bdsim
 
 Classes:
     - :class:`~simba.Codes.BDSIM.BDSIM.bdsimLattice`: The BDSIM lattice object, used for
-    converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
-    :class:`~simba.Framework_objects.frameworkLattice` into a BDSIM lattice object,
-    and for tracking through it.
+      converting the :class:`~simba.Framework_objects.frameworkObject` s defined in the
+      :class:`~simba.Framework_objects.frameworkLattice` into a BDSIM lattice object,
+      and for tracking through it.
 
 """
 
