@@ -47,6 +47,7 @@ command_files_order = [
     "importbeam",
     "importfield",
     "beam",
+    "efield",
     "track_first",
     "alter_setup",
     "alter_beam",
@@ -171,6 +172,9 @@ class genesisLattice(frameworkLattice):
     one4one: bool = False
     """Run one-for-one; if False, use :attr:`npart` and :attr:`nbins`."""
 
+    efield: Dict | None = None
+    """Longitudinal space charge: the keywords of an ``&efield`` namelist."""
+
     chicanes: str | list = None
     """Names of the chicanes, each a ``chicane`` group in the configuration file."""
 
@@ -275,6 +279,8 @@ class genesisLattice(frameworkLattice):
             waist_size=self.get_waist_size(),
             waist_pos=self.wigglers[0].physical.middle.z - self.startObject.physical.start.z
         )
+        if self.efield is not None:
+            self.commandFiles["efield"] = genesis_efield_command(**self.efield)
         self.commandFiles["track"] = genesis_track_command()
         if isinstance(self.split_element, str):
             first_wiggler = None

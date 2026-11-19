@@ -51,6 +51,32 @@ def test_inputs_carry_the_beam_the_run_length_and_overrides(tmp_path):
     assert np.average(beam.z.val) == pytest.approx(1e-5, abs=1e-6)
 
 
+def test_boosted_stage_puts_the_box_front_at_zero_and_brings_ions(tmp_path):
+    """The box front (BOX: 5e-5) moves to WarpX z = 0 with the beam and plasma, the run is back-transformed
+    snapshots over the same lab time, and the ions are there (an electron-only plasma swamps the wake)."""
+    framework = _framework(tmp_path, _stage(), offset_z=0.003, code="warpx",
+                           hipace_settings={"bunch_z_position": 1e-5, "single_precision": False,
+                                            "gamma_boost": 5, "n_out": 3})
+    with pytest.warns(UserWarning, match="beam in a boosted WarpX stage is not validated"):
+        framework.track(track=False, postprocess=False)
+    params = _inputs(framework)
+    front = 5e-5
+    assert float(params["warpx.gamma_boost"]) == 5
+    assert params["algo.maxwell_solver"] == "psatd"
+    assert params["particles.species_names"] == "electrons ions beam"
+    assert [float(v) for v in params["geometry.prob_hi"].split()] == pytest.approx([1e-4, 0.0])
+    assert float(params["geometry.prob_lo"].split()[1]) == pytest.approx(-5e-5 - front)
+    assert float(params["electrons.zmin"]) == pytest.approx(1e-5 - 0.003 - front, abs=1e-6)
+    assert "stop_time" not in params and "warpx.const_dt" not in params
+    assert params["diag.diag_type"] == "BackTransformed"
+    assert params["diag.num_snapshots_lab"] == "4"
+    assert float(params["diag.dt_snapshots_lab"]) * 3 == pytest.approx((0.012 - 0.003) / c, rel=1e-3)
+    assert "beam.initialize_self_fields" not in params  # WarpX's electrostatic start refuses damped boundaries
+    beam = rbf.beam()
+    read_fbpic_beam_file(beam, os.path.join(framework.subdirectory, "L_beam.h5"), species="beam")
+    assert np.average(beam.z.val) == pytest.approx(1e-5 - front, abs=1e-6)
+
+
 @pytest.mark.parametrize("solver", ["yee", "psatd"])
 def test_time_step_is_explicit_so_dumps_can_be_spaced(tmp_path, solver):
     framework = _framework(tmp_path, _stage(), code="warpx",
@@ -157,6 +183,43 @@ def test_undulator_without_fel_is_a_field_in_a_transport_line(tmp_path):
     params = _inputs(framework)
     assert "warpx.gamma_boost" not in params
     assert params["particles.B_ext_particle_init_style"] == "parse_B_ext_particle_function"
+
+
+def test_aperture_line_dumps_the_beam_as_it_crosses_each_end(tmp_path):
+    from laura.models.element import Aperture
+
+    collimator = Aperture(name="COL", machine_area="L", hardware_class="Simulation",
+                          physical={"length": 0.02, "middle": {"z": 0.01}},
+                          aperture={"shape": "elliptical", "horizontal_size": 3e-6, "vertical_size": 4e-6})
+    framework = _framework(tmp_path, collimator, code="warpx", hipace_settings={"single_precision": False})
+    framework.track(track=False, postprocess=False)
+    params = _inputs(framework)
+    line = framework.latticeObjects["L"]
+    assert line._apertures == [{"name": "COL", "z": pytest.approx([0.0 - line.zstart, 0.02 - line.zstart]),
+                                "shape": "elliptical", "half": [3e-6, 4e-6], "centre": [0.0, 0.0]}]
+    assert params["diagnostics.diags_names"] == "diag aperture"
+    assert params["aperture.species"] == "beam"
+    windows = [tuple(int(v) for v in w.split(":")) for w in params["aperture.intervals"].split(",")]
+    dt, steps = float(params["warpx.const_dt"]), float(params["stop_time"]) / float(params["warpx.const_dt"])
+    assert windows[0][0] == 0  # the beam starts at the entrance
+    assert windows[-1][1] == pytest.approx(steps, abs=3)  # and leaves the exit at the end of the line
+    assert all(step == 1 for *_, step in windows)
+    assert "_apertures" not in params
+
+
+def test_fel_without_space_charge_overlays_positrons_at_half_weight(tmp_path):
+    framework = _framework(tmp_path, _undulator(), code="warpx",
+                           hipace_settings={"single_precision": False, "fel_space_charge": False})
+    framework.track(track=False, postprocess=False)
+    params = _inputs(framework)
+    assert params["particles.species_names"] == "beam positrons"
+    assert params["particles.rigid_injected_species"] == "beam positrons"
+    assert params["positrons.injection_file"] == params["beam.injection_file"]
+    assert params["positrons.charge"] == "q_e"
+    assert params["positrons.zinject_plane"] == params["beam.zinject_plane"]
+    with h5py.File(os.path.join(framework.subdirectory, params["beam.injection_file"])) as f:
+        w = f["data/0/particles/beam/weighting"][:]
+    assert w.sum() * e == pytest.approx(10e-12 / 2, rel=1e-6)  # each species carries half the 10 pC
 
 
 @needs_warpx

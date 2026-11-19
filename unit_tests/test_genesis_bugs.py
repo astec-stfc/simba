@@ -1,7 +1,9 @@
 from types import SimpleNamespace as NS
 
 from simba.Codes.Genesis.Genesis import (
+    command_files_order,
     genesis_alter_beam_command,
+    genesis_efield_command,
     genesis_profile_file_command,
     genesis_profile_polynom_command,
     genesis_setup_command,
@@ -45,3 +47,9 @@ def test_camelcase_and_profile_keywords_are_written():
     assert "isTime = 1" in out and "reverse = 0" in out
     assert "c3 = 2.0" in genesis_profile_polynom_command(label="p", c0=1.0, c3=2.0).write_Genesis()
     assert genesis_sort_command().write_Genesis() == "&sort\n&end\n"
+
+
+def test_space_charge_is_written_before_tracking():
+    out = genesis_efield_command(longrange=True, rmax=3.0, nz=1).write_Genesis()
+    assert "longrange = 1" in out and "rmax = 3.0" in out and "nz = 1" in out
+    assert command_files_order.index("beam") < command_files_order.index("efield") < command_files_order.index("track")

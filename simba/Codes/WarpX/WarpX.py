@@ -11,6 +11,7 @@ beam, run control and anything in :attr:`~warpxLattice.inputs` are added here.
 
 import glob
 import os
+import shutil
 from types import SimpleNamespace
 from typing import Dict, List
 from warnings import warn
@@ -80,6 +81,31 @@ class warpxLattice(frameworkLattice):
     laser (its polarization is m = 1) and 1 without, where WarpX can start the beam
     from its own field (``initialize_self_fields`` is single-mode in RZ)."""
 
+    gamma_boost: float | None = None
+    """Run a plasma stage in a frame boosted by this Lorentz factor along z (None or 1: the
+    lab frame). The plasma, laser and box stay in the lab frame, which WarpX transforms;
+    the solver is PSATD with a Galilean shift (:attr:`~boost_inputs`), and the output
+    :attr:`~n_out` + 1 back-transformed lab-frame snapshots. The background ions are
+    always included (:attr:`~include_ions`): an electron-only plasma streaming through the
+    boosted box carries an unneutralised charge and current, whose fields swamped the wake.
+    Steps fall roughly as ``(1 + beta) gamma^2`` for a laser stage; the wake's phase
+    velocity bounds the boost."""
+
+    boost_inputs: Dict = {
+        "algo.maxwell_solver": "psatd",
+        "psatd.use_default_v_galilean": 1,
+        "psatd.current_correction": 1,
+        "warpx.grid_type": "collocated",
+        "boundary.field_lo": ["none", "damped"],
+        "boundary.field_hi": ["none", "damped"],
+        "warpx.cfl": 0.99,
+        "warpx.use_filter": 1,
+        "warpx.filter_npass_each_dir": [1, 4],
+        "warpx.use_filter_compensation": 1,
+    }
+    """Numerics of a boosted plasma stage, from WarpX's RZ boosted laser-wakefield example
+    (``inputs_test_rz_laser_acceleration_boosted_opmd``); over :attr:`~stage_inputs`."""
+
     inputs: Dict = {}
     """WarpX inputs applied last, over everything else, e.g. ``{"warpx.verbose": 1}``;
     ``WARPXsettings: {inputs: {...}}`` adds to them"""
@@ -112,6 +138,7 @@ class warpxLattice(frameworkLattice):
 
     _drift_after: float | None = None
     _fel_box: dict | None = None
+    _apertures: list = []
 
     fel: bool = True
     """Run a line with a wiggler as a boosted-frame FEL (radiation included);
@@ -122,6 +149,11 @@ class warpxLattice(frameworkLattice):
 
     fel_fields: List[str] = ["Ex", "Ey", "Bx", "By"]
     """Fields in the FEL's back-transformed snapshots (the radiation)"""
+
+    fel_space_charge: bool = True
+    """Keep the FEL beam's space charge; if False, inject it twice at half weight, as
+    electrons and as positrons, so that its self-fields cancel while the radiation adds.
+    The beam written out is the electrons at full weight."""
 
     auto_phase: bool = True
     """Phase the line's cavities by tracking the reference particle along the axis
@@ -177,6 +209,10 @@ class warpxLattice(frameworkLattice):
 
     _executable: str = "warpx"
 
+    def _overlaid(self) -> bool:
+        """Whether the beam goes in as electrons and positrons at half weight (see :attr:`~fel_space_charge`)."""
+        return self._fel_box is not None and not self.fel_space_charge
+
     def _particle_dtype(self) -> type:
         single = self.single_precision
         if single is None:
@@ -204,6 +240,8 @@ class warpxLattice(frameworkLattice):
         ValueError
             For a line without a beam or plasma stage, or with the beam past its end
         """
+        for diags in ("diags", "aperture_diags"):  # postProcess reads the last dump: none may be left from a run before
+            shutil.rmtree(os.path.join(self.subdir, f"{self.objectname}_{diags}"), ignore_errors=True)
         collision = [e for e in self.elementObjects.values() if e.hardware_type == "BeamBeam"]
         if collision:
             return self._finish(*self._collision(collision), staged=False)
@@ -220,18 +258,38 @@ class warpxLattice(frameworkLattice):
             self._fel_box = self._fel_frame(p0c, wigglers)
             origin -= self._fel_box["shift"]
             self._zstart = self._fel_box["top"]
-        params = self.section.to_warpx(
-            include_ions=self.include_ions, zstart=self._zstart, antenna_offset=self.antenna_offset,
-            Brho=abs(brho), charge_sign=-1 if brho < 0 else 1, directory=self.subdir,
-            z_reference=origin - self._zstart if beam else None,
-            rest_energy=self.rest_energy, auto_phase=self.auto_phase,
-        )  # with a beam, stop_time is when the reference particle reaches the end of the line
+        def export() -> dict:  # with a beam, stop_time is when the reference particle reaches the end of the line
+            return self.section.to_warpx(
+                include_ions=self.include_ions or (self.gamma_boost or 1) > 1,  # see gamma_boost
+                zstart=self._zstart, antenna_offset=self.antenna_offset,
+                Brho=abs(brho), charge_sign=-1 if brho < 0 else 1, directory=self.subdir,
+                z_reference=origin - self._zstart if beam else None,
+                rest_energy=self.rest_energy, auto_phase=self.auto_phase,
+            )
+
+        params = export()
         staged = "geometry.dims" in params  # a stage wholly behind the beam leaves none
+        boosted = staged and (self.gamma_boost or 1) > 1
+        front = float(params["geometry.prob_hi"][1]) if boosted else 0.0
+        if front:
+            self._zstart += front
+            params = export()
+            if not beam:  # the run lasts until the box's old z = 0, now `front` behind the new one, leaves the stage
+                params["stop_time"] += front / c  # (with a beam, the reference particle moves with the box)
+            for key in ("geometry.prob_lo", "geometry.prob_hi"):
+                params[key] = [params[key][0], float(params[key][1]) - front]
+            names = params.get("lasers.names", [])
+            for name in [names] if isinstance(names, str) else names:
+                x, y, z = params[f"{name}.position"]
+                params[f"{name}.position"] = [x, y, float(z) - front]
+        self._apertures = params.pop("_apertures", [])
         self._executable = "warpx" if staged else "warpx_3d"
         species = list(params.get("particles.species_names", []))
         if staged:
             modes = 2 if "lasers.names" in params else 1
             params = self.stage_inputs | {"warpx.n_rz_azimuthal_modes": modes} | params
+            if boosted:
+                params = self._boost(params)
         elif not beam:
             raise ValueError(f"{self.objectname}: a WarpX line without a plasma stage needs a beam.")
         if beam:
@@ -241,14 +299,37 @@ class warpxLattice(frameworkLattice):
                 end = float(self.endObject.physical.end.z)
                 travel = end - origin
                 params |= self._transport(travel / (params["stop_time"] * c), travel, params["stop_time"])
+                params |= self._aperture_diagnostic(params["warpx.const_dt"], params["stop_time"])
+            if self._apertures and (staged or fel):
+                warn(f"{self.objectname}: the apertures {[a['name'] for a in self._apertures]} are drifts in a "
+                     "WarpX plasma stage or FEL line (they are applied in transport lines only).")
+                self._apertures = []
             beam_file = f"{self.objectname}_beam.h5"
+            overlay = self._overlaid()
             write_hipace_beam_file(
                 self.global_parameters["beam"], os.path.join(self.subdir, beam_file),
-                self._zstart, dtype=self._particle_dtype(),
+                self._zstart, dtype=self._particle_dtype(), weight=0.5 if overlay else 1.0,
             )
             species.append("beam")
             params |= {"beam.injection_style": "external_file", "beam.injection_file": beam_file}
-            if staged:  # electromagnetic: start from the beam's own field, as FBPIC
+            if overlay:  # the same particles as positrons: no net charge or current, the radiation adds
+                species.append("positrons")
+                params |= {"positrons.injection_style": "external_file", "positrons.injection_file": beam_file,
+                           "positrons.charge": "q_e", "particles.rigid_injected_species": ["beam", "positrons"],
+                           "positrons.zinject_plane": params["beam.zinject_plane"], "positrons.rigid_advance": 0}
+            bounds = [(params | self.inputs).get(k, []) for k in ("boundary.field_lo", "boundary.field_hi")]
+            open_ends = staged and {"damped", "pml", "absorbing_silver_mueller"} & {
+                str(b).lower() for v in bounds for b in (v.split() if isinstance(v, str) else v)}
+            if boosted:
+                warn(f"{self.objectname}: a beam in a boosted WarpX stage is not validated: WarpX cannot start "
+                     f"it from its own field with {sorted(open_ends) or 'these'} boundaries, and on PLASMA's PWFA the "
+                     "witness was not accelerated and its emittance grew 100 times (see gamma_boost). "
+                     "Run beam-driven stages in the lab frame.")
+            elif staged and open_ends:
+                warn(f"{self.objectname}: WarpX cannot start the beam from its own field with {sorted(open_ends)} "
+                     "boundaries (its electrostatic solve refuses them); the field forms in a transient, so start "
+                     "the beam clear of the plasma.")
+            elif staged:  # electromagnetic: start from the beam's own field, as FBPIC
                 modes = int((params | self.inputs)["warpx.n_rz_azimuthal_modes"])
                 if modes == 1:
                     params["beam.initialize_self_fields"] = 1
@@ -270,10 +351,11 @@ class warpxLattice(frameworkLattice):
             "diag.openpmd_backend": "h5",
             "diag.file_prefix": f"{self.objectname}_diags",
             "diag.fields_to_plot": "none",
-            "diag.species": out or "none",
+            # WarpX takes "species = none" for a species named none and aborts (a laser-only stage)
+            **({"diag.species": out} if out else {"diag.write_species": 0}),
         } | params | self.inputs
-        if staged and "warpx.const_dt" not in params:
-            params["warpx.const_dt"] = self._time_step(params)
+        if staged and "warpx.const_dt" not in params and "warpx.gamma_boost" not in params:
+            params["warpx.const_dt"] = self._time_step(params)  # boosted: WarpX's, in the boosted frame
         if "amr.blocking_factor" not in params:
             # AMReX needs every grid dimension divisible by it (default 8)
             cells = [int(n) for n in params["amr.n_cell"]]
@@ -285,6 +367,24 @@ class warpxLattice(frameworkLattice):
             params.setdefault("diag.intervals", max(1, int(steps // n_out)) if n_out > 1 else 10**9)
         with open(os.path.join(self.subdir, f"{self.objectname}.in"), "w") as f:
             f.write(hipace_inputs(params))
+
+    def _boost(self, params: dict) -> dict:
+        """
+        A plasma stage in the frame boosted by :attr:`~gamma_boost`: :attr:`~boost_inputs`, and
+        :attr:`~n_out` + 1 back-transformed lab-frame snapshots (the stage's ``n_out`` if None),
+        the last at the lab ``stop_time``, which sets the run length.
+        """
+        stop = params.pop("stop_time")
+        snapshots = max(2, (self.n_out if self.n_out is not None else self._stage_n_out(True)) + 1)
+        return params | self.boost_inputs | {
+            "warpx.gamma_boost": self.gamma_boost,
+            "warpx.boost_direction": "z",
+            "warpx.compute_max_step_from_btd": 1,
+            "diag.diag_type": "BackTransformed",
+            "diag.num_snapshots_lab": snapshots,
+            "diag.dt_snapshots_lab": stop / (snapshots - 1),
+            "diag.buffer_size": 64,
+        }
 
     def _fel_frame(self, p0c: float, wigglers: list) -> dict:
         """
@@ -521,6 +621,72 @@ class warpxLattice(frameworkLattice):
             warn(exceptions.SpaceChargeModeWarning(self.objectname, "WarpX", mode, "'3d'"))
         return params | {"algo.maxwell_solver": "none"}
 
+    def _aperture_diagnostic(self, dt: float, stop_time: float) -> dict:
+        """
+        A second diagnostic, ``<name>_aperture_diags/``, dumping the beam at every step in which
+        a particle may cross an end of an aperture (:attr:`_apertures`, from LAURA): each
+        particle's step is estimated from its start and speed, two steps to spare either side.
+        :func:`_aperture_losses` reads them.
+        """
+        if not self._apertures:
+            return {}
+        beam = self.global_parameters["beam"]
+        z = np.asarray(beam.z.val) - self._zstart
+        cp = np.asarray(beam.cp.val)
+        beta = cp / np.hypot(cp, self.rest_energy)
+        last = int(np.ceil(stop_time / dt))
+        windows = []
+        for plane in sorted({p for a in self._apertures for p in a["z"]}):
+            t = (plane - z) / (beta * c)
+            lo, hi = int(np.floor(t.min() / dt)) - 2, int(np.ceil(t.max() / dt)) + 2
+            if hi >= 0 and lo <= last:
+                windows.append(f"{max(lo, 0)}:{min(hi, last)}:1")
+        return {
+            "diagnostics.diags_names": ["diag", "aperture"],
+            "aperture.diag_type": "Full",
+            "aperture.format": "openpmd",
+            "aperture.openpmd_backend": "h5",
+            "aperture.file_prefix": f"{self.objectname}_aperture_diags",
+            "aperture.fields_to_plot": "none",
+            "aperture.species": "beam",
+            "aperture.intervals": ",".join(windows),
+        }
+
+    def _aperture_losses(self) -> tuple[set, set]:
+        """
+        The ids of the beam particles outside an aperture where they cross one of its ends,
+        each interpolated in z between the two dumps on either side (a straight track through
+        a convex aperture is outside it somewhere only if it is at an end), and the ids seen
+        crossing every end.
+        """
+        snaps = []
+        for path in glob.glob(os.path.join(self.subdir, f"{self.objectname}_aperture_diags", "*.h5")):
+            with h5py.File(path) as f:
+                for it in f["data"].values():
+                    if "beam" in it.get("particles", {}):
+                        snaps.append((float(it.attrs["time"]), _species(it["particles"]["beam"])))
+        snaps = [s for _, s in sorted(snaps, key=lambda p: p[0])]
+        lost, everywhere = set(), None
+        for aperture in self._apertures:
+            (x0, y0), (a, b) = aperture["centre"], aperture["half"]
+            for plane in aperture["z"]:
+                checked = set()
+                for s0, s1 in zip(snaps, snaps[1:]):
+                    ids, i0, i1 = np.intersect1d(s0.id, s1.id, return_indices=True)
+                    z0, z1 = s0.z[i0], s1.z[i1]
+                    cross = (z0 < plane) & (z1 >= plane)
+                    f = (plane - z0[cross]) / (z1[cross] - z0[cross])
+                    x = s0.x[i0][cross] + f * (s1.x[i1][cross] - s0.x[i0][cross]) - x0
+                    y = s0.y[i0][cross] + f * (s1.y[i1][cross] - s0.y[i0][cross]) - y0
+                    if aperture["shape"] == "elliptical":
+                        out = (x / a) ** 2 + (y / b) ** 2 >= 1
+                    else:
+                        out = ((abs(x) >= a) if a else False) | ((abs(y) >= b) if b else False)
+                    lost.update(ids[cross][out].tolist())
+                    checked.update(ids[cross].tolist())
+                everywhere = checked if everywhere is None else everywhere & checked
+        return lost, everywhere or set()
+
     def run(self) -> None:
         """Run WarpX on ``<name>.in`` in the master subdirectory."""
         workdir = os.path.abspath(self.subdir)
@@ -553,6 +719,8 @@ class warpxLattice(frameworkLattice):
             has_beam = "beam" in particles
         if not found:
             return  # a laser-only stage that injected nothing
+        if has_beam and self._overlaid():  # the electrons went in at half weight
+            found[0][0].w = found[0][0].w * 2
         beam = self.global_parameters["beam"]
         if self.particle_definition is not None:
             n_in = len(beam.x.val)  # still the incoming beam
@@ -561,6 +729,20 @@ class warpxLattice(frameworkLattice):
                 warn(f"{self.objectname}: {n_in - n_out} of {n_in} beam particles left the WarpX box "
                      "and were absorbed; enlarge box_sigmas (collision_sigmas at a BeamBeam) if "
                      "that is not the physics.")
+        if has_beam and self._apertures:
+            out = found[0][0]
+            lost, checked = self._aperture_losses()
+            keep = ~np.isin(out.id, list(lost))
+            unchecked = int(np.sum(~np.isin(out.id, list(checked | lost))))
+            if unchecked:
+                warn(f"{self.objectname}: {unchecked} beam particles crossed an aperture end between dumps "
+                     "and were not checked against it (their speed was misjudged: a cavity?).")
+            if lost and self.space_charge_mode == "3d":
+                warn(f"{self.objectname}: {len(lost)} particles stopped at the apertures were removed after the "
+                     "run; their space charge still acted on the rest downstream of them.")
+            n = len(out.x)
+            found[0] = (SimpleNamespace(**{k: v[keep] if isinstance(v, np.ndarray) and len(v) == n else v
+                                           for k, v in vars(out).items()}), found[0][1])
         particles_to_beam(beam, [s for s, _ in found], zpos=self._zstart, uz_min=[u for _, u in found])
         if self._drift_after is not None:  # from d past a BeamBeam to the end of the line
             _drift(beam, self._drift_after)
@@ -596,4 +778,5 @@ def _species(group: h5py.Group) -> SimpleNamespace:
         ux=record["momentum/x"] / mc, uy=record["momentum/y"] / mc, uz=record["momentum/z"] / mc,
         w=record["weighting"], q=float(record["charge"][0]) if n else 0.0,
         m=float(record["mass"][0]) if n else 1.0,
+        id=np.asarray(group["id"], dtype=np.uint64) if isinstance(group.get("id"), h5py.Dataset) else np.arange(n),
     )

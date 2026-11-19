@@ -21,7 +21,7 @@ def _val(value) -> np.ndarray:
 
 
 def write_hipace_beam_file(
-    self, filename: str, zstart: float = 0.0, dtype: type = np.float64
+    self, filename: str, zstart: float = 0.0, dtype: type = np.float64, weight: float = 1.0
 ) -> tuple[float, float]:
     """
     Write the beam as species ``beam`` of an openPMD file for HiPACE++'s
@@ -39,6 +39,9 @@ def write_hipace_beam_file(
     dtype: type
         Array type: the reader's particle precision, ``np.float32`` for a
         single-precision WarpX
+    weight: float
+        Factor on every particle's weight (0.5 for a beam WarpX injects twice, as
+        electrons and positrons, to cancel its space charge)
 
     Returns
     -------
@@ -56,7 +59,7 @@ def write_hipace_beam_file(
         raise ValueError("A HiPACE++ beam has one particle species; this beam mixes several.")
     position = {"x": _val(self._beam.x), "y": _val(self._beam.y), "z": _val(self._beam.z) - zstart}
     momentum = {k: _val(getattr(self._beam, f"p{k}")) for k in "xyz"}  # kg m/s
-    weighting = np.abs(_val(self._beam.charge) / charge)
+    weighting = np.abs(_val(self._beam.charge) / charge) * weight
     with h5py.File(filename, "w") as f:
         f.attrs.update({
             "openPMD": np.bytes_("1.1.0"), "openPMDextension": np.uint32(0),
