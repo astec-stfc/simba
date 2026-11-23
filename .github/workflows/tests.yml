@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Pull simcodes image
-        run: docker pull ghcr.io/astec-stfc/simcodes-docker:master
+        run: docker pull "$(python -c "import yaml; print(yaml.safe_load(open('simba/Executables.yaml'))['docker']['image'])")"
 
       - name: Run tracking tests via docker
         run: pytest unit_tests/ -v -m needs_container

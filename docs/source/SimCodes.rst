@@ -26,9 +26,13 @@ whether a container runtime is used for the other codes:
 
 * `Ocelot <https://github.com/ocelot-collab/ocelot>`_ :cite:`OCELOT`
 * `Xsuite <https://github.com/xsuite>`_ :cite:`Xsuite`
-* `ImpactX <https://impactx.readthedocs.io>`_
 * `Cheetah <https://github.com/desy-ml/cheetah>`_ :cite:`Cheetah`
 * `Wake-T <https://github.com/AngelFP/Wake-T>`_ :cite:`WakeT`
+* MAD-X, through `cpymad <https://github.com/hibtc/cpymad>`_
+* `ImpactX <https://impactx.readthedocs.io>`_, which is not on PyPI and so not in the ``simcodes`` extra: install
+  it from conda-forge (``conda install -c conda-forge impactx``)
+* `FBPIC <https://github.com/fbpic/fbpic>`_, through the separate ``fbpic`` extra
+  (``pip install simba-accelerator[fbpic]``; on a GPU it also needs ``cupy`` for the local CUDA version)
 * `Slipstream <https://github.com/astec-stfc/slipstream>`_, which is not in the ``simcodes`` extra: install it
   from its repository (it needs ``torch``). It tracks a line once, through ``LinacTracker``: quadrupoles, sextupoles,
   dipoles (with CSR and LSC if the lattice enables them) and cavities (with their wakefields). Apertures, screens and
@@ -100,7 +104,7 @@ by passing the ``container_runtime`` argument to :mod:`SIMBA` on instantiation:
     )
 
 When ``container_runtime="apptainer"`` is used, :mod:`SIMBA` looks for a ``.sif`` image file at
-``<simcodes>/Apptainer/simcodes-apptainer_master.sif``, where ``<simcodes>`` is the directory
+``<simcodes>/Apptainer/simcodes-apptainer_v0.2.sif``, where ``<simcodes>`` is the directory
 passed via the ``simcodes`` argument (see :ref:`above <simcodes>`):
 
 .. code-block:: python
@@ -120,19 +124,86 @@ If ``simcodes`` is not provided, the ``.sif`` file defaults to a per-OS cache lo
 
 If the ``.sif`` file is not already present at that location, :mod:`SIMBA` creates the containing
 directory (if necessary) and pulls the image from the registry defined in ``simba/Executables.yaml``
-(``ghcr.io/astec-stfc/simcodes-apptainer:master`` by default) the first time :mod:`SIMBA` is
-instantiated with ``container_runtime="apptainer"``. This image is several GB, so the initial pull
+(``ghcr.io/astec-stfc/simcodes-apptainer:v0.2`` by default) the first time :mod:`SIMBA` is
+instantiated with ``container_runtime="apptainer"``. This image is about 1.5 GB, so the initial pull
 can take some time; subsequent instantiations detect the existing ``.sif`` file and skip the pull.
 
-``container_runtime="docker"`` works analogously, pulling the ``ghcr.io/astec-stfc/simcodes-docker:master``
+``container_runtime="docker"`` works analogously, pulling the ``ghcr.io/astec-stfc/simcodes-docker:v0.2``
 image via the local Docker daemon instead of writing a ``.sif`` file to the ``simcodes`` directory.
 
-.. note::
-   | ``container_runtime`` covers ASTRA, Elegant, CSRTrack, OPAL, and Genesis. **GPT is not included**,
-     as it is proprietary and requires a license; it must be installed locally (see
-     :func:`~simba.Codes.Executables.Executables.define_gpt_command`) and run with ``GPTLICENSE`` set.
-   | The python-based codes (Ocelot, Xsuite, ImpactX, Cheetah, Wake-T) run in-process and are unaffected by
-     ``container_runtime`` - install them locally via the ``simcodes`` extra regardless.
+The images are pinned to a release of `simcodes-docker <https://github.com/astec-stfc/simcodes-docker>`_.
+A :mod:`SIMBA` version that moves to a newer release pulls the new image the first time it runs;
+the old image (or ``.sif`` file) is left in place and can be deleted.
+
+.. _simcodes-image-contents:
+
+What is in the image
+^^^^^^^^^^^^^^^^^^^^
+
+``container_runtime`` only runs the codes that :mod:`SIMBA` starts as a separate program. The python-based
+codes run inside :mod:`SIMBA`'s own Python process, so with ``container_runtime`` they come from the host's
+Python, whatever the image holds; the image's copies are only used when :mod:`SIMBA` itself runs inside the
+image (see :ref:`below <simba-inside-image>`).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Code
+     - In the image
+     - Notes
+   * - ASTRA, Elegant, CSRTrack, OPAL, Genesis
+     - yes
+     - run through ``container_runtime``. ASTRA and CSRTrack are the serial builds; Pelegant runs on MPICH's
+       ``mpiexec``.
+   * - Ptarmigan, HiPACE++
+     - images after v0.2
+     - run through ``container_runtime`` once :mod:`SIMBA` is pinned to such an image. Ptarmigan is serial (with
+       HDF5 output); HiPACE++ is the CPU (OpenMP) build. :mod:`SIMBA` has no HiPACE++ lattice yet.
+   * - Bmad / Tao
+     - yes
+     - Tao runs in-process through ``pytao``, so not through ``container_runtime``: install Bmad and ``pytao``
+       on the host (conda-forge). The image's ``long_term_tracking`` is not used by :mod:`SIMBA`.
+   * - Ocelot, Xsuite, Cheetah, Wake-T, MAD-X (cpymad)
+     - yes
+     - in-process: install them on the host with the ``simcodes`` extra. The image has the versions its
+       :mod:`SIMBA` release asks for, with the CPU build of ``torch``.
+   * - ImpactX, FBPIC, Slipstream
+     - images after v0.2
+     - in-process: install them on the host. In the image, ImpactX is the conda-forge build without MPI and
+       FBPIC runs on the CPU.
+   * - GPT
+     - no
+     - proprietary and licensed: install it locally (see
+       :func:`~simba.Codes.Executables.Executables.define_gpt_command`) and run with ``GPTLICENSE`` set.
+   * - RF-Track
+     - no
+     - its CERN licence allows free use but not redistribution: ``pip install rf_track``, on the host or in
+       the image.
+   * - BDSIM
+     - no
+     - it needs Geant4 and ROOT, which would make the image several GB larger: install it locally
+       (`installation <https://bdsim-collaboration.github.io/bdsim/sphinx/installation.html>`_).
+
+The conda-forge builds of ImpactX and HiPACE++ in the image need an x86-64-v3 (AVX2) CPU.
+
+.. _simba-inside-image:
+
+Running :mod:`SIMBA` inside the image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The image also has :mod:`SIMBA` (its latest release when the image was built) and all the python-based codes
+above, so a whole study can run in it with nothing installed on the host but Docker or Apptainer. Inside the
+image, ``SIMCODES=/simba-codes`` holds the codes in the layout of the ``posix`` section of
+``simba/Executables.yaml``; ``elegant``, ``Pelegant`` and (after v0.2) ``ptarmigan`` and ``hipace`` are on
+``PATH``; and ``TAO_DIR`` is set for Bmad. Give :mod:`SIMBA` that directory and no ``container_runtime``:
+
+.. code-block:: python
+
+    import os
+    import simba.Framework as fw
+
+    fw = Framework(directory="/path/to/working_directory", simcodes=os.environ["SIMCODES"])
 
 .. _windows-wsl:
 

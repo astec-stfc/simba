@@ -21,7 +21,7 @@ def which(program):
 
     return None
 
-def default_sif_path(filename: str = "simcodes-apptainer_master.sif") -> str:
+def default_sif_path(filename: str = "simcodes-apptainer_v0.2.sif") -> str:  # tag as in Executables.yaml
     system = platform.system()
     if system == "Linux":
         return os.path.join(os.path.expanduser("~"), ".local", "share", "apptainer", filename)

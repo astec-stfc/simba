@@ -53,22 +53,29 @@ posix:
   madx: [$simcodes$/MADX/madx]
   tao: [$simcodes$/Bmad/lib/libtao.so]
   bdsim: ["source", $simcodes$BDSIM/root/bin/thisroot.sh, ';', "source", "/usr/local/bin/geant4.sh", ';', "source", "/usr/local/bin/bdsim.sh", ';', "bdsim"]
+# The simcodes images are pinned to a release of github.com/astec-stfc/simcodes-docker.  SIMBA pulls only when the image
+# (or .sif) is missing, so a new tag (and a .sif name that contains it) is what makes existing installs pull the new
+# one: bump docker.image, apptainer.registry, apptainer.sif and default_sif_path in Codes/Executables.py together.
 docker:
-  image: ghcr.io/astec-stfc/simcodes-docker:master
+  image: ghcr.io/astec-stfc/simcodes-docker:v0.2
   astragenerator: ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Astra-serial/generator','-v','$workdir$:/workdir','-w','/workdir','$image$']
   astra:          ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Astra-serial/Astra','-v','$workdir$:/workdir','-w','/workdir','$image$']
   elegant:        ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/elegant/bin/Linux-x86_64/elegant','-v','$workdir$:/workdir','-w','/workdir','$image$']
-  Pelegant:       ['docker','run','--rm','--user','$user$','--entrypoint','mpiexec','-v','$workdir$:/workdir','-w','/workdir','$image$','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  Pelegant:       ['docker','run','--rm','--user','$user$','--entrypoint','/usr/lib64/mpich/bin/mpiexec','-v','$workdir$:/workdir','-w','/workdir','$image$','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
   csrtrack:       ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial','-v','$workdir$:/workdir','-w','/workdir','$image$']
   opal:           ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/OPAL-install/bin/opal','-v','$workdir$:/workdir','-w','/workdir','$image$']
   genesis:        ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Genesis/genesis4','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  ptarmigan:      ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/Ptarmigan/ptarmigan','-v','$workdir$:/workdir','-w','/workdir','$image$']
+  hipace:         ['docker','run','--rm','--user','$user$','--entrypoint','/simcodes/HiPACE/hipace','-v','$workdir$:/workdir','-w','/workdir','$image$']
 apptainer:
-  sif: $simcodes$/Apptainer/simcodes-apptainer_master.sif        # or $simcodes$/simcodes.sif
-  registry: ghcr.io/astec-stfc/simcodes-apptainer:master  # pulled from here if sif missing
+  sif: $simcodes$/Apptainer/simcodes-apptainer_v0.2.sif        # or $simcodes$/simcodes.sif
+  registry: ghcr.io/astec-stfc/simcodes-apptainer:v0.2  # pulled from here if sif missing
   astragenerator: ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/generator']
   astra:          ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Astra-serial/Astra']
   elegant:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/elegant/bin/Linux-x86_64/elegant']
-  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
+  Pelegant:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/usr/lib64/mpich/bin/mpiexec','-np',$ncpu$,'/simcodes/elegant/bin/Linux-x86_64/Pelegant']
   csrtrack:       ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/CSRTrack-serial/csrtrack_1.204_Linux_x86_64_serial']
   opal:           ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/OPAL-install/bin/opal']
   genesis:        ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Genesis/genesis4']
+  ptarmigan:      ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/Ptarmigan/ptarmigan']
+  hipace:         ['apptainer','exec','--bind','$workdir$:/workdir','$sif$','/simcodes/HiPACE/hipace']
