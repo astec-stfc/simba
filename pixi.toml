@@ -1,0 +1,33 @@
+# SIMBA from this checkout, with the codes conda-forge packages (the same as environment.yml, plus a lock file):
+#
+#   pixi install            # or just `pixi run ...`, which installs first
+#   pixi run fetch          # ASTRA, CSRTrack and RF-Track (simba-codes fetch)
+#   pixi run check          # how SIMBA runs each code here (simba-codes check)
+#   pixi run test           # the unit tests, with the native codes
+#   pixi shell              # a shell in the environment
+#
+# ASTRA, CSRTrack, OPAL, GPT and BDSIM are not on conda-forge; see docs/source/SimCodes.rst.
+[workspace]
+name = "simba"
+channels = ["conda-forge"]
+# Linux is locked for x86-64-v3 (AVX2, any CPU since about 2015): the current ImpactX builds need it, and locking for
+# an older CPU drags elegant, Genesis and Bmad back to 2023-era builds along with ImpactX.
+platforms = [{ platform = "linux-64", __archspec = "1=x86_64_v3" }, "osx-arm64"]
+
+[dependencies]
+python = "3.12.*"
+elegant = "*"   # with Pelegant, on the environment's OpenMPI
+genesis4 = "*"
+bmad = "*"
+pytao = "*"
+impactx = "*"
+# Cheetah's torch, CPU-only: PyPI's torch brings about 4 GB of CUDA libraries
+pytorch = { version = "*", build = "cpu*" }
+
+[pypi-dependencies]
+simba-accelerator = { path = ".", editable = true, extras = ["simcodes", "rftrack", "test"] }
+
+[tasks]
+fetch = "simba-codes fetch --no-rftrack"  # RF-Track comes from the rftrack extra above
+check = "simba-codes check"
+test = "pytest unit_tests -m 'not needs_container'"

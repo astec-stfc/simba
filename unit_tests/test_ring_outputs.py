@@ -26,7 +26,7 @@ from simba.Modules import constants
 TURNS = 4
 RING_CODES = ["elegant", "xsuite", "madx", "ocelot", "impactx"]
 END_Z = 3.25 + 1.0
-BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
+from helpers import BMAD_SO
 
 
 def _machine(tmp_path):

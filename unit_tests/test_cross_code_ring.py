@@ -116,7 +116,7 @@ def madx_ring(bend=()):
     return total, madx.table.summ
 
 
-BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+from helpers import BMAD_SO
 
 
 def bmad_ring_file(rf=False):

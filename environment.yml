@@ -1,0 +1,21 @@
+# SIMBA with the codes conda-forge packages, without a container:
+#
+#   conda env create -f environment.yml && conda activate simba
+#
+# SIMBA finds elegant, Pelegant and genesis4 on PATH. ASTRA, CSRTrack, OPAL, GPT and BDSIM are not on conda-forge:
+# `simba-codes fetch` downloads ASTRA and CSRTrack; install the others yourself, or let container_runtime="auto" run
+# them in the simcodes image (docs/source/SimCodes.rst).
+name: simba
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - elegant      # with Pelegant, on the environment's OpenMPI
+  - genesis4
+  - bmad
+  - pytao
+  - impactx
+  - pytorch=*=cpu*   # Cheetah's torch, CPU-only: PyPI's torch brings about 4 GB of CUDA libraries
+  - pip
+  - pip:
+      - simba-accelerator[simcodes,rftrack]  # RF-Track: CERN licence, free use, no redistribution

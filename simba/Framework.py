@@ -27,6 +27,7 @@ from .Modules import Twiss as rtf
 from .Modules import Wavefronts as rwf
 from .Modules import constants
 from .Codes import Executables as exes
+from .Codes.fetch_codes import FETCHED_SIMCODES
 from .Codes.Generators import (
     ASTRAGenerator,
     GPTGenerator,
@@ -169,7 +170,7 @@ class Framework(BaseModel):
     """Location of the master lattice files; found automatically if the package is installed."""
 
     simcodes: str | None = None
-    """Location of the simulation codes; found automatically if the package is installed."""
+    """Location of the simulation codes; else ``$SIMCODES``, else found automatically if the package is installed."""
 
     overwrite: bool | None = None
     """Whether existing files are overwritten. #TODO deprecated?"""
@@ -252,8 +253,9 @@ class Framework(BaseModel):
     eager_mode: bool = False
     """Bypass lazy loading for LAURA."""
 
-    container_runtime: Literal["docker", "apptainer"] | None = None
-    """Container runtime for the codes; if None, executables are looked for locally."""
+    container_runtime: Literal["docker", "apptainer", "auto"] | None = None
+    """Container runtime for the codes; if None, executables are looked for locally; ``auto`` runs each code locally
+    if it is found and otherwise in the container (Docker, else Apptainer)."""
 
     executables: exes.Executables | None = None
     """Commands for running the simulation codes."""
@@ -278,16 +280,16 @@ class Framework(BaseModel):
             "tangents": {},
             "resume_tangents": {},
         }
-        if self.simcodes is None and self.container_runtime not in ["docker", "apptainer"] and self.verbose:
-            warn("Neither `simcodes` nor `container_runtime` ('docker' or 'apptainer') is set, so the external codes "
-                 "(ASTRA, elegant, GPT, Genesis, OPAL, CSRTrack, Tao, BDSIM) cannot run; "
-                 "Python codes such as ocelot and cheetah still work. Set one of them to use the external codes.")
         self.setSubDirectory(self.directory)
         self.setMasterLatticeLocation(self.master_lattice)
         self.setSimCodesLocation(self.simcodes)
         self.setupGeneratorDefaults(self.generator_defaults)
 
         self.executables = self.prepare_executables(location=self.container_runtime)
+        if self.verbose and not any(route != "not found" for _, route, _ in self.executables.routes()):
+            warn("None of the external codes is found, in "
+                 "`simcodes`, $SIMCODES or on PATH, and `container_runtime` is not set; Python-based codes "
+                 "still work. `simba-codes check` shows where each code is looked for, and `simba-codes fetch` downloads ASTRA and CSRTrack.")
 
         # object encoding settings for simulations with multiple runs
         self.runSetup = runSetup()
@@ -467,9 +469,9 @@ class Framework(BaseModel):
         """
         global SimCodesLocation
         self.global_parameters["simcodes_location"] = self._resolve_package_location(
-            simcodes,
+            simcodes if simcodes is not None else os.environ.get("SIMCODES") or None,
             SimCodesLocation,
-            ["../../SimCodes/SimCodes", "../SimCodes/SimCodes", "../SimCodes"],
+            ["../../SimCodes/SimCodes", "../SimCodes/SimCodes", "../SimCodes", FETCHED_SIMCODES],
             "SimCodes",
             "simcodes",
         )

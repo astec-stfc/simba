@@ -52,6 +52,9 @@ classifiers = [
 #    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 
+[project.scripts]
+simba-codes = "simba.Codes.Executables:main"
+
 [project.optional-dependencies]
 
 simcodes = [
@@ -68,6 +71,10 @@ simcodes = [
 fbpic = [
     "fbpic>=0.27",
     "periodictable",
+]
+
+rftrack = [
+    "RF-Track",
 ]
 
 test = [

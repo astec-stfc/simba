@@ -1,0 +1,71 @@
+name: Conda and pixi environments
+
+# environment.yml and pixi.toml, with the codes from conda-forge and ASTRA/CSRTrack from `simba-codes fetch`:
+# the unit tests then run those codes natively instead of skipping them.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - environment.yml
+      - pixi.toml
+      - pixi.lock
+      - pyproject.toml
+      - simba/Executables.yaml
+      - simba/Codes/Executables.py
+      - simba/Codes/fetch_codes.py
+      - .github/workflows/environments.yml
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  pixi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # setuptools_scm versions this checkout of SIMBA from the tags
+
+      - uses: prefix-dev/setup-pixi@v0.11.3
+        with:
+          pixi-version: v0.84.2
+          locked: true  # fail if pixi.lock is out of date with pixi.toml
+
+      - run: pixi run fetch
+      - run: pixi run check
+      - run: pixi run test -v
+
+  conda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash -el {0}  # a login shell, so the environment is active
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: conda-incubator/setup-miniconda@v4.1.0
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: simba
+
+      - name: Use this checkout of SIMBA rather than the release environment.yml installs
+        run: pip install -e .[simcodes,rftrack,test]
+
+      - name: Use LAURA's branch of the same name, if there is one
+        run: |
+          laura=https://github.com/astec-stfc/laura.git
+          branch="${{ github.head_ref || github.ref_name }}"
+          if git ls-remote --exit-code --heads "$laura" "$branch" >/dev/null; then
+            release=$(git ls-remote --tags --sort=-v:refname "$laura" 'v*' | grep -v '\^{}' | head -1 | sed 's|.*refs/tags/v||')
+            export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_LAURA_ACCELERATOR="$release+$(echo "$branch" | tr -c '[:alnum:]\n' '.')"
+            pip install "laura-accelerator @ git+$laura@$branch"
+          fi
+
+      - run: simba-codes fetch
+      - run: simba-codes check
+      - run: pytest unit_tests -v -m "not needs_container"
