@@ -218,3 +218,20 @@ def test_a_code_that_fails_says_so(tmp_path):
         pytest.raises(RuntimeError, match="No charge defined for LSC"),
     ):
         Framework_objects.frameworkLattice.run_command(stub, ["elegant"], logfile)
+
+
+@pytest.mark.parametrize("preset", [None, "/my/defns.rpn"])
+def test_elegant_gets_rpn_definitions_unless_they_are_set(preset):
+    """conda-forge's elegant sets no RPN_DEFNS, without which it stops on any deck that uses RPN."""
+    import subprocess
+    from simba.Codes.Elegant.Elegant import DEFNS_RPN
+
+    with open(DEFNS_RPN) as f:
+        assert "udf" in f.read()  # the SDDS ToolKit's file, packaged
+    env = {k: v for k, v in os.environ.items() if k != "RPN_DEFNS"} | ({"RPN_DEFNS": preset} if preset else {})
+    # a fresh interpreter, as importing the module is what sets it
+    seen = subprocess.run(
+        [sys.executable, "-c", "import os, simba.Codes.Elegant.Elegant; print(os.environ['RPN_DEFNS'])"],
+        env=env, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert seen == (preset or DEFNS_RPN)

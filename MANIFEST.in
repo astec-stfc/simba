@@ -1,3 +1,4 @@
 include simba/Executables.yaml
 prune simba/Support_Files
 recursive-include simba *.yaml
+include simba/Codes/Elegant/defns.rpn simba/Codes/Elegant/SDDS_LICENSE
