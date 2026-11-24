@@ -30,6 +30,22 @@ from simba.Modules.Twiss import twiss
 CAVITY_LENGTH = 1.5 * 299792458.0 / 1.3e9
 
 
+def _has_hwang_lee_edges() -> bool:
+    import impactx
+
+    try:
+        impactx.elements.DipEdge(psi=0.0, rc=1.0, g=0.0, model="nonlinear_hwang_lee")
+    except RuntimeError:
+        return False
+    return True
+
+
+# LAURA exports a bend's exact edges as Hwang-Lee, which ImpactX 26.10 (the latest release) does not have yet
+needs_hwang_lee_edges = pytest.mark.skipif(
+    not _has_hwang_lee_edges(), reason="this ImpactX has no nonlinear_hwang_lee edge model (in releases after 26.10)"
+)
+
+
 @pytest.fixture(scope="module")
 def seed_beam(tmp_path_factory):
     """One bunch for every run: ``frameworkGenerator`` is unseeded."""
@@ -271,6 +287,7 @@ def test_a_rings_optics_are_xsuites(tmp_path, seed_beam):
             np.testing.assert_allclose(optics["impactx"][column], optics["xsuite"][column], rtol=1e-6, atol=1e-9)
 
 
+@needs_hwang_lee_edges
 def test_quantum_radiation_takes_a_bends_energy_loss(tmp_path):
     """5 GeV through 1 m bent 0.1 rad loses ``C_gamma E^4 theta / (2 pi rho)``, 88 keV, on average."""
     frameworkGenerator(
