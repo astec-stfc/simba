@@ -17,7 +17,7 @@ import simba.Modules.Beams as rbf
 from simba import exceptions
 from simba.Codes.Generators import frameworkGenerator
 
-BMAD_SO = os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")
+from helpers import BMAD_SO
 
 needs_bmad = pytest.mark.skipif(not os.path.exists(BMAD_SO), reason="Bmad libtao not installed")
 

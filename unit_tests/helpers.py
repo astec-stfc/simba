@@ -12,8 +12,11 @@ from laura.exporters.yaml_exporter import export_machine
 from laura.models.element import Dipole, Drift, Marker, Quadrupole, RFCavity
 from laura.models.element_list import MachineModel
 from simba.Framework_objects import frameworkLattice
+from simba.Codes.Executables import resolve_on_path
 
 ELEGANT = shutil.which("elegant")
+# a local Bmad build if there is one, else the environment's own (conda-forge bmad); tests skip if neither exists
+BMAD_SO = resolve_on_path([os.path.expanduser("~/Documents/bmad-ecosystem/production/lib/libtao.so")], "tao")[0]
 needs_elegant = pytest.mark.skipif(ELEGANT is None, reason="elegant is not installed")
 
 

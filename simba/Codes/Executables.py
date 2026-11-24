@@ -1,27 +1,79 @@
 import socket
 import os
+import shutil
 import yaml
 import subprocess
+import sys
 from typing import Literal
 import platform
 
 def which(program):
-    def is_exe(filepath):
-        return os.path.isfile(filepath) and os.access(filepath, os.X_OK)
+    return shutil.which(program)
 
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
+USER_EXECUTABLES = os.path.join(os.path.expanduser("~"), ".config", "simba", "executables.yaml")
+"""Entries here (or in the file ``SIMBA_EXECUTABLES`` names) replace those of the same section and code in ``Executables.yaml``."""
 
-    return None
+CONTAINER_RUNTIMES = ("docker", "apptainer")
+LAUNCHERS = ("mpiexec", "mpirun", "srun", "salloc")
+LIBRARIES = (".so", ".dylib", ".dll")  # libtao, which pytao loads: a file, never looked for on PATH
 
-def default_sif_path(filename: str = "simcodes-apptainer_master.sif") -> str:
+
+def _program_index(cmd: list) -> int:
+    """Where the program is in a command: the first word after the last shell ``;``, or, after an MPI or Slurm launcher,
+    the last word before any ``>`` redirection."""
+    start = max((i + 1 for i, s in enumerate(cmd) if s == ";"), default=0)
+    if os.path.basename(str(cmd[start])).removesuffix(".exe") not in LAUNCHERS:
+        return start
+    end = next((i for i in range(start, len(cmd)) if cmd[i] == ">"), len(cmd))
+    return end - 1
+
+
+def is_found(cmd) -> bool:
+    """Whether the program of a command exists, as a path or on ``PATH``."""
+    if not isinstance(cmd, list) or not cmd:
+        return False
+    program = cmd[_program_index(cmd)]
+    if isinstance(program, str) and program.endswith(LIBRARIES):
+        return os.path.isfile(program)
+    return isinstance(program, str) and which(program) is not None
+
+
+def resolve_on_path(cmd, name: str):
+    """
+    ``cmd`` if its program exists; otherwise ``cmd`` with the program looked up on ``PATH``, by its file name and then
+    by ``name``, without the ``source ... ;`` set-up of the install that is not there. ``cmd`` unchanged if neither
+    is on ``PATH``.
+    """
+    if not isinstance(cmd, list) or not cmd or is_found(cmd):
+        return cmd
+    i = _program_index(cmd)
+    if not isinstance(cmd[i], str):
+        return cmd
+    if cmd[i].endswith(LIBRARIES):
+        stem = os.path.splitext(os.path.basename(cmd[i]))[0]
+        for found in (os.path.join(sys.prefix, "lib", stem + ext) for ext in LIBRARIES):
+            if os.path.isfile(found):
+                return cmd[:i] + [found] + cmd[i + 1:]
+        return cmd
+    start = max((j + 1 for j, s in enumerate(cmd) if s == ";"), default=0)
+    for candidate in dict.fromkeys((os.path.basename(cmd[i]), name)):
+        found = which(candidate)
+        if found:
+            return cmd[start:i] + [found] + cmd[i + 1:]
+    return cmd
+
+
+def available_runtime() -> str | None:
+    """The container runtime ``container_runtime="auto"`` uses: Docker if its daemon answers, else Apptainer."""
+    if which("docker"):
+        try:
+            if subprocess.run(["docker", "info"], capture_output=True, timeout=30).returncode == 0:
+                return "docker"
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return "apptainer" if which("apptainer") else None
+
+def default_sif_path(filename: str = "simcodes-apptainer_v0.3.sif") -> str:  # tag as in Executables.yaml
     system = platform.system()
     if system == "Linux":
         return os.path.join(os.path.expanduser("~"), ".local", "share", "apptainer", filename)
@@ -139,7 +191,12 @@ class executable:
                     )
                     break
             else:
+                section = None
+            if section is None:
                 self.executable = self._substitute_variables(default)
+            if override_location is None or section != override_location:  # a remote host's paths are not ours to check
+                self.executable = resolve_on_path(self.executable, name)
+        self.found = is_found(self.executable)
 
     def _substitute_sif(self, param):
         if isinstance(param, list):
@@ -225,23 +282,17 @@ class Executables:
             os.path.join(os.path.dirname(__file__), "../Executables.yaml")
         ) as file:
             self.settings = yaml.load(file, Loader=yaml.Loader)
-        self.runtime = global_parameters.get("container_runtime", None)  # 'docker', 'apptainer', or None
-        if self.runtime == "docker":
-            docker_cfg = self.settings.get("docker", {})
-            ensure_image(
-                runtime="docker",
-                image=docker_cfg.get("image", ""),
-                build_context=global_parameters.get("docker_build_context", None),
-                simcodes_location=self.sim_codes_location,
-            )
-        elif self.runtime == "apptainer":
-            apptainer_cfg = self.settings.get("apptainer", {})
-            ensure_image(
-                runtime="apptainer",
-                image=apptainer_cfg.get("registry", ""),
-                sif=apptainer_cfg.get("sif", "").replace("$simcodes$", self.sim_codes_location),
-                simcodes_location=self.sim_codes_location,
-            )
+        user_file = os.environ.get("SIMBA_EXECUTABLES", USER_EXECUTABLES)
+        if os.path.isfile(user_file):
+            with open(user_file) as file:
+                for section, entries in (yaml.safe_load(file) or {}).items():
+                    self.settings.setdefault(section, {}).update(entries or {})
+        runtime = global_parameters.get("container_runtime", None)  # 'docker', 'apptainer', 'auto' or None
+        self.auto = runtime == "auto"
+        self.runtime = available_runtime() if self.auto else runtime
+        self._image_ready = False
+        if runtime in CONTAINER_RUNTIMES:
+            self._ensure_image(runtime)
         self.ASTRAgenerator = None
         self.astra = None
         self.elegant = None
@@ -254,17 +305,51 @@ class Executables:
         self.bdsim = None
         self.ptarmigan = None
         self.settings["sim_codes_location"] = self.sim_codes_location
-        self.define_ASTRAgenerator_command(location=self.runtime)
-        self.define_astra_command(location=self.runtime)
-        self.define_elegant_command(location=self.runtime)
-        self.define_csrtrack_command(location=self.runtime)
-        self.define_gpt_command()
-        self.define_opal_command(location=self.runtime)
-        self.define_genesis_command(location=self.runtime)
-        self.define_tao_command(location=self.runtime)
-        self.define_madx_command(location=self.runtime)
-        self.define_bdsim_command(location=self.runtime)
-        self.define_ptarmigan_command(location=self.runtime)
+        section = None if self.auto else self.runtime
+        for define in (
+            self.define_ASTRAgenerator_command, self.define_astra_command, self.define_elegant_command,
+            self.define_csrtrack_command, self.define_gpt_command, self.define_opal_command,
+            self.define_genesis_command, self.define_tao_command, self.define_madx_command,
+            self.define_bdsim_command, self.define_ptarmigan_command,
+        ):
+            define(override_location=section)
+
+    def _ensure_image(self, runtime: str) -> None:
+        """Pull the image of ``runtime`` (or build it, see :func:`ensure_image`) unless it is here already."""
+        if runtime == "docker":
+            ensure_image(
+                runtime="docker",
+                image=self.settings.get("docker", {}).get("image", ""),
+                build_context=self.global_parameters.get("docker_build_context", None),
+                simcodes_location=self.sim_codes_location,
+            )
+        else:
+            apptainer_cfg = self.settings.get("apptainer", {})
+            ensure_image(
+                runtime="apptainer",
+                image=apptainer_cfg.get("registry", ""),
+                sif=apptainer_cfg.get("sif", "").replace("$simcodes$", self.sim_codes_location),
+                simcodes_location=self.sim_codes_location,
+            )
+        self._image_ready = True
+
+    def routes(self) -> list[tuple[str, str, str]]:
+        """``(code, route, program)`` for every code: the route is ``docker``, ``apptainer``, ``native`` or ``not found``."""
+        rows = []
+        for attr, exe in vars(self).items():
+            if not attr.endswith("Executable"):
+                continue
+            cmd = exe.executable
+            if isinstance(cmd, list) and cmd and cmd[0] in CONTAINER_RUNTIMES:
+                route = cmd[0]
+                image_last = cmd[-1] == self.settings.get("docker", {}).get("image") and "--entrypoint" in cmd
+                program = cmd[cmd.index("--entrypoint") + 1] if image_last else cmd[-1]
+            else:
+                route = "native" if exe.found else "not found"
+                program = cmd[_program_index(cmd)] if isinstance(cmd, list) and cmd else cmd
+                program = (exe.found and which(program)) or program
+            rows.append((exe.name, route, str(program)))
+        return rows
 
     def __getitem__(self, item):
         if os.name == "nt" and self.runtime is None and item in WINDOWS_UNSUPPORTED_CODES:
@@ -278,7 +363,7 @@ class Executables:
 
     def build_command(self, cmd: list, workdir: str) -> list:
         """
-        Substitute ``$workdir$`` in a container command; unchanged if no container runtime is set.
+        Substitute ``$workdir$`` in a container command, first pulling the image if this is the first command that needs it.
 
         Parameters
         ----------
@@ -294,6 +379,8 @@ class Executables:
         """
         if self.runtime is None:
             return cmd
+        if cmd and cmd[0] == self.runtime and not self._image_ready:
+            self._ensure_image(self.runtime)
         return [
             s.replace('$workdir$', workdir) if isinstance(s, str) else s
             for s in cmd
@@ -342,6 +429,8 @@ class Executables:
             default=default,
             override_location=override_location,
         )
+        if self.auto and self.runtime and location is None and not exe.found and name in self.settings.get(self.runtime, {}):
+            exe = executable(name, settings=self.settings, location=self.runtime, ncpu=ncpu, default=default)
         setattr(self, f"{attr}Executable", exe)
         setattr(self, attr, exe.executable)
 
@@ -414,3 +503,45 @@ class Executables:
         ncpu = self.getNCPU(ncpu, scaling)
         default = [self.sim_codes_location + "Bmad/lib/libtao.so"]
         self._define("tao", "tao", default, location, ncpu, override_location)
+
+
+def main(argv=None) -> None:
+    """``simba-codes check``: how SIMBA would run each external code here; ``simba-codes fetch``: install RF-Track,
+    and download ASTRA and CSRTrack."""
+    import argparse
+    from .fetch_codes import FETCHED_SIMCODES, fetch_codes
+
+    parser = argparse.ArgumentParser(prog="simba-codes", description="The external codes SIMBA runs.")
+    commands = parser.add_subparsers(dest="command", required=True)
+    check = commands.add_parser("check", help="how SIMBA would run each code here, and whether it is found")
+    check.add_argument(
+        "--simcodes", default=os.environ.get("SIMCODES"),
+        help=f"SimCodes directory (default: $SIMCODES, else {FETCHED_SIMCODES} if it exists)",
+    )
+    check.add_argument(
+        "--container-runtime", choices=CONTAINER_RUNTIMES + ("auto",),
+        help="as Framework's container_runtime; docker and apptainer pull the image if it is missing",
+    )
+    fetch = commands.add_parser(
+        "fetch", help="install RF-Track, and download ASTRA, its generator and the serial CSRTrack (Linux x86-64)"
+    )
+    fetch.add_argument(
+        "--simcodes", default=os.environ.get("SIMCODES") or FETCHED_SIMCODES,
+        help=f"where to put ASTRA and CSRTrack (default: $SIMCODES, else {FETCHED_SIMCODES})",
+    )
+    fetch.add_argument("--no-desy", action="store_true", help="take the simcodes-docker copies without trying DESY")
+    fetch.add_argument("--no-rftrack", action="store_true", help="do not pip-install RF-Track")
+    args = parser.parse_args(argv)
+
+    if args.command == "fetch":
+        fetch_codes(args.simcodes, desy=not args.no_desy, rftrack=not args.no_rftrack)
+        return
+    simcodes = args.simcodes or (FETCHED_SIMCODES if os.path.isdir(FETCHED_SIMCODES) else None)
+    simcodes = os.path.join(os.path.abspath(simcodes), "") if simcodes else None
+    ex = Executables({"simcodes_location": simcodes, "container_runtime": args.container_runtime})
+    for code, route, program in ex.routes():
+        print(f"{code:16} {route:10} {program}")
+
+
+if __name__ == "__main__":
+    main()

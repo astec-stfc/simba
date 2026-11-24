@@ -11,7 +11,7 @@ import pytest
 
 from simba.Codes.Bmad.Bmad import bmadLattice
 
-BMAD_SO = "/home/xkc85723/Documents/bmad-ecosystem/production/lib/libtao.so"
+from helpers import BMAD_SO
 
 PC = 1e9
 QUAD_L = 0.5

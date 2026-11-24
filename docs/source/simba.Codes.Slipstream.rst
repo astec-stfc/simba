@@ -1,11 +1,11 @@
 simba.Codes.Slipstream package
-==========================
+==============================
 
 Submodules
 ----------
 
 simba.Codes.Slipstream.Slipstream module
---------------------------------
+----------------------------------------
 
 .. automodule:: simba.Codes.Slipstream.Slipstream
    :members:

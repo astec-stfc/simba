@@ -33,6 +33,10 @@ from laura.models.diagnostic import DiagnosticElement
 from laura.translator.converters.converter import translate_elements
 from laura.translator.utils.functions import sanitize_string
 
+DEFNS_RPN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "defns.rpn")
+"""The SDDS ToolKit's RPN definitions (unmodified; licence in ``SDDS_LICENSE`` beside it)."""
+os.environ.setdefault("RPN_DEFNS", DEFNS_RPN)
+
 
 def elegant_element_name(name: str) -> str:
     """The name ELEGANT knows an element by."""

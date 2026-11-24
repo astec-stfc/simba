@@ -37,6 +37,14 @@ simba.Codes.Executables module
    :show-inheritance:
    :undoc-members:
 
+simba.Codes.fetch\_codes module
+-------------------------------
+
+.. automodule:: simba.Codes.fetch_codes
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 
