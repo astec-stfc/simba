@@ -34,6 +34,7 @@ from laura.models.magnetic import brho as laura_brho
 from laura.models.physical import Position
 from laura.models.element import PhysicalBaseElement, Quadrupole, Sextupole, Octupole
 from laura.translator.converters.section import SectionLatticeTranslator
+from laura.utils.rotation_matrix import euler_angles_to_rotation_matrix
 
 from . import exceptions
 from .Modules.DeviceProgram import DeviceProgram
@@ -4202,14 +4203,15 @@ class chicane(frameworkGroup):
         Set the chicane bending angle, re-laying out the dipoles and everything between them.
 
         Dipoles keep their entrance and exit along the axis (:meth:`_design_spans`) and lengths become the arc.
+        The offset is in the plane the first dipole bends in, so a tilted (e.g. vertical) chicane stays one.
 
         Parameters
         ----------
         a: float
             Bending angle of the first dipole, in radians; the others follow ``ratios``.
         """
-        rotation, theta0, origin = self._design_axis
-        across, _, along = rotation.T
+        layout, origin = self._design_axis
+        across, along = layout[:, 0], layout[:, 2]
 
         def spos(e):
             # Not every element in the machine is on the beamline (lasers, etc.)
@@ -4219,8 +4221,11 @@ class chicane(frameworkGroup):
                 return None
 
         def to_global(u, s):
-            p = origin + rotation @ np.array([u, 0.0, s])
+            p = origin + u * across + s * along
             return Position(x=p[0], y=p[1], z=p[2])
+
+        def point(e, p):
+            self._point_along(e.physical, np.cos(p) * along + np.sin(p) * across)
 
         dipole_names = list(self.elements)
         dipoles = [self.allElementObjects[e] for e in dipole_names]
@@ -4255,7 +4260,7 @@ class chicane(frameworkGroup):
                     dx, arc = 0.0, lz
                     mid_u, mid_s = x, s_entry + lz / 2.0
                 e.physical.middle = to_global(mid_u, mid_s)
-                e.physical.global_rotation.theta = theta0 - p0
+                point(e, p0)
                 e.magnetic.angle = ang
                 e.physical.set_physical_angle(ang)
                 e.magnetic.length = arc
@@ -4265,19 +4270,37 @@ class chicane(frameworkGroup):
             elif dipole_number > 0:
                 x_here = x + (s_here - s_cursor) * np.tan(phi)
                 e.physical.middle = to_global(x_here, s_here)
-                e.physical.global_rotation.theta = theta0 - phi
+                point(e, phi)
+
+    @staticmethod
+    def _point_along(physical, direction) -> None:
+        """
+        Yaw and pitch an element, its roll kept, so that its beam axis runs along ``direction``.
+
+        Sets ``global_rotation`` so that it and the element's own ``rotation`` add up to the orientation.
+        """
+        # two angles only, as LAURA drops a magnet's tilt once global_rotation.psi is set;
+        # exact unless a chicane is tilted on an axis that is itself yawed (then ~um off on a re-layout)
+        r, g = physical.rotation, physical.global_rotation
+        psi = float(r.psi + g.psi)
+        dx, dy, dz = euler_angles_to_rotation_matrix(0.0, 0.0, -psi) @ np.asarray(direction)
+        g.theta = float(np.arctan2(-dx, np.hypot(dy, dz))) - float(r.theta)
+        g.phi = float(np.arctan2(-dy, dz)) - float(r.phi)
 
     @property
     def _design_axis(self) -> tuple:
         """
-        ``(rotation_matrix, theta, entrance)`` of the first dipole: the frame :meth:`set_angle` lays out in.
+        ``(layout_matrix, entrance)`` of the first dipole: the frame :meth:`set_angle` lays out in.
 
+        The layout matrix is the dipole's orientation rolled into the plane it bends in (LAURA's
+        ``_layout_matrix``, which follows ``magnetic.tilt``): its columns are the offset direction,
+        the normal to the bend plane and the axis.
         Cached on first use, because :meth:`set_angle` moves the entrance it is read from.
         """
         if not hasattr(self, "_axis"):
             d0 = self.allElementObjects[self.elements[0]].physical
-            rotation = np.array(d0.rotation_matrix)
-            along = rotation.T[2]
+            layout = np.array(d0._layout_matrix)
+            along = layout[:, 2]
             entrance = np.asarray(d0.start.array, dtype=float)
             upstream = None
             for element in self.allElementObjects.values():
@@ -4285,17 +4308,17 @@ class chicane(frameworkGroup):
                     continue
                 try:
                     middle = np.asarray(element.physical.middle.array, dtype=float)
-                    theta = float(element.physical.global_rotation.theta)
+                    axis = np.asarray(element.physical.rotation_matrix)[:, 2]
                 except AttributeError:
                     continue
                 gap = float(np.dot(entrance - middle, along))
-                if gap < 0 or abs(theta - float(d0.global_rotation.theta)) > 1e-9:
+                if gap < 0 or np.linalg.norm(axis - along) > 1e-9:
                     continue
                 if upstream is None or gap < upstream[0]:
                     upstream = (gap, middle)
             if upstream is not None:
                 entrance = upstream[1] + upstream[0] * along
-            self._axis = (rotation, float(d0.global_rotation.theta), entrance)
+            self._axis = (layout, entrance)
         return self._axis
 
     def _design_spans(self, dipoles: list) -> list:
@@ -4306,8 +4329,8 @@ class chicane(frameworkGroup):
         Cached on first use because :meth:`set_angle` moves them.
         """
         if not hasattr(self, "_design_s_spans"):
-            rotation, _, origin = self._design_axis
-            along = rotation.T[2]
+            layout, origin = self._design_axis
+            along = layout[:, 2]
             self._design_s_spans = [
                 tuple(float(np.dot(np.asarray(p.array, dtype=float) - origin, along))
                       for p in (d.physical.start, d.physical.end))

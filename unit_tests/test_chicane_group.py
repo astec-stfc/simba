@@ -15,7 +15,7 @@ MARKER_Z = (2.0, 2.8)
 NAMES = [f"D{i}" for i in range(1, 5)] + [f"M{i}" for i in range(1, 3)]
 
 
-def _build(theta0):
+def _build(theta0, tilt=0.0):
     """A four-dipole chicane on the axis `theta0`, straight and on-crest to start with."""
     rotation = euler_angles_to_rotation_matrix(theta0, 0.0, 0.0)
     elements = {}
@@ -24,6 +24,7 @@ def _build(theta0):
         d.physical.length = LZ
         d.magnetic.length = LZ
         d.magnetic.angle = 0.0
+        d.magnetic.tilt = tilt
         elements[d.name] = d
     for i, _ in enumerate(MARKER_Z, start=1):
         m = Marker(name=f"M{i}", hardware_class="Marker", hardware_type="Marker",
@@ -69,7 +70,7 @@ def test_zeroing_puts_everything_back_on_the_axis():
     group, elements, rotation = _build(0.61)
     group.set_angle(0.1185)
     group.set_angle(0.0)
-    origin = group._design_axis[2]
+    origin = group._design_axis[1]
     across = rotation.T[0]
     for name, e in elements.items():
         offset = np.dot(np.asarray(e.physical.middle.array) - origin, across)
@@ -126,3 +127,38 @@ def test_set_angle_to_the_angle_a_bent_lattice_has_changes_nothing():
         assert length == pytest.approx(before[name][2], abs=1e-12), name
     fresh.set_angle(0.0)
     assert elements["D1"].physical.length == pytest.approx(LZ, abs=1e-12)
+
+
+@pytest.mark.parametrize("angle", [0.0, 0.1355])
+def test_a_vertical_chicane_is_the_horizontal_one_rolled(angle):
+    """Dipoles with tilt pi/2 (EuXFEL's BCs) are laid out in y: a positive bend goes to +y."""
+    flat_group, flat, _ = _build(0.0)
+    up_group, up, _ = _build(0.0, tilt=np.pi / 2)
+    flat_group.set_angle(angle)
+    up_group.set_angle(angle)
+    roll = euler_angles_to_rotation_matrix(0.0, 0.0, np.pi / 2)
+    for name, e in flat.items():
+        p, q = e.physical, up[name].physical
+        for face in ("middle", "start", "end"):
+            assert np.asarray(getattr(q, face).array) == pytest.approx(
+                roll @ np.asarray(getattr(p, face).array), abs=1e-12), (name, face)
+        assert np.asarray(q.rotation_matrix)[:, 2] == pytest.approx(
+            roll @ np.asarray(p.rotation_matrix)[:, 2], abs=1e-12), name
+        assert q.length == pytest.approx(p.length, abs=1e-12), name
+
+
+def test_a_loaded_vertical_chicane_is_left_where_it_is():
+    """A lattice read from YAML holds its orientation in `rotation`, not `global_rotation`."""
+    group, elements, _ = _build(0.0, tilt=np.pi / 2)
+    group.set_angle(0.1355)
+    for e in elements.values():
+        r, g = e.physical.rotation, e.physical.global_rotation
+        r.theta, r.phi, g.theta, g.phi = r.theta + g.theta, r.phi + g.phi, 0.0, 0.0
+    before = {n: (np.asarray(e.physical.middle.array), np.asarray(e.physical.rotation_matrix))
+              for n, e in elements.items()}
+    fresh = chicane("bc", types.SimpleNamespace(elementObjects=elements, groupObjects={}),
+                    "chicane", list(NAMES[:4]))
+    fresh.set_angle(0.1355)
+    for name, e in elements.items():
+        assert np.asarray(e.physical.middle.array) == pytest.approx(before[name][0], abs=1e-12), name
+        assert np.asarray(e.physical.rotation_matrix) == pytest.approx(before[name][1], abs=1e-12), name
