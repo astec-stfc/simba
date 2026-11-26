@@ -1,9 +1,11 @@
 """
 Genesis 1.3 v4 backend: the lattice, and one class per ``&command`` of the input file.
 
-SASE and HGHG are supported (EEHG is not). For HGHG, give the lattice a
-:attr:`~genesisLattice.split_element` and a chicane after the first undulator; the
-harmonic follows from the first undulator after the split. See the `Genesis manual`_.
+SASE and HGHG are supported (EEHG is not). For HGHG, put the seed laser on the first
+undulator (the modulator), give the lattice a :attr:`~genesisLattice.split_element` and
+a chicane after the modulator; one input file tracks the modulator at the laser
+wavelength, then ``&alter_setup`` switches to the harmonic resonant with the first
+undulator after the split. See the `Genesis manual`_.
 
 .. _Genesis manual: https://github.com/svenreiche/Genesis-1.3-Version4/tree/master/manual
 """
@@ -33,6 +35,7 @@ from ...FrameworkHelperFunctions import saveFile
 from ...Modules import Beams as rbf
 from typing import Dict, List, Literal, ClassVar
 import h5py
+from laura.translator.utils.fields import FieldMap
 
 command_files_order = [
     "setup",
@@ -180,6 +183,11 @@ class genesisLattice(frameworkLattice):
     electrons_only: ClassVar[bool] = True
     """FELs are electrons only."""
 
+    supports_laser_modulation: ClassVar[bool] = True
+    """A laser on the first undulator is the seed field (HGHG modulator)."""
+
+    supports_laser_time_profile: ClassVar[bool] = True
+
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -279,10 +287,10 @@ class genesisLattice(frameworkLattice):
         if isinstance(self.split_element, str):
             first_wiggler = None
             after_split = False
-            for elem in self.elementObjects.values():
+            for elem in self.elements.values():
                 if elem.name == self.split_element:
                     after_split = True
-                elif after_split and elem.hardware_class.lower() == "wiggler":
+                elif after_split and elem.hardware_type.lower() == "wiggler":
                     first_wiggler = elem
                     break
             if first_wiggler is None:
@@ -362,6 +370,8 @@ class genesisLattice(frameworkLattice):
     def write_setup_file(self) -> None:
         gamma0 = self.global_parameters["beam"].beam.centroids.mean_gamma.val
         first_wiggler = self.wigglers[0]
+        if not self.fundamental_wavelength and first_wiggler.laser and first_wiggler.laser.wavelength:
+            self.fundamental_wavelength = first_wiggler.laser.wavelength  # the seed sets lambda0
         if not self.fundamental_wavelength:
             self.fundamental_wavelength = first_wiggler.period / (2 * gamma0**2)
             self.fundamental_wavelength *= (1 + first_wiggler.normalized_strength**2)
@@ -497,27 +507,66 @@ class genesisLattice(frameworkLattice):
             "ey": float(beam.emittance.normalized_vertical_emittance.val),
         }
 
+    def bunch_centre_s(self) -> float:
+        """Genesis ``s`` [m] of the bunch centroid; Genesis puts the head at larger ``s``."""
+        if self.beam_type == "beam":
+            return self.commandFiles["time"].slen / 2  # uniform current over the window
+        with h5py.File(f'{self.global_parameters["master_subdir"]}/{self.start}.genesis.hdf5', "r") as f:
+            if self.beam_type == "profile":
+                return float(np.average(f["s"][()], weights=f["current"][()]))
+            t = f["t"][()]
+        return float(speed_of_light * (t.max() - t.mean()))  # &importdistribution: s = c*(t_max - t)
+
     def get_field_power(self) -> float | str:
         """
-        Initial field power: a laser profile label if the first undulator has a laser,
-        else :attr:`field_power`.
+        Initial field power: the seed laser on the first undulator, else :attr:`field_power`.
+
+        The laser's ``initial_position`` is measured from the bunch centroid, positive
+        towards the head. Steady-state runs take its power at the centroid; time-dependent
+        runs get a ``&profile_gauss``, or a ``&profile_file`` from its time profile.
 
         Returns
         -------
         float | str
-            :attr:`field_power` or the ``@<name>_laser_profile`` label
+            The power [W], or the ``@<name>_laser_profile`` label
         """
         first_wiggler = self.wigglers[0]
-        if first_wiggler.laser:
-            self.commandFiles["profile_gauss"] = genesis_profile_gauss_command(
-                label=first_wiggler.name + "_laser_profile",
-                c0=first_wiggler.laser.max_power,
-                s0=first_wiggler.laser.initial_position,
-                sig=first_wiggler.laser.pulse_duration_rms * speed_of_light,
-            )
-            return f"@{first_wiggler.name}_laser_profile"
-        else:
+        others = [w.name for w in self.wigglers[1:] if w.laser is not None and w.laser.peak_power]
+        if others:
+            warn(f"Genesis seeds only from the first undulator; the lasers on {others} are ignored")
+        laser = first_wiggler.laser
+        if laser is None or not laser.peak_power:
             return self.field_power
+        label = first_wiggler.name + "_laser_profile"
+        profile = laser.field_definition
+        if isinstance(profile, FieldMap):
+            s = laser.initial_position - speed_of_light * np.asarray(profile.t.value.val)
+            power = laser.peak_power * np.asarray(profile.Ex.value.val) ** 2
+            order = np.argsort(s)
+            s, power = s[order], power[order]
+            if self.steady_state:
+                return float(np.interp(0.0, s, power, left=0.0, right=0.0))
+            pad = 1e-6 * np.ptp(s)  # Genesis holds the end values outside the table
+            s = np.concatenate([[s[0] - pad], s, [s[-1] + pad]]) + self.bunch_centre_s()
+            power = np.concatenate([[0.0], power, [0.0]])
+            filename = f"{label}.h5"
+            with h5py.File(f'{self.global_parameters["master_subdir"]}/{filename}', "w") as f:
+                f["s"], f["power"] = s, power
+            self.files.append(f'{self.global_parameters["master_subdir"]}/{filename}')
+            self.commandFiles["profile_file"] = self.commandFiles.get("profile_file", []) + [
+                genesis_profile_file_command(label=label, xdata=f"{filename}/s", ydata=f"{filename}/power")
+            ]
+            return f"@{label}"
+        sig = laser.pulse_duration_fwhm / (2 * np.sqrt(2 * np.log(2))) * speed_of_light
+        if self.steady_state:
+            return float(laser.peak_power * np.exp(-(laser.initial_position**2) / (2 * sig**2)))
+        self.commandFiles["profile_gauss"] = genesis_profile_gauss_command(
+            label=label,
+            c0=laser.peak_power,
+            s0=self.bunch_centre_s() + laser.initial_position,
+            sig=sig,
+        )
+        return f"@{label}"
 
     def get_waist_size(self) -> float:
         """

@@ -4210,8 +4210,8 @@ class chicane(frameworkGroup):
 
     @property
     def delay(self) -> float:
-        """Delay (longitudinal slippage) of the chicane, ``2 * r56``."""
-        return 2 * self.r56
+        """Path-length excess of the chicane, ``r56 / 2`` (Genesis's ``delay``)."""
+        return self.r56 / 2
 
     @property
     def angle(self) -> float:

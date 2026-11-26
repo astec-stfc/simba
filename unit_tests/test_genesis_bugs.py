@@ -1,5 +1,10 @@
 from types import SimpleNamespace as NS
 
+import h5py
+import numpy as np
+import pytest
+from scipy.constants import c
+
 from simba.Codes.Genesis.Genesis import (
     genesis_alter_beam_command,
     genesis_profile_file_command,
@@ -24,6 +29,45 @@ def test_chicane_uses_physical_positions():
     )
     ch = genesisLattice.writeElements(fake)["CH"]
     assert ch["drift_length"] == 1.0 and ch["length"] == 3.2
+
+
+def _seeded(tmp_path, steady_state, **laser):
+    from laura.models.laser import LaserElement
+    fake = NS(
+        wigglers=[NS(name="MOD", laser=LaserElement(wavelength=250e-9, waist=6e-4, pulse_energy=2e-5, **laser))],
+        steady_state=steady_state, commandFiles={}, files=[], field_power=1e3,
+        global_parameters={"master_subdir": str(tmp_path)}, bunch_centre_s=lambda: 1e-4,
+    )
+    return fake, genesisLattice.get_field_power(fake)
+
+
+def test_seed_laser_centred_on_the_bunch(tmp_path):
+    """initial_position is from the bunch centroid, towards the head (larger Genesis s)."""
+    fake, label = _seeded(tmp_path, False, pulse_duration_fwhm=1e-12, initial_position=2e-5)
+    gauss = fake.commandFiles["profile_gauss"]
+    assert label == "@MOD_laser_profile" and gauss.c0 == pytest.approx(fake.wigglers[0].laser.peak_power)
+    assert gauss.s0 == pytest.approx(1.2e-4) and gauss.sig == pytest.approx(1e-12 * c / 2.35482, rel=1e-5)
+    _, power = _seeded(tmp_path, True, pulse_duration_fwhm=1e-12, initial_position=gauss.sig)
+    assert power == pytest.approx(gauss.c0 * np.exp(-0.5))  # steady state: the power at the centroid
+
+
+def test_seed_laser_time_profile(tmp_path):
+    """Ex(t) (t towards the tail) becomes a power table, zero beyond its ends."""
+    from laura.translator.utils.fields import FieldMap
+    from laura.translator.utils.fields.field_parameter import set_field
+    t = np.linspace(-3e-12, 3e-12, 61)
+    profile = FieldMap()
+    profile.reset_dicts()
+    profile.field_type, profile.read = "LaserTimeProfile", True
+    set_field(profile, "t", t, "s")
+    set_field(profile, "Ex", np.exp(-((t - 1e-12) ** 2) / (2e-24)), "")
+    fake, label = _seeded(tmp_path, False, field_definition=profile)
+    with h5py.File(tmp_path / "MOD_laser_profile.h5") as f:
+        s, power = f["s"][()], f["power"][()]
+    assert fake.commandFiles["profile_file"][0].ydata == "MOD_laser_profile.h5/power"
+    assert power[0] == power[-1] == 0 and np.all(np.diff(s) > 0)
+    assert s[np.argmax(power)] == pytest.approx(1e-4 - c * 1e-12)  # a later t is further towards the tail
+    assert power.max() == pytest.approx(fake.wigglers[0].laser.peak_power)
 
 
 def test_lambda_is_written():
