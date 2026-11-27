@@ -89,7 +89,11 @@ class warpxLattice(frameworkLattice):
     always included (:attr:`~include_ions`): an electron-only plasma streaming through the
     boosted box carries an unneutralised charge and current, whose fields swamped the wake.
     Steps fall roughly as ``(1 + beta) gamma^2`` for a laser stage; the wake's phase
-    velocity bounds the boost."""
+    velocity bounds the boost.
+
+    Validated on PLASMA's LWFA (1.2 cm, lambda/20) against Wake-T: at gamma 3 the witness
+    matches (energy -0.5 %, eps_n +13 %); at gamma 6 the wake does but the witness does not
+    (eps_n x4.5, bunch lengthened). A beam-driven stage (PWFA) is not validated."""
 
     boost_inputs: Dict = {
         "algo.maxwell_solver": "psatd",
@@ -322,9 +326,9 @@ class warpxLattice(frameworkLattice):
                 str(b).lower() for v in bounds for b in (v.split() if isinstance(v, str) else v)}
             if boosted:
                 warn(f"{self.objectname}: a beam in a boosted WarpX stage is not validated: WarpX cannot start "
-                     f"it from its own field with {sorted(open_ends) or 'these'} boundaries, and on PLASMA's PWFA the "
-                     "witness was not accelerated and its emittance grew 100 times (see gamma_boost). "
-                     "Run beam-driven stages in the lab frame.")
+                     f"it from its own field with {sorted(open_ends) or 'these'} boundaries. A witness "
+                     "behind a laser held its quality at gamma_boost 3, not at 6 (see gamma_boost); "
+                     "run beam-driven stages in the lab frame.")
             elif staged and open_ends:
                 warn(f"{self.objectname}: WarpX cannot start the beam from its own field with {sorted(open_ends)} "
                      "boundaries (its electrostatic solve refuses them); the field forms in a transient, so start "

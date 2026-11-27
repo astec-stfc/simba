@@ -258,13 +258,32 @@ class fbpicLattice(frameworkLattice):
 
     @property
     def min_longitudinal_position(self) -> float:
-        """Min position of the simulation box along z (meters)"""
-        return self.plasma.simulation.min_longitudinal_position if self.plasma else 0.0
+        """Min position of the simulation box along z (meters), less :attr:`~_box_shift`"""
+        return self.plasma.simulation.min_longitudinal_position - self._box_shift if self.plasma else 0.0
 
     @property
     def max_longitudinal_position(self) -> float:
-        """Max position of the simulation box along z (meters)"""
-        return self.plasma.simulation.max_longitudinal_position if self.plasma else 0.0
+        """Max position of the simulation box along z (meters), less :attr:`~_box_shift`"""
+        return self.plasma.simulation.max_longitudinal_position - self._box_shift if self.plasma else 0.0
+
+    _box_shift: float = 0.0
+    """How far FBPIC's z = 0 is moved forward in a boosted run, so that the driving laser's
+    antenna (``antenna``) or centre (``direct``) is at z = 0; see :func:`~configure_simulation`"""
+
+    def _shifted_laser(self, translator: Any, shift: float) -> Any:
+        """The FBPIC laser profile of ``translator`` (a plasma stage or a laser element) with its
+        start and focus moved back by ``shift``, built from a copy of its model."""
+        from laura.translator.converters.laser import LaserTranslator
+
+        data = translator.model_dump()
+        for key in ("initial_position", "focal_position"):
+            data["laser"][key] = data["laser"][key] - shift
+        data["hardware_type"] = data["hardware_class"] = "Laser"
+        return LaserTranslator.model_validate(data).to_fbpic()
+
+    def _antenna_offset(self, laser: Any) -> float:
+        """How far ahead of the laser centre the antenna sits: :attr:`~antenna_offset`, else ``3 c tau``."""
+        return self.antenna_offset if self.antenna_offset is not None else 3 * c * laser.pulse_duration_1e_field
 
     @property
     def zstep(self) -> float:
@@ -423,15 +442,16 @@ class fbpicLattice(frameworkLattice):
             "laser_defocus": np.inf,
         }
         laser = getattr(plas, "laser", None)
+        z0 = laser.initial_position - self._box_shift if laser is not None else 0.0  # after the shift to z = 0
         if (
             laser is not None
             and self.laser_injection_method == "direct"
-            and laser.initial_position
+            and z0
         ):
             z_rayleigh = np.pi * laser.waist ** 2 / laser.wavelength
             max_drift = z_rayleigh * np.sqrt(1 / a0_tolerance ** 2 - 1)
             limits["laser_defocus"] = np.sqrt(
-                max_drift / (2 * abs(laser.initial_position))
+                max_drift / (2 * abs(z0))
             )
         return limits
 
@@ -503,19 +523,20 @@ class fbpicLattice(frameworkLattice):
             )
 
         laser = getattr(plas, "laser", None)
+        z0 = laser.initial_position - self._box_shift if laser is not None else 0.0  # after the shift to z = 0
         if (
             laser is not None
             and self.laser_injection_method == "direct"
-            and laser.initial_position
+            and z0
         ):
             z_rayleigh = np.pi * laser.waist ** 2 / laser.wavelength
             drift = self.boost.gamma0 * self.boost.beta0 * (
                 self.boost.gamma0 * (1 + self.boost.beta0)
-            ) * laser.initial_position
+            ) * z0
             attenuation = 1 / np.sqrt(1 + (drift / z_rayleigh) ** 2)
             if attenuation < 0.95:
                 warn(
-                    f"The laser starts at z0 = {laser.initial_position * 1e6:.1f} um, "
+                    f"The laser starts at z0 = {z0 * 1e6:.1f} um, "
                     f"so at gamma_boost = {self.gamma_boost} `direct` injection puts it "
                     f"on the mesh as though it had propagated {drift * 1e6:.0f} um "
                     f"({drift / z_rayleigh:.1f} Rayleigh lengths) in vacuum, cutting a0 "
@@ -590,6 +611,20 @@ class fbpicLattice(frameworkLattice):
                 "the lab frame instead; set boost: False to silence this warning."
             )
             self.boost = False
+        if self.boost is True and laser_drives and self.gamma_boost > 0 and not self._box_shift:
+            # In a boosted frame the laser has to start at z ~ 0. An antenna emits the pulse when it passes,
+            # at lab time ~ (z0_antenna - z0)/c, which is boosted time gamma (t - beta z0_antenna / c): before
+            # the run starts for an antenna 83 um out (PLASMA's LWFA: nothing was emitted). `direct` stamps the
+            # pulse as though it had drifted ~2 gamma^2 z0 in vacuum. So FBPIC's z = 0 is moved to the antenna,
+            # or to the laser's centre for `direct`; the beam and plasma follow zstart, the box and laser this.
+            first = laser_elements[0]
+            self._box_shift = first.initial_position + (
+                self._antenna_offset(first) if self.laser_injection_method == "antenna" else 0.0)
+            self._zstart += self._box_shift
+            owner = plasmas if plasmas.laser is not None else next(
+                e for e in beamline if e.hardware_type.lower() == "laser")
+            lasers = self._shifted_laser(owner, self._box_shift)
+            laser_z0 = first.initial_position - self._box_shift
         if self.boost is True:
             if self.gamma_boost > 0:
                 self.configure_boost(plas=plasmas, omega0=omega0)
@@ -634,10 +669,7 @@ class fbpicLattice(frameworkLattice):
         if lasers is not None:
             z0_antenna = None
             if self.laser_injection_method == "antenna":
-                offset = self.antenna_offset
-                if offset is None:
-                    offset = 3 * c * laser_elements[0].pulse_duration_1e_field
-                z0_antenna = laser_z0 + offset
+                z0_antenna = laser_z0 + self._antenna_offset(laser_elements[0])
                 if not (self.min_longitudinal_position < z0_antenna < self.max_longitudinal_position):
                     warn(
                         f"The laser antenna of {self.name} is at z = {z0_antenna * 1e6:.1f} um, "
@@ -768,17 +800,29 @@ class fbpicLattice(frameworkLattice):
         plas: :class:`~laura.models.element.Plasma`
             SimFrame `plasma` object
 
+        Without ``plasma_min/max_longitudinal_position`` the column is the
+        element itself, its entrance and exit in FBPIC's z: in a boosted frame
+        the whole stage lies in the box at t = 0 (contracted by gamma_boost),
+        and the injector only adds plasma at the box front as the window moves,
+        so a column cut to the box (the model's default) left the stage empty.
+        LAURA's density profile is measured from the entrance.
+
         Returns
         -------
         Dict
             Dictionary of `add_new_species` keyword arguments
         """
+        sim = plas.simulation
+        entrance = float(plas.physical.start.z) - self.zstart
+
+        def dens_func(z, r):  # FBPIC reads the argument names
+            return plas._relative_density_profile(z - entrance, r)
+
         return {
-            "dens_func": (
-                None if plas.plasma.is_uniform else plas._relative_density_profile
-            ),
-            "p_zmin": plas.simulation.p_zmin,
-            "p_zmax": plas.simulation.p_zmax,
+            "dens_func": None if plas.plasma.is_uniform else dens_func,
+            "p_zmin": entrance if sim.plasma_min_longitudinal_position is None else sim.p_zmin,
+            "p_zmax": (entrance + float(plas.physical.length)
+                       if sim.plasma_max_longitudinal_position is None else sim.p_zmax),
             "p_rmin": plas.simulation.p_rmin,
             "p_rmax": plas.simulation.p_rmax,
             "p_nr": plas.simulation.particles_per_radial_cell,
@@ -1024,6 +1068,7 @@ class fbpicLattice(frameworkLattice):
         FBPIC particles once :func:`~write` has built the :attr:`~simulation`.
         """
         super().preProcess()
+        self._box_shift = 0.0  # set again by configure_simulation, with zstart
         if self.particle_definition is None:
             self._zstart = float(self.startObject.physical.start.z)
             return
