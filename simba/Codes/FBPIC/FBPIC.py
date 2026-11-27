@@ -612,11 +612,6 @@ class fbpicLattice(frameworkLattice):
             )
             self.boost = False
         if self.boost is True and laser_drives and self.gamma_boost > 0 and not self._box_shift:
-            # In a boosted frame the laser has to start at z ~ 0. An antenna emits the pulse when it passes,
-            # at lab time ~ (z0_antenna - z0)/c, which is boosted time gamma (t - beta z0_antenna / c): before
-            # the run starts for an antenna 83 um out (PLASMA's LWFA: nothing was emitted). `direct` stamps the
-            # pulse as though it had drifted ~2 gamma^2 z0 in vacuum. So FBPIC's z = 0 is moved to the antenna,
-            # or to the laser's centre for `direct`; the beam and plasma follow zstart, the box and laser this.
             first = laser_elements[0]
             self._box_shift = first.initial_position + (
                 self._antenna_offset(first) if self.laser_injection_method == "antenna" else 0.0)
@@ -896,8 +891,6 @@ class fbpicLattice(frameworkLattice):
             uz_th=u_th,
             **extent,
         )
-        # The freed electrons go to their own (initially empty) species, so the
-        # injected bunch can be told apart from the background plasma.
         self._injected_electrons = self.simulation.add_new_species(
             q=plas.plasma.charge("electron"), m=plas.plasma.mass("electron"),
         )
@@ -1143,9 +1136,6 @@ class fbpicLattice(frameworkLattice):
         )
         if self.boosted:
             if self.injected_electrons is not None:
-                # ponytail: boosted output is the back-transformed `bunch` only;
-                # add the injected species to that diagnostic if boosted
-                # ionization injection is ever needed.
                 warn(
                     f"{self.objectname} is boosted, so its output is read from the "
                     "back-transformed diagnostic, which holds the incoming bunch "

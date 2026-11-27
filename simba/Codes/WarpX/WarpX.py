@@ -89,11 +89,7 @@ class warpxLattice(frameworkLattice):
     always included (:attr:`~include_ions`): an electron-only plasma streaming through the
     boosted box carries an unneutralised charge and current, whose fields swamped the wake.
     Steps fall roughly as ``(1 + beta) gamma^2`` for a laser stage; the wake's phase
-    velocity bounds the boost.
-
-    Validated on PLASMA's LWFA (1.2 cm, lambda/20) against Wake-T: at gamma 3 the witness
-    matches (energy -0.5 %, eps_n +13 %); at gamma 6 the wake does but the witness does not
-    (eps_n x4.5, bunch lengthened). A beam-driven stage (PWFA) is not validated."""
+    velocity bounds the boost.."""
 
     boost_inputs: Dict = {
         "algo.maxwell_solver": "psatd",
