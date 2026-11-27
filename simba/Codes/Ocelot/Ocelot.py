@@ -4,7 +4,7 @@
 """
 
 from ... import exceptions
-from ...Framework_objects import frameworkLattice, getGrids
+from ...Framework_objects import frameworkLattice, getGrids, wake_weight
 from laura.translator.utils.fields import FieldMap
 from ...Modules.Twiss.ocelot import save_ocelot_twiss_hdf
 from ...Modules.constants import speed_of_light
@@ -962,19 +962,14 @@ class ocelotLattice(frameworkLattice):
                 self.mbi_navi, self.lat_obj.sequence[0], self.lat_obj.sequence[-1]
             )
         for name, obj in self.elements.items():
-            fieldstr = None
-            if "cavity" in obj.hardware_type.lower():
-                fieldstr = "wakefield_definition"
-            elif "wake" in obj.hardware_type.lower():
-                fieldstr = "field_definition"
+            field = getattr(getattr(obj, "simulation", None), "wakefield_definition", None)
             if (
-                fieldstr is not None
+                any(kind in obj.hardware_type.lower() for kind in ("cavity", "wake"))
                 and self.wakefield_enable
-                and getattr(obj.simulation, fieldstr) is not None
+                and getattr(obj.simulation, "wakefield_enable", True)
+                and field is not None
             ):
-                wake, w_ind = self.physproc_wake(
-                    name, getattr(obj.simulation, fieldstr), obj.cavity.n_cells
-                )
+                wake, w_ind = self.physproc_wake(name, field, wake_weight(obj, self._wake_map(obj, field)))
                 navi_processes += [wake]
                 navi_locations_start += [self.lat_obj.sequence[w_ind]]
                 navi_locations_end += [self.lat_obj.sequence[w_ind + 1]]
@@ -1166,11 +1161,25 @@ class ocelotLattice(frameworkLattice):
             regions.append((sequence[start], sequence[-1]))
         return regions
 
+    def _wake_map(self, element, field: FieldMap | str) -> FieldMap | str:
+        """
+        The wake as a FieldMap, read from its file if need be, for its
+        ``reference_length``; a file that can't be read has none, so it stays a path.
+        """
+        if not isinstance(field, str):
+            return field
+        from laura.translator.utils.functions import expand_substitution
+
+        try:
+            return FieldMap(filename=expand_substitution(element, field, self.global_parameters["master_lattice"]))
+        except Exception:
+            return field
+
     def physproc_wake(
             self,
             name: str,
             loc: FieldMap | str,
-            ncell: int,
+            weight: float,
     ) -> tuple:
         """
         An Ocelot ``Wake`` physics process for an element's wakefield.
@@ -1181,8 +1190,9 @@ class ocelotLattice(frameworkLattice):
             Name of the element with the wake
         loc: :class:`~laura.translator.utils.fields.FieldMap` or str
             The wake, or its file; a FieldMap is written as an Ocelot wake table first
-        ncell: int
-            Number of cells; multiplies the wake
+        weight: float
+            Number of wake tables the element adds up to (see
+            :func:`~simba.Framework_objects.wake_weight`); multiplies the wake
 
         Returns
         -------
@@ -1198,7 +1208,7 @@ class ocelotLattice(frameworkLattice):
             w_sampling=self.wake_sampling,
             filter_order=self.wake_filter,
         )
-        wake.factor = ncell * self.wake_factor
+        wake.factor = weight * self.wake_factor
         wake.wake_table = WakeTable(fname)
         w_ind = self.names.index(name)
         return wake, w_ind

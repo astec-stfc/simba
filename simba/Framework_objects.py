@@ -345,6 +345,18 @@ def _charged_species(carried: dict | None) -> list:
     return [name for name, b in (carried or {}).items() if rbf.SPECIES[b.species][1] != 0]
 
 
+def wake_weight(element, field) -> float:
+    """
+    How many wake tables an element adds up to:
+    ``length / reference_length`` for a table over that length of structure
+    (a fraction for a per-module table on each of its cavities), else once per cell.
+    """
+    reference_length = getattr(field, "reference_length", None)
+    if reference_length:
+        return element.physical.length / reference_length
+    return getattr(getattr(element, "cavity", None), "n_cells", None) or 1
+
+
 class frameworkLattice(BaseModel):
     """
     A line of elements and groups tracked by one code: writing, running and post-processing it.

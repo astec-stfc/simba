@@ -10,7 +10,7 @@ except ImportError:
     has_cupy = False
 
 from ... import exceptions
-from ...Framework_objects import frameworkLattice, getGrids
+from ...Framework_objects import frameworkLattice, getGrids, wake_weight
 from ...Modules import Beams as rbf
 from ...Modules.constants import speed_of_light
 from copy import deepcopy
@@ -342,8 +342,8 @@ class xsuiteLattice(frameworkLattice):
 
     def install_wakes(self) -> None:
         """
-        Put an xwakes wake at the exit of each element with an active wake. The
-        table is per cell, so it is scaled by ``n_cells``.
+        Put an xwakes wake at the exit of each element with an active wake,
+        scaled by :func:`~simba.Framework_objects.wake_weight`.
         """
         import xtrack as xt
         from laura.translator.utils.fields import FieldMap
@@ -374,7 +374,7 @@ class xsuiteLattice(frameworkLattice):
                     warn(f"Line '{self.objectname}': could not load {name}'s wake {filename} ({exc}); Xsuite drops it.")
                     continue
             exit_s = self.line.get_s_position(name) + self.line[name].length
-            placed[f"{name}_wake"] = (exit_s, _Wake(field, cells, self.wake_slices))
+            placed[f"{name}_wake"] = (exit_s, _Wake(field, wake_weight(elem, field), self.wake_slices))
         env = self.line.env
         for name in placed:
             env.new(name, xt.Marker)
