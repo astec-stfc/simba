@@ -213,6 +213,12 @@ class ocelotLattice(frameworkLattice):
     random_mesh: bool = True
     """Random meshing for space charge."""
 
+    sc_step: int = 1
+    """3D space-charge kick every this many :attr:`unit_step`."""
+
+    sc_grid: int | None = None
+    """3D space-charge mesh points per axis; None picks them from the number of particles."""
+
     nbin_csr: int | None = None
     """Number of longitudinal bins for CSR; None takes the line's :attr:`csr_bins`, as the other codes do."""
 
@@ -224,6 +230,12 @@ class ocelotLattice(frameworkLattice):
 
     sigmamin_csr: float = 1e-5
     """Minimum size for CSR."""
+
+    csr_traj_step: float = 0.0002
+    """Step of CSR's reference trajectory [m] (Ocelot's default)."""
+
+    csr_apply_step: float = 0.0005
+    """Step of CSR's kick calculation [m] (Ocelot's default)."""
 
     wake_sampling: int = 1000
     """Number of samples for wakes."""
@@ -926,8 +938,7 @@ class ocelotLattice(frameworkLattice):
         space_charge_set = False
         csr_set = False
         if space_charge_3d:
-            gridsize = self.grids.getGridSizes(len(self.global_parameters["beam"].x))
-            g1 = self.sc_grid if hasattr(self, "sc_grid") else gridsize
+            g1 = self.sc_grid or self.grids.getGridSizes(len(self.global_parameters["beam"].x))
             grids = [g1 for _ in range(3)]
             sc = self.physproc_sc(grids)
             navi_processes += [sc]
@@ -1110,7 +1121,7 @@ class ocelotLattice(frameworkLattice):
         SpaceCharge
         """
         from ocelot.cpbd.sc import SpaceCharge
-        sc = SpaceCharge(step=1)
+        sc = SpaceCharge(step=self.sc_step)
         sc.nmesh_xyz = grids
         sc.random_mesh = self.random_mesh
         return sc
@@ -1126,6 +1137,7 @@ class ocelotLattice(frameworkLattice):
             Lists of the processes, their start elements and their end elements
         """
         from ocelot.cpbd.csr import CSR
+        from ocelot.cpbd.elements import Cavity
         block = self.file_block.get("csr") or {}
         if "start" in block and "end" in block:
             st = [block["start"]] if isinstance(block["start"], str) else block["start"]
@@ -1138,30 +1150,40 @@ class ocelotLattice(frameworkLattice):
         else:
             regions = self.csr_regions()
         csrlist = []
-        for _ in regions:
+        sequence = self.lat_obj.sequence
+        for start, _ in regions:
             csr = CSR()
             csr.n_bin = self.nbin_csr or self.csr_bins
             csr.m_bin = self.mbin_csr
             csr.sigma_min = self.sigmamin_csr
+            csr.traj_step = self.csr_traj_step
+            csr.apply_step = self.csr_apply_step
+            # the design energy where it starts [GeV]: Ocelot needs it for the trajectory
+            # through an undulator in the region, and takes beta = 1 without it
+            csr.energy = float(self.pin.E) + sum(
+                e.v * np.cos(e.phi * np.pi / 180.0)
+                for e in sequence[: sequence.index(start)] if isinstance(e, Cavity)
+            )
             csrlist.append(csr)
         return csrlist, [r[0] for r in regions], [r[1] for r in regions]
 
     def csr_regions(self) -> list:
         """
-        ``(start, end)`` elements of each run of bends: from its first bend to the
-        element before the next cavity (or the end), so the CSR in the drifts after
-        a chicane is kept.
+        ``(start, end)`` elements of each run of bends: from the element after the
+        cavity before it (or the start) to the element before the next cavity (or the
+        end), so the CSR in the drifts after a chicane is kept, and Ocelot sees the
+        straight approach, without which the entrance transient is low.
         """
         from ocelot.cpbd.elements import Bend, Cavity, RBend, SBend, TDCavity, TWCavity
-        regions, start = [], None
+        regions, start, after_cavity = [], None, 0
         sequence = self.lat_obj.sequence
         for i, element in enumerate(sequence):
             if isinstance(element, (Cavity, TWCavity, TDCavity)):
                 if start is not None:
                     regions.append((sequence[start], sequence[i - 1]))
-                start = None
+                start, after_cavity = None, i + 1
             elif start is None and isinstance(element, (Bend, SBend, RBend)) and element.angle:
-                start = i
+                start = after_cavity
         if start is not None:
             regions.append((sequence[start], sequence[-1]))
         return regions

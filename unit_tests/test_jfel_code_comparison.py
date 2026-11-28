@@ -83,7 +83,7 @@ EXIT_VALUES = {
 EXIT_BANDS = {"E": 0.005, "dE": 0.15, "enx": 0.15, "eny": 0.15, "sx": 0.15, "sy": 0.05, "sz": 0.15}
 
 # CSR on, as the lattice's elements ask; enx grows ~0.09 um through the chicane in both.
-# Ocelot's CSR spans only the chicane (see ocelotLattice.csr_regions): over the whole
+# Ocelot's CSR stays between the cavities (see ocelotLattice.csr_regions): over the whole
 # line it slices the cavities and its sz dropped to MAD-X's (142.7 um).
 TOLERANCES_CSR = {
     # measured:                  0.163  0.019   4.61   4.80   3.81  5.80   2.75
