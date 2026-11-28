@@ -1204,7 +1204,7 @@ class ocelotLattice(frameworkLattice):
             loc = loc.write_field_file(code="ocelot")
         fname = ocelot_wake_file(self.global_parameters["master_subdir"], loc)
         wake = Wake(
-            step=100,
+            step=1,
             w_sampling=self.wake_sampling,
             filter_order=self.wake_filter,
         )

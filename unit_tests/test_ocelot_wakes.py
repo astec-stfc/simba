@@ -26,7 +26,7 @@ def _wake_file(path, reference_length):
     return wake.filename
 
 
-def _wake_factors(tmp_path, monkeypatch, reference_length, wake_enable=True):
+def _lattice(tmp_path, monkeypatch, reference_length, wake_enable=True):
     path = _wake_file(tmp_path / "wk.hdf5", reference_length)
 
     def physical(z):
@@ -60,7 +60,11 @@ def _wake_factors(tmp_path, monkeypatch, reference_length, wake_enable=True):
     monkeypatch.setattr(ocelotLattice, "reference_p0c", property(lambda self: 1e9))  # no beam
     lattice.tw_focusing = False
     lattice.writeElements()
-    navi = lattice.navi_setup(write_beams=False)
+    return lattice
+
+
+def _wake_factors(tmp_path, monkeypatch, reference_length, wake_enable=True):
+    navi = _lattice(tmp_path, monkeypatch, reference_length, wake_enable).navi_setup(write_beams=False)
     return [p.factor for p in navi.process_table.proc_list if type(p).__name__ == "Wake"]
 
 
@@ -73,3 +77,28 @@ def test_every_wake_adds_up_to_length_over_reference_length_tables(tmp_path, mon
 
 def test_a_wake_switched_off_on_its_element_is_not_applied(tmp_path, monkeypatch):
     assert _wake_factors(tmp_path, monkeypatch, 1.2, wake_enable=False) == pytest.approx([0.25])
+
+
+def test_each_wake_is_applied_over_its_whole_element_beside_a_finer_process(tmp_path, monkeypatch):
+    """A Wake(step=100) beside a process at every step (as space charge) was applied
+    only at its element's end, scaled by that last step: 1/30 of the wake here."""
+    from ocelot import ParticleArray, track
+    from ocelot.cpbd.physics_proc import PhysProc
+    from ocelot.cpbd.wake3D import Wake
+
+    lattice = _lattice(tmp_path, monkeypatch, 1.2)
+    lattice.unit_step = 0.01
+    navi = lattice.navi_setup(write_beams=False)
+    navi.add_physics_proc(PhysProc(step=1), lattice.lat_obj.sequence[0], lattice.lat_obj.sequence[-1])
+    applied = {}
+
+    def fraction(self, p_array, dz):
+        # as Wake.apply; the Wakefield element's is a kick (s_start == s_stop), applied whole
+        length = self.s_stop - self.s_start
+        applied[id(self)] = applied.get(id(self), 0) + (dz / length if length else 1)
+
+    monkeypatch.setattr(Wake, "apply", fraction)
+    p_array = ParticleArray(n=10)
+    p_array.E = 1.0
+    track(lattice.lat_obj, p_array, navi, calc_tws=False, print_progress=False)
+    assert sorted(applied.values()) == pytest.approx([1, 1])
